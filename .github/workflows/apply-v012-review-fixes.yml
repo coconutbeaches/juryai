@@ -1,18 +1,17 @@
 name: Apply v0.1.2 review fixes
 
 on:
-  push:
-    branches:
-      - agent/json-schema-golden-fixture
-    paths:
-      - .github/v012-ready
+  pull_request:
+    types:
+      - reopened
 
 permissions:
   contents: write
+  pull-requests: read
 
 jobs:
   apply:
-    if: github.ref == 'refs/heads/agent/json-schema-golden-fixture'
+    if: github.head_ref == 'agent/json-schema-golden-fixture'
     runs-on: ubuntu-latest
     steps:
       - name: Check out branch
