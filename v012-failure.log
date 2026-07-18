@@ -1,0 +1,103 @@
+failed_gate=tests
+exit_status=1
+
+ [31m❯[39m src/tests/schema.test.ts [2m([22m[2m7 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[33m 721[2mms[22m[39m
+[31m     [31m×[31m accepts the canonical Dry Run 001 golden fixture[39m[32m 244[2mms[22m[39m
+     [32m✓[39m rejects unknown enum values[32m 121[2mms[22m[39m
+     [32m✓[39m rejects missing required fields[32m 83[2mms[22m[39m
+     [32m✓[39m rejects unexpected properties where additionalProperties is false[32m 66[2mms[22m[39m
+     [32m✓[39m rejects numeric confidence fields[32m 67[2mms[22m[39m
+[31m     [31m×[31m accepts both canonical evidence relationship concepts[39m[32m 70[2mms[22m[39m
+     [32m✓[39m rejects pre-v0.1.2 extraction issue enums[32m 67[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 3 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/tests/golden-fixture.test.ts[2m > [22mDry Run 001 golden fixture command path[2m > [22mvalidates with zero JSON Schema or invariant errors
+[31m[1mAssertionError[22m: expected { valid: false, …(2) } to deeply equal { valid: true, schemaErrors: [], …(1) }[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[2m  {[22m
+[2m    "invariantErrors": [],[22m
+[32m-   "schemaErrors": [],[39m
+[32m-   "valid": true,[39m
+[31m+   "schemaErrors": [[39m
+[31m+     {[39m
+[31m+       "message": "must be equal to constant ({\"allowedValue\":\"0.1.1\"})",[39m
+[31m+       "path": "/audit/schema_version",[39m
+[31m+     },[39m
+[31m+   ],[39m
+[31m+   "valid": false,[39m
+[2m  }[22m
+
+[36m [2m❯[22m src/tests/golden-fixture.test.ts:[2m11:20[22m[39m
+    [90m  9|[39m       [34mresolve[39m(projectRoot[33m,[39m [32m'src/fixtures/dry_run_001.golden.json'[39m)[33m,[39m
+    [90m 10|[39m     )[33m;[39m
+    [90m 11|[39m     expect(result).toEqual({ valid: true, schemaErrors: [], invariantE…
+    [90m   |[39m                    [31m^[39m
+    [90m 12|[39m   })[33m;[39m
+    [90m 13|[39m })[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/tests/schema.test.ts[2m > [22mJuryAI JSON Schema[2m > [22maccepts the canonical Dry Run 001 golden fixture
+[31m[1mAssertionError[22m: expected [ { …(2) } ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   {[39m
+[31m+     "message": "must be equal to constant ({\"allowedValue\":\"0.1.1\"})",[39m
+[31m+     "path": "/audit/schema_version",[39m
+[31m+   },[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/tests/schema.test.ts:[2m8:33[22m[39m
+    [90m  6|[39m   [34mit[39m([32m'accepts the canonical Dry Run 001 golden fixture'[39m[33m,[39m [35masync[39m () [33m=>[39m {
+    [90m  7|[39m     [35mconst[39m result [33m=[39m [35mawait[39m [34mvalidateCaseRecord[39m([35mawait[39m [34mloadGolden[39m())[33m;[39m
+    [90m  8|[39m     [34mexpect[39m(result[33m.[39mschemaErrors)[33m.[39m[34mtoEqual[39m([])[33m;[39m
+    [90m   |[39m                                 [31m^[39m
+    [90m  9|[39m     [34mexpect[39m(result[33m.[39minvariantErrors)[33m.[39m[34mtoEqual[39m([])[33m;[39m
+    [90m 10|[39m     [34mexpect[39m(result[33m.[39mvalid)[33m.[39m[34mtoBe[39m([35mtrue[39m)[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/tests/schema.test.ts[2m > [22mJuryAI JSON Schema[2m > [22maccepts both canonical evidence relationship concepts
+[31m[1mAssertionError[22m: expected [ { …(2) } ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   {[39m
+[31m+     "message": "must be equal to constant ({\"allowedValue\":\"0.1.1\"})",[39m
+[31m+     "path": "/audit/schema_version",[39m
+[31m+   },[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/tests/schema.test.ts:[2m57:35[22m[39m
+    [90m 55|[39m       record[33m.[39mevidence_evidence_links[[34m2[39m][33m.[39mrelationship [33m=[39m relationship[33m;[39m
+    [90m 56|[39m       [35mconst[39m result [33m=[39m [35mawait[39m [34mvalidateCaseRecord[39m(record)[33m;[39m
+    [90m 57|[39m       [34mexpect[39m(result[33m.[39mschemaErrors)[33m.[39m[34mtoEqual[39m([])[33m;[39m
+    [90m   |[39m                                   [31m^[39m
+    [90m 58|[39m       [34mexpect[39m(result[33m.[39minvariantErrors)[33m.[39m[34mtoEqual[39m([])[33m;[39m
+    [90m 59|[39m       [34mexpect[39m(result[33m.[39mvalid)[33m.[39m[34mtoBe[39m([35mtrue[39m)[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m2 failed[39m[22m[2m | [22m[1m[32m1 passed[39m[22m[90m (3)[39m
+[2m      Tests [22m [1m[31m3 failed[39m[22m[2m | [22m[1m[32m15 passed[39m[22m[90m (18)[39m
+[2m   Start at [22m 15:53:01
+[2m   Duration [22m 1.02s[2m (transform 158ms, setup 0ms, import 393ms, tests 1.08s, environment 0ms)[22m
+
+
+::error file=/home/runner/work/juryai/juryai/src/tests/golden-fixture.test.ts,title=src/tests/golden-fixture.test.ts > Dry Run 001 golden fixture command path > validates with zero JSON Schema or invariant errors,line=11,column=20::AssertionError: expected { valid: false, …(2) } to deeply equal { valid: true, schemaErrors: [], …(1) }%0A%0A- Expected%0A+ Received%0A%0A  {%0A    "invariantErrors": [],%0A-   "schemaErrors": [],%0A-   "valid": true,%0A+   "schemaErrors": [%0A+     {%0A+       "message": "must be equal to constant ({\"allowedValue\":\"0.1.1\"})",%0A+       "path": "/audit/schema_version",%0A+     },%0A+   ],%0A+   "valid": false,%0A  }%0A%0A ❯ src/tests/golden-fixture.test.ts:11:20%0A%0A
+
+::error file=/home/runner/work/juryai/juryai/src/tests/schema.test.ts,title=src/tests/schema.test.ts > JuryAI JSON Schema > accepts the canonical Dry Run 001 golden fixture,line=8,column=33::AssertionError: expected [ { …(2) } ] to deeply equal []%0A%0A- Expected%0A+ Received%0A%0A- []%0A+ [%0A+   {%0A+     "message": "must be equal to constant ({\"allowedValue\":\"0.1.1\"})",%0A+     "path": "/audit/schema_version",%0A+   },%0A+ ]%0A%0A ❯ src/tests/schema.test.ts:8:33%0A%0A
+
+::error file=/home/runner/work/juryai/juryai/src/tests/schema.test.ts,title=src/tests/schema.test.ts > JuryAI JSON Schema > accepts both canonical evidence relationship concepts,line=57,column=35::AssertionError: expected [ { …(2) } ] to deeply equal []%0A%0A- Expected%0A+ Received%0A%0A- []%0A+ [%0A+   {%0A+     "message": "must be equal to constant ({\"allowedValue\":\"0.1.1\"})",%0A+     "path": "/audit/schema_version",%0A+   },%0A+ ]%0A%0A ❯ src/tests/schema.test.ts:57:35%0A%0A
