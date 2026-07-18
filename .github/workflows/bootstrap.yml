@@ -1,17 +1,18 @@
 name: Bootstrap extraction lab
 
 on:
-  push:
-    branches:
-      - agent/json-schema-golden-fixture
-    paths:
-      - bootstrap/ready
+  pull_request:
+    types:
+      - opened
+      - reopened
 
 permissions:
   contents: write
+  pull-requests: read
 
 jobs:
   bootstrap:
+    if: github.head_ref == 'agent/json-schema-golden-fixture'
     runs-on: ubuntu-latest
     steps:
       - name: Check out branch
