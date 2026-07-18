@@ -1,0 +1,2016 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://juryai.dev/schemas/juryai-case-record-v0.1.2.schema.json",
+  "title": "JuryAI Case Record v0.1.2",
+  "description": "Canonical machine-readable record for JuryAI v0.1.2 freelancer/client dispute extraction.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_version",
+    "case",
+    "parties",
+    "third_parties",
+    "submissions",
+    "agreement",
+    "deliverable_assessments",
+    "timeline",
+    "claims",
+    "evidence",
+    "claim_evidence_links",
+    "evidence_evidence_links",
+    "damages_claims",
+    "desired_outcomes",
+    "resolution_attempts",
+    "extraction_issues",
+    "clarification_questions",
+    "record_review",
+    "fact_findings",
+    "steelman_positions",
+    "deliberation_input",
+    "recommendation",
+    "party_decisions",
+    "audit"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.1.2"
+    },
+    "record_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "case": {
+      "$ref": "#/$defs/case"
+    },
+    "parties": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "$ref": "#/$defs/party"
+      }
+    },
+    "third_parties": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/thirdParty"
+      }
+    },
+    "submissions": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "$ref": "#/$defs/submission"
+      }
+    },
+    "agreement": {
+      "$ref": "#/$defs/agreement"
+    },
+    "deliverable_assessments": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/deliverableAssessment"
+      }
+    },
+    "timeline": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/timelineEvent"
+      }
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/claim"
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/evidence"
+      }
+    },
+    "claim_evidence_links": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/claimEvidenceLink"
+      }
+    },
+    "evidence_evidence_links": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/evidenceEvidenceLink"
+      }
+    },
+    "damages_claims": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/damagesClaim"
+      }
+    },
+    "desired_outcomes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/partyOutcomes"
+      }
+    },
+    "resolution_attempts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/resolutionAttempt"
+      }
+    },
+    "extraction_issues": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/extractionIssue"
+      }
+    },
+    "clarification_questions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/clarificationQuestion"
+      }
+    },
+    "record_review": {
+      "$ref": "#/$defs/recordReview"
+    },
+    "fact_findings": {
+      "$ref": "#/$defs/factFindings"
+    },
+    "steelman_positions": {
+      "$ref": "#/$defs/steelmanPositions"
+    },
+    "deliberation_input": {
+      "$ref": "#/$defs/deliberationInput"
+    },
+    "recommendation": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/recommendation"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "party_decisions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/partyDecision"
+      }
+    },
+    "audit": {
+      "$ref": "#/$defs/audit"
+    }
+  },
+  "$defs": {
+    "idString": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_\\-]{2,63}$"
+    },
+    "isoDateTimeOrNull": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "dateValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end", "precision", "approximate"],
+      "properties": {
+        "start": {
+          "type": ["string", "null"],
+          "format": "date"
+        },
+        "end": {
+          "type": ["string", "null"],
+          "format": "date"
+        },
+        "precision": {
+          "enum": ["day", "month", "year", "range", "unknown"]
+        },
+        "approximate": {
+          "type": "boolean"
+        }
+      }
+    },
+    "sourceSpan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["submission_id", "quote", "start_char", "end_char"],
+      "properties": {
+        "submission_id": {
+          "$ref": "#/$defs/idString"
+        },
+        "quote": {
+          "type": "string",
+          "minLength": 1
+        },
+        "start_char": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "end_char": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "case_id",
+        "case_type",
+        "status",
+        "created_at",
+        "currency",
+        "financial_envelope",
+        "jurisdiction_context",
+        "binding",
+        "respondent_deadline",
+        "closed_reason"
+      ],
+      "properties": {
+        "case_id": {
+          "$ref": "#/$defs/idString"
+        },
+        "case_type": {
+          "const": "freelancer_client_payment"
+        },
+        "status": {
+          "enum": [
+            "person_a_draft",
+            "person_a_submitted",
+            "person_b_invited",
+            "person_b_joined",
+            "person_b_submitted",
+            "record_building",
+            "evidence_review",
+            "clarification_pending",
+            "record_confirmation",
+            "ready_for_deliberation",
+            "recommendation_ready",
+            "party_responses_pending",
+            "resolved",
+            "unresolved",
+            "respondent_nonparticipation",
+            "unsuitable",
+            "withdrawn"
+          ]
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        },
+        "financial_envelope": {
+          "$ref": "#/$defs/financialEnvelope"
+        },
+        "jurisdiction_context": {
+          "$ref": "#/$defs/jurisdictionContext"
+        },
+        "binding": {
+          "const": false
+        },
+        "respondent_deadline": {
+          "$ref": "#/$defs/isoDateTimeOrNull"
+        },
+        "closed_reason": {
+          "type": ["string", "null"]
+        }
+      }
+    },
+    "financialEnvelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "person_a_requests_from_person_b_max",
+        "person_b_requests_from_person_a_max",
+        "gross_disputed_value",
+        "derived_from_outcome_ids"
+      ],
+      "properties": {
+        "person_a_requests_from_person_b_max": {
+          "type": "number",
+          "minimum": 0
+        },
+        "person_b_requests_from_person_a_max": {
+          "type": "number",
+          "minimum": 0
+        },
+        "gross_disputed_value": {
+          "type": "number",
+          "minimum": 0
+        },
+        "derived_from_outcome_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/idString"
+          }
+        }
+      }
+    },
+    "jurisdictionContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "person_a_country",
+        "person_b_country",
+        "transaction_country",
+        "governing_law_stated",
+        "jurisdiction_used_for_decision"
+      ],
+      "properties": {
+        "person_a_country": {
+          "type": ["string", "null"]
+        },
+        "person_b_country": {
+          "type": ["string", "null"]
+        },
+        "transaction_country": {
+          "type": ["string", "null"]
+        },
+        "governing_law_stated": {
+          "type": ["string", "null"]
+        },
+        "jurisdiction_used_for_decision": {
+          "const": false
+        }
+      }
+    },
+    "party": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "party_id",
+        "role",
+        "display_name",
+        "email",
+        "country",
+        "language",
+        "identity_status",
+        "consented_at",
+        "submission_complete",
+        "record_confirmed_at"
+      ],
+      "properties": {
+        "party_id": {
+          "enum": ["party_a", "party_b"]
+        },
+        "role": {
+          "enum": ["person_a", "person_b"]
+        },
+        "display_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "email": {
+          "type": ["string", "null"]
+        },
+        "country": {
+          "type": ["string", "null"]
+        },
+        "language": {
+          "type": "string",
+          "minLength": 2
+        },
+        "identity_status": {
+          "enum": ["unverified", "email_verified", "identity_verified"]
+        },
+        "consented_at": {
+          "$ref": "#/$defs/isoDateTimeOrNull"
+        },
+        "submission_complete": {
+          "type": "boolean"
+        },
+        "record_confirmed_at": {
+          "$ref": "#/$defs/isoDateTimeOrNull"
+        }
+      }
+    },
+    "thirdParty": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "third_party_id",
+        "name_or_label",
+        "role",
+        "relationship_to_party_id",
+        "contacted_for_case",
+        "notes"
+      ],
+      "properties": {
+        "third_party_id": {
+          "$ref": "#/$defs/idString"
+        },
+        "name_or_label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "role": {
+          "type": "string",
+          "minLength": 1
+        },
+        "relationship_to_party_id": {
+          "enum": ["party_a", "party_b", null]
+        },
+        "contacted_for_case": {
+          "type": "boolean"
+        },
+        "notes": {
+          "type": ["string", "null"]
+        }
+      }
+    },
+    "submission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "submission_id",
+        "party_id",
+        "submission_type",
+        "raw_text",
+        "submitted_at",
+        "supersedes_submission_id",
+        "is_locked",
+        "content_hash"
+      ],
+      "properties": {
+        "submission_id": {
+          "$ref": "#/$defs/idString"
+        },
+        "party_id": {
+          "enum": ["party_a", "party_b"]
+        },
+        "submission_type": {
+          "enum": ["initial_position", "clarification_answer", "correction", "counteroffer"]
+        },
+        "raw_text": {
+          "type": "string",
+          "minLength": 1
+        },
+        "submitted_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "supersedes_submission_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/idString"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "is_locked": {
+          "type": "boolean"
+        },
+        "content_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "agreement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "agreement_exists",
+        "agreement_form",
+        "agreement_summary",
+        "source_evidence_ids",
+        "terms",
+        "open_issues"
+      ],
+      "properties": {
+        "agreement_exists": {
+          "type": "boolean"
+        },
+        "agreement_form": {
+          "enum": ["written_contract", "email_or_messages", "oral", "mixed", "disputed", "none"]
+        },
+        "agreement_summary": {
+          "type": "string"
+        },
+        "source_evidence_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/idString"
+          }
+        },
+        "terms": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/agreementTerm"
+          }
+        },
+        "open_issues": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "agreementTerm": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "term_id",
+        "term_type",
+        "wording",
+        "wording_status",
+        "interpretation_status",
+        "person_a_interpretation",
+        "person_b_interpretation",
+        "source_evidence_ids",
+        "materiality",
+        "source_spans"
+      ],
+      "properties": {
+        "term_id": {
+          "$ref": "#/$defs/idString"
+        },
+        "term_type": {
+          "enum": [
+            "scope",
+            "price",
+            "deposit",
+            "payment_trigger",
+            "deadline",
+            "client_dependency",
+            "revision_limit",
+            "acceptance",
+            "termination",
+            "refund",
+            "credentials",
+            "other"
+          ]
+        },
+        "wording": {
+          "type": "string"
+        },
+        "wording_status": {
+          "enum": ["agreed", "disputed", "not_inspected", "unclear"]
+        },
+        "interpretation_status": {
+          "enum": ["agreed", "disputed", "not_applicable", "unclear"]
+        },
+        "person_a_interpretation": {
+          "type": ["string", "null"]
+        },
+        "person_b_interpretation": {
+          "type": ["string", "null"]
+        },
+        "source_evidence_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/idString"
+          }
+        },
+        "materiality": {
+          "enum": ["high", "medium", "low"]
+        },
+        "source_spans": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sourceSpan"
+          }
+        }
+      }
+    },
+    "deliverableAssessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deliverable_id",
+        "name",
+        "scope_status",
+        "completion_status_person_a",
+        "completion_status_person_b",
+        "use_status",
+        "alleged_defects",
+        "repair_attempts",
+        "source_claim_ids",
+        "source_evidence_ids",
+        "materiality"
+      ],
+      "properties": {
+        "deliverable_id": {
+          "$ref": "#/$defs/idString"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scope_status": {
+          "enum": ["included", "excluded", "added_later", "disputed", "unclear"]
+        },
+        "completion_status_person_a": {
+          "enum": [
+            "complete",
+            "substantially_complete",
+            "partially_complete",
+            "not_complete",
+            "disputed",
+            "unknown"
+          ]
+        },
+        "completion_status_person_b": {
+          "enum": [
+            "complete",
+            "substantially_complete",
+            "partially_complete",
+            "materially_defective",
+            "not_complete",
+            "disputed",
+            "unknown"
+          ]
+        },
+        "use_status": {
+          "enum": [
+            "not_used",
+            "partially_used",
+            "fully_used",
+            "briefly_published",
+            "disputed",
+            "unknown"
+          ]
+        },
+        "alleged_defects": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "repair_attempts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "source_claim_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/idString"
+          }
+        },
+        "source_evidence_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/idString"
+          }
+        },
+        "materiality": {
+          "enum": ["high", "medium", "low"]
+        }
+      }
+    },
+    "timelineEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "date",
+        "event_summary",
+        "actor_party_id",
+        "actor_third_party_id",
+        "asserted_by_party_ids",
+        "occurrence_status",
+        "interpretation_status",
+        "person_a_interpretation",
+        "person_b_interpretation",
+        "source_evidence_ids",
+        "source_spans",
+        "materiality"
+      ],
+      "properties": {
+        "event_id": {
+          "$ref": "#/$defs/idString"
+        },
+        "date": {
+          "$ref": "#/$defs/dateValue"
+        },
+        "event_summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "actor_party_id": {
+          "enum": ["party_a", "party_b", null]
+        },
+        "actor_third_party_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/idString"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "asserted_by_party_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": ["party_a", "party_b"]
+          }
+        },
+        "occurrence_status": {
+          "enum": ["agreed", "disputed", "supported_unanswered", "unsupported_claim", "unclear"]
+        },
+        "interpretation_status": {
+          "enum": ["agreed", "disputed", "not_applicable", "unclear"]
+        },
+        "person_a_interpretation": {
+          "type": ["string", "null"]
+        },
+        "person_b_interpretation": {
+          "type": ["string", "null"]
+        },
+        "source_evidence_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/idString"
+          }
+        },
+        "source_spans": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sourceSpan"
+          }
+        },
+        "materiality": {
+          "enum": ["high", "medium", "low"]
+        }
+      }
+    },
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claim_id",
+        "party_id",
+        "claim_text",
+        "claim_type",
+        "response_status",
+        "materiality",
+        "support_level",
+        "supporting_evidence_ids",
+        "contradicting_evidence_ids",
+        "counterclaim_ids",
+        "requires_clarification",
+        "against_asserting_party_interest",
+        "source_spans"
+      ],
+      "properties": {
+        "claim_id": {
+          "$ref": "#/$defs/idString"
+        },
+        "party_id": {
+          "enum": ["party_a", "party_b"]
+        },
+        "claim_text": {
+          "type": "string",
+          "minLength": 1
+        },
+        "claim_type": {
+          "enum": [
+            "agreement_term",
+            "scope",
+            "payment",
+            "completion",
+            "delay",
+            "client_delay",
+            "defect",
+            "acceptance",
+            "use_or_benefit",
+            "communication",
+            "consequential_loss",
+            "refund",
+            "credentials",
+            "other"
+          ]
+        },
+        "response_status": {
+          "enum": ["unanswered", "agreed", "partly_agreed", "disputed", "insufficient_information"]
+        },
+        "materiality": {
+          "enum": ["high", "medium", "low"]
+        },
+        "support_level": {
+          "enum": ["strong", "moderate", "weak", "none", "conflicting", "not_assessed"]
+        },
+        "supporting_evidence_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/idString"
+          }
+        },
+        "contradicting_evidence_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/idString"
+          }
+        },
+        "counterclaim_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/idString"
+          }
+        },
+        "requires_clarification": {
+          "type": "boolean"
+        },
+        "against_asserting_party_interest": {
+          "type": "boolean"
+        },
+        "source_spans": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/sourceSpan"
+          }
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_system", "export_method", "metadata_present", "metadata_missing"],
+      "properties": {
+        "source_system": {
+          "type": ["string", "null"]
+        },
+        "export_method": {
+          "type": ["string", "null"]
+        },
+        "metadata_present": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "metadata_missing": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "evidenceExtract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "extract_id",
+        "text",
+        "author_party_id",
+        "author_third_party_id",
+        "author_status",
+        "location_in_evidence"
+      ],
+      "properties": {
+        "extract_id": {
+          "$ref": "#/$defs/idString"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1
+        },
+        "author_party_id": {
+          "enum": ["party_a", "party_b", null]
+        },
+        "author_third_party_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/idString"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "author_status": {
+          "enum": ["verified_from_metadata", "asserted_by_submitter", "inferred", "unknown"]
+        },
+        "location_in_evidence": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_id",
+        "submitted_by_party_id",
+        "evidence_type",
+        "title",
+        "availability_status",
+        "file_reference",
+        "original_filename",
+        "file_hash",
+        "created_date",
+        "uploaded_at",
+        "inspected_at",
+        "description_from_submitter",
+        "model_summary",
+        "authenticity_status",
+        "completeness_status",
+        "visibility",
+        "contains_sensitive_data",
+        "relevance",
+        "claimed_to_have_existed_by_party_ids",
+        "unavailability_explanation",
+        "provenance",
+        "extracts",
+        "limitations"
+      ],
+      "properties": {
+        "evidence_id": {
+          "$ref": "#/$defs/idString"
+        },
+        "submitted_by_party_id": {
+          "enum": ["party_a", "party_b"]
+        },
+        "evidence_type": {
+          "enum": [
+            "contract",
+            "invoice",
+            "payment_record",
+            "email_thread",
+            "message_export",
+            "message_screenshot",
+            "screen_recording",
+            "video",
+            "project_history",
+            "deliverable",
+            "social_media_post",
+            "campaign_record",
+            "message_history",
+            "other"
+          ]
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "availability_status": {
+          "enum": [
+            "described_only",
+            "uploaded_uninspected",
+            "inspected",
+            "unavailable",
+            "withdrawn"
+          ]
+        },
+        "file_reference": {
+          "type": ["string", "null"]
+        },
+        "original_filename": {
+          "type": ["string", "null"]
+        },
+        "file_hash": {
+          "type": ["string", "null"],
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "created_date": {
+          "$ref": "#/$defs/dateValue"
+        },
+        "uploaded_at": {
+          "$ref": "#/$defs/isoDateTimeOrNull"
+        },
+        "inspected_at": {
+          "$ref": "#/$defs/isoDateTimeOrNull"
+        },
+        "description_from_submitter": {
+          "type": "string"
+        },
+        "model_summary": {
+          "type": ["string", "null"]
+        },
+        "authenticity_status": {
+          "enum": ["not_verified", "not_assessable", "metadata_consistent", "disputed", "unknown"]
+        },
+        "completeness_status": {
+          "enum": ["appears_complete", "partial", "fragment", "cropped", "unavailable", "unknown"]
+        },
+        "visibility": {
+          "enum": ["shared_with_both_parties", "party_private", "withheld"]
+        },
+        "contains_sensitive_data": {
+          "type": "boolean"
+        },
+        "relevance": {
+          "enum": ["high", "medium", "low", "unknown"]
+        },
+        "claimed_to_have_existed_by_party_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": ["party_a", "party_b"]
+          }
+        },
+        "unavailability_explanation": {
+          "type": ["string", "null"]
+        },
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "extracts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidenceExtract"
+          }
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "claimEvidenceLink": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "link_id",
+        "claim_id",
+        "evidence_id",
+        "relationship",
+        "strength",
+        "decision_critical",
+        "explanation"
+      ],
+      "properties": {
+        "link_id": {
+          "$ref": "#/$defs/idString"
+        },
+        "claim_id": {
+          "$ref": "#/$defs/idString"
+        },
+        "evidence_id": {
+          "$ref": "#/$defs/idString"
+        },
+        "relationship": {
+          "enum": [
+            "supports",
+            "contradicts",
+            "contextualizes",
+            "establishes_timeline",
+            "establishes_amount",
+            "unclear"
+          ]
+        },
+        "strength": {
+          "enum": ["strong", "moderate", "weak", "not_assessed"]
+        },
+        "decision_critical": {
+          "type": "boolean"
+        },
+        "explanation": {
+          "type": "string"
+        }
+      }
+    },
+    "evidenceEvidenceLink": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "link_id",
+        "from_evidence_id",
+        "to_evidence_id",
+        "relationship",
+        "comparison_status",
+        "explanation"
+      ],
+      "properties": {
+        "link_id": {
+          "$ref": "#/$defs/idString"
+        },
+        "from_evidence_id": {
+          "$ref": "#/$defs/idString"
+        },
+        "to_evidence_id": {
+          "$ref": "#/$defs/idString"
+        },
+        "relationship": {
+          "enum": [
+            "corroborates",
+            "overlaps_with",
+            "fragment_of_same_source",
+            "inconsistent_with",
+            "same_content_different_format",
+            "same_event_different_capture",
+            "unclear"
+          ]
+        },
+        "comparison_status": {
+          "enum": ["pending_inspection", "completed", "not_applicable"]
+        },
+        "explanation": {
+          "type": "string"
+        }
+      }
+    },
+    "damagesClaim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "damages_claim_id",
+        "party_id",
+        "loss_type",
+        "amount_min",
+        "amount_max",
+        "currency",
+        "causal_theory",
+        "calculation_basis",
+        "calculation_status",
+        "support_level",
+        "source_claim_ids",
+        "source_evidence_ids",
+        "requires_clarification"
+      ],
+      "properties": {
+        "damages_claim_id": {
+          "$ref": "#/$defs/idString"
+        },
+        "party_id": {
+          "enum": ["party_a", "party_b"]
+        },
+        "loss_type": {
+          "enum": [
+            "unpaid_balance",
+            "refund",
+            "lost_revenue",
+            "replacement_cost",
+            "delay_cost",
+            "other"
+          ]
+        },
+        "amount_min": {
+          "type": ["number", "null"],
+          "minimum": 0
+        },
+        "amount_max": {
+          "type": ["number", "null"],
+          "minimum": 0
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        },
+        "causal_theory": {
+          "type": "string"
+        },
+        "calculation_basis": {
+          "type": ["string", "null"]
+        },
+        "calculation_status": {
+          "enum": [
+            "documented",
+            "partially_documented",
+            "estimated",
+            "unsupported",
+            "not_applicable"
+          ]
+        },
+        "support_level": {
+          "enum": ["strong", "moderate", "weak", "none", "conflicting", "not_assessed"]
+        },
+        "source_claim_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/idString"
+          }
+        },
+        "source_evidence_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/idString"
+          }
+        },
+        "requires_clarification": {
+          "type": "boolean"
+        }
+      }
+    },
+    "transfer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from_party_id", "to_party_id", "amount", "currency"],
+      "properties": {
+        "from_party_id": {
+          "enum": ["party_a", "party_b"]
+        },
+        "to_party_id": {
+          "enum": ["party_a", "party_b"]
+        },
+        "amount": {
+          "type": "number",
+          "minimum": 0
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        }
+      }
+    },
+    "outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "outcome_id",
+        "priority",
+        "outcome_type",
+        "transfers",
+        "required_actions",
+        "rationale"
+      ],
+      "properties": {
+        "outcome_id": {
+          "$ref": "#/$defs/idString"
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "outcome_type": {
+          "enum": [
+            "payment",
+            "refund",
+            "files_or_credentials",
+            "completion_or_correction",
+            "cancellation",
+            "mutual_release",
+            "mixed",
+            "other"
+          ]
+        },
+        "transfers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/transfer"
+          }
+        },
+        "required_actions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "rationale": {
+          "type": "string"
+        }
+      }
+    },
+    "partyOutcomes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["party_id", "outcomes"],
+      "properties": {
+        "party_id": {
+          "enum": ["party_a", "party_b"]
+        },
+        "outcomes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/outcome"
+          }
+        }
+      }
+    },
+    "resolutionAttempt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attempt_id",
+        "date",
+        "initiated_by_party_id",
+        "offer_summary",
+        "response_summary",
+        "source_evidence_ids",
+        "result"
+      ],
+      "properties": {
+        "attempt_id": {
+          "$ref": "#/$defs/idString"
+        },
+        "date": {
+          "$ref": "#/$defs/dateValue"
+        },
+        "initiated_by_party_id": {
+          "enum": ["party_a", "party_b"]
+        },
+        "offer_summary": {
+          "type": "string"
+        },
+        "response_summary": {
+          "type": ["string", "null"]
+        },
+        "source_evidence_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/idString"
+          }
+        },
+        "result": {
+          "enum": ["accepted", "rejected", "countered", "no_response", "ongoing", "unknown"]
+        }
+      }
+    },
+    "extractionIssue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "issue_id",
+        "issue_type",
+        "severity",
+        "description",
+        "affected_object_ids",
+        "resolution_status",
+        "source_spans"
+      ],
+      "properties": {
+        "issue_id": {
+          "$ref": "#/$defs/idString"
+        },
+        "issue_type": {
+          "enum": [
+            "ambiguous_date",
+            "ambiguous_scope",
+            "internal_tension",
+            "attribution_uncertain",
+            "missing_evidence",
+            "conflicting_amount",
+            "other"
+          ]
+        },
+        "severity": {
+          "enum": ["critical", "major", "minor"]
+        },
+        "description": {
+          "type": "string"
+        },
+        "affected_object_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/idString"
+          }
+        },
+        "resolution_status": {
+          "enum": ["open", "clarification_requested", "resolved", "accepted_uncertainty"]
+        },
+        "source_spans": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sourceSpan"
+          }
+        }
+      }
+    },
+    "clarificationQuestion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "question_id",
+        "target_party_id",
+        "question",
+        "reason",
+        "linked_object_ids",
+        "priority",
+        "answer",
+        "answer_evidence_ids",
+        "status"
+      ],
+      "properties": {
+        "question_id": {
+          "$ref": "#/$defs/idString"
+        },
+        "target_party_id": {
+          "enum": ["party_a", "party_b"]
+        },
+        "question": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "linked_object_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/idString"
+          }
+        },
+        "priority": {
+          "enum": ["required", "important", "optional"]
+        },
+        "answer": {
+          "type": ["string", "null"]
+        },
+        "answer_evidence_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/idString"
+          }
+        },
+        "status": {
+          "enum": ["pending", "answered", "exhausted", "withdrawn"]
+        }
+      }
+    },
+    "partyRecordReview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "summary_shown_at",
+        "confirmed",
+        "corrections",
+        "confirmation_text",
+        "correction_opportunity_expires_at",
+        "correction_opportunity_status"
+      ],
+      "properties": {
+        "summary_shown_at": {
+          "$ref": "#/$defs/isoDateTimeOrNull"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "corrections": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/correction"
+          }
+        },
+        "confirmation_text": {
+          "type": ["string", "null"]
+        },
+        "correction_opportunity_expires_at": {
+          "$ref": "#/$defs/isoDateTimeOrNull"
+        },
+        "correction_opportunity_status": {
+          "enum": ["not_started", "open", "confirmed", "expired", "exhausted"]
+        }
+      }
+    },
+    "correction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["correction_id", "target_id", "requested_change", "resolution", "resolved_at"],
+      "properties": {
+        "correction_id": {
+          "$ref": "#/$defs/idString"
+        },
+        "target_id": {
+          "$ref": "#/$defs/idString"
+        },
+        "requested_change": {
+          "type": "string"
+        },
+        "resolution": {
+          "enum": ["pending", "accepted", "partly_accepted", "rejected"]
+        },
+        "resolved_at": {
+          "$ref": "#/$defs/isoDateTimeOrNull"
+        }
+      }
+    },
+    "recordReview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["person_a", "person_b", "record_version", "record_locked_at", "record_hash"],
+      "properties": {
+        "person_a": {
+          "$ref": "#/$defs/partyRecordReview"
+        },
+        "person_b": {
+          "$ref": "#/$defs/partyRecordReview"
+        },
+        "record_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "record_locked_at": {
+          "$ref": "#/$defs/isoDateTimeOrNull"
+        },
+        "record_hash": {
+          "type": ["string", "null"],
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "factFinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fact_id",
+        "text",
+        "status",
+        "decision_critical",
+        "source_claim_ids",
+        "source_evidence_ids",
+        "limitations"
+      ],
+      "properties": {
+        "fact_id": {
+          "$ref": "#/$defs/idString"
+        },
+        "text": {
+          "type": "string"
+        },
+        "status": {
+          "enum": ["agreed", "supported", "disputed", "unsupported", "unclear"]
+        },
+        "decision_critical": {
+          "type": "boolean"
+        },
+        "source_claim_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/idString"
+          }
+        },
+        "source_evidence_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/idString"
+          }
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "uncertainty": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["uncertainty_id", "issue", "impact", "linked_object_ids"],
+      "properties": {
+        "uncertainty_id": {
+          "$ref": "#/$defs/idString"
+        },
+        "issue": {
+          "type": "string"
+        },
+        "impact": {
+          "enum": ["high", "moderate", "low"]
+        },
+        "linked_object_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/idString"
+          }
+        }
+      }
+    },
+    "factFindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["findings", "unresolved_uncertainties"],
+      "properties": {
+        "findings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/factFinding"
+          }
+        },
+        "unresolved_uncertainties": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/uncertainty"
+          }
+        }
+      }
+    },
+    "steelmanPosition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["strongest_case", "key_claim_ids", "key_evidence_ids", "confirmed_by_party"],
+      "properties": {
+        "strongest_case": {
+          "type": ["string", "null"]
+        },
+        "key_claim_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/idString"
+          }
+        },
+        "key_evidence_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/idString"
+          }
+        },
+        "confirmed_by_party": {
+          "type": "boolean"
+        }
+      }
+    },
+    "steelmanPositions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["person_a", "person_b"],
+      "properties": {
+        "person_a": {
+          "$ref": "#/$defs/steelmanPosition"
+        },
+        "person_b": {
+          "$ref": "#/$defs/steelmanPosition"
+        }
+      }
+    },
+    "deliberationInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_hash",
+        "eligible_for_deliberation",
+        "ineligibility_reasons",
+        "material_fact_ids",
+        "material_dispute_ids",
+        "relevant_evidence_ids",
+        "uncertainty_ids",
+        "public_outcome_ids",
+        "private_party_information_present"
+      ],
+      "properties": {
+        "record_hash": {
+          "type": ["string", "null"],
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "eligible_for_deliberation": {
+          "type": "boolean"
+        },
+        "ineligibility_reasons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "material_fact_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/idString"
+          }
+        },
+        "material_dispute_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/idString"
+          }
+        },
+        "relevant_evidence_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/idString"
+          }
+        },
+        "uncertainty_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/idString"
+          }
+        },
+        "public_outcome_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/idString"
+          }
+        },
+        "private_party_information_present": {
+          "const": false
+        }
+      }
+    },
+    "confidenceBasis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "process_completeness",
+        "record_consistency",
+        "decision_critical_evidence_verifiability",
+        "material_uncertainty",
+        "ceiling_applied"
+      ],
+      "properties": {
+        "process_completeness": {
+          "enum": ["high", "moderate", "low", "indeterminate"]
+        },
+        "record_consistency": {
+          "enum": ["high", "moderate", "low", "indeterminate"]
+        },
+        "decision_critical_evidence_verifiability": {
+          "enum": ["high", "moderate", "low", "indeterminate"]
+        },
+        "material_uncertainty": {
+          "enum": ["high", "moderate", "low", "indeterminate"]
+        },
+        "ceiling_applied": {
+          "enum": ["high", "moderate", "low", "indeterminate"]
+        }
+      }
+    },
+    "recommendation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "recommendation_id",
+        "recommendation_type",
+        "recommended_outcome",
+        "strict_agreement_view",
+        "equity_view",
+        "practical_settlement_view",
+        "reasoning_summary",
+        "evidence_relied_on_ids",
+        "evidence_not_relied_on",
+        "confidence_label",
+        "confidence_basis",
+        "alternative_reasonable_outcome",
+        "what_could_change_the_result",
+        "legal_disclaimer",
+        "created_at",
+        "example_stage"
+      ],
+      "properties": {
+        "recommendation_id": {
+          "$ref": "#/$defs/idString"
+        },
+        "recommendation_type": {
+          "const": "commercial_fairness"
+        },
+        "recommended_outcome": {
+          "$ref": "#/$defs/outcome"
+        },
+        "strict_agreement_view": {
+          "type": "string"
+        },
+        "equity_view": {
+          "type": "string"
+        },
+        "practical_settlement_view": {
+          "type": "string"
+        },
+        "reasoning_summary": {
+          "type": "string"
+        },
+        "evidence_relied_on_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/idString"
+          }
+        },
+        "evidence_not_relied_on": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["evidence_id", "reason"],
+            "properties": {
+              "evidence_id": {
+                "$ref": "#/$defs/idString"
+              },
+              "reason": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "confidence_label": {
+          "enum": ["high", "moderate", "low", "indeterminate"]
+        },
+        "confidence_basis": {
+          "$ref": "#/$defs/confidenceBasis"
+        },
+        "alternative_reasonable_outcome": {
+          "type": "string"
+        },
+        "what_could_change_the_result": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "legal_disclaimer": {
+          "type": "string"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "example_stage": {
+          "const": "post_inspection"
+        }
+      }
+    },
+    "partyDecision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "party_id",
+        "decision",
+        "submitted_privately_at",
+        "counteroffer",
+        "final_response"
+      ],
+      "properties": {
+        "party_id": {
+          "enum": ["party_a", "party_b"]
+        },
+        "decision": {
+          "enum": ["accept", "counter", "reject"]
+        },
+        "submitted_privately_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "counteroffer": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/outcome"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "final_response": {
+          "enum": ["accepted", "rejected", null]
+        }
+      }
+    },
+    "modelRun": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run_id",
+        "task",
+        "model",
+        "prompt_version",
+        "input_hash",
+        "output_hash",
+        "status",
+        "created_at"
+      ],
+      "properties": {
+        "run_id": {
+          "$ref": "#/$defs/idString"
+        },
+        "task": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "prompt_version": {
+          "type": "string"
+        },
+        "input_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "output_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "status": {
+          "enum": ["validated", "rejected", "manual_golden"]
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "stateTransition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to", "at", "reason"],
+      "properties": {
+        "from": {
+          "type": ["string", "null"]
+        },
+        "to": {
+          "type": "string"
+        },
+        "at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "reason": {
+          "type": "string"
+        }
+      }
+    },
+    "recordVersionEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["record_version", "record_hash", "created_at", "reason"],
+      "properties": {
+        "record_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "record_hash": {
+          "type": ["string", "null"],
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "reason": {
+          "type": "string"
+        }
+      }
+    },
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "model_runs",
+        "state_transitions",
+        "record_versions",
+        "record_lock_hash",
+        "recommendation_hash",
+        "golden_fixture"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "0.1.2"
+        },
+        "model_runs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/modelRun"
+          }
+        },
+        "state_transitions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/stateTransition"
+          }
+        },
+        "record_versions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/recordVersionEntry"
+          }
+        },
+        "record_lock_hash": {
+          "type": ["string", "null"],
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "recommendation_hash": {
+          "type": ["string", "null"],
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "golden_fixture": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}
