@@ -1,0 +1,2698 @@
+{
+  "schema_version": "0.1.1",
+  "record_version": 1,
+  "case": {
+    "case_id": "case_dry_run_001",
+    "case_type": "freelancer_client_payment",
+    "status": "evidence_review",
+    "created_at": "2026-07-18T12:00:00Z",
+    "currency": "USD",
+    "financial_envelope": {
+      "person_a_requests_from_person_b_max": 1200,
+      "person_b_requests_from_person_a_max": 400,
+      "gross_disputed_value": 1600,
+      "derived_from_outcome_ids": ["out_a_001", "out_b_002"]
+    },
+    "jurisdiction_context": {
+      "person_a_country": null,
+      "person_b_country": null,
+      "transaction_country": null,
+      "governing_law_stated": null,
+      "jurisdiction_used_for_decision": false
+    },
+    "binding": false,
+    "respondent_deadline": null,
+    "closed_reason": null
+  },
+  "parties": [
+    {
+      "party_id": "party_a",
+      "role": "person_a",
+      "display_name": "Alex Rivera",
+      "email": null,
+      "country": null,
+      "language": "en",
+      "identity_status": "unverified",
+      "consented_at": "2026-07-18T12:00:00Z",
+      "submission_complete": true,
+      "record_confirmed_at": null
+    },
+    {
+      "party_id": "party_b",
+      "role": "person_b",
+      "display_name": "Maya Chen",
+      "email": null,
+      "country": null,
+      "language": "en",
+      "identity_status": "unverified",
+      "consented_at": "2026-07-18T12:10:00Z",
+      "submission_complete": true,
+      "record_confirmed_at": null
+    }
+  ],
+  "third_parties": [
+    {
+      "third_party_id": "tp_maya_assistant",
+      "name_or_label": "Maya's assistant",
+      "role": "content sender",
+      "relationship_to_party_id": "party_b",
+      "contacted_for_case": false,
+      "notes": "Maya says the assistant sent the final batch of photos around May 8."
+    },
+    {
+      "third_party_id": "tp_ad_agency",
+      "name_or_label": "Advertising agency",
+      "role": "campaign vendor",
+      "relationship_to_party_id": "party_b",
+      "contacted_for_case": false,
+      "notes": "Maya describes an agency invoice for a late-May campaign that was later rescheduled."
+    }
+  ],
+  "submissions": [
+    {
+      "submission_id": "sub_a_001",
+      "party_id": "party_a",
+      "submission_type": "initial_position",
+      "raw_text": "My name is Alex Rivera and I’m a freelance web designer. In early April I agreed to build a five-page marketing website for Maya Chen’s consulting business for $2,400. She paid a $1,200 deposit, with the balance due when the project was completed. The signed agreement is attached.\n\nThe intended launch was around May 20, although the contract also says the timeline depended on Maya supplying final copy and images by April 25. She did not send everything by then. I think the last major batch arrived around May 8 or May 9, but some small text changes kept coming after that.\n\nThe original job was a homepage, about page, services page, contact page, and mobile-responsive layout, with two revision rounds. During the project Maya also asked for a pricing comparison section, a newsletter signup, and several changes to the homepage design. I accepted most of those requests through WhatsApp because I wanted to keep the client happy. I probably should have documented more clearly which requests were outside the original scope.\n\nI sent what I considered a complete staging version on June 3. Maya replied that it “looked really good overall” but gave me a list of changes. I made most of them during the following week. She later said the project was too late, that the mobile version had major problems, and that the delay had damaged a marketing campaign she planned to run.\n\nThere were some mobile issues, but I do not agree that the website was unusable. I fixed the issues I could reproduce. Maya also used images from the website in social media posts, and I believe at least part of the site was briefly published, although I cannot prove exactly what was live or for how long.\n\nMaya now refuses to pay the remaining $1,200 and has also said she may ask for the deposit back. She says I disappeared for two weeks. That is exaggerated. I was slower for part of one week because of a family issue, but I still replied to messages and told her what was happening.\n\nI feel like she is using the missed target date as an excuse not to pay for work she received. I am asking for the remaining $1,200. I will transfer the final editable source files and administrator credentials when the balance is paid. I want JuryAI to consider that much of the schedule delay came from late content, added requests, and repeated changes.\n",
+      "submitted_at": "2026-07-18T12:00:00Z",
+      "supersedes_submission_id": null,
+      "is_locked": true,
+      "content_hash": "2cdb00b4b2b28c1813a979be5cf22f1ac51a30282abea9e144df491549c4fcc7"
+    },
+    {
+      "submission_id": "sub_b_001",
+      "party_id": "party_b",
+      "submission_type": "initial_position",
+      "raw_text": "My name is Maya Chen and I run a small consulting business. In April I hired Alex Rivera to build a five-page website for $2,400. I paid the $1,200 deposit immediately — that part is not in dispute, and neither is the basic scope: homepage, about, services, contact, mobile.\n\nWhat is in dispute is almost everything about how it went.\n\nThe May 20 launch date was not an “estimate” to me. I told Alex from the first call that I was running a paid marketing push in late May and the site had to be live before it started. On May 12 I emailed him asking point blank whether we were still on track for May 20, and he replied “yes, we’re on track.” I have that email. If the date was flexible in his mind, that was the moment to say so.\n\nAlex says my content was late. Some of it was — I’ll be honest about that. The contract said April 25 and I sent most of the copy around April 26 or 27, I think, definitely before the end of the month. My assistant sent the last batch of photos later, around May 8, which I only realized when I went back through the messages. So I was part of the early delay. But a few days of late photos does not explain delivering the first full version on June 3, two weeks after the launch date he had confirmed on May 12.\n\nOn the “extra” requests: the pricing comparison section wasn’t an addition, it replaced content on the services page, and Alex told me on WhatsApp that the changes were included. I have a screenshot of him saying “no problem, that’s included.” I no longer have the full conversation — I cleared old chats when my phone storage filled up — but the screenshot is real.\n\nThe June 3 version looked fine on desktop, and yes, I told him it “looked really good overall.” On my phone it was a different story. The menu didn’t open on mobile and two pages overlapped so badly you couldn’t read them. I sent Alex a screen recording on June 5, and he replied — I have this message — “you’re right, mobile is a mess right now, give me a few days.” His own June 8 recording just shows it working on his phone.\n\nThen he essentially vanished. Between roughly June 9 and June 22 I got two short messages. He mentioned a family issue and I’m sympathetic, but I had a campaign booked. I ended up pushing the launch entirely and I estimate the delay cost me at least three to four thousand dollars in lost client bookings, since May and June are my peak inquiry months.\n\nI’ll also admit: I did use two of the design images in Instagram posts in early June, and the site was briefly reachable at my domain for a few days while we were testing. I wasn’t hiding a finished website from him. It was a partial, broken site that I couldn’t run a campaign on.\n\nI don’t think I should pay $1,200 for a project delivered late, incomplete on mobile, and after his own written confirmation of the deadline. I’m willing to pay $600 to close this out, in exchange for the source files and admin credentials, because I did receive usable design work. If Alex won’t accept that, I want $400 of my deposit back and we both walk away.\n",
+      "submitted_at": "2026-07-18T12:10:00Z",
+      "supersedes_submission_id": null,
+      "is_locked": true,
+      "content_hash": "789735914f5283a1488dd814731081dd4cb0a2410b849906d87b4e5a63026e06"
+    }
+  ],
+  "agreement": {
+    "agreement_exists": true,
+    "agreement_form": "written_contract",
+    "agreement_summary": "The parties agree they contracted for a five-page website for $2,400, with a $1,200 deposit and a disputed balance/completion trigger.",
+    "source_evidence_ids": ["ev_001"],
+    "terms": [
+      {
+        "term_id": "term_scope",
+        "term_type": "scope",
+        "wording": "Homepage, about page, services page, contact page, and mobile-responsive layout.",
+        "wording_status": "agreed",
+        "interpretation_status": "disputed",
+        "person_a_interpretation": "Pricing comparison, newsletter signup, and several homepage changes were later additions.",
+        "person_b_interpretation": "The pricing comparison replaced existing services-page content and was included.",
+        "source_evidence_ids": ["ev_001", "ev_003", "ev_013"],
+        "materiality": "high",
+        "source_spans": [
+          {
+            "submission_id": "sub_a_001",
+            "quote": "The original job was a homepage, about page, services page, contact page, and mobile-responsive layout, with two revision rounds.",
+            "start_char": 579,
+            "end_char": 708
+          },
+          {
+            "submission_id": "sub_b_001",
+            "quote": "neither is the basic scope: homepage, about, services, contact, mobile.",
+            "start_char": 203,
+            "end_char": 274
+          }
+        ]
+      },
+      {
+        "term_id": "term_price",
+        "term_type": "price",
+        "wording": "Total price $2,400.",
+        "wording_status": "agreed",
+        "interpretation_status": "not_applicable",
+        "person_a_interpretation": null,
+        "person_b_interpretation": null,
+        "source_evidence_ids": ["ev_001", "ev_002", "ev_015"],
+        "materiality": "high",
+        "source_spans": [
+          {
+            "submission_id": "sub_a_001",
+            "quote": "for $2,400.",
+            "start_char": 156,
+            "end_char": 167
+          },
+          {
+            "submission_id": "sub_b_001",
+            "quote": "for $2,400.",
+            "start_char": 118,
+            "end_char": 129
+          }
+        ]
+      },
+      {
+        "term_id": "term_deposit",
+        "term_type": "deposit",
+        "wording": "Maya paid a $1,200 deposit.",
+        "wording_status": "agreed",
+        "interpretation_status": "not_applicable",
+        "person_a_interpretation": null,
+        "person_b_interpretation": null,
+        "source_evidence_ids": ["ev_002", "ev_015"],
+        "materiality": "high",
+        "source_spans": [
+          {
+            "submission_id": "sub_a_001",
+            "quote": "She paid a $1,200 deposit",
+            "start_char": 168,
+            "end_char": 193
+          },
+          {
+            "submission_id": "sub_b_001",
+            "quote": "I paid the $1,200 deposit immediately",
+            "start_char": 130,
+            "end_char": 167
+          }
+        ]
+      },
+      {
+        "term_id": "term_payment_trigger",
+        "term_type": "payment_trigger",
+        "wording": "The remaining $1,200 was due when the project was completed.",
+        "wording_status": "agreed",
+        "interpretation_status": "disputed",
+        "person_a_interpretation": "The June 3 staging delivery substantially completed the project and triggered payment.",
+        "person_b_interpretation": "Completion required a usable mobile site and delivery of source files and credentials.",
+        "source_evidence_ids": ["ev_001", "ev_004", "ev_011", "ev_012"],
+        "materiality": "high",
+        "source_spans": [
+          {
+            "submission_id": "sub_a_001",
+            "quote": "with the balance due when the project was completed.",
+            "start_char": 195,
+            "end_char": 247
+          },
+          {
+            "submission_id": "sub_b_001",
+            "quote": "I don’t think I should pay $1,200 for a project delivered late, incomplete on mobile",
+            "start_char": 2682,
+            "end_char": 2766
+          }
+        ]
+      },
+      {
+        "term_id": "term_deadline",
+        "term_type": "deadline",
+        "wording": "Intended launch around May 20, with effect of later May 12 confirmation disputed.",
+        "wording_status": "agreed",
+        "interpretation_status": "disputed",
+        "person_a_interpretation": "May 20 was an intended launch dependent on timely content.",
+        "person_b_interpretation": "May 20 was firm after Alex confirmed on May 12 that the project was on track.",
+        "source_evidence_ids": ["ev_001", "ev_010"],
+        "materiality": "high",
+        "source_spans": [
+          {
+            "submission_id": "sub_a_001",
+            "quote": "The intended launch was around May 20",
+            "start_char": 283,
+            "end_char": 320
+          },
+          {
+            "submission_id": "sub_b_001",
+            "quote": "The May 20 launch date was not an “estimate” to me.",
+            "start_char": 336,
+            "end_char": 387
+          }
+        ]
+      },
+      {
+        "term_id": "term_client_dependency",
+        "term_type": "client_dependency",
+        "wording": "Timeline depended on Maya supplying final copy and images by April 25.",
+        "wording_status": "agreed",
+        "interpretation_status": "disputed",
+        "person_a_interpretation": "Late content materially shifted the schedule.",
+        "person_b_interpretation": "Her content was somewhat late but did not justify a June 3 first full version.",
+        "source_evidence_ids": ["ev_001", "ev_003"],
+        "materiality": "high",
+        "source_spans": [
+          {
+            "submission_id": "sub_a_001",
+            "quote": "the contract also says the timeline depended on Maya supplying final copy and images by April 25.",
+            "start_char": 331,
+            "end_char": 428
+          },
+          {
+            "submission_id": "sub_b_001",
+            "quote": "The contract said April 25 and I sent most of the copy around April 26 or 27",
+            "start_char": 808,
+            "end_char": 884
+          }
+        ]
+      },
+      {
+        "term_id": "term_revisions",
+        "term_type": "revision_limit",
+        "wording": "Two revision rounds were included.",
+        "wording_status": "agreed",
+        "interpretation_status": "unclear",
+        "person_a_interpretation": "Repeated changes contributed to delay.",
+        "person_b_interpretation": null,
+        "source_evidence_ids": ["ev_001", "ev_006"],
+        "materiality": "medium",
+        "source_spans": [
+          {
+            "submission_id": "sub_a_001",
+            "quote": "with two revision rounds.",
+            "start_char": 683,
+            "end_char": 708
+          }
+        ]
+      },
+      {
+        "term_id": "term_credentials",
+        "term_type": "credentials",
+        "wording": "Alex proposes transferring source files and administrator credentials when the balance is paid.",
+        "wording_status": "disputed",
+        "interpretation_status": "disputed",
+        "person_a_interpretation": "Credentials are exchanged after full payment.",
+        "person_b_interpretation": "She should receive them in exchange for a reduced final payment or as part of a walk-away resolution.",
+        "source_evidence_ids": [],
+        "materiality": "high",
+        "source_spans": [
+          {
+            "submission_id": "sub_a_001",
+            "quote": "I will transfer the final editable source files and administrator credentials when the balance is paid.",
+            "start_char": 2106,
+            "end_char": 2209
+          },
+          {
+            "submission_id": "sub_b_001",
+            "quote": "in exchange for the source files and admin credentials",
+            "start_char": 2867,
+            "end_char": 2921
+          }
+        ]
+      }
+    ],
+    "open_issues": [
+      "The actual contract and May 12 email have not been supplied or inspected.",
+      "Completion and acceptance are not clearly defined in the described contract."
+    ]
+  },
+  "deliverable_assessments": [
+    {
+      "deliverable_id": "del_homepage",
+      "name": "Homepage",
+      "scope_status": "included",
+      "completion_status_person_a": "substantially_complete",
+      "completion_status_person_b": "partially_complete",
+      "use_status": "partially_used",
+      "alleged_defects": [],
+      "repair_attempts": ["Alex describes multiple homepage updates after the target date."],
+      "source_claim_ids": ["cl_a_004", "cl_a_005", "cl_b_005"],
+      "source_evidence_ids": ["ev_004", "ev_006", "ev_007"],
+      "materiality": "medium"
+    },
+    {
+      "deliverable_id": "del_about",
+      "name": "About page",
+      "scope_status": "included",
+      "completion_status_person_a": "substantially_complete",
+      "completion_status_person_b": "partially_complete",
+      "use_status": "unknown",
+      "alleged_defects": [],
+      "repair_attempts": [],
+      "source_claim_ids": ["cl_a_005", "cl_b_005"],
+      "source_evidence_ids": ["ev_004"],
+      "materiality": "low"
+    },
+    {
+      "deliverable_id": "del_services",
+      "name": "Services page",
+      "scope_status": "included",
+      "completion_status_person_a": "substantially_complete",
+      "completion_status_person_b": "partially_complete",
+      "use_status": "unknown",
+      "alleged_defects": ["Scope treatment of pricing comparison is disputed."],
+      "repair_attempts": [],
+      "source_claim_ids": ["cl_a_004", "cl_b_004"],
+      "source_evidence_ids": ["ev_003", "ev_013"],
+      "materiality": "high"
+    },
+    {
+      "deliverable_id": "del_contact",
+      "name": "Contact page",
+      "scope_status": "included",
+      "completion_status_person_a": "substantially_complete",
+      "completion_status_person_b": "partially_complete",
+      "use_status": "unknown",
+      "alleged_defects": [],
+      "repair_attempts": [],
+      "source_claim_ids": ["cl_a_005", "cl_b_005"],
+      "source_evidence_ids": ["ev_004"],
+      "materiality": "low"
+    },
+    {
+      "deliverable_id": "del_mobile",
+      "name": "Mobile-responsive layout",
+      "scope_status": "included",
+      "completion_status_person_a": "substantially_complete",
+      "completion_status_person_b": "materially_defective",
+      "use_status": "briefly_published",
+      "alleged_defects": [
+        "Mobile menu allegedly did not open.",
+        "Text allegedly overlapped on two pages."
+      ],
+      "repair_attempts": [
+        "Maya describes a June 5 screen recording.",
+        "Alex describes fixes and a June 8 screen recording."
+      ],
+      "source_claim_ids": ["cl_a_007", "cl_b_005", "cl_b_006", "cl_b_009"],
+      "source_evidence_ids": ["ev_008", "ev_011", "ev_012"],
+      "materiality": "high"
+    },
+    {
+      "deliverable_id": "del_pricing",
+      "name": "Pricing comparison section",
+      "scope_status": "disputed",
+      "completion_status_person_a": "partially_complete",
+      "completion_status_person_b": "partially_complete",
+      "use_status": "unknown",
+      "alleged_defects": [],
+      "repair_attempts": [],
+      "source_claim_ids": ["cl_a_004", "cl_b_004"],
+      "source_evidence_ids": ["ev_003", "ev_013"],
+      "materiality": "high"
+    },
+    {
+      "deliverable_id": "del_newsletter",
+      "name": "Newsletter signup",
+      "scope_status": "added_later",
+      "completion_status_person_a": "partially_complete",
+      "completion_status_person_b": "unknown",
+      "use_status": "unknown",
+      "alleged_defects": [],
+      "repair_attempts": [],
+      "source_claim_ids": ["cl_a_004"],
+      "source_evidence_ids": ["ev_003"],
+      "materiality": "medium"
+    }
+  ],
+  "timeline": [
+    {
+      "event_id": "tl_agreement",
+      "date": {
+        "start": "2026-04-01",
+        "end": "2026-04-10",
+        "precision": "range",
+        "approximate": true
+      },
+      "event_summary": "Alex and Maya agreed on the website project in early April.",
+      "actor_party_id": null,
+      "actor_third_party_id": null,
+      "asserted_by_party_ids": ["party_a", "party_b"],
+      "occurrence_status": "agreed",
+      "interpretation_status": "not_applicable",
+      "person_a_interpretation": null,
+      "person_b_interpretation": null,
+      "source_evidence_ids": ["ev_001"],
+      "source_spans": [
+        {
+          "submission_id": "sub_a_001",
+          "quote": "In early April I agreed to build a five-page marketing website",
+          "start_char": 57,
+          "end_char": 119
+        },
+        {
+          "submission_id": "sub_b_001",
+          "quote": "In April I hired Alex Rivera to build a five-page website",
+          "start_char": 60,
+          "end_char": 117
+        }
+      ],
+      "materiality": "high"
+    },
+    {
+      "event_id": "tl_content_due",
+      "date": {
+        "start": "2026-04-25",
+        "end": null,
+        "precision": "day",
+        "approximate": false
+      },
+      "event_summary": "Contractual date described for Maya to supply final copy and images.",
+      "actor_party_id": "party_b",
+      "actor_third_party_id": null,
+      "asserted_by_party_ids": ["party_a", "party_b"],
+      "occurrence_status": "agreed",
+      "interpretation_status": "disputed",
+      "person_a_interpretation": "A material dependency for the launch schedule.",
+      "person_b_interpretation": "A dependency she missed by days, but not enough to justify the overall delay.",
+      "source_evidence_ids": ["ev_001"],
+      "source_spans": [
+        {
+          "submission_id": "sub_a_001",
+          "quote": "by April 25.",
+          "start_char": 416,
+          "end_char": 428
+        },
+        {
+          "submission_id": "sub_b_001",
+          "quote": "The contract said April 25",
+          "start_char": 808,
+          "end_char": 834
+        }
+      ],
+      "materiality": "high"
+    },
+    {
+      "event_id": "tl_copy_delivery",
+      "date": {
+        "start": "2026-04-26",
+        "end": "2026-04-27",
+        "precision": "range",
+        "approximate": true
+      },
+      "event_summary": "Maya says she supplied most copy around April 26 or 27.",
+      "actor_party_id": "party_b",
+      "actor_third_party_id": null,
+      "asserted_by_party_ids": ["party_b"],
+      "occurrence_status": "supported_unanswered",
+      "interpretation_status": "not_applicable",
+      "person_a_interpretation": null,
+      "person_b_interpretation": null,
+      "source_evidence_ids": ["ev_003", "ev_016"],
+      "source_spans": [
+        {
+          "submission_id": "sub_b_001",
+          "quote": "I sent most of the copy around April 26 or 27, I think",
+          "start_char": 839,
+          "end_char": 893
+        }
+      ],
+      "materiality": "high"
+    },
+    {
+      "event_id": "tl_photo_delivery",
+      "date": {
+        "start": "2026-05-08",
+        "end": "2026-05-09",
+        "precision": "range",
+        "approximate": true
+      },
+      "event_summary": "The last major content/photo batch was supplied around May 8 or 9.",
+      "actor_party_id": null,
+      "actor_third_party_id": "tp_maya_assistant",
+      "asserted_by_party_ids": ["party_a", "party_b"],
+      "occurrence_status": "agreed",
+      "interpretation_status": "disputed",
+      "person_a_interpretation": "Late content materially delayed delivery.",
+      "person_b_interpretation": "The late photos contributed to early delay but did not explain delivery after May 20.",
+      "source_evidence_ids": ["ev_003", "ev_016"],
+      "source_spans": [
+        {
+          "submission_id": "sub_a_001",
+          "quote": "I think the last major batch arrived around May 8 or May 9",
+          "start_char": 466,
+          "end_char": 524
+        },
+        {
+          "submission_id": "sub_b_001",
+          "quote": "My assistant sent the last batch of photos later, around May 8",
+          "start_char": 935,
+          "end_char": 997
+        }
+      ],
+      "materiality": "high"
+    },
+    {
+      "event_id": "tl_may12_confirmation",
+      "date": {
+        "start": "2026-05-12",
+        "end": null,
+        "precision": "day",
+        "approximate": false
+      },
+      "event_summary": "Maya says Alex confirmed the project was on track for May 20.",
+      "actor_party_id": "party_a",
+      "actor_third_party_id": null,
+      "asserted_by_party_ids": ["party_b"],
+      "occurrence_status": "supported_unanswered",
+      "interpretation_status": "disputed",
+      "person_a_interpretation": null,
+      "person_b_interpretation": "The confirmation made May 20 a firm commitment.",
+      "source_evidence_ids": ["ev_010"],
+      "source_spans": [
+        {
+          "submission_id": "sub_b_001",
+          "quote": "On May 12 I emailed him asking point blank whether we were still on track for May 20, and he replied “yes, we’re on track.”",
+          "start_char": 520,
+          "end_char": 643
+        }
+      ],
+      "materiality": "high"
+    },
+    {
+      "event_id": "tl_target_launch",
+      "date": {
+        "start": "2026-05-20",
+        "end": null,
+        "precision": "day",
+        "approximate": false
+      },
+      "event_summary": "Intended or required launch date, depending on interpretation.",
+      "actor_party_id": null,
+      "actor_third_party_id": null,
+      "asserted_by_party_ids": ["party_a", "party_b"],
+      "occurrence_status": "agreed",
+      "interpretation_status": "disputed",
+      "person_a_interpretation": "A target dependent on content delivery.",
+      "person_b_interpretation": "A required date confirmed again on May 12.",
+      "source_evidence_ids": ["ev_001", "ev_010"],
+      "source_spans": [
+        {
+          "submission_id": "sub_a_001",
+          "quote": "The intended launch was around May 20",
+          "start_char": 283,
+          "end_char": 320
+        },
+        {
+          "submission_id": "sub_b_001",
+          "quote": "The May 20 launch date was not an “estimate” to me.",
+          "start_char": 336,
+          "end_char": 387
+        }
+      ],
+      "materiality": "high"
+    },
+    {
+      "event_id": "tl_june3_staging",
+      "date": {
+        "start": "2026-06-03",
+        "end": null,
+        "precision": "day",
+        "approximate": false
+      },
+      "event_summary": "Alex supplied a staging version he considered complete.",
+      "actor_party_id": "party_a",
+      "actor_third_party_id": null,
+      "asserted_by_party_ids": ["party_a", "party_b"],
+      "occurrence_status": "agreed",
+      "interpretation_status": "disputed",
+      "person_a_interpretation": "Substantially complete delivery.",
+      "person_b_interpretation": "Desktop looked good, but mobile was incomplete and broken.",
+      "source_evidence_ids": ["ev_004"],
+      "source_spans": [
+        {
+          "submission_id": "sub_a_001",
+          "quote": "I sent what I considered a complete staging version on June 3.",
+          "start_char": 1033,
+          "end_char": 1095
+        },
+        {
+          "submission_id": "sub_b_001",
+          "quote": "The June 3 version looked fine on desktop",
+          "start_char": 1615,
+          "end_char": 1656
+        }
+      ],
+      "materiality": "high"
+    },
+    {
+      "event_id": "tl_june3_praise",
+      "date": {
+        "start": "2026-06-03",
+        "end": null,
+        "precision": "day",
+        "approximate": false
+      },
+      "event_summary": "Maya said the staging version looked really good overall.",
+      "actor_party_id": "party_b",
+      "actor_third_party_id": null,
+      "asserted_by_party_ids": ["party_a", "party_b"],
+      "occurrence_status": "agreed",
+      "interpretation_status": "disputed",
+      "person_a_interpretation": "Evidence of substantial acceptance and value.",
+      "person_b_interpretation": "Praise was limited to desktop appearance and not acceptance of mobile functionality.",
+      "source_evidence_ids": ["ev_005"],
+      "source_spans": [
+        {
+          "submission_id": "sub_a_001",
+          "quote": "Maya replied that it “looked really good overall”",
+          "start_char": 1096,
+          "end_char": 1145
+        },
+        {
+          "submission_id": "sub_b_001",
+          "quote": "yes, I told him it “looked really good overall.”",
+          "start_char": 1662,
+          "end_char": 1710
+        }
+      ],
+      "materiality": "high"
+    },
+    {
+      "event_id": "tl_june5_mobile_recording",
+      "date": {
+        "start": "2026-06-05",
+        "end": null,
+        "precision": "day",
+        "approximate": false
+      },
+      "event_summary": "Maya says she sent a screen recording showing mobile failures.",
+      "actor_party_id": "party_b",
+      "actor_third_party_id": null,
+      "asserted_by_party_ids": ["party_b"],
+      "occurrence_status": "supported_unanswered",
+      "interpretation_status": "not_applicable",
+      "person_a_interpretation": null,
+      "person_b_interpretation": null,
+      "source_evidence_ids": ["ev_011"],
+      "source_spans": [
+        {
+          "submission_id": "sub_b_001",
+          "quote": "I sent Alex a screen recording on June 5",
+          "start_char": 1838,
+          "end_char": 1878
+        }
+      ],
+      "materiality": "high"
+    },
+    {
+      "event_id": "tl_june6_acknowledgment",
+      "date": {
+        "start": "2026-06-06",
+        "end": null,
+        "precision": "day",
+        "approximate": false
+      },
+      "event_summary": "Maya attributes a message to Alex acknowledging the mobile site was a mess.",
+      "actor_party_id": "party_a",
+      "actor_third_party_id": null,
+      "asserted_by_party_ids": ["party_b"],
+      "occurrence_status": "supported_unanswered",
+      "interpretation_status": "disputed",
+      "person_a_interpretation": null,
+      "person_b_interpretation": "Admission that material mobile defects remained.",
+      "source_evidence_ids": ["ev_012"],
+      "source_spans": [
+        {
+          "submission_id": "sub_b_001",
+          "quote": "“you’re right, mobile is a mess right now, give me a few days.”",
+          "start_char": 1919,
+          "end_char": 1982
+        }
+      ],
+      "materiality": "high"
+    },
+    {
+      "event_id": "tl_june8_alex_recording",
+      "date": {
+        "start": "2026-06-08",
+        "end": null,
+        "precision": "day",
+        "approximate": false
+      },
+      "event_summary": "Alex describes a recording showing the site functioning on his phone after fixes.",
+      "actor_party_id": "party_a",
+      "actor_third_party_id": null,
+      "asserted_by_party_ids": ["party_a", "party_b"],
+      "occurrence_status": "agreed",
+      "interpretation_status": "disputed",
+      "person_a_interpretation": "Shows the mobile defects were fixed or not universally reproducible.",
+      "person_b_interpretation": "Shows only that the site worked on Alex's phone.",
+      "source_evidence_ids": ["ev_008"],
+      "source_spans": [
+        {
+          "submission_id": "sub_a_001",
+          "quote": "I fixed the issues I could reproduce.",
+          "start_char": 1463,
+          "end_char": 1500
+        },
+        {
+          "submission_id": "sub_b_001",
+          "quote": "His own June 8 recording just shows it working on his phone.",
+          "start_char": 1983,
+          "end_char": 2043
+        }
+      ],
+      "materiality": "high"
+    },
+    {
+      "event_id": "tl_communication_gap",
+      "date": {
+        "start": "2026-06-09",
+        "end": "2026-06-22",
+        "precision": "range",
+        "approximate": true
+      },
+      "event_summary": "The parties dispute the severity of Alex's communication slowdown.",
+      "actor_party_id": "party_a",
+      "actor_third_party_id": null,
+      "asserted_by_party_ids": ["party_a", "party_b"],
+      "occurrence_status": "disputed",
+      "interpretation_status": "disputed",
+      "person_a_interpretation": "He was slower for part of one week but still communicated.",
+      "person_b_interpretation": "He essentially vanished and sent only two short messages over roughly two weeks.",
+      "source_evidence_ids": ["ev_003", "ev_016"],
+      "source_spans": [
+        {
+          "submission_id": "sub_a_001",
+          "quote": "I was slower for part of one week because of a family issue, but I still replied to messages",
+          "start_char": 1846,
+          "end_char": 1938
+        },
+        {
+          "submission_id": "sub_b_001",
+          "quote": "Between roughly June 9 and June 22 I got two short messages.",
+          "start_char": 2075,
+          "end_char": 2135
+        }
+      ],
+      "materiality": "high"
+    },
+    {
+      "event_id": "tl_instagram_use",
+      "date": {
+        "start": "2026-06-01",
+        "end": "2026-06-10",
+        "precision": "range",
+        "approximate": true
+      },
+      "event_summary": "Maya used two website design images in Instagram posts in early June.",
+      "actor_party_id": "party_b",
+      "actor_third_party_id": null,
+      "asserted_by_party_ids": ["party_a", "party_b"],
+      "occurrence_status": "agreed",
+      "interpretation_status": "disputed",
+      "person_a_interpretation": "Shows Maya received and used value from the work.",
+      "person_b_interpretation": "Limited use of images does not show the website was complete or campaign-ready.",
+      "source_evidence_ids": ["ev_007"],
+      "source_spans": [
+        {
+          "submission_id": "sub_a_001",
+          "quote": "Maya also used images from the website in social media posts",
+          "start_char": 1501,
+          "end_char": 1561
+        },
+        {
+          "submission_id": "sub_b_001",
+          "quote": "I did use two of the design images in Instagram posts in early June",
+          "start_char": 2416,
+          "end_char": 2483
+        }
+      ],
+      "materiality": "medium"
+    },
+    {
+      "event_id": "tl_brief_publication",
+      "date": {
+        "start": "2026-06-01",
+        "end": "2026-06-15",
+        "precision": "range",
+        "approximate": true
+      },
+      "event_summary": "The website was briefly reachable at Maya's domain during testing.",
+      "actor_party_id": "party_b",
+      "actor_third_party_id": null,
+      "asserted_by_party_ids": ["party_a", "party_b"],
+      "occurrence_status": "agreed",
+      "interpretation_status": "disputed",
+      "person_a_interpretation": "Some of the delivered work was published and used.",
+      "person_b_interpretation": "It was a partial broken test site, not a completed launch.",
+      "source_evidence_ids": [],
+      "source_spans": [
+        {
+          "submission_id": "sub_a_001",
+          "quote": "I believe at least part of the site was briefly published",
+          "start_char": 1567,
+          "end_char": 1624
+        },
+        {
+          "submission_id": "sub_b_001",
+          "quote": "the site was briefly reachable at my domain for a few days while we were testing.",
+          "start_char": 2489,
+          "end_char": 2570
+        }
+      ],
+      "materiality": "high"
+    }
+  ],
+  "claims": [
+    {
+      "claim_id": "cl_a_001",
+      "party_id": "party_a",
+      "claim_text": "The parties agreed on a five-page website for $2,400 with a $1,200 deposit and balance due on completion.",
+      "claim_type": "agreement_term",
+      "response_status": "agreed",
+      "materiality": "high",
+      "support_level": "not_assessed",
+      "supporting_evidence_ids": ["ev_001", "ev_002"],
+      "contradicting_evidence_ids": [],
+      "counterclaim_ids": [],
+      "requires_clarification": true,
+      "against_asserting_party_interest": false,
+      "source_spans": [
+        {
+          "submission_id": "sub_a_001",
+          "quote": "In early April I agreed to build a five-page marketing website for Maya Chen’s consulting business for $2,400. She paid a $1,200 deposit, with the balance due when the project was completed.",
+          "start_char": 57,
+          "end_char": 247
+        }
+      ]
+    },
+    {
+      "claim_id": "cl_a_002",
+      "party_id": "party_a",
+      "claim_text": "May 20 was an intended launch date dependent on Maya supplying final content by April 25.",
+      "claim_type": "delay",
+      "response_status": "disputed",
+      "materiality": "high",
+      "support_level": "not_assessed",
+      "supporting_evidence_ids": ["ev_001"],
+      "contradicting_evidence_ids": [],
+      "counterclaim_ids": ["cl_b_002"],
+      "requires_clarification": true,
+      "against_asserting_party_interest": false,
+      "source_spans": [
+        {
+          "submission_id": "sub_a_001",
+          "quote": "The intended launch was around May 20, although the contract also says the timeline depended on Maya supplying final copy and images by April 25.",
+          "start_char": 283,
+          "end_char": 428
+        }
+      ]
+    },
+    {
+      "claim_id": "cl_a_003",
+      "party_id": "party_a",
+      "claim_text": "Maya supplied material content late, with the last major batch around May 8 or 9 and later text changes.",
+      "claim_type": "client_delay",
+      "response_status": "partly_agreed",
+      "materiality": "high",
+      "support_level": "not_assessed",
+      "supporting_evidence_ids": ["ev_003"],
+      "contradicting_evidence_ids": [],
+      "counterclaim_ids": ["cl_b_003"],
+      "requires_clarification": true,
+      "against_asserting_party_interest": false,
+      "source_spans": [
+        {
+          "submission_id": "sub_a_001",
+          "quote": "She did not send everything by then. I think the last major batch arrived around May 8 or May 9, but some small text changes kept coming after that.",
+          "start_char": 429,
+          "end_char": 577
+        }
+      ]
+    },
+    {
+      "claim_id": "cl_a_004",
+      "party_id": "party_a",
+      "claim_text": "Maya requested added scope including a pricing comparison, newsletter signup, and homepage changes.",
+      "claim_type": "scope",
+      "response_status": "disputed",
+      "materiality": "high",
+      "support_level": "not_assessed",
+      "supporting_evidence_ids": ["ev_003", "ev_006"],
+      "contradicting_evidence_ids": [],
+      "counterclaim_ids": ["cl_b_004"],
+      "requires_clarification": true,
+      "against_asserting_party_interest": false,
+      "source_spans": [
+        {
+          "submission_id": "sub_a_001",
+          "quote": "During the project Maya also asked for a pricing comparison section, a newsletter signup, and several changes to the homepage design.",
+          "start_char": 709,
+          "end_char": 842
+        }
+      ]
+    },
+    {
+      "claim_id": "cl_a_005",
+      "party_id": "party_a",
+      "claim_text": "The June 3 staging version was complete or substantially complete.",
+      "claim_type": "completion",
+      "response_status": "disputed",
+      "materiality": "high",
+      "support_level": "not_assessed",
+      "supporting_evidence_ids": ["ev_004", "ev_006"],
+      "contradicting_evidence_ids": [],
+      "counterclaim_ids": ["cl_b_005", "cl_b_012"],
+      "requires_clarification": true,
+      "against_asserting_party_interest": false,
+      "source_spans": [
+        {
+          "submission_id": "sub_a_001",
+          "quote": "I sent what I considered a complete staging version on June 3.",
+          "start_char": 1033,
+          "end_char": 1095
+        }
+      ]
+    },
+    {
+      "claim_id": "cl_a_006",
+      "party_id": "party_a",
+      "claim_text": "Maya said the June 3 version looked really good overall and then requested changes.",
+      "claim_type": "acceptance",
+      "response_status": "partly_agreed",
+      "materiality": "high",
+      "support_level": "not_assessed",
+      "supporting_evidence_ids": ["ev_005"],
+      "contradicting_evidence_ids": [],
+      "counterclaim_ids": ["cl_b_005"],
+      "requires_clarification": true,
+      "against_asserting_party_interest": false,
+      "source_spans": [
+        {
+          "submission_id": "sub_a_001",
+          "quote": "Maya replied that it “looked really good overall” but gave me a list of changes.",
+          "start_char": 1096,
+          "end_char": 1176
+        }
+      ]
+    },
+    {
+      "claim_id": "cl_a_007",
+      "party_id": "party_a",
+      "claim_text": "There were mobile issues, but the site was not unusable and Alex fixed issues he could reproduce.",
+      "claim_type": "defect",
+      "response_status": "disputed",
+      "materiality": "high",
+      "support_level": "not_assessed",
+      "supporting_evidence_ids": ["ev_008"],
+      "contradicting_evidence_ids": ["ev_011", "ev_012"],
+      "counterclaim_ids": ["cl_b_005", "cl_b_006"],
+      "requires_clarification": true,
+      "against_asserting_party_interest": true,
+      "source_spans": [
+        {
+          "submission_id": "sub_a_001",
+          "quote": "There were some mobile issues, but I do not agree that the website was unusable. I fixed the issues I could reproduce.",
+          "start_char": 1382,
+          "end_char": 1500
+        }
+      ]
+    },
+    {
+      "claim_id": "cl_a_008",
+      "party_id": "party_a",
+      "claim_text": "Maya used website images and at least part of the site was briefly published.",
+      "claim_type": "use_or_benefit",
+      "response_status": "agreed",
+      "materiality": "high",
+      "support_level": "not_assessed",
+      "supporting_evidence_ids": ["ev_007"],
+      "contradicting_evidence_ids": [],
+      "counterclaim_ids": ["cl_b_009"],
+      "requires_clarification": true,
+      "against_asserting_party_interest": false,
+      "source_spans": [
+        {
+          "submission_id": "sub_a_001",
+          "quote": "Maya also used images from the website in social media posts, and I believe at least part of the site was briefly published",
+          "start_char": 1501,
+          "end_char": 1624
+        }
+      ]
+    },
+    {
+      "claim_id": "cl_a_009",
+      "party_id": "party_a",
+      "claim_text": "Alex did not disappear for two weeks; he was slower for part of one week but still replied.",
+      "claim_type": "communication",
+      "response_status": "disputed",
+      "materiality": "high",
+      "support_level": "not_assessed",
+      "supporting_evidence_ids": ["ev_003"],
+      "contradicting_evidence_ids": ["ev_016"],
+      "counterclaim_ids": ["cl_b_007"],
+      "requires_clarification": true,
+      "against_asserting_party_interest": false,
+      "source_spans": [
+        {
+          "submission_id": "sub_a_001",
+          "quote": "She says I disappeared for two weeks. That is exaggerated. I was slower for part of one week because of a family issue, but I still replied to messages and told her what was happening.",
+          "start_char": 1787,
+          "end_char": 1971
+        }
+      ]
+    },
+    {
+      "claim_id": "cl_a_010",
+      "party_id": "party_a",
+      "claim_text": "Maya owes the remaining $1,200.",
+      "claim_type": "payment",
+      "response_status": "disputed",
+      "materiality": "high",
+      "support_level": "not_assessed",
+      "supporting_evidence_ids": ["ev_001", "ev_004"],
+      "contradicting_evidence_ids": [],
+      "counterclaim_ids": ["cl_b_010", "cl_b_011", "cl_b_012"],
+      "requires_clarification": false,
+      "against_asserting_party_interest": false,
+      "source_spans": [
+        {
+          "submission_id": "sub_a_001",
+          "quote": "I am asking for the remaining $1,200.",
+          "start_char": 2068,
+          "end_char": 2105
+        }
+      ]
+    },
+    {
+      "claim_id": "cl_a_011",
+      "party_id": "party_a",
+      "claim_text": "Alex will transfer source files and administrator credentials when the balance is paid.",
+      "claim_type": "credentials",
+      "response_status": "disputed",
+      "materiality": "high",
+      "support_level": "none",
+      "supporting_evidence_ids": [],
+      "contradicting_evidence_ids": [],
+      "counterclaim_ids": ["cl_b_010", "cl_b_011"],
+      "requires_clarification": false,
+      "against_asserting_party_interest": false,
+      "source_spans": [
+        {
+          "submission_id": "sub_a_001",
+          "quote": "I will transfer the final editable source files and administrator credentials when the balance is paid.",
+          "start_char": 2106,
+          "end_char": 2209
+        }
+      ]
+    },
+    {
+      "claim_id": "cl_a_012",
+      "party_id": "party_a",
+      "claim_text": "Late content, added requests, and repeated changes materially caused schedule delay.",
+      "claim_type": "delay",
+      "response_status": "disputed",
+      "materiality": "high",
+      "support_level": "not_assessed",
+      "supporting_evidence_ids": ["ev_003", "ev_006"],
+      "contradicting_evidence_ids": [],
+      "counterclaim_ids": ["cl_b_002", "cl_b_003"],
+      "requires_clarification": true,
+      "against_asserting_party_interest": false,
+      "source_spans": [
+        {
+          "submission_id": "sub_a_001",
+          "quote": "much of the schedule delay came from late content, added requests, and repeated changes.",
+          "start_char": 2241,
+          "end_char": 2329
+        }
+      ]
+    },
+    {
+      "claim_id": "cl_a_013",
+      "party_id": "party_a",
+      "claim_text": "Alex did not clearly document which requests were outside the original scope.",
+      "claim_type": "scope",
+      "response_status": "agreed",
+      "materiality": "medium",
+      "support_level": "none",
+      "supporting_evidence_ids": [],
+      "contradicting_evidence_ids": [],
+      "counterclaim_ids": [],
+      "requires_clarification": false,
+      "against_asserting_party_interest": true,
+      "source_spans": [
+        {
+          "submission_id": "sub_a_001",
+          "quote": "I probably should have documented more clearly which requests were outside the original scope.",
+          "start_char": 937,
+          "end_char": 1031
+        }
+      ]
+    },
+    {
+      "claim_id": "cl_b_001",
+      "party_id": "party_b",
+      "claim_text": "The parties agreed on a five-page website for $2,400 and Maya paid a $1,200 deposit.",
+      "claim_type": "agreement_term",
+      "response_status": "agreed",
+      "materiality": "high",
+      "support_level": "not_assessed",
+      "supporting_evidence_ids": ["ev_001", "ev_015"],
+      "contradicting_evidence_ids": [],
+      "counterclaim_ids": [],
+      "requires_clarification": false,
+      "against_asserting_party_interest": false,
+      "source_spans": [
+        {
+          "submission_id": "sub_b_001",
+          "quote": "In April I hired Alex Rivera to build a five-page website for $2,400. I paid the $1,200 deposit immediately — that part is not in dispute, and neither is the basic scope: homepage, about, services, contact, mobile.",
+          "start_char": 60,
+          "end_char": 274
+        }
+      ]
+    },
+    {
+      "claim_id": "cl_b_002",
+      "party_id": "party_b",
+      "claim_text": "May 20 was a firm launch commitment, reinforced by Alex’s May 12 confirmation.",
+      "claim_type": "delay",
+      "response_status": "disputed",
+      "materiality": "high",
+      "support_level": "not_assessed",
+      "supporting_evidence_ids": ["ev_010"],
+      "contradicting_evidence_ids": [],
+      "counterclaim_ids": ["cl_a_002", "cl_a_012"],
+      "requires_clarification": true,
+      "against_asserting_party_interest": false,
+      "source_spans": [
+        {
+          "submission_id": "sub_b_001",
+          "quote": "The May 20 launch date was not an “estimate” to me.",
+          "start_char": 336,
+          "end_char": 387
+        },
+        {
+          "submission_id": "sub_b_001",
+          "quote": "he replied “yes, we’re on track.”",
+          "start_char": 610,
+          "end_char": 643
+        }
+      ]
+    },
+    {
+      "claim_id": "cl_b_003",
+      "party_id": "party_b",
+      "claim_text": "Maya supplied most copy around April 26 or 27 and the final photos around May 8, contributing to some early delay.",
+      "claim_type": "client_delay",
+      "response_status": "partly_agreed",
+      "materiality": "high",
+      "support_level": "not_assessed",
+      "supporting_evidence_ids": ["ev_016"],
+      "contradicting_evidence_ids": [],
+      "counterclaim_ids": ["cl_a_003"],
+      "requires_clarification": true,
+      "against_asserting_party_interest": true,
+      "source_spans": [
+        {
+          "submission_id": "sub_b_001",
+          "quote": "Some of it was — I’ll be honest about that.",
+          "start_char": 764,
+          "end_char": 807
+        },
+        {
+          "submission_id": "sub_b_001",
+          "quote": "My assistant sent the last batch of photos later, around May 8",
+          "start_char": 935,
+          "end_char": 997
+        }
+      ]
+    },
+    {
+      "claim_id": "cl_b_004",
+      "party_id": "party_b",
+      "claim_text": "The pricing comparison replaced services-page content and Alex said it was included.",
+      "claim_type": "scope",
+      "response_status": "disputed",
+      "materiality": "high",
+      "support_level": "not_assessed",
+      "supporting_evidence_ids": ["ev_013"],
+      "contradicting_evidence_ids": [],
+      "counterclaim_ids": ["cl_a_004"],
+      "requires_clarification": true,
+      "against_asserting_party_interest": false,
+      "source_spans": [
+        {
+          "submission_id": "sub_b_001",
+          "quote": "the pricing comparison section wasn’t an addition, it replaced content on the services page, and Alex told me on WhatsApp that the changes were included.",
+          "start_char": 1272,
+          "end_char": 1425
+        }
+      ]
+    },
+    {
+      "claim_id": "cl_b_005",
+      "party_id": "party_b",
+      "claim_text": "The June 3 version looked good on desktop but had serious mobile failures.",
+      "claim_type": "defect",
+      "response_status": "disputed",
+      "materiality": "high",
+      "support_level": "not_assessed",
+      "supporting_evidence_ids": ["ev_011", "ev_012"],
+      "contradicting_evidence_ids": ["ev_008"],
+      "counterclaim_ids": ["cl_a_005", "cl_a_006", "cl_a_007"],
+      "requires_clarification": true,
+      "against_asserting_party_interest": true,
+      "source_spans": [
+        {
+          "submission_id": "sub_b_001",
+          "quote": "The June 3 version looked fine on desktop",
+          "start_char": 1615,
+          "end_char": 1656
+        },
+        {
+          "submission_id": "sub_b_001",
+          "quote": "The menu didn’t open on mobile and two pages overlapped so badly you couldn’t read them.",
+          "start_char": 1749,
+          "end_char": 1837
+        }
+      ]
+    },
+    {
+      "claim_id": "cl_b_006",
+      "party_id": "party_b",
+      "claim_text": "Alex acknowledged on June 6 that the mobile site was a mess and asked for a few days.",
+      "claim_type": "defect",
+      "response_status": "unanswered",
+      "materiality": "high",
+      "support_level": "not_assessed",
+      "supporting_evidence_ids": ["ev_012"],
+      "contradicting_evidence_ids": [],
+      "counterclaim_ids": ["cl_a_007"],
+      "requires_clarification": true,
+      "against_asserting_party_interest": false,
+      "source_spans": [
+        {
+          "submission_id": "sub_b_001",
+          "quote": "“you’re right, mobile is a mess right now, give me a few days.”",
+          "start_char": 1919,
+          "end_char": 1982
+        }
+      ]
+    },
+    {
+      "claim_id": "cl_b_007",
+      "party_id": "party_b",
+      "claim_text": "Alex essentially vanished between roughly June 9 and June 22, sending only two short messages.",
+      "claim_type": "communication",
+      "response_status": "disputed",
+      "materiality": "high",
+      "support_level": "not_assessed",
+      "supporting_evidence_ids": ["ev_016"],
+      "contradicting_evidence_ids": ["ev_003"],
+      "counterclaim_ids": ["cl_a_009"],
+      "requires_clarification": true,
+      "against_asserting_party_interest": false,
+      "source_spans": [
+        {
+          "submission_id": "sub_b_001",
+          "quote": "Between roughly June 9 and June 22 I got two short messages.",
+          "start_char": 2075,
+          "end_char": 2135
+        }
+      ]
+    },
+    {
+      "claim_id": "cl_b_008",
+      "party_id": "party_b",
+      "claim_text": "The delay caused an estimated $3,000 to $4,000 in lost client bookings.",
+      "claim_type": "consequential_loss",
+      "response_status": "disputed",
+      "materiality": "high",
+      "support_level": "weak",
+      "supporting_evidence_ids": ["ev_014"],
+      "contradicting_evidence_ids": [],
+      "counterclaim_ids": [],
+      "requires_clarification": true,
+      "against_asserting_party_interest": false,
+      "source_spans": [
+        {
+          "submission_id": "sub_b_001",
+          "quote": "I estimate the delay cost me at least three to four thousand dollars in lost client bookings",
+          "start_char": 2257,
+          "end_char": 2349
+        }
+      ]
+    },
+    {
+      "claim_id": "cl_b_009",
+      "party_id": "party_b",
+      "claim_text": "Maya used two design images and briefly made the site reachable during testing.",
+      "claim_type": "use_or_benefit",
+      "response_status": "agreed",
+      "materiality": "high",
+      "support_level": "not_assessed",
+      "supporting_evidence_ids": ["ev_007"],
+      "contradicting_evidence_ids": [],
+      "counterclaim_ids": ["cl_a_008"],
+      "requires_clarification": true,
+      "against_asserting_party_interest": true,
+      "source_spans": [
+        {
+          "submission_id": "sub_b_001",
+          "quote": "I did use two of the design images in Instagram posts in early June, and the site was briefly reachable at my domain for a few days while we were testing.",
+          "start_char": 2416,
+          "end_char": 2570
+        }
+      ]
+    },
+    {
+      "claim_id": "cl_b_010",
+      "party_id": "party_b",
+      "claim_text": "Maya is willing to pay $600 in exchange for source files and admin credentials.",
+      "claim_type": "payment",
+      "response_status": "unanswered",
+      "materiality": "high",
+      "support_level": "none",
+      "supporting_evidence_ids": [],
+      "contradicting_evidence_ids": [],
+      "counterclaim_ids": ["cl_a_010", "cl_a_011"],
+      "requires_clarification": false,
+      "against_asserting_party_interest": false,
+      "source_spans": [
+        {
+          "submission_id": "sub_b_001",
+          "quote": "I’m willing to pay $600 to close this out, in exchange for the source files and admin credentials",
+          "start_char": 2824,
+          "end_char": 2921
+        }
+      ]
+    },
+    {
+      "claim_id": "cl_b_011",
+      "party_id": "party_b",
+      "claim_text": "If Alex rejects $600, Maya wants $400 of her deposit refunded and both parties to walk away.",
+      "claim_type": "refund",
+      "response_status": "unanswered",
+      "materiality": "high",
+      "support_level": "none",
+      "supporting_evidence_ids": [],
+      "contradicting_evidence_ids": [],
+      "counterclaim_ids": ["cl_a_010", "cl_a_011"],
+      "requires_clarification": false,
+      "against_asserting_party_interest": false,
+      "source_spans": [
+        {
+          "submission_id": "sub_b_001",
+          "quote": "If Alex won’t accept that, I want $400 of my deposit back and we both walk away.",
+          "start_char": 2965,
+          "end_char": 3045
+        }
+      ]
+    },
+    {
+      "claim_id": "cl_b_012",
+      "party_id": "party_b",
+      "claim_text": "Maya should not owe the full balance because the project was late and incomplete on mobile.",
+      "claim_type": "payment",
+      "response_status": "disputed",
+      "materiality": "high",
+      "support_level": "not_assessed",
+      "supporting_evidence_ids": ["ev_010", "ev_011", "ev_012"],
+      "contradicting_evidence_ids": [],
+      "counterclaim_ids": ["cl_a_005", "cl_a_010"],
+      "requires_clarification": true,
+      "against_asserting_party_interest": false,
+      "source_spans": [
+        {
+          "submission_id": "sub_b_001",
+          "quote": "I don’t think I should pay $1,200 for a project delivered late, incomplete on mobile, and after his own written confirmation of the deadline.",
+          "start_char": 2682,
+          "end_char": 2823
+        }
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "ev_001",
+      "submitted_by_party_id": "party_a",
+      "evidence_type": "contract",
+      "title": "Signed website agreement",
+      "availability_status": "described_only",
+      "file_reference": null,
+      "original_filename": null,
+      "file_hash": null,
+      "created_date": {
+        "start": "2026-04-01",
+        "end": "2026-04-10",
+        "precision": "range",
+        "approximate": true
+      },
+      "uploaded_at": null,
+      "inspected_at": null,
+      "description_from_submitter": "Described as a signed agreement covering five pages, $2,400 total, $1,200 deposit, two revisions, an estimated May 20 launch, content dependency, and balance due on completion.",
+      "model_summary": null,
+      "authenticity_status": "not_verified",
+      "completeness_status": "appears_complete",
+      "visibility": "shared_with_both_parties",
+      "contains_sensitive_data": false,
+      "relevance": "high",
+      "claimed_to_have_existed_by_party_ids": ["party_a"],
+      "unavailability_explanation": null,
+      "provenance": {
+        "source_system": "contract PDF",
+        "export_method": "PDF",
+        "metadata_present": [],
+        "metadata_missing": ["file not supplied for inspection"]
+      },
+      "extracts": [],
+      "limitations": ["Described by submitter but not uploaded or inspected"]
+    },
+    {
+      "evidence_id": "ev_002",
+      "submitted_by_party_id": "party_a",
+      "evidence_type": "payment_record",
+      "title": "Alex deposit invoice and payment receipt",
+      "availability_status": "described_only",
+      "file_reference": null,
+      "original_filename": null,
+      "file_hash": null,
+      "created_date": {
+        "start": "2026-04-01",
+        "end": "2026-04-30",
+        "precision": "range",
+        "approximate": true
+      },
+      "uploaded_at": null,
+      "inspected_at": null,
+      "description_from_submitter": "Described as confirming the $1,200 deposit.",
+      "model_summary": null,
+      "authenticity_status": "not_verified",
+      "completeness_status": "appears_complete",
+      "visibility": "shared_with_both_parties",
+      "contains_sensitive_data": false,
+      "relevance": "high",
+      "claimed_to_have_existed_by_party_ids": ["party_a"],
+      "unavailability_explanation": null,
+      "provenance": {
+        "source_system": "payment system",
+        "export_method": "receipt",
+        "metadata_present": [],
+        "metadata_missing": ["file not supplied for inspection"]
+      },
+      "extracts": [],
+      "limitations": ["Described by submitter but not uploaded or inspected"]
+    },
+    {
+      "evidence_id": "ev_003",
+      "submitted_by_party_id": "party_a",
+      "evidence_type": "message_export",
+      "title": "Alex selected WhatsApp export",
+      "availability_status": "described_only",
+      "file_reference": null,
+      "original_filename": null,
+      "file_hash": null,
+      "created_date": {
+        "start": "2026-04-20",
+        "end": "2026-06-30",
+        "precision": "range",
+        "approximate": true
+      },
+      "uploaded_at": null,
+      "inspected_at": null,
+      "description_from_submitter": "Described as messages from late April through June; Alex says it may be incomplete because he changed phones.",
+      "model_summary": null,
+      "authenticity_status": "not_verified",
+      "completeness_status": "partial",
+      "visibility": "shared_with_both_parties",
+      "contains_sensitive_data": false,
+      "relevance": "high",
+      "claimed_to_have_existed_by_party_ids": ["party_a"],
+      "unavailability_explanation": null,
+      "provenance": {
+        "source_system": "WhatsApp",
+        "export_method": "chat export",
+        "metadata_present": [],
+        "metadata_missing": ["file not supplied for inspection"]
+      },
+      "extracts": [],
+      "limitations": [
+        "Not uploaded or inspected",
+        "Submitter says export may be incomplete because of phone change"
+      ]
+    },
+    {
+      "evidence_id": "ev_004",
+      "submitted_by_party_id": "party_a",
+      "evidence_type": "email_thread",
+      "title": "June 3 staging email",
+      "availability_status": "described_only",
+      "file_reference": null,
+      "original_filename": null,
+      "file_hash": null,
+      "created_date": {
+        "start": "2026-06-03",
+        "end": null,
+        "precision": "day",
+        "approximate": false
+      },
+      "uploaded_at": null,
+      "inspected_at": null,
+      "description_from_submitter": "Described as an email with a staging link stating the main pages were ready for review.",
+      "model_summary": null,
+      "authenticity_status": "not_verified",
+      "completeness_status": "appears_complete",
+      "visibility": "shared_with_both_parties",
+      "contains_sensitive_data": false,
+      "relevance": "high",
+      "claimed_to_have_existed_by_party_ids": ["party_a"],
+      "unavailability_explanation": null,
+      "provenance": {
+        "source_system": "email",
+        "export_method": "email thread",
+        "metadata_present": [],
+        "metadata_missing": ["file not supplied for inspection"]
+      },
+      "extracts": [],
+      "limitations": ["Described by submitter but not uploaded or inspected"]
+    },
+    {
+      "evidence_id": "ev_005",
+      "submitted_by_party_id": "party_a",
+      "evidence_type": "message_screenshot",
+      "title": "Maya “looks really good overall” screenshot",
+      "availability_status": "described_only",
+      "file_reference": null,
+      "original_filename": null,
+      "file_hash": null,
+      "created_date": {
+        "start": "2026-06-03",
+        "end": null,
+        "precision": "day",
+        "approximate": false
+      },
+      "uploaded_at": null,
+      "inspected_at": null,
+      "description_from_submitter": "Described as including the message immediately before and after but not the entire conversation.",
+      "model_summary": null,
+      "authenticity_status": "not_verified",
+      "completeness_status": "fragment",
+      "visibility": "shared_with_both_parties",
+      "contains_sensitive_data": false,
+      "relevance": "high",
+      "claimed_to_have_existed_by_party_ids": ["party_a"],
+      "unavailability_explanation": null,
+      "provenance": {
+        "source_system": "WhatsApp",
+        "export_method": "screenshot",
+        "metadata_present": [],
+        "metadata_missing": ["file not supplied for inspection"]
+      },
+      "extracts": [
+        {
+          "extract_id": "ext_ev005_001",
+          "text": "This looks really good overall, I just have a few things.",
+          "author_party_id": "party_b",
+          "author_third_party_id": null,
+          "author_status": "asserted_by_submitter",
+          "location_in_evidence": "submitter-described quoted text"
+        }
+      ],
+      "limitations": ["Not uploaded or inspected", "Surrounding conversation incomplete"]
+    },
+    {
+      "evidence_id": "ev_006",
+      "submitted_by_party_id": "party_a",
+      "evidence_type": "project_history",
+      "title": "Design/version history export",
+      "availability_status": "described_only",
+      "file_reference": null,
+      "original_filename": null,
+      "file_hash": null,
+      "created_date": {
+        "start": "2026-04-01",
+        "end": "2026-06-30",
+        "precision": "range",
+        "approximate": true
+      },
+      "uploaded_at": null,
+      "inspected_at": null,
+      "description_from_submitter": "Described as showing multiple homepage revisions and updates after the target date.",
+      "model_summary": null,
+      "authenticity_status": "not_verified",
+      "completeness_status": "appears_complete",
+      "visibility": "shared_with_both_parties",
+      "contains_sensitive_data": false,
+      "relevance": "high",
+      "claimed_to_have_existed_by_party_ids": ["party_a"],
+      "unavailability_explanation": null,
+      "provenance": {
+        "source_system": "design tool",
+        "export_method": "version history export",
+        "metadata_present": [],
+        "metadata_missing": ["file not supplied for inspection"]
+      },
+      "extracts": [],
+      "limitations": ["Described by submitter but not uploaded or inspected"]
+    },
+    {
+      "evidence_id": "ev_007",
+      "submitted_by_party_id": "party_a",
+      "evidence_type": "social_media_post",
+      "title": "Instagram image-use screenshot",
+      "availability_status": "described_only",
+      "file_reference": null,
+      "original_filename": null,
+      "file_hash": null,
+      "created_date": {
+        "start": "2026-06-10",
+        "end": null,
+        "precision": "day",
+        "approximate": true
+      },
+      "uploaded_at": null,
+      "inspected_at": null,
+      "description_from_submitter": "Described as Maya’s business account using an image matching the website design around June 10.",
+      "model_summary": null,
+      "authenticity_status": "not_verified",
+      "completeness_status": "fragment",
+      "visibility": "shared_with_both_parties",
+      "contains_sensitive_data": false,
+      "relevance": "high",
+      "claimed_to_have_existed_by_party_ids": ["party_a"],
+      "unavailability_explanation": null,
+      "provenance": {
+        "source_system": "Instagram",
+        "export_method": "screenshot",
+        "metadata_present": [],
+        "metadata_missing": ["file not supplied for inspection"]
+      },
+      "extracts": [],
+      "limitations": ["Described by submitter but not uploaded or inspected"]
+    },
+    {
+      "evidence_id": "ev_008",
+      "submitted_by_party_id": "party_a",
+      "evidence_type": "screen_recording",
+      "title": "Alex June 8 mobile recording",
+      "availability_status": "described_only",
+      "file_reference": null,
+      "original_filename": null,
+      "file_hash": null,
+      "created_date": {
+        "start": "2026-06-08",
+        "end": null,
+        "precision": "day",
+        "approximate": false
+      },
+      "uploaded_at": null,
+      "inspected_at": null,
+      "description_from_submitter": "Described as showing the site functioning on Alex’s phone after fixes.",
+      "model_summary": null,
+      "authenticity_status": "not_verified",
+      "completeness_status": "partial",
+      "visibility": "shared_with_both_parties",
+      "contains_sensitive_data": false,
+      "relevance": "high",
+      "claimed_to_have_existed_by_party_ids": ["party_a"],
+      "unavailability_explanation": null,
+      "provenance": {
+        "source_system": "mobile browser",
+        "export_method": "screen recording",
+        "metadata_present": [],
+        "metadata_missing": ["file not supplied for inspection"]
+      },
+      "extracts": [],
+      "limitations": ["Described by submitter but not uploaded or inspected"]
+    },
+    {
+      "evidence_id": "ev_009",
+      "submitted_by_party_id": "party_a",
+      "evidence_type": "video",
+      "title": "Two unrecorded video calls",
+      "availability_status": "unavailable",
+      "file_reference": null,
+      "original_filename": null,
+      "file_hash": null,
+      "created_date": {
+        "start": null,
+        "end": null,
+        "precision": "unknown",
+        "approximate": true
+      },
+      "uploaded_at": null,
+      "inspected_at": null,
+      "description_from_submitter": "Alex says there is no recording or written summary of two project video calls.",
+      "model_summary": null,
+      "authenticity_status": "not_assessable",
+      "completeness_status": "unavailable",
+      "visibility": "shared_with_both_parties",
+      "contains_sensitive_data": false,
+      "relevance": "high",
+      "claimed_to_have_existed_by_party_ids": ["party_a", "party_b"],
+      "unavailability_explanation": "Alex says the calls were not recorded and have no written summary.",
+      "provenance": {
+        "source_system": "video call",
+        "export_method": null,
+        "metadata_present": [],
+        "metadata_missing": ["source unavailable"]
+      },
+      "extracts": [],
+      "limitations": ["Cannot be inspected or relied upon"]
+    },
+    {
+      "evidence_id": "ev_010",
+      "submitted_by_party_id": "party_b",
+      "evidence_type": "email_thread",
+      "title": "May 12 deadline confirmation email",
+      "availability_status": "described_only",
+      "file_reference": null,
+      "original_filename": null,
+      "file_hash": null,
+      "created_date": {
+        "start": "2026-05-12",
+        "end": null,
+        "precision": "day",
+        "approximate": false
+      },
+      "uploaded_at": null,
+      "inspected_at": null,
+      "description_from_submitter": "Described as a full dated email thread in which Maya asks if the project is still on track for May 20 and Alex says yes.",
+      "model_summary": null,
+      "authenticity_status": "not_verified",
+      "completeness_status": "appears_complete",
+      "visibility": "shared_with_both_parties",
+      "contains_sensitive_data": false,
+      "relevance": "high",
+      "claimed_to_have_existed_by_party_ids": ["party_b"],
+      "unavailability_explanation": null,
+      "provenance": {
+        "source_system": "email",
+        "export_method": "email thread",
+        "metadata_present": [],
+        "metadata_missing": ["file not supplied for inspection"]
+      },
+      "extracts": [
+        {
+          "extract_id": "ext_ev010_001",
+          "text": "yes, we’re on track",
+          "author_party_id": "party_a",
+          "author_third_party_id": null,
+          "author_status": "asserted_by_submitter",
+          "location_in_evidence": "submitter-described quoted text"
+        }
+      ],
+      "limitations": ["Described by submitter but not uploaded or inspected"]
+    },
+    {
+      "evidence_id": "ev_011",
+      "submitted_by_party_id": "party_b",
+      "evidence_type": "screen_recording",
+      "title": "Maya June 5 mobile failure recording",
+      "availability_status": "described_only",
+      "file_reference": null,
+      "original_filename": null,
+      "file_hash": null,
+      "created_date": {
+        "start": "2026-06-05",
+        "end": null,
+        "precision": "day",
+        "approximate": false
+      },
+      "uploaded_at": null,
+      "inspected_at": null,
+      "description_from_submitter": "Described as showing the mobile menu failing and overlapping text on Maya’s phone.",
+      "model_summary": null,
+      "authenticity_status": "not_verified",
+      "completeness_status": "partial",
+      "visibility": "shared_with_both_parties",
+      "contains_sensitive_data": false,
+      "relevance": "high",
+      "claimed_to_have_existed_by_party_ids": ["party_b"],
+      "unavailability_explanation": null,
+      "provenance": {
+        "source_system": "mobile browser",
+        "export_method": "screen recording",
+        "metadata_present": [],
+        "metadata_missing": ["file not supplied for inspection"]
+      },
+      "extracts": [],
+      "limitations": ["Described by submitter but not uploaded or inspected"]
+    },
+    {
+      "evidence_id": "ev_012",
+      "submitted_by_party_id": "party_b",
+      "evidence_type": "message_screenshot",
+      "title": "June 6 mobile acknowledgment screenshot",
+      "availability_status": "described_only",
+      "file_reference": null,
+      "original_filename": null,
+      "file_hash": null,
+      "created_date": {
+        "start": "2026-06-06",
+        "end": null,
+        "precision": "day",
+        "approximate": false
+      },
+      "uploaded_at": null,
+      "inspected_at": null,
+      "description_from_submitter": "Described as a single message from Alex saying the mobile site was a mess; surrounding conversation deleted.",
+      "model_summary": null,
+      "authenticity_status": "not_verified",
+      "completeness_status": "fragment",
+      "visibility": "shared_with_both_parties",
+      "contains_sensitive_data": false,
+      "relevance": "high",
+      "claimed_to_have_existed_by_party_ids": ["party_b"],
+      "unavailability_explanation": null,
+      "provenance": {
+        "source_system": "WhatsApp",
+        "export_method": "screenshot",
+        "metadata_present": [],
+        "metadata_missing": ["file not supplied for inspection"]
+      },
+      "extracts": [
+        {
+          "extract_id": "ext_ev012_001",
+          "text": "you’re right, mobile is a mess right now, give me a few days",
+          "author_party_id": "party_a",
+          "author_third_party_id": null,
+          "author_status": "asserted_by_submitter",
+          "location_in_evidence": "submitter-described quoted text"
+        }
+      ],
+      "limitations": [
+        "Not uploaded or inspected",
+        "No surrounding conversation",
+        "Attribution is asserted by Maya"
+      ]
+    },
+    {
+      "evidence_id": "ev_013",
+      "submitted_by_party_id": "party_b",
+      "evidence_type": "message_screenshot",
+      "title": "Cropped “that’s included” screenshot",
+      "availability_status": "described_only",
+      "file_reference": null,
+      "original_filename": null,
+      "file_hash": null,
+      "created_date": {
+        "start": null,
+        "end": null,
+        "precision": "unknown",
+        "approximate": true
+      },
+      "uploaded_at": null,
+      "inspected_at": null,
+      "description_from_submitter": "Described as Alex saying “no problem, that’s included,” with no visible date or preceding message showing the referent.",
+      "model_summary": null,
+      "authenticity_status": "not_verified",
+      "completeness_status": "cropped",
+      "visibility": "shared_with_both_parties",
+      "contains_sensitive_data": false,
+      "relevance": "high",
+      "claimed_to_have_existed_by_party_ids": ["party_b"],
+      "unavailability_explanation": null,
+      "provenance": {
+        "source_system": "WhatsApp",
+        "export_method": "cropped screenshot",
+        "metadata_present": [],
+        "metadata_missing": ["file not supplied for inspection"]
+      },
+      "extracts": [
+        {
+          "extract_id": "ext_ev013_001",
+          "text": "no problem, that’s included",
+          "author_party_id": "party_a",
+          "author_third_party_id": null,
+          "author_status": "asserted_by_submitter",
+          "location_in_evidence": "submitter-described quoted text"
+        }
+      ],
+      "limitations": [
+        "Not uploaded or inspected",
+        "No date visible",
+        "No preceding message establishing what “that” refers to",
+        "Attribution is asserted by Maya"
+      ]
+    },
+    {
+      "evidence_id": "ev_014",
+      "submitted_by_party_id": "party_b",
+      "evidence_type": "campaign_record",
+      "title": "Advertising campaign booking confirmation",
+      "availability_status": "described_only",
+      "file_reference": null,
+      "original_filename": null,
+      "file_hash": null,
+      "created_date": {
+        "start": "2026-05-01",
+        "end": "2026-05-31",
+        "precision": "month",
+        "approximate": true
+      },
+      "uploaded_at": null,
+      "inspected_at": null,
+      "description_from_submitter": "Described as an ad-agency invoice for a late-May campaign that was later rescheduled; does not establish lost revenue.",
+      "model_summary": null,
+      "authenticity_status": "not_verified",
+      "completeness_status": "appears_complete",
+      "visibility": "shared_with_both_parties",
+      "contains_sensitive_data": false,
+      "relevance": "high",
+      "claimed_to_have_existed_by_party_ids": ["party_b"],
+      "unavailability_explanation": null,
+      "provenance": {
+        "source_system": "ad agency",
+        "export_method": "invoice or booking confirmation",
+        "metadata_present": [],
+        "metadata_missing": ["file not supplied for inspection"]
+      },
+      "extracts": [],
+      "limitations": [
+        "Not uploaded or inspected",
+        "May establish campaign existence but not $3,000–$4,000 lost bookings"
+      ]
+    },
+    {
+      "evidence_id": "ev_015",
+      "submitted_by_party_id": "party_b",
+      "evidence_type": "payment_record",
+      "title": "Maya deposit payment record",
+      "availability_status": "described_only",
+      "file_reference": null,
+      "original_filename": null,
+      "file_hash": null,
+      "created_date": {
+        "start": "2026-04-01",
+        "end": "2026-04-30",
+        "precision": "range",
+        "approximate": true
+      },
+      "uploaded_at": null,
+      "inspected_at": null,
+      "description_from_submitter": "Described as matching Alex’s deposit record.",
+      "model_summary": null,
+      "authenticity_status": "not_verified",
+      "completeness_status": "appears_complete",
+      "visibility": "shared_with_both_parties",
+      "contains_sensitive_data": false,
+      "relevance": "high",
+      "claimed_to_have_existed_by_party_ids": ["party_b"],
+      "unavailability_explanation": null,
+      "provenance": {
+        "source_system": "payment system",
+        "export_method": "receipt",
+        "metadata_present": [],
+        "metadata_missing": ["file not supplied for inspection"]
+      },
+      "extracts": [],
+      "limitations": ["Described by submitter but not uploaded or inspected"]
+    },
+    {
+      "evidence_id": "ev_016",
+      "submitted_by_party_id": "party_b",
+      "evidence_type": "message_history",
+      "title": "Maya deleted full WhatsApp history",
+      "availability_status": "unavailable",
+      "file_reference": null,
+      "original_filename": null,
+      "file_hash": null,
+      "created_date": {
+        "start": "2026-04-01",
+        "end": "2026-06-30",
+        "precision": "range",
+        "approximate": true
+      },
+      "uploaded_at": null,
+      "inspected_at": null,
+      "description_from_submitter": "Maya says the full conversation existed but was deleted when her phone storage filled up.",
+      "model_summary": null,
+      "authenticity_status": "not_assessable",
+      "completeness_status": "unavailable",
+      "visibility": "shared_with_both_parties",
+      "contains_sensitive_data": false,
+      "relevance": "high",
+      "claimed_to_have_existed_by_party_ids": ["party_b"],
+      "unavailability_explanation": "Maya says she cleared old chats when her phone storage filled up.",
+      "provenance": {
+        "source_system": "WhatsApp",
+        "export_method": null,
+        "metadata_present": [],
+        "metadata_missing": ["source unavailable"]
+      },
+      "extracts": [],
+      "limitations": ["Cannot be inspected or relied upon"]
+    }
+  ],
+  "claim_evidence_links": [
+    {
+      "link_id": "ce_001",
+      "claim_id": "cl_a_001",
+      "evidence_id": "ev_001",
+      "relationship": "supports",
+      "strength": "not_assessed",
+      "decision_critical": true,
+      "explanation": "The described contract contains the core price, scope, deposit, and completion language."
+    },
+    {
+      "link_id": "ce_002",
+      "claim_id": "cl_a_003",
+      "evidence_id": "ev_003",
+      "relationship": "supports",
+      "strength": "not_assessed",
+      "decision_critical": true,
+      "explanation": "The described chat export may establish when content arrived, but it is incomplete and uninspected."
+    },
+    {
+      "link_id": "ce_003",
+      "claim_id": "cl_a_005",
+      "evidence_id": "ev_004",
+      "relationship": "supports",
+      "strength": "not_assessed",
+      "decision_critical": true,
+      "explanation": "The described June 3 email may establish staging delivery and Alex’s completion framing."
+    },
+    {
+      "link_id": "ce_004",
+      "claim_id": "cl_a_006",
+      "evidence_id": "ev_005",
+      "relationship": "supports",
+      "strength": "not_assessed",
+      "decision_critical": true,
+      "explanation": "The described screenshot may establish Maya’s exact praise, with incomplete context."
+    },
+    {
+      "link_id": "ce_005",
+      "claim_id": "cl_a_007",
+      "evidence_id": "ev_008",
+      "relationship": "supports",
+      "strength": "not_assessed",
+      "decision_critical": true,
+      "explanation": "Alex’s described screen recording may show mobile function on his device after fixes."
+    },
+    {
+      "link_id": "ce_006",
+      "claim_id": "cl_a_007",
+      "evidence_id": "ev_011",
+      "relationship": "contradicts",
+      "strength": "not_assessed",
+      "decision_critical": true,
+      "explanation": "Maya’s described screen recording may show material mobile failures on her device."
+    },
+    {
+      "link_id": "ce_007",
+      "claim_id": "cl_a_008",
+      "evidence_id": "ev_007",
+      "relationship": "supports",
+      "strength": "not_assessed",
+      "decision_critical": false,
+      "explanation": "The described Instagram screenshot may establish limited use of design assets."
+    },
+    {
+      "link_id": "ce_008",
+      "claim_id": "cl_b_002",
+      "evidence_id": "ev_010",
+      "relationship": "supports",
+      "strength": "not_assessed",
+      "decision_critical": true,
+      "explanation": "The described full email thread may establish Alex’s May 12 confirmation."
+    },
+    {
+      "link_id": "ce_009",
+      "claim_id": "cl_b_004",
+      "evidence_id": "ev_013",
+      "relationship": "supports",
+      "strength": "not_assessed",
+      "decision_critical": true,
+      "explanation": "The cropped screenshot may support inclusion but lacks referent and date."
+    },
+    {
+      "link_id": "ce_010",
+      "claim_id": "cl_b_005",
+      "evidence_id": "ev_011",
+      "relationship": "supports",
+      "strength": "not_assessed",
+      "decision_critical": true,
+      "explanation": "The described recording may show mobile failures."
+    },
+    {
+      "link_id": "ce_011",
+      "claim_id": "cl_b_006",
+      "evidence_id": "ev_012",
+      "relationship": "supports",
+      "strength": "not_assessed",
+      "decision_critical": true,
+      "explanation": "The described message may be an admission by Alex if attribution and context are accurate."
+    },
+    {
+      "link_id": "ce_012",
+      "claim_id": "cl_b_007",
+      "evidence_id": "ev_016",
+      "relationship": "supports",
+      "strength": "not_assessed",
+      "decision_critical": true,
+      "explanation": "The full history is unavailable, so it cannot currently establish message frequency."
+    },
+    {
+      "link_id": "ce_013",
+      "claim_id": "cl_b_008",
+      "evidence_id": "ev_014",
+      "relationship": "contextualizes",
+      "strength": "not_assessed",
+      "decision_critical": true,
+      "explanation": "The campaign record may establish a booked campaign but not the amount or causation of lost bookings."
+    },
+    {
+      "link_id": "ce_014",
+      "claim_id": "cl_b_009",
+      "evidence_id": "ev_007",
+      "relationship": "supports",
+      "strength": "not_assessed",
+      "decision_critical": false,
+      "explanation": "The Instagram screenshot may establish use of design images."
+    },
+    {
+      "link_id": "ce_015",
+      "claim_id": "cl_b_012",
+      "evidence_id": "ev_010",
+      "relationship": "supports",
+      "strength": "not_assessed",
+      "decision_critical": true,
+      "explanation": "The described email may support the asserted deadline commitment."
+    },
+    {
+      "link_id": "ce_016",
+      "claim_id": "cl_b_012",
+      "evidence_id": "ev_011",
+      "relationship": "supports",
+      "strength": "not_assessed",
+      "decision_critical": true,
+      "explanation": "The described recording may support incompleteness on mobile."
+    }
+  ],
+  "evidence_evidence_links": [
+    {
+      "link_id": "ee_001",
+      "from_evidence_id": "ev_003",
+      "to_evidence_id": "ev_012",
+      "relationship": "fragment_of_same_source",
+      "comparison_status": "pending_inspection",
+      "explanation": "Both are described as portions of the parties’ WhatsApp conversation; inspection is needed to determine whether Alex’s export includes or omits the alleged June 6 message."
+    },
+    {
+      "link_id": "ee_002",
+      "from_evidence_id": "ev_003",
+      "to_evidence_id": "ev_013",
+      "relationship": "fragment_of_same_source",
+      "comparison_status": "pending_inspection",
+      "explanation": "The selected export and cropped screenshot may overlap within the same WhatsApp conversation."
+    },
+    {
+      "link_id": "ee_003",
+      "from_evidence_id": "ev_008",
+      "to_evidence_id": "ev_011",
+      "relationship": "same_event_different_capture",
+      "comparison_status": "pending_inspection",
+      "explanation": "The recordings concern mobile behavior on different devices and dates."
+    },
+    {
+      "link_id": "ee_004",
+      "from_evidence_id": "ev_002",
+      "to_evidence_id": "ev_015",
+      "relationship": "corroborates",
+      "comparison_status": "pending_inspection",
+      "explanation": "Both parties describe payment records for the same $1,200 deposit."
+    }
+  ],
+  "damages_claims": [
+    {
+      "damages_claim_id": "dam_a_balance",
+      "party_id": "party_a",
+      "loss_type": "unpaid_balance",
+      "amount_min": 1200,
+      "amount_max": 1200,
+      "currency": "USD",
+      "causal_theory": "The project was completed or substantially completed, triggering the remaining balance.",
+      "calculation_basis": "Contract price $2,400 minus $1,200 deposit.",
+      "calculation_status": "partially_documented",
+      "support_level": "not_assessed",
+      "source_claim_ids": ["cl_a_010"],
+      "source_evidence_ids": ["ev_001", "ev_002", "ev_004"],
+      "requires_clarification": true
+    },
+    {
+      "damages_claim_id": "dam_b_lost_bookings",
+      "party_id": "party_b",
+      "loss_type": "lost_revenue",
+      "amount_min": 3000,
+      "amount_max": 4000,
+      "currency": "USD",
+      "causal_theory": "Missing the late-May campaign window allegedly caused lost client bookings during peak inquiry months.",
+      "calculation_basis": null,
+      "calculation_status": "estimated",
+      "support_level": "weak",
+      "source_claim_ids": ["cl_b_008"],
+      "source_evidence_ids": ["ev_014"],
+      "requires_clarification": true
+    },
+    {
+      "damages_claim_id": "dam_b_refund",
+      "party_id": "party_b",
+      "loss_type": "refund",
+      "amount_min": 400,
+      "amount_max": 400,
+      "currency": "USD",
+      "causal_theory": "As a fallback walk-away result, Maya seeks return of part of the deposit because the project was late and incomplete.",
+      "calculation_basis": "Requested fallback amount; no calculation supplied.",
+      "calculation_status": "unsupported",
+      "support_level": "none",
+      "source_claim_ids": ["cl_b_011"],
+      "source_evidence_ids": [],
+      "requires_clarification": false
+    }
+  ],
+  "desired_outcomes": [
+    {
+      "party_id": "party_a",
+      "outcomes": [
+        {
+          "outcome_id": "out_a_001",
+          "priority": 1,
+          "outcome_type": "mixed",
+          "transfers": [
+            {
+              "from_party_id": "party_b",
+              "to_party_id": "party_a",
+              "amount": 1200,
+              "currency": "USD"
+            }
+          ],
+          "required_actions": [
+            "Alex transfers final editable source files and administrator credentials after payment."
+          ],
+          "rationale": "Alex asserts the work was completed or substantially completed and the balance is due."
+        }
+      ]
+    },
+    {
+      "party_id": "party_b",
+      "outcomes": [
+        {
+          "outcome_id": "out_b_001",
+          "priority": 1,
+          "outcome_type": "mixed",
+          "transfers": [
+            {
+              "from_party_id": "party_b",
+              "to_party_id": "party_a",
+              "amount": 600,
+              "currency": "USD"
+            }
+          ],
+          "required_actions": ["Alex transfers source files and administrator credentials."],
+          "rationale": "Maya acknowledges usable design value but disputes full completion and timeliness."
+        },
+        {
+          "outcome_id": "out_b_002",
+          "priority": 2,
+          "outcome_type": "mixed",
+          "transfers": [
+            {
+              "from_party_id": "party_a",
+              "to_party_id": "party_b",
+              "amount": 400,
+              "currency": "USD"
+            }
+          ],
+          "required_actions": ["Both parties end the project and release further claims."],
+          "rationale": "Fallback walk-away proposal if Alex rejects the $600 completion payment."
+        }
+      ]
+    }
+  ],
+  "resolution_attempts": [],
+  "extraction_issues": [
+    {
+      "issue_id": "xi_scope_pricing",
+      "issue_type": "ambiguous_scope",
+      "severity": "major",
+      "description": "The pricing comparison may be added scope or replacement content included in the original services page.",
+      "affected_object_ids": ["term_scope", "del_pricing", "cl_a_004", "cl_b_004", "ev_013"],
+      "resolution_status": "clarification_requested",
+      "source_spans": [
+        {
+          "submission_id": "sub_a_001",
+          "quote": "During the project Maya also asked for a pricing comparison section",
+          "start_char": 709,
+          "end_char": 776
+        },
+        {
+          "submission_id": "sub_b_001",
+          "quote": "the pricing comparison section wasn’t an addition, it replaced content on the services page",
+          "start_char": 1272,
+          "end_char": 1363
+        }
+      ]
+    },
+    {
+      "issue_id": "xi_mobile_praise",
+      "issue_type": "internal_tension",
+      "severity": "major",
+      "description": "Maya’s praise of the desktop appearance coexists with her claim of serious mobile defects; occurrence is agreed but interpretation must remain separate.",
+      "affected_object_ids": ["tl_june3_praise", "cl_a_006", "cl_b_005"],
+      "resolution_status": "accepted_uncertainty",
+      "source_spans": [
+        {
+          "submission_id": "sub_b_001",
+          "quote": "The June 3 version looked fine on desktop",
+          "start_char": 1615,
+          "end_char": 1656
+        },
+        {
+          "submission_id": "sub_b_001",
+          "quote": "On my phone it was a different story.",
+          "start_char": 1711,
+          "end_char": 1748
+        }
+      ]
+    },
+    {
+      "issue_id": "xi_deleted_chats",
+      "issue_type": "missing_evidence",
+      "severity": "major",
+      "description": "Both parties describe incomplete or unavailable WhatsApp history, limiting comparison of message fragments and communication frequency.",
+      "affected_object_ids": ["ev_003", "ev_012", "ev_013", "ev_016", "cl_a_009", "cl_b_007"],
+      "resolution_status": "clarification_requested",
+      "source_spans": [
+        {
+          "submission_id": "sub_b_001",
+          "quote": "I cleared old chats when my phone storage filled up",
+          "start_char": 1532,
+          "end_char": 1583
+        }
+      ]
+    },
+    {
+      "issue_id": "xi_campaign_loss",
+      "issue_type": "conflicting_amount",
+      "severity": "major",
+      "description": "Maya estimates $3,000–$4,000 in lost bookings, but the described campaign invoice does not establish lost revenue or causation.",
+      "affected_object_ids": ["cl_b_008", "dam_b_lost_bookings", "ev_014"],
+      "resolution_status": "clarification_requested",
+      "source_spans": [
+        {
+          "submission_id": "sub_b_001",
+          "quote": "I estimate the delay cost me at least three to four thousand dollars in lost client bookings",
+          "start_char": 2257,
+          "end_char": 2349
+        }
+      ]
+    },
+    {
+      "issue_id": "xi_publication_dates",
+      "issue_type": "ambiguous_date",
+      "severity": "minor",
+      "description": "The precise dates and duration of the brief website publication are unknown.",
+      "affected_object_ids": ["tl_brief_publication", "cl_a_008", "cl_b_009"],
+      "resolution_status": "clarification_requested",
+      "source_spans": [
+        {
+          "submission_id": "sub_a_001",
+          "quote": "briefly published",
+          "start_char": 1607,
+          "end_char": 1624
+        },
+        {
+          "submission_id": "sub_b_001",
+          "quote": "briefly reachable at my domain for a few days",
+          "start_char": 2502,
+          "end_char": 2547
+        }
+      ]
+    },
+    {
+      "issue_id": "xi_message_authorship",
+      "issue_type": "attribution_uncertain",
+      "severity": "major",
+      "description": "Quoted WhatsApp messages are attributed to Alex by Maya, but the screenshots have not been inspected and full context is unavailable.",
+      "affected_object_ids": ["ev_012", "ev_013", "cl_b_004", "cl_b_006"],
+      "resolution_status": "clarification_requested",
+      "source_spans": [
+        {
+          "submission_id": "sub_b_001",
+          "quote": "I have a screenshot of him saying “no problem, that’s included.”",
+          "start_char": 1426,
+          "end_char": 1490
+        },
+        {
+          "submission_id": "sub_b_001",
+          "quote": "he replied — I have this message — “you’re right, mobile is a mess right now, give me a few days.”",
+          "start_char": 1884,
+          "end_char": 1982
+        }
+      ]
+    }
+  ],
+  "clarification_questions": [
+    {
+      "question_id": "q_a_001",
+      "target_party_id": "party_a",
+      "question": "Please supply the signed agreement and identify the exact wording for the May 20 date, content dependency, completion, acceptance, and credentials.",
+      "reason": "These terms control the deadline and payment-trigger interpretations.",
+      "linked_object_ids": [
+        "ev_001",
+        "term_deadline",
+        "term_payment_trigger",
+        "term_client_dependency",
+        "term_credentials"
+      ],
+      "priority": "required",
+      "answer": null,
+      "answer_evidence_ids": [],
+      "status": "pending"
+    },
+    {
+      "question_id": "q_a_002",
+      "target_party_id": "party_a",
+      "question": "Please supply the most complete WhatsApp export available and explain its start/end dates and any gaps caused by the phone change.",
+      "reason": "The message history affects content timing, scope changes, communication frequency, and comparison with Maya’s screenshots.",
+      "linked_object_ids": ["ev_003", "ev_012", "ev_013", "ev_016", "ee_001", "ee_002"],
+      "priority": "required",
+      "answer": null,
+      "answer_evidence_ids": [],
+      "status": "pending"
+    },
+    {
+      "question_id": "q_a_003",
+      "target_party_id": "party_a",
+      "question": "What exact work remained after June 3, and which requested changes were fixes, included revisions, or added scope?",
+      "reason": "The answer affects completion, scope, and whether payment was triggered.",
+      "linked_object_ids": [
+        "cl_a_004",
+        "cl_a_005",
+        "del_homepage",
+        "del_services",
+        "del_mobile",
+        "del_pricing",
+        "del_newsletter"
+      ],
+      "priority": "required",
+      "answer": null,
+      "answer_evidence_ids": [],
+      "status": "pending"
+    },
+    {
+      "question_id": "q_a_004",
+      "target_party_id": "party_a",
+      "question": "Between June 9 and June 22, on which dates did you communicate with Maya and what did you say?",
+      "reason": "This could resolve the material dispute over whether Alex essentially disappeared.",
+      "linked_object_ids": ["tl_communication_gap", "cl_a_009", "cl_b_007"],
+      "priority": "required",
+      "answer": null,
+      "answer_evidence_ids": [],
+      "status": "pending"
+    },
+    {
+      "question_id": "q_b_001",
+      "target_party_id": "party_b",
+      "question": "Please supply the full May 12 email thread and the June 5 mobile screen recording.",
+      "reason": "These are decision-critical evidence for the deadline and mobile-defect claims.",
+      "linked_object_ids": ["ev_010", "ev_011", "term_deadline", "cl_b_002", "cl_b_005"],
+      "priority": "required",
+      "answer": null,
+      "answer_evidence_ids": [],
+      "status": "pending"
+    },
+    {
+      "question_id": "q_b_002",
+      "target_party_id": "party_b",
+      "question": "Please supply the June 6 and “that’s included” screenshots exactly as stored, including any visible metadata, and explain whether any backups or linked devices retain the surrounding chat.",
+      "reason": "Attribution and context are central, and the full chat is currently unavailable.",
+      "linked_object_ids": ["ev_012", "ev_013", "ev_016", "cl_b_004", "cl_b_006"],
+      "priority": "required",
+      "answer": null,
+      "answer_evidence_ids": [],
+      "status": "pending"
+    },
+    {
+      "question_id": "q_b_003",
+      "target_party_id": "party_b",
+      "question": "What is the calculation for the claimed $3,000–$4,000 lost bookings, and what evidence connects the website delay to specific lost inquiries or revenue?",
+      "reason": "The campaign invoice alone does not establish amount or causation.",
+      "linked_object_ids": ["cl_b_008", "dam_b_lost_bookings", "ev_014"],
+      "priority": "required",
+      "answer": null,
+      "answer_evidence_ids": [],
+      "status": "pending"
+    },
+    {
+      "question_id": "q_b_004",
+      "target_party_id": "party_b",
+      "question": "On what dates was the website reachable at your domain, which pages were live, and did you or customers use any functionality?",
+      "reason": "The extent of use affects value received and completion assessment.",
+      "linked_object_ids": ["tl_brief_publication", "cl_a_008", "cl_b_009", "del_mobile"],
+      "priority": "important",
+      "answer": null,
+      "answer_evidence_ids": [],
+      "status": "pending"
+    }
+  ],
+  "record_review": {
+    "person_a": {
+      "summary_shown_at": null,
+      "confirmed": false,
+      "corrections": [],
+      "confirmation_text": null,
+      "correction_opportunity_expires_at": null,
+      "correction_opportunity_status": "not_started"
+    },
+    "person_b": {
+      "summary_shown_at": null,
+      "confirmed": false,
+      "corrections": [],
+      "confirmation_text": null,
+      "correction_opportunity_expires_at": null,
+      "correction_opportunity_status": "not_started"
+    },
+    "record_version": 1,
+    "record_locked_at": null,
+    "record_hash": null
+  },
+  "fact_findings": {
+    "findings": [],
+    "unresolved_uncertainties": [
+      {
+        "uncertainty_id": "unc_contract",
+        "issue": "The signed agreement has not been inspected, so exact contract wording remains unavailable.",
+        "impact": "high",
+        "linked_object_ids": ["ev_001", "term_deadline", "term_payment_trigger"]
+      },
+      {
+        "uncertainty_id": "unc_messages",
+        "issue": "WhatsApp records are incomplete or unavailable and screenshots are uninspected.",
+        "impact": "high",
+        "linked_object_ids": ["ev_003", "ev_012", "ev_013", "ev_016"]
+      },
+      {
+        "uncertainty_id": "unc_mobile",
+        "issue": "The competing mobile recordings have not been inspected or compared.",
+        "impact": "high",
+        "linked_object_ids": ["ev_008", "ev_011", "cl_a_007", "cl_b_005"]
+      },
+      {
+        "uncertainty_id": "unc_loss",
+        "issue": "The amount and causation of claimed campaign losses are not established.",
+        "impact": "moderate",
+        "linked_object_ids": ["cl_b_008", "dam_b_lost_bookings", "ev_014"]
+      }
+    ]
+  },
+  "steelman_positions": {
+    "person_a": {
+      "strongest_case": null,
+      "key_claim_ids": [],
+      "key_evidence_ids": [],
+      "confirmed_by_party": false
+    },
+    "person_b": {
+      "strongest_case": null,
+      "key_claim_ids": [],
+      "key_evidence_ids": [],
+      "confirmed_by_party": false
+    }
+  },
+  "deliberation_input": {
+    "record_hash": null,
+    "eligible_for_deliberation": false,
+    "ineligibility_reasons": [
+      "Decision-critical evidence is described or unavailable, not inspected.",
+      "Required clarification questions remain pending.",
+      "Neither party has confirmed the structured record.",
+      "The record is not locked."
+    ],
+    "material_fact_ids": [],
+    "material_dispute_ids": [
+      "term_deadline",
+      "term_payment_trigger",
+      "del_mobile",
+      "cl_a_010",
+      "cl_b_012",
+      "dam_b_lost_bookings"
+    ],
+    "relevant_evidence_ids": [
+      "ev_001",
+      "ev_003",
+      "ev_004",
+      "ev_005",
+      "ev_008",
+      "ev_010",
+      "ev_011",
+      "ev_012",
+      "ev_013",
+      "ev_014"
+    ],
+    "uncertainty_ids": ["unc_contract", "unc_messages", "unc_mobile", "unc_loss"],
+    "public_outcome_ids": ["out_a_001", "out_b_001", "out_b_002"],
+    "private_party_information_present": false
+  },
+  "recommendation": null,
+  "party_decisions": [],
+  "audit": {
+    "schema_version": "0.1.1",
+    "model_runs": [
+      {
+        "run_id": "run_manual_golden_001",
+        "task": "manual_golden_authoring",
+        "model": "human-authored-from-validated-notion-record",
+        "prompt_version": "build-prompt-001",
+        "input_hash": "5fc78ee7e176dd95c398234689024683e7aceb02e08703d85e2137b8ef64959f",
+        "output_hash": "45b183e8c39c29ccdb265df11f327e644cfc922ad71bac1c7a211ffc485ffe45",
+        "status": "manual_golden",
+        "created_at": "2026-07-18T12:30:00Z"
+      }
+    ],
+    "state_transitions": [
+      {
+        "from": null,
+        "to": "person_a_draft",
+        "at": "2026-07-18T12:00:00Z",
+        "reason": "Synthetic Dry Run 001 case created."
+      },
+      {
+        "from": "person_a_draft",
+        "to": "person_a_submitted",
+        "at": "2026-07-18T12:01:00Z",
+        "reason": "Alex narrative captured."
+      },
+      {
+        "from": "person_a_submitted",
+        "to": "person_b_joined",
+        "at": "2026-07-18T12:10:00Z",
+        "reason": "Maya synthetic participation recorded."
+      },
+      {
+        "from": "person_b_joined",
+        "to": "person_b_submitted",
+        "at": "2026-07-18T12:11:00Z",
+        "reason": "Maya narrative captured."
+      },
+      {
+        "from": "person_b_submitted",
+        "to": "record_building",
+        "at": "2026-07-18T12:20:00Z",
+        "reason": "Manual canonical extraction authored."
+      },
+      {
+        "from": "record_building",
+        "to": "evidence_review",
+        "at": "2026-07-18T12:30:00Z",
+        "reason": "Evidence stubs created; files still need upload and inspection."
+      }
+    ],
+    "record_versions": [
+      {
+        "record_version": 1,
+        "record_hash": null,
+        "created_at": "2026-07-18T12:30:00Z",
+        "reason": "Initial manually authored golden fixture before evidence inspection."
+      }
+    ],
+    "record_lock_hash": null,
+    "recommendation_hash": null,
+    "golden_fixture": true
+  }
+}

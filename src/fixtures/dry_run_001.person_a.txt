@@ -1,0 +1,13 @@
+My name is Alex Rivera and I’m a freelance web designer. In early April I agreed to build a five-page marketing website for Maya Chen’s consulting business for $2,400. She paid a $1,200 deposit, with the balance due when the project was completed. The signed agreement is attached.
+
+The intended launch was around May 20, although the contract also says the timeline depended on Maya supplying final copy and images by April 25. She did not send everything by then. I think the last major batch arrived around May 8 or May 9, but some small text changes kept coming after that.
+
+The original job was a homepage, about page, services page, contact page, and mobile-responsive layout, with two revision rounds. During the project Maya also asked for a pricing comparison section, a newsletter signup, and several changes to the homepage design. I accepted most of those requests through WhatsApp because I wanted to keep the client happy. I probably should have documented more clearly which requests were outside the original scope.
+
+I sent what I considered a complete staging version on June 3. Maya replied that it “looked really good overall” but gave me a list of changes. I made most of them during the following week. She later said the project was too late, that the mobile version had major problems, and that the delay had damaged a marketing campaign she planned to run.
+
+There were some mobile issues, but I do not agree that the website was unusable. I fixed the issues I could reproduce. Maya also used images from the website in social media posts, and I believe at least part of the site was briefly published, although I cannot prove exactly what was live or for how long.
+
+Maya now refuses to pay the remaining $1,200 and has also said she may ask for the deposit back. She says I disappeared for two weeks. That is exaggerated. I was slower for part of one week because of a family issue, but I still replied to messages and told her what was happening.
+
+I feel like she is using the missed target date as an excuse not to pay for work she received. I am asking for the remaining $1,200. I will transfer the final editable source files and administrator credentials when the balance is paid. I want JuryAI to consider that much of the schedule delay came from late content, added requests, and repeated changes.
