@@ -1,17 +1,18 @@
 name: Apply v0.1.2 review fixes
 
 on:
-  pull_request:
-    types:
-      - reopened
+  push:
+    branches:
+      - agent/json-schema-golden-fixture
+    paths:
+      - .github/v012-ready
 
 permissions:
   contents: write
-  pull-requests: read
 
 jobs:
   apply:
-    if: github.head_ref == 'agent/json-schema-golden-fixture'
+    if: github.ref == 'refs/heads/agent/json-schema-golden-fixture'
     runs-on: ubuntu-latest
     steps:
       - name: Check out branch
@@ -186,6 +187,7 @@ Canonical severity values are `critical | major | minor`. Canonical resolution s
         shell: bash
         run: |
           set -euo pipefail
+          rm -f .github/v012-ready
           rm -f .github/workflows/apply-v012-review-fixes.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
