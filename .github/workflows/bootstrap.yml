@@ -66,7 +66,9 @@ jobs:
             }
           }
           JSON
-          npm install --ignore-scripts
+          rm -f package-lock.json
+          npm config set registry https://registry.npmjs.org/
+          npm install --ignore-scripts --no-audit
 
       - name: Verify extraction lab
         shell: bash
