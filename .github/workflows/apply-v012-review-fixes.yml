@@ -3,8 +3,7 @@ name: Apply v0.1.2 review fixes
 on:
   pull_request:
     types:
-      - reopened
-      - synchronize
+      - opened
 
 permissions:
   contents: write
@@ -12,13 +11,13 @@ permissions:
 
 jobs:
   apply:
-    if: github.head_ref == 'agent/json-schema-golden-fixture'
+    if: github.head_ref == 'agent/json-schema-golden-fixture-v012'
     runs-on: ubuntu-latest
     steps:
       - name: Check out branch
         uses: actions/checkout@v4
         with:
-          ref: agent/json-schema-golden-fixture
+          ref: agent/json-schema-golden-fixture-v012
           fetch-depth: 0
 
       - name: Align Notion-approved v0.1.2 schema and fixture
@@ -60,11 +59,12 @@ jobs:
           fixture_path.write_text(json.dumps(fixture, indent=2, ensure_ascii=False) + '\n')
 
           validator_path = root / 'src/validation/validate-case-record.ts'
-          validator = validator_path.read_text().replace(
-              'juryai-case-record-v0.1.1.schema.json',
-              'juryai-case-record-v0.1.2.schema.json',
+          validator_path.write_text(
+              validator_path.read_text().replace(
+                  'juryai-case-record-v0.1.1.schema.json',
+                  'juryai-case-record-v0.1.2.schema.json',
+              )
           )
-          validator_path.write_text(validator)
 
           readme_path = root / 'README.md'
           readme = readme_path.read_text().replace('v0.1.1', 'v0.1.2')
@@ -188,9 +188,10 @@ Canonical severity values are `critical | major | minor`. Canonical resolution s
         run: |
           set -euo pipefail
           rm -f .github/v012-ready
+          rm -f .github/branch-note
           rm -f .github/workflows/apply-v012-review-fixes.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           git commit -m "Align executable schema with Artifact 1 v0.1.2"
-          git push origin HEAD:agent/json-schema-golden-fixture
+          git push origin HEAD:agent/json-schema-golden-fixture-v012
