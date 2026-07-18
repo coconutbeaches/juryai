@@ -45,4 +45,25 @@ describe('JuryAI JSON Schema', () => {
     expect(result.valid).toBe(false);
     expect(result.schemaErrors.some((error) => error.path === '/claims/0')).toBe(true);
   });
+
+  it('accepts both canonical evidence relationship concepts', async () => {
+    for (const relationship of ['same_content_different_format', 'same_event_different_capture']) {
+      const record = clone(await loadGolden());
+      record.evidence_evidence_links[2].relationship = relationship;
+      const result = await validateCaseRecord(record);
+      expect(result.schemaErrors).toEqual([]);
+      expect(result.invariantErrors).toEqual([]);
+      expect(result.valid).toBe(true);
+    }
+  });
+
+  it('rejects pre-v0.1.2 extraction issue enums', async () => {
+    const record = clone(await loadGolden());
+    record.extraction_issues[0].issue_type = 'ambiguous_reference';
+    const result = await validateCaseRecord(record);
+    expect(result.valid).toBe(false);
+    expect(
+      result.schemaErrors.some((error) => error.path === '/extraction_issues/0/issue_type'),
+    ).toBe(true);
+  });
 });

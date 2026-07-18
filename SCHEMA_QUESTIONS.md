@@ -1,6 +1,6 @@
 # Schema Questions and Fail-Closed Decisions
 
-This file records ambiguities encountered while converting Artifact 1 v0.1.1 into executable JSON Schema and a complete golden fixture.
+This file records ambiguities encountered while converting Artifact 1 v0.1.2 into executable JSON Schema and a complete golden fixture.
 
 ## 1. Support level before evidence inspection
 
@@ -79,3 +79,54 @@ The `derived_from_outcome_ids` array must include the outcomes producing those m
 **Question:** Should this repository implement transitions or Supabase tables?
 
 **Decision:** No. The current scope is only executable schema, golden fixture, validation, tests, and the future alignment contract.
+
+## 11. Evidence-to-evidence relationship vocabulary
+
+**Question:** Artifact 1 v0.1.1 specified `same_content_different_format`, while the first executable schema silently used `same_event_different_capture` instead.
+
+**Decision:** Artifact 1 v0.1.2 and the executable schema retain both values because they mean different things:
+
+- `same_content_different_format` — substantively the same content represented through different formats or exports.
+- `same_event_different_capture` — separate captures of the same underlying event or state at materially the same time.
+
+Dry Run 001 link `ee_003` is `overlaps_with`, not `same_event_different_capture`, because the June 5 and June 8 recordings show different site states on different devices and dates.
+
+**Reason:** Preserves the original vocabulary, documents the added concept, and prevents semantically inaccurate links.
+
+## 12. Extraction-issue taxonomy and metadata
+
+**Question:** The executable schema introduced a richer extraction-issue taxonomy and required metadata that were not present in Artifact 1 v0.1.1.
+
+**Decision:** Artifact 1 v0.1.2 formally adopts the executable structure. Canonical extraction issues require:
+
+- `issue_id`
+- `issue_type`
+- `severity`
+- `description`
+- `affected_object_ids`
+- `resolution_status`
+- `source_spans`
+
+Canonical `issue_type` values are:
+
+`ambiguous_date | ambiguous_scope | internal_tension | attribution_uncertain | missing_evidence | conflicting_amount | other`
+
+Canonical severity values are `critical | major | minor`. Canonical resolution statuses are `open | clarification_requested | resolved | accepted_uncertainty`.
+
+**Reason:** The extraction harness needs auditable severity, source traceability, and resolution state. The change is now explicit rather than a silent schema redesign.
+
+## 13. Recommendation example stage
+
+**Question:** The executable schema added `example_stage` to recommendation objects even though Artifact 1 v0.1.1 did not define it.
+
+**Decision:** Artifact 1 v0.1.2 formally requires `example_stage: post_inspection` for recommendation examples. Actual case records continue to use `recommendation: null` until deliberation is eligible.
+
+**Reason:** Prevents a post-inspection example from being mistaken for the current pre-inspection Dry Run 001 state.
+
+## 14. Empty resolution attempts in Dry Run 001
+
+**Question:** Why is `resolution_attempts` empty even though Alex says Maya refuses to pay?
+
+**Decision:** A party's present dispute position is not automatically a structured resolution attempt. Dry Run 001 contains no dated, sourced pre-case offer/counteroffer exchange that can be encoded without invention, so the array remains empty.
+
+**Reason:** Avoids manufacturing dates, offers, or negotiation events from a general refusal-to-pay statement.

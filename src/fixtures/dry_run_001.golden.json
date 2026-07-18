@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.1.1",
+  "schema_version": "0.1.2",
   "record_version": 1,
   "case": {
     "case_id": "case_dry_run_001",
@@ -2185,9 +2185,9 @@
       "link_id": "ee_003",
       "from_evidence_id": "ev_008",
       "to_evidence_id": "ev_011",
-      "relationship": "same_event_different_capture",
+      "relationship": "overlaps_with",
       "comparison_status": "pending_inspection",
-      "explanation": "The recordings concern mobile behavior on different devices and dates."
+      "explanation": "The recordings both concern mobile behavior, but they capture different site states on different devices and dates; they are not the same event or the same content."
     },
     {
       "link_id": "ee_004",
@@ -2632,7 +2632,7 @@
   "recommendation": null,
   "party_decisions": [],
   "audit": {
-    "schema_version": "0.1.1",
+    "schema_version": "0.1.2",
     "model_runs": [
       {
         "run_id": "run_manual_golden_001",

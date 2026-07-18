@@ -8,7 +8,7 @@ import { validateCustomInvariants, type ValidationIssue } from './custom-invaria
 
 const currentFile = fileURLToPath(import.meta.url);
 const projectRoot = resolve(currentFile, '../../..');
-const schemaPath = resolve(projectRoot, 'src/schemas/juryai-case-record-v0.1.1.schema.json');
+const schemaPath = resolve(projectRoot, 'src/schemas/juryai-case-record-v0.1.2.schema.json');
 
 export type ValidationResult = {
   valid: boolean;

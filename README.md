@@ -34,7 +34,7 @@ Not included:
 ```text
 src/
   schemas/
-    juryai-case-record-v0.1.1.schema.json
+    juryai-case-record-v0.1.2.schema.json
   fixtures/
     dry_run_001.person_a.txt
     dry_run_001.person_b.txt

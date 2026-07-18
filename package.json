@@ -4,7 +4,6 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "pretest": "node scripts/fix-v012-audit-version.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "validate:golden": "tsx src/validation/validate-case-record.ts src/fixtures/dry_run_001.golden.json",

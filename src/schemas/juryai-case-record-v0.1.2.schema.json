@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://juryai.dev/schemas/juryai-case-record-v0.1.1.schema.json",
-  "title": "JuryAI Case Record v0.1.1",
-  "description": "Canonical machine-readable record for JuryAI v0.1.1 freelancer/client dispute extraction.",
+  "$id": "https://juryai.dev/schemas/juryai-case-record-v0.1.2.schema.json",
+  "title": "JuryAI Case Record v0.1.2",
+  "description": "Canonical machine-readable record for JuryAI v0.1.2 freelancer/client dispute extraction.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -34,7 +34,7 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "0.1.1"
+      "const": "0.1.2"
     },
     "record_version": {
       "type": "integer",
@@ -1117,6 +1117,7 @@
             "overlaps_with",
             "fragment_of_same_source",
             "inconsistent_with",
+            "same_content_different_format",
             "same_event_different_capture",
             "unclear"
           ]
@@ -1978,7 +1979,7 @@
       ],
       "properties": {
         "schema_version": {
-          "const": "0.1.1"
+          "const": "0.1.2"
         },
         "model_runs": {
           "type": "array",
