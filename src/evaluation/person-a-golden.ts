@@ -49,7 +49,13 @@ export function buildPersonAGoldenProjection(): JsonObject {
   const submission = record.submissions.find((item: JsonObject) => item.party_id === 'party_a');
   if (!party || !submission) throw new Error('Dry Run 001 is missing Person A party or submission.');
 
-  const evidence = record.evidence.filter((item: JsonObject) => item.submitted_by_party_id === 'party_a');
+  const thirdParties = record.third_parties.filter(
+    (item: JsonObject) => item.relationship_to_party_id === 'party_a',
+  );
+  const thirdPartyIds = new Set(thirdParties.map((item: JsonObject) => item.third_party_id));
+  const evidence = record.evidence.filter(
+    (item: JsonObject) => item.submitted_by_party_id === 'party_a',
+  );
   const evidenceIds = new Set(evidence.map((item: JsonObject) => item.evidence_id));
   const claims = record.claims
     .filter((item: JsonObject) => item.party_id === 'party_a')
@@ -57,7 +63,9 @@ export function buildPersonAGoldenProjection(): JsonObject {
       ...item,
       response_status: 'unanswered',
       supporting_evidence_ids: item.supporting_evidence_ids.filter((id: string) => evidenceIds.has(id)),
-      contradicting_evidence_ids: item.contradicting_evidence_ids.filter((id: string) => evidenceIds.has(id)),
+      contradicting_evidence_ids: item.contradicting_evidence_ids.filter((id: string) =>
+        evidenceIds.has(id),
+      ),
       counterclaim_ids: [],
     }));
   const claimIds = new Set(claims.map((item: JsonObject) => item.claim_id));
@@ -93,6 +101,10 @@ export function buildPersonAGoldenProjection(): JsonObject {
     )
     .map((item: JsonObject) => ({
       ...item,
+      actor_third_party_id:
+        item.actor_third_party_id && thirdPartyIds.has(item.actor_third_party_id)
+          ? item.actor_third_party_id
+          : null,
       asserted_by_party_ids: ['party_a'],
       occurrence_status: 'supported_unanswered',
       interpretation_status: item.person_a_interpretation ? 'unclear' : 'not_applicable',
@@ -121,6 +133,7 @@ export function buildPersonAGoldenProjection(): JsonObject {
   const knownIds = new Set<string>([
     'party_a',
     submission.submission_id,
+    ...thirdPartyIds,
     ...evidenceIds,
     ...claimIds,
     ...agreementTerms.map((item: JsonObject) => item.term_id),
@@ -159,9 +172,7 @@ export function buildPersonAGoldenProjection(): JsonObject {
     extractor_version: PERSON_A_EXTRACTOR_VERSION,
     party,
     submission,
-    third_parties: record.third_parties.filter(
-      (item: JsonObject) => item.relationship_to_party_id === 'party_a',
-    ),
+    third_parties: thirdParties,
     agreement: {
       ...record.agreement,
       source_evidence_ids: record.agreement.source_evidence_ids.filter((id: string) =>
