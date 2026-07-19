@@ -1,0 +1,206 @@
+name: PR 4 review fix
+
+on:
+  pull_request_target:
+    types: [ready_for_review, reopened, synchronize]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: >-
+      github.event.pull_request.number == 4 &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'agent/person-a-extraction-harness'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+      - name: Apply review fixes
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          alignment = Path('src/alignment/person-a-alignment.ts')
+          text = alignment.read_text()
+          text = text.replace(
+              "const synonyms: Record<string, string> = {",
+              "// Initial lexical normalization is calibrated to Dry Run 001. Future case types should inject case-neutral aliases rather than extend this fixture-specific table.\nconst synonyms: Record<string, string> = {",
+              1,
+          )
+          old = '''      ambiguous.push({
+        extracted_index: extractedIndex,
+        extracted_id: idFor(family, extractedItems[extractedIndex] ?? {}, extractedIndex),
+        candidates: [
+          {
+            golden_index: goldenIndex,
+            golden_id: idFor(family, goldenItems[goldenIndex] ?? {}, goldenIndex),
+            score,
+          },
+          ...alternatives.slice(0, 2).map((candidate) => ({
+            golden_index: candidate.index,
+            golden_id: idFor(family, goldenItems[candidate.index] ?? {}, candidate.index),
+            score: candidate.score,
+          })),
+        ],
+      });
+      return;'''
+          new = '''      const candidates = [
+        {
+          golden_index: goldenIndex,
+          golden_id: idFor(family, goldenItems[goldenIndex] ?? {}, goldenIndex),
+          score,
+        },
+        ...alternatives.slice(0, 2).map((candidate) => ({
+          golden_index: candidate.index,
+          golden_id: idFor(family, goldenItems[candidate.index] ?? {}, candidate.index),
+          score: candidate.score,
+        })),
+      ];
+      ambiguous.push({
+        extracted_index: extractedIndex,
+        extracted_id: idFor(family, extractedItems[extractedIndex] ?? {}, extractedIndex),
+        candidates,
+      });
+      // Ambiguous objects are represented once by ambiguous_alignment. They must not
+      // also become unmatched/missing errors or distort recall and edit-rate metrics.
+      usedExtracted.add(extractedIndex);
+      candidates.forEach((candidate) => usedGolden.add(candidate.golden_index));
+      return;'''
+          if old not in text:
+              raise SystemExit('alignment ambiguity block not found')
+          alignment.write_text(text.replace(old, new, 1))
+
+          tests = Path('src/tests/person-a-evaluation.test.ts')
+          text = tests.read_text()
+          marker = "  it('classifies an omitted high-materiality claim as critical', () => {"
+          test = '''  it('reports an ambiguous extraction once without also marking its candidates unmatched', () => {
+    const extraction = validPersonAExtraction();
+    const golden = buildPersonAGoldenProjection();
+    const questions = golden.clarification_questions;
+    expect(questions.length).toBeGreaterThanOrEqual(2);
+    extraction.clarification_questions = [
+      {
+        ...questions[0],
+        question_id: 'generated_ambiguous_question',
+        question: `${questions[0].question} ${questions[1].question}`,
+        reason: `${questions[0].reason} ${questions[1].reason}`,
+      },
+    ];
+    const alignment = alignPersonA(extraction, golden);
+    const family = alignment.families.clarification_questions;
+    expect(family.ambiguous).toHaveLength(1);
+    expect(family.unmatched_extracted).toEqual([]);
+    const ambiguousGoldenIndexes = new Set(
+      family.ambiguous.flatMap((item) => item.candidates.map((candidate) => candidate.golden_index)),
+    );
+    expect(family.unmatched_golden.some((item) => ambiguousGoldenIndexes.has(item.index))).toBe(false);
+    const report = evaluatePersonA(extraction, golden, alignment);
+    expect(report.errors.filter((error) => error.code === 'ambiguous_alignment')).toHaveLength(1);
+    expect(report.errors.filter((error) => error.code === 'unmatched_extracted_object')).toHaveLength(0);
+    expect(report.errors.filter((error) => error.code === 'missing_golden_object')).toHaveLength(0);
+  });
+
+'''
+          if marker not in text:
+              raise SystemExit('evaluation test marker not found')
+          tests.write_text(text.replace(marker, test + marker, 1))
+
+          validator = Path('src/extraction/validate-person-a.ts')
+          text = validator.read_text()
+          text = text.replace(
+              "import addFormats from 'ajv-formats';",
+              "import addFormats from 'ajv-formats';\nimport { createHash } from 'node:crypto';",
+              1,
+          )
+          marker = '''  if (record.submission.raw_text !== narrative) {
+    add(
+      invariantErrors,
+      '$.submission.raw_text',
+      'The raw submission must preserve the narrative verbatim.',
+    );
+  }
+'''
+          replacement = marker + '''  const expectedNarrativeHash = createHash('sha256').update(narrative).digest('hex');
+  if (record.submission.content_hash !== expectedNarrativeHash) {
+    add(
+      invariantErrors,
+      '$.submission.content_hash',
+      'The submission content_hash must equal sha256(narrative).',
+    );
+  }
+  if (record.metadata.input_hash !== expectedNarrativeHash) {
+    add(
+      invariantErrors,
+      '$.metadata.input_hash',
+      'The metadata input_hash must equal sha256(narrative).',
+    );
+  }
+'''
+          if marker not in text:
+              raise SystemExit('validator hash marker not found')
+          validator.write_text(text.replace(marker, replacement, 1))
+
+          validation_tests = Path('src/tests/person-a-validation.test.ts')
+          text = validation_tests.read_text()
+          marker = "  it('rejects narrative evidence promoted to inspected', () => {"
+          test = '''  it('rejects stale narrative hashes on replay', () => {
+    const extraction = validPersonAExtraction();
+    extraction.metadata.input_hash = 'a'.repeat(64);
+    extraction.submission.content_hash = 'b'.repeat(64);
+    const result = validatePersonAExtraction(extraction, extraction.submission.raw_text);
+    expect(result.valid).toBe(false);
+    expect(result.invariantErrors.filter((error) => error.message.includes('sha256(narrative)'))).toHaveLength(2);
+  });
+
+'''
+          if marker not in text:
+              raise SystemExit('validation test marker not found')
+          validation_tests.write_text(text.replace(marker, test + marker, 1))
+
+          for path in ['src/extraction/openai-responses.ts', 'src/extraction/person-a-extractor.ts']:
+              file = Path(path)
+              file.write_text(file.read_text().replace("'low' | 'medium' | 'high' | 'xhigh'", "'low' | 'medium' | 'high'"))
+
+          env = Path('.env.example')
+          text = env.read_text().rstrip() + "\n# Supported reasoning efforts: low, medium, high.\n"
+          env.write_text(text)
+
+          readme = Path('README.md')
+          text = readme.read_text()
+          needle = 'export JURYAI_REASONING_EFFORT="high"\n```'
+          replacement = needle + '\n\nSupported reasoning efforts are `low`, `medium`, and `high`; model-specific values such as `xhigh` are intentionally excluded.'
+          if needle in text and 'model-specific values such as `xhigh`' not in text:
+              text = text.replace(needle, replacement, 1)
+          readme.write_text(text)
+          PY
+          npx --no-install prettier --write .
+      - name: Verify fixes
+        run: |
+          npm test
+          npm run typecheck
+          npm run validate:golden
+          npm run format:check
+          npm audit --audit-level=low
+      - name: Remove trigger marker
+        run: rm -f .pr4-review-fix-trigger
+      - name: Commit fixes
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Address PR 4 alignment review"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
