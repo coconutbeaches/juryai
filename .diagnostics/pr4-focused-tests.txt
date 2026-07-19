@@ -1,0 +1,89 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.10 [39m[90m/home/runner/work/juryai/juryai[39m
+
+ [31m❯[39m src/tests/person-a-evaluation.test.ts [2m([22m[2m10 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 115[2mms[22m[39m
+     [32m✓[39m aligns the golden projection without relying on IDs or array order[32m 17[2mms[22m[39m
+     [32m✓[39m reports a clean deterministic projection[32m 14[2mms[22m[39m
+[31m     [31m×[31m counts an ambiguous object once without unmatched duplicates[39m[32m 11[2mms[22m[39m
+     [32m✓[39m classifies a reversed timeline actor as one critical error[32m 10[2mms[22m[39m
+     [32m✓[39m counts multiple field errors on one object as one human edit[32m 9[2mms[22m[39m
+     [32m✓[39m classifies a dropped against-interest admission as major[32m 10[2mms[22m[39m
+     [32m✓[39m classifies a flattened approximate date as major[32m 11[2mms[22m[39m
+     [32m✓[39m classifies inspected narrative evidence as critical[32m 8[2mms[22m[39m
+     [32m✓[39m classifies a reversed requested transfer as critical[32m 13[2mms[22m[39m
+     [32m✓[39m classifies an omitted high-materiality claim as critical[32m 12[2mms[22m[39m
+ [31m❯[39m src/tests/person-a-validation.test.ts [2m([22m[2m16 tests[22m[2m | [22m[31m14 failed[39m[2m)[22m[32m 272[2mms[22m[39m
+[31m     [31m×[31m golden projection has no schema or invariant errors[39m[32m 53[2mms[22m[39m
+     [32m✓[39m golden projection does not retain Maya-only semantic content[32m 3[2mms[22m[39m
+     [32m✓[39m does not import a Person B-only third-party actor[32m 2[2mms[22m[39m
+[31m     [31m×[31m normalizes arbitrary model submission IDs before validation[39m[32m 28[2mms[22m[39m
+[31m     [31m×[31m requires non-empty source spans in schema and runtime invariants[39m[32m 19[2mms[22m[39m
+[31m     [31m×[31m rejects an existing ID from the wrong reference family[39m[32m 20[2mms[22m[39m
+[31m     [31m×[31m rejects a fabricated original filename[39m[32m 27[2mms[22m[39m
+[31m     [31m×[31m rejects stale narrative hashes on replay[39m[32m 15[2mms[22m[39m
+[31m     [31m×[31m golden agreement and deliverables have no reference errors[39m[32m 13[2mms[22m[39m
+[31m     [31m×[31m golden timeline has no reference errors[39m[32m 12[2mms[22m[39m
+[31m     [31m×[31m golden claims and evidence links have no reference errors[39m[32m 14[2mms[22m[39m
+[31m     [31m×[31m golden damages, issues, and questions have no reference errors[39m[32m 13[2mms[22m[39m
+[31m     [31m×[31m golden projection has exact source spans[39m[32m 13[2mms[22m[39m
+[31m     [31m×[31m rejects narrative evidence promoted to inspected[39m[32m 17[2mms[22m[39m
+[31m     [31m×[31m rejects a source quote whose offsets do not match the narrative[39m[32m 11[2mms[22m[39m
+[31m     [31m×[31m rejects Person B interpretation and answered claim state[39m[32m 10[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 15 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/tests/person-a-evaluation.test.ts[2m > [22mPerson A semantic alignment and classified diff[2m > [22mcounts an ambiguous object once without unmatched duplicates
+[31m[1mAssertionError[22m: expected [] to have a length of 1 but got +0[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 1[39m
+[31m+ 0[39m
+
+[36m [2m❯[22m src/tests/person-a-evaluation.test.ts:[2m50:30[22m[39m
+    [90m 48|[39m     [35mconst[39m alignment [33m=[39m [34malignPersonA[39m(extraction[33m,[39m golden)[33m;[39m
+    [90m 49|[39m     [35mconst[39m family [33m=[39m alignment[33m.[39mfamilies[33m.[39mclarification_questions[33m;[39m
+    [90m 50|[39m     [34mexpect[39m(family[33m.[39mambiguous)[33m.[39m[34mtoHaveLength[39m([34m1[39m)[33m;[39m
+    [90m   |[39m                              [31m^[39m
+    [90m 51|[39m     [34mexpect[39m(family[33m.[39munmatched_extracted)[33m.[39m[34mtoEqual[39m([])[33m;[39m
+    [90m 52|[39m     [35mconst[39m ambiguousGolden [33m=[39m [35mnew[39m [33mSet[39m(
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/15]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/tests/person-a-validation.test.ts[2m > [22mPerson A extraction validation[2m > [22mgolden projection has no schema or invariant errors
+[41m[1m FAIL [22m[49m src/tests/person-a-validation.test.ts[2m > [22mPerson A extraction validation[2m > [22mnormalizes arbitrary model submission IDs before validation
+[41m[1m FAIL [22m[49m src/tests/person-a-validation.test.ts[2m > [22mPerson A extraction validation[2m > [22mrequires non-empty source spans in schema and runtime invariants
+[41m[1m FAIL [22m[49m src/tests/person-a-validation.test.ts[2m > [22mPerson A extraction validation[2m > [22mrejects an existing ID from the wrong reference family
+[41m[1m FAIL [22m[49m src/tests/person-a-validation.test.ts[2m > [22mPerson A extraction validation[2m > [22mrejects a fabricated original filename
+[41m[1m FAIL [22m[49m src/tests/person-a-validation.test.ts[2m > [22mPerson A extraction validation[2m > [22mrejects stale narrative hashes on replay
+[41m[1m FAIL [22m[49m src/tests/person-a-validation.test.ts[2m > [22mPerson A extraction validation[2m > [22mgolden agreement and deliverables have no reference errors
+[41m[1m FAIL [22m[49m src/tests/person-a-validation.test.ts[2m > [22mPerson A extraction validation[2m > [22mgolden timeline has no reference errors
+[41m[1m FAIL [22m[49m src/tests/person-a-validation.test.ts[2m > [22mPerson A extraction validation[2m > [22mgolden claims and evidence links have no reference errors
+[41m[1m FAIL [22m[49m src/tests/person-a-validation.test.ts[2m > [22mPerson A extraction validation[2m > [22mgolden damages, issues, and questions have no reference errors
+[41m[1m FAIL [22m[49m src/tests/person-a-validation.test.ts[2m > [22mPerson A extraction validation[2m > [22mgolden projection has exact source spans
+[41m[1m FAIL [22m[49m src/tests/person-a-validation.test.ts[2m > [22mPerson A extraction validation[2m > [22mrejects narrative evidence promoted to inspected
+[41m[1m FAIL [22m[49m src/tests/person-a-validation.test.ts[2m > [22mPerson A extraction validation[2m > [22mrejects a source quote whose offsets do not match the narrative
+[41m[1m FAIL [22m[49m src/tests/person-a-validation.test.ts[2m > [22mPerson A extraction validation[2m > [22mrejects Person B interpretation and answered claim state
+[31m[1mError[22m: can't resolve reference #/$defs/isoDateTimeOrNull from id https://juryai.dev/schemas/person-a-extraction-v0.1.0.schema.json[39m
+[90m [2m❯[22m Object.code node_modules/ajv/lib/vocabularies/core/ref.ts:[2m19:38[22m[39m
+[90m [2m❯[22m keywordCode node_modules/ajv/lib/compile/validate/index.ts:[2m532:8[22m[39m
+[90m [2m❯[22m node_modules/ajv/lib/compile/validate/index.ts:[2m228:20[22m[39m
+[90m [2m❯[22m CodeGen.code node_modules/ajv/lib/compile/codegen/index.ts:[2m545:33[22m[39m
+[90m [2m❯[22m CodeGen.block node_modules/ajv/lib/compile/codegen/index.ts:[2m700:19[22m[39m
+[90m [2m❯[22m schemaKeywords node_modules/ajv/lib/compile/validate/index.ts:[2m228:8[22m[39m
+[90m [2m❯[22m typeAndKeywords node_modules/ajv/lib/compile/validate/index.ts:[2m161:2[22m[39m
+[90m [2m❯[22m subSchemaObjCode node_modules/ajv/lib/compile/validate/index.ts:[2m147:2[22m[39m
+[90m [2m❯[22m subschemaCode node_modules/ajv/lib/compile/validate/index.ts:[2m124:6[22m[39m
+[90m [2m❯[22m KeywordCxt.subschema node_modules/ajv/lib/compile/validate/index.ts:[2m500:4[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/15]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m2 failed[39m[22m[90m (2)[39m
+[2m      Tests [22m [1m[31m15 failed[39m[22m[2m | [22m[1m[32m11 passed[39m[22m[90m (26)[39m
+[2m   Start at [22m 02:44:04
+[2m   Duration [22m 585ms[2m (transform 190ms, setup 0ms, import 333ms, tests 388ms, environment 0ms)[22m
+
+
+::error file=/home/runner/work/juryai/juryai/src/tests/person-a-evaluation.test.ts,title=src/tests/person-a-evaluation.test.ts > Person A semantic alignment and classified diff > counts an ambiguous object once without unmatched duplicates,line=50,column=30::AssertionError: expected [] to have a length of 1 but got +0%0A%0A- Expected%0A+ Received%0A%0A- 1%0A+ 0%0A%0A ❯ src/tests/person-a-evaluation.test.ts:50:30%0A%0A
