@@ -41,6 +41,7 @@ function collectDefs(rootNames: string[]): Record<string, JsonSchema> {
 }
 
 const modelRootDefinitions = [
+  'thirdParty',
   'agreement',
   'deliverableAssessment',
   'timelineEvent',
@@ -67,6 +68,7 @@ const modelProperties: Record<string, JsonSchema> = {
       language: { type: 'string', minLength: 2 },
     },
   },
+  third_parties: { type: 'array', items: { $ref: '#/$defs/thirdParty' } },
   agreement: { $ref: '#/$defs/agreement' },
   deliverable_assessments: {
     type: 'array',
@@ -146,7 +148,7 @@ export const personAExtractionSchema: JsonSchema = {
   additionalProperties: false,
   required: Object.keys(extractionProperties),
   properties: extractionProperties,
-  $defs: collectDefs([...extractionRootDefinitions, 'thirdParty']),
+  $defs: collectDefs(extractionRootDefinitions),
 };
 
 export function buildOpenAIResponseSchema(): JsonSchema {
