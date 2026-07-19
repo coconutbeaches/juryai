@@ -16,13 +16,28 @@ export type ExtractPersonAOptions = {
   reasoningEffort?: 'low' | 'medium' | 'high';
 };
 
-export type PersonAExtractionResult = {
-  extraction: JsonObject;
-  modelOutput: JsonObject;
-};
+export type PersonAExtractionResult = { extraction: JsonObject; modelOutput: JsonObject };
 
 export function sha256(value: string): string {
   return createHash('sha256').update(value, 'utf8').digest('hex');
+}
+
+function normalizeSourceSpanSubmissionIds(value: unknown, submissionId: string): void {
+  if (Array.isArray(value)) {
+    value.forEach((item) => normalizeSourceSpanSubmissionIds(item, submissionId));
+    return;
+  }
+  if (!value || typeof value !== 'object') return;
+  const object = value as JsonObject;
+  if (
+    typeof object.quote === 'string' &&
+    typeof object.start_char === 'number' &&
+    typeof object.end_char === 'number' &&
+    'submission_id' in object
+  ) {
+    object.submission_id = submissionId;
+  }
+  Object.values(object).forEach((child) => normalizeSourceSpanSubmissionIds(child, submissionId));
 }
 
 export function assemblePersonAExtraction(
@@ -32,43 +47,37 @@ export function assemblePersonAExtraction(
   const submissionId = 'sub_a_extracted';
   const inputHash = sha256(options.narrative);
   const generatedAt = options.generatedAt ?? new Date().toISOString();
+  const normalizedModelOutput = structuredClone(modelOutput);
+  normalizeSourceSpanSubmissionIds(normalizedModelOutput, submissionId);
 
   const extraction: JsonObject = {
     schema_version: '0.1.2',
     extractor_version: PERSON_A_EXTRACTOR_VERSION,
     party: {
-      party_id: 'party_a',
-      role: 'person_a',
-      display_name: modelOutput.party_profile.display_name,
+      party_id: 'party_a', role: 'person_a',
+      display_name: normalizedModelOutput.party_profile.display_name,
       email: null,
-      country: modelOutput.party_profile.country,
-      language: modelOutput.party_profile.language,
-      identity_status: 'unverified',
-      consented_at: null,
-      submission_complete: true,
-      record_confirmed_at: null,
+      country: normalizedModelOutput.party_profile.country,
+      language: normalizedModelOutput.party_profile.language,
+      identity_status: 'unverified', consented_at: null,
+      submission_complete: true, record_confirmed_at: null,
     },
     submission: {
-      submission_id: submissionId,
-      party_id: 'party_a',
-      submission_type: 'initial_position',
-      raw_text: options.narrative,
-      submitted_at: options.submittedAt,
-      supersedes_submission_id: null,
-      is_locked: true,
-      content_hash: inputHash,
+      submission_id: submissionId, party_id: 'party_a', submission_type: 'initial_position',
+      raw_text: options.narrative, submitted_at: options.submittedAt,
+      supersedes_submission_id: null, is_locked: true, content_hash: inputHash,
     },
-    third_parties: modelOutput.third_parties ?? [],
-    agreement: modelOutput.agreement,
-    deliverable_assessments: modelOutput.deliverable_assessments,
-    timeline: modelOutput.timeline,
-    claims: modelOutput.claims,
-    evidence: modelOutput.evidence,
-    claim_evidence_links: modelOutput.claim_evidence_links,
-    damages_claims: modelOutput.damages_claims,
-    desired_outcomes: modelOutput.desired_outcomes,
-    extraction_issues: modelOutput.extraction_issues,
-    clarification_questions: modelOutput.clarification_questions,
+    third_parties: normalizedModelOutput.third_parties ?? [],
+    agreement: normalizedModelOutput.agreement,
+    deliverable_assessments: normalizedModelOutput.deliverable_assessments,
+    timeline: normalizedModelOutput.timeline,
+    claims: normalizedModelOutput.claims,
+    evidence: normalizedModelOutput.evidence,
+    claim_evidence_links: normalizedModelOutput.claim_evidence_links,
+    damages_claims: normalizedModelOutput.damages_claims,
+    desired_outcomes: normalizedModelOutput.desired_outcomes,
+    extraction_issues: normalizedModelOutput.extraction_issues,
+    clarification_questions: normalizedModelOutput.clarification_questions,
     metadata: {
       model: options.model,
       prompt_version: PERSON_A_PROMPT_VERSION,
@@ -87,9 +96,7 @@ export function assemblePersonAExtraction(
   return extraction;
 }
 
-export async function extractPersonA(
-  options: ExtractPersonAOptions,
-): Promise<PersonAExtractionResult> {
+export async function extractPersonA(options: ExtractPersonAOptions): Promise<PersonAExtractionResult> {
   const modelOutput = await options.client.generate({
     narrative: options.narrative,
     model: options.model,
