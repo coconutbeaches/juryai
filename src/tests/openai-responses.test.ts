@@ -46,6 +46,20 @@ describe('OpenAI Responses parsing', () => {
     expect(issues).toEqual([]);
   });
 
+  it('preserves canonical date formats in the recursively assembled schema', () => {
+    expect(buildOpenAIResponseSchema()).toMatchObject({
+      $defs: {
+        dateValue: {
+          properties: {
+            start: { format: 'date' },
+            end: { format: 'date' },
+          },
+        },
+        isoDateTimeOrNull: { format: 'date-time' },
+      },
+    });
+  });
+
   it('meets documented strict Structured Outputs object requirements', () => {
     const schema = buildOpenAIResponseSchema();
     const issues = collectSchemaNodes(schema).flatMap(({ node, path }) => {

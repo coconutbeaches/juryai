@@ -169,7 +169,7 @@ export function buildOpenAIResponseSchema(): JsonSchema {
     }
     if (!value || typeof value !== 'object') return;
     const object = value as Record<string, unknown>;
-    for (const keyword of ['$schema', '$id', 'format', 'pattern', 'uniqueItems']) {
+    for (const keyword of ['$schema', '$id', 'pattern', 'uniqueItems']) {
       delete object[keyword];
     }
     Object.values(object).forEach(stripUnsupportedKeywords);
