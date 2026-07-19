@@ -48,23 +48,26 @@ async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   const narrative = await readFile(args.input, 'utf8');
   let extraction: Record<string, any>;
-  let rawResponse: unknown = null;
 
   if (args.extraction) {
     extraction = JSON.parse(await readFile(args.extraction, 'utf8')) as Record<string, any>;
   } else {
     const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) throw new Error('OPENAI_API_KEY is required for live extraction. Use --extraction <file.json> to evaluate an existing output without an API call.');
+    if (!apiKey)
+      throw new Error(
+        'OPENAI_API_KEY is required for live extraction. Use --extraction <file.json> to evaluate an existing output without an API call.',
+      );
     const client = new OpenAIResponsesClient(apiKey, process.env.OPENAI_BASE_URL);
     const result = await extractPersonA({
       narrative,
       submittedAt: args.submittedAt,
       model: args.model,
       client,
-      reasoningEffort: (process.env.JURYAI_REASONING_EFFORT as 'low' | 'medium' | 'high' | undefined) ?? 'medium',
+      reasoningEffort:
+        (process.env.JURYAI_REASONING_EFFORT as 'low' | 'medium' | 'high' | undefined) ??
+        'medium',
     });
     extraction = result.extraction;
-    rawResponse = result.rawResponse ?? null;
   }
 
   const validation = validatePersonAExtraction(extraction, narrative);
@@ -85,12 +88,13 @@ async function main(): Promise<void> {
     writeFile(resolve(args.outputDir, 'alignment.json'), `${JSON.stringify(alignment, null, 2)}\n`),
     writeFile(resolve(args.outputDir, 'report.json'), `${JSON.stringify(report, null, 2)}\n`),
     writeFile(resolve(args.outputDir, 'report.md'), reportMarkdown(report)),
-    ...(rawResponse === null ? [] : [writeFile(resolve(args.outputDir, 'raw-response.json'), `${JSON.stringify(rawResponse, null, 2)}\n`)]),
   ]);
 
   console.log('✓ Person A extraction valid against v0.1.2');
   console.log(`✓ Results written to ${args.outputDir}`);
-  console.log(`Critical ${report.summary.critical} · Major ${report.summary.major} · Minor ${report.summary.minor} · Human edit rate ${(report.summary.human_edit_rate * 100).toFixed(1)}%`);
+  console.log(
+    `Critical ${report.summary.critical} · Major ${report.summary.major} · Minor ${report.summary.minor} · Human edit rate ${(report.summary.human_edit_rate * 100).toFixed(1)}%`,
+  );
   if (args.failOnCritical && report.summary.critical > 0) process.exitCode = 2;
 }
 
