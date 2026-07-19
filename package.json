@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
+    "test:person-a": "vitest run src/tests/person-a-validation.test.ts src/tests/person-a-evaluation.test.ts src/tests/openai-responses.test.ts",
     "typecheck": "tsc --noEmit",
     "validate:golden": "tsx src/validation/validate-case-record.ts src/fixtures/dry_run_001.golden.json",
     "extract:person-a": "tsx src/commands/extract-person-a.ts",
