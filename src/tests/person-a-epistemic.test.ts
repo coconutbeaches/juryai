@@ -209,4 +209,17 @@ describe('Person A later-review epistemic regressions', () => {
       ),
     ).toBe(true);
   });
+
+  it('returns schema errors instead of crashing on malformed nested values', () => {
+    const extraction = validPersonAExtraction();
+    extraction.claims[0].source_spans = [null];
+
+    expect(() =>
+      validatePersonAExtraction(extraction, extraction.submission.raw_text),
+    ).not.toThrow();
+
+    const result = validatePersonAExtraction(extraction, extraction.submission.raw_text);
+    expect(result.valid).toBe(false);
+    expect(result.schemaErrors.length).toBeGreaterThan(0);
+  });
 });
