@@ -43,7 +43,10 @@ jobs:
       matrix:
         case_name:
           - golden projection has no schema errors
-          - golden projection has no reference errors
+          - golden agreement and deliverables have no reference errors
+          - golden timeline has no reference errors
+          - golden claims and evidence links have no reference errors
+          - golden damages, issues, and questions have no reference errors
           - golden projection has exact source spans
           - golden projection has no remaining scope invariant errors
           - assembles deterministic submission metadata around model output
