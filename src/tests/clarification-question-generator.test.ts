@@ -96,7 +96,11 @@ describe('deterministic clarification question generation', () => {
   });
 
   it('uses post-lock phase for later contradictions without mutating the source record', () => {
-    const original = { object_id: 'event_001', actor_party_id: null, summary: 'Photos arrived late.' };
+    const original = {
+      object_id: 'event_001',
+      actor_party_id: null,
+      summary: 'Photos arrived late.',
+    };
     const amendment: ClarificationAmendment = {
       amendment_id: 'amd_001',
       target_object_id: 'event_001',
@@ -120,7 +124,11 @@ describe('deterministic clarification question generation', () => {
       trigger: 'causal_link',
       causal_link_status: 'inferred',
     });
-    const explicit = { ...inferred, target_object_id: 'claim_003', causal_link_status: 'explicit' as const };
+    const explicit = {
+      ...inferred,
+      target_object_id: 'claim_003',
+      causal_link_status: 'explicit' as const,
+    };
     expect(generateClarificationQuestions([inferred, explicit])).toHaveLength(1);
   });
 });
