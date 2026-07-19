@@ -7,6 +7,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "validate:golden": "tsx src/validation/validate-case-record.ts src/fixtures/dry_run_001.golden.json",
+    "extract:person-a": "tsx src/commands/extract-person-a.ts",
+    "evaluate:person-a": "tsx src/commands/extract-person-a.ts --extraction artifacts/person-a/latest/extraction.json",
     "format:check": "prettier --check ."
   },
   "devDependencies": {
