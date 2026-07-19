@@ -84,6 +84,8 @@ function comparePair(
 ): void {
   switch (family) {
     case 'claims':
+      if (extracted.claim_type !== golden.claim_type)
+        add(errors, 'major', family, 'claim_type', 'Claim type differs.', extractedId, goldenId);
       if (semanticSimilarity(extracted.claim_text, golden.claim_text) < 0.55)
         add(
           errors,
@@ -338,6 +340,16 @@ function comparePair(
         );
       break;
     case 'extraction_issues':
+      if (extracted.issue_type !== golden.issue_type)
+        add(
+          errors,
+          'major',
+          family,
+          'issue_type',
+          'Extraction-issue type differs.',
+          extractedId,
+          goldenId,
+        );
       if (extracted.severity !== golden.severity)
         add(
           errors,

@@ -178,8 +178,8 @@ describe('Person A extraction validation', () => {
     expect(result.valid).toBe(true);
     expect(result.schemaErrors).toEqual([]);
     expect(result.invariantErrors).toEqual([]);
-    expect(extraction.extractor_version).toBe('person-a-v0.1.1');
-    expect(extraction.metadata.prompt_version).toBe('person-a-v0.1.1');
+    expect(extraction.extractor_version).toBe('person-a-v0.1.2');
+    expect(extraction.metadata.prompt_version).toBe('person-a-v0.1.2');
   });
 
   it('requires non-empty source spans in the schema', () => {

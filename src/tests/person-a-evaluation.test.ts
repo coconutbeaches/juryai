@@ -106,6 +106,243 @@ describe('Person A semantic alignment and classified diff', () => {
     ).toBe(false);
   });
 
+  it('uses an exact source trace to classify wrong timeline dates and actors once', () => {
+    const extraction = validPersonAExtraction();
+    const event = extraction.timeline[0];
+    const eventId = event.event_id;
+    event.date.start = '2010-04-01';
+    event.date.end = '2010-04-10';
+    event.date.precision = 'range';
+    event.date.approximate = true;
+    event.actor_party_id = 'party_a';
+    const { report } = evaluate(extraction);
+    expect(
+      report.errors.some(
+        (error) =>
+          error.extracted_id === eventId &&
+          error.code === 'date_range' &&
+          error.severity === 'major',
+      ),
+    ).toBe(true);
+    expect(
+      report.errors.some(
+        (error) =>
+          error.extracted_id === eventId &&
+          error.code === 'actor_reversed' &&
+          error.severity === 'critical',
+      ),
+    ).toBe(true);
+    expect(
+      report.errors.some(
+        (error) =>
+          error.extracted_id === eventId &&
+          ['missing_golden_object', 'unsupported_extra_object'].includes(error.code),
+      ),
+    ).toBe(false);
+  });
+
+  it('uses an exact source trace to report a claim-type error without missing/extra duplicates', () => {
+    const extraction = validPersonAExtraction();
+    const claim = extraction.claims[0];
+    const claimId = claim.claim_id;
+    claim.claim_type = 'delay';
+    const { report } = evaluate(extraction);
+    expect(
+      report.errors.some(
+        (error) =>
+          error.extracted_id === claimId &&
+          error.code === 'claim_type' &&
+          error.severity === 'major',
+      ),
+    ).toBe(true);
+    expect(
+      report.errors.some(
+        (error) =>
+          error.extracted_id === claimId &&
+          ['missing_golden_object', 'unsupported_extra_object'].includes(error.code),
+      ),
+    ).toBe(false);
+  });
+
+  it('classifies a source-grounded duplicate claim as a granularity split', () => {
+    const extraction = validPersonAExtraction();
+    const duplicate = clone(extraction.claims[0]);
+    duplicate.claim_id = 'generated_split_claim';
+    extraction.claims.push(duplicate);
+    const { report } = evaluate(extraction);
+
+    expect(
+      report.errors.some(
+        (error) =>
+          error.extracted_id === duplicate.claim_id &&
+          error.code === 'granularity_split' &&
+          error.severity === 'major',
+      ),
+    ).toBe(true);
+    expect(
+      report.errors.some(
+        (error) =>
+          error.extracted_id === duplicate.claim_id && error.code === 'unsupported_extra_object',
+      ),
+    ).toBe(false);
+  });
+
+  it('does not call an additional clarification question a fabrication', () => {
+    const extraction = validPersonAExtraction();
+    const question = clone(extraction.clarification_questions[0]);
+    question.question_id = 'generated_additional_question';
+    question.question = 'Which year did these events occur?';
+    question.reason = 'The narrative does not state a calendar year.';
+    extraction.clarification_questions.push(question);
+    const { report } = evaluate(extraction);
+
+    expect(
+      report.errors.some(
+        (error) =>
+          error.extracted_id === question.question_id &&
+          error.code === 'unmatched_extracted_object' &&
+          error.severity === 'minor',
+      ),
+    ).toBe(true);
+    expect(
+      report.errors.some(
+        (error) =>
+          error.extracted_id === question.question_id && error.code === 'unsupported_extra_object',
+      ),
+    ).toBe(false);
+  });
+
+  it('keeps a genuinely unsupported high-materiality claim critical', () => {
+    const extraction = validPersonAExtraction();
+    const fabricated = clone(extraction.claims[0]);
+    fabricated.claim_id = 'generated_unsupported_claim';
+    fabricated.claim_text = 'Party B admitted destroying an unrelated business.';
+    fabricated.materiality = 'high';
+    extraction.claims.push(fabricated);
+    const { report } = evaluate(extraction);
+
+    expect(
+      report.errors.some(
+        (error) =>
+          error.extracted_id === fabricated.claim_id &&
+          error.code === 'unsupported_extra_object' &&
+          error.severity === 'critical',
+      ),
+    ).toBe(true);
+  });
+
+  it('does not call an unmatched exact-quote claim a fabrication', () => {
+    const extraction = validPersonAExtraction();
+    const grounded = clone(extraction.claims[0]);
+    grounded.claim_id = 'generated_source_grounded_claim';
+    grounded.claim_text =
+      'Maya refuses to pay the remaining $1,200 and has said she may seek return of the deposit.';
+    grounded.claim_type = 'payment';
+    grounded.materiality = 'high';
+    grounded.source_spans = [
+      {
+        submission_id: 'sub_a_001',
+        quote:
+          'Maya now refuses to pay the remaining $1,200 and has also said she may ask for the deposit back.',
+        start_char: 1690,
+        end_char: 1786,
+      },
+    ];
+    extraction.claims.push(grounded);
+    const { report } = evaluate(extraction);
+
+    expect(
+      report.errors.some(
+        (error) =>
+          error.extracted_id === grounded.claim_id &&
+          error.code === 'source_grounded_extra_object' &&
+          error.severity === 'major',
+      ),
+    ).toBe(true);
+    expect(
+      report.errors.some(
+        (error) =>
+          error.extracted_id === grounded.claim_id && error.code === 'unsupported_extra_object',
+      ),
+    ).toBe(false);
+  });
+
+  it('aligns a unique same-party payment claim that shares the exact amount', () => {
+    const extraction = validPersonAExtraction();
+    const payment = extraction.claims.find(
+      (claim: Record<string, any>) => claim.claim_id === 'cl_a_010',
+    );
+    expect(payment).toBeTruthy();
+    payment.claim_text =
+      'Maya refuses to pay the remaining $1,200 and has said she may seek return of the deposit.';
+    payment.source_spans = [
+      {
+        submission_id: 'sub_a_001',
+        quote:
+          'Maya now refuses to pay the remaining $1,200 and has also said she may ask for the deposit back.',
+        start_char: 1690,
+        end_char: 1786,
+      },
+    ];
+    const { alignment, report } = evaluate(extraction);
+
+    expect(
+      alignment.families.claims.pairs.some((pair) => pair.extracted_id === payment.claim_id),
+    ).toBe(true);
+    expect(
+      report.errors.some(
+        (error) =>
+          error.extracted_id === payment.claim_id &&
+          ['missing_golden_object', 'unsupported_extra_object'].includes(error.code),
+      ),
+    ).toBe(false);
+  });
+
+  it('does not source-recover a claim with the asserting party reversed', () => {
+    const extraction = validPersonAExtraction();
+    const claim = extraction.claims[0];
+    const claimId = claim.claim_id;
+    claim.party_id = 'party_b';
+    const { alignment, report } = evaluate(extraction);
+
+    expect(alignment.families.claims.pairs.some((pair) => pair.extracted_id === claimId)).toBe(
+      false,
+    );
+    expect(
+      report.errors.some(
+        (error) =>
+          error.extracted_id === claimId &&
+          error.code === 'unsupported_extra_object' &&
+          error.severity === 'critical',
+      ),
+    ).toBe(true);
+  });
+
+  it('does not call described evidence referenced by an exact-quote claim a fabrication', () => {
+    const extraction = validPersonAExtraction();
+    const evidence = clone(extraction.evidence[0]);
+    evidence.evidence_id = 'generated_source_grounded_evidence';
+    evidence.title = 'Aggregated described communications';
+    extraction.evidence.push(evidence);
+    extraction.claims[0].supporting_evidence_ids.push(evidence.evidence_id);
+    const { report } = evaluate(extraction);
+
+    expect(
+      report.errors.some(
+        (error) =>
+          error.extracted_id === evidence.evidence_id &&
+          error.code === 'source_grounded_extra_object' &&
+          error.severity === 'major',
+      ),
+    ).toBe(true);
+    expect(
+      report.errors.some(
+        (error) =>
+          error.extracted_id === evidence.evidence_id && error.code === 'unsupported_extra_object',
+      ),
+    ).toBe(false);
+  });
+
   it('counts multiple field errors on one object as one human edit', () => {
     const extraction = validPersonAExtraction();
     extraction.claims[0].against_asserting_party_interest =
@@ -136,13 +373,21 @@ describe('Person A semantic alignment and classified diff', () => {
 
   it('classifies a flattened approximate date as major', () => {
     const extraction = validPersonAExtraction();
-    const event = extraction.timeline.find(
-      (item: Record<string, any>) => item.date.approximate && item.date.end,
-    );
-    event.date.end = null;
-    event.date.precision = 'day';
-    event.date.approximate = false;
-    const { report } = evaluate(extraction);
+    const golden = buildPersonAGoldenProjection();
+    extraction.timeline[0].date = {
+      start: '2026-04-01',
+      end: null,
+      precision: 'day',
+      approximate: false,
+    };
+    golden.timeline[0].date = {
+      start: '2026-04-01',
+      end: '2026-04-10',
+      precision: 'range',
+      approximate: true,
+    };
+    const alignment = alignPersonA(extraction, golden);
+    const report = evaluatePersonA(extraction, golden, alignment);
     expect(report.errors.some((error) => error.code === 'approximate_date_flattened')).toBe(true);
   });
 

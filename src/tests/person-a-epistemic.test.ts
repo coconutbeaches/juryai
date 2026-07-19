@@ -6,6 +6,20 @@ import { validatePersonAExtraction } from '../extraction/validate-person-a-corre
 import { validPersonAExtraction } from './person-a-test-helpers.js';
 
 describe('Person A later-review epistemic regressions', () => {
+  it('does not import calendar years absent from Person A source quotes', () => {
+    const golden = buildPersonAGoldenProjection();
+    expect(golden.timeline.length).toBeGreaterThan(0);
+    expect(
+      golden.timeline.every(
+        (event: Record<string, any>) =>
+          event.date.start === null &&
+          event.date.end === null &&
+          event.date.precision === 'unknown' &&
+          event.date.approximate === false,
+      ),
+    ).toBe(true);
+  });
+
   it('rejects metadata-verified authenticity for uninspected evidence', () => {
     const extraction = validPersonAExtraction();
     extraction.evidence[0].authenticity_status = 'metadata_consistent';

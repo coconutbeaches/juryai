@@ -5,7 +5,7 @@ import { validatePersonAExtraction } from './validate-person-a-corrected.js';
 
 type JsonObject = Record<string, any>;
 
-export const PERSON_A_EXTRACTOR_VERSION = 'person-a-v0.1.1';
+export const PERSON_A_EXTRACTOR_VERSION = 'person-a-v0.1.2';
 
 export type ExtractPersonAOptions = {
   narrative: string;

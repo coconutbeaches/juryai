@@ -6,11 +6,84 @@ import {
 import {
   familyItems,
   semanticSimilarity,
+  sourceSpanOverlap,
   type PersonAAlignment,
   type PersonAFamily,
 } from '../alignment/person-a-alignment-corrected.js';
 
 type JsonObject = Record<string, any>;
+
+function familyMeaning(family: PersonAFamily, item: JsonObject): unknown {
+  switch (family) {
+    case 'agreement_terms':
+      return `${item.wording ?? ''} ${item.person_a_interpretation ?? ''}`;
+    case 'timeline':
+      return item.event_summary;
+    case 'claims':
+      return item.claim_text;
+    case 'extraction_issues':
+      return item.description;
+    default:
+      return '';
+  }
+}
+
+function isMatchedGranularitySplit(
+  family: PersonAFamily,
+  extractedItem: JsonObject,
+  goldenItems: JsonObject[],
+  alignment: PersonAAlignment['families'][PersonAFamily],
+): boolean {
+  if (!['agreement_terms', 'timeline', 'claims', 'extraction_issues'].includes(family)) {
+    return false;
+  }
+
+  return alignment.pairs.some((pair) => {
+    const goldenItem = goldenItems[pair.golden_index] ?? {};
+    if (family === 'claims' && extractedItem.party_id !== goldenItem.party_id) {
+      return false;
+    }
+    return (
+      sourceSpanOverlap(extractedItem, goldenItem) >= 0.8 &&
+      semanticSimilarity(familyMeaning(family, extractedItem), familyMeaning(family, goldenItem)) >=
+        0.45
+    );
+  });
+}
+
+function hasQuotedMeaning(family: PersonAFamily, item: JsonObject): boolean {
+  const quotes = Array.isArray(item.source_spans)
+    ? item.source_spans
+        .map((span: JsonObject) => span?.quote)
+        .filter((quote: unknown): quote is string => typeof quote === 'string' && quote.length > 0)
+        .join(' ')
+    : '';
+  return quotes.length > 0 && semanticSimilarity(familyMeaning(family, item), quotes) >= 0.4;
+}
+
+function isSourceGroundedExtra(
+  family: PersonAFamily,
+  item: JsonObject,
+  extracted: JsonObject,
+): boolean {
+  if (family === 'claims') return item.party_id === 'party_a' && hasQuotedMeaning(family, item);
+  if (family === 'timeline') return hasQuotedMeaning(family, item);
+  if (
+    family !== 'evidence' ||
+    item.submitted_by_party_id !== 'party_a' ||
+    !['described_only', 'unavailable'].includes(item.availability_status) ||
+    typeof item.evidence_id !== 'string'
+  ) {
+    return false;
+  }
+  const claims = familyItems(extracted, 'claims');
+  return claims.some(
+    (claim) =>
+      Array.isArray(claim.supporting_evidence_ids) &&
+      claim.supporting_evidence_ids.includes(item.evidence_id) &&
+      hasQuotedMeaning('claims', claim),
+  );
+}
 
 function compareEvidenceExtractAuthors(
   extracted: JsonObject,
@@ -104,10 +177,33 @@ export function evaluatePersonA(
 
   for (const error of report.errors) {
     if (error.code === 'unmatched_extracted_object') {
-      error.severity = 'critical';
-      error.code = 'unsupported_extra_object';
-      error.message =
-        'Extracted object has no supported golden match and is a fabrication hard failure.';
+      const familyAlignment = alignment.families[error.family];
+      const extractedItems = familyItems(extracted, error.family);
+      const goldenItems = familyItems(golden, error.family);
+      const unmatched = familyAlignment.unmatched_extracted.find(
+        (item) => item.id === error.extracted_id,
+      );
+      const extractedItem = unmatched ? (extractedItems[unmatched.index] ?? {}) : {};
+
+      if (
+        unmatched &&
+        isMatchedGranularitySplit(error.family, extractedItem, goldenItems, familyAlignment)
+      ) {
+        error.severity = 'major';
+        error.code = 'granularity_split';
+        error.message =
+          'Extracted object splits a source-grounded golden object and requires consolidation.';
+      } else if (isSourceGroundedExtra(error.family, extractedItem, extracted)) {
+        error.severity = 'major';
+        error.code = 'source_grounded_extra_object';
+        error.message =
+          'Extracted object is grounded in an exact source quote but has no golden match and requires review for granularity or unsupported inference.';
+      } else if (!['clarification_questions', 'extraction_issues'].includes(error.family)) {
+        error.severity = 'critical';
+        error.code = 'unsupported_extra_object';
+        error.message =
+          'Extracted object has no supported golden match and is a fabrication hard failure.';
+      }
     }
     if (error.golden_id) editedObjects.add(`${error.family}:${error.golden_id}`);
     else if (error.code === 'ambiguous_alignment' && error.extracted_id) {

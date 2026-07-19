@@ -26,7 +26,7 @@ export function validPersonAExtraction(): JsonObject {
   extraction.submission.submission_id = 'sub_a_extracted';
   extraction.metadata = {
     model: 'test-model',
-    prompt_version: 'person-a-v0.1.1',
+    prompt_version: 'person-a-v0.1.2',
     input_hash: extraction.submission.content_hash,
     generated_at: '2026-07-19T00:00:00Z',
   };

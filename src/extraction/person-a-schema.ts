@@ -140,8 +140,11 @@ export const personAModelOutputSchema: JsonSchema = {
 };
 
 const extractionProperties: Record<string, JsonSchema> = {
-  schema_version: { const: '0.1.2' },
-  extractor_version: { const: 'person-a-v0.1.1' },
+  schema_version: { type: 'string', const: '0.1.2' },
+  extractor_version: {
+    type: 'string',
+    enum: ['person-a-v0.1.1', 'person-a-v0.1.2'],
+  },
   party: { $ref: '#/$defs/party' },
   submission: { $ref: '#/$defs/submission' },
   third_parties: { type: 'array', items: { $ref: '#/$defs/thirdParty' } },
@@ -172,7 +175,10 @@ const extractionProperties: Record<string, JsonSchema> = {
     required: ['model', 'prompt_version', 'input_hash', 'generated_at'],
     properties: {
       model: { type: 'string', minLength: 1 },
-      prompt_version: { const: 'person-a-v0.1.1' },
+      prompt_version: {
+        type: 'string',
+        enum: ['person-a-v0.1.1', 'person-a-v0.1.2'],
+      },
       input_hash: { type: 'string', pattern: '^[a-f0-9]{64}$' },
       generated_at: { type: 'string', format: 'date-time' },
     },

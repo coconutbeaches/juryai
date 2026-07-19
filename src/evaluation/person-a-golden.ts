@@ -57,6 +57,16 @@ function quoteSummary(spans: JsonObject[]): string {
   return spans.map((span) => span.quote).join(' ');
 }
 
+function personAOnlyDate(date: JsonObject, spans: JsonObject[]): JsonObject {
+  if (/\b(?:19|20)\d{2}\b/.test(quoteSummary(spans))) return clone(date);
+  return {
+    start: null,
+    end: null,
+    precision: 'unknown',
+    approximate: false,
+  };
+}
+
 export function buildPersonAGoldenProjection(): JsonObject {
   const record = clone(goldenRecord) as JsonObject;
   const party = record.parties.find((item: JsonObject) => item.party_id === 'party_a');
@@ -143,7 +153,7 @@ export function buildPersonAGoldenProjection(): JsonObject {
     .filter(({ spans }: { spans: JsonObject[] }) => spans.length > 0)
     .map(({ item, spans }: { item: JsonObject; spans: JsonObject[] }) => ({
       event_id: item.event_id,
-      date: clone(item.date),
+      date: personAOnlyDate(item.date, spans),
       event_summary: quoteSummary(spans),
       actor_party_id: item.actor_party_id,
       actor_third_party_id:
