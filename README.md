@@ -132,6 +132,7 @@ Expected result:
 
 ```bash
 npm test
+npm run test:person-a
 npm run typecheck
 npm run validate:golden
 npm run format:check
