@@ -12,6 +12,19 @@ function isFilenameShaped(value: string): boolean {
   return value.length <= 255 && !/[\r\n]/.test(value) && /(^|[^.])\.[A-Za-z0-9]{1,12}$/.test(value);
 }
 
+function hasExactFilenameLiteral(narrative: string, filename: string): boolean {
+  let index = narrative.indexOf(filename);
+  while (index >= 0) {
+    const before = index > 0 ? narrative[index - 1] : '';
+    const afterIndex = index + filename.length;
+    const after = afterIndex < narrative.length ? narrative[afterIndex] : '';
+    const filenameChar = /[A-Za-z0-9._-]/;
+    if ((!before || !filenameChar.test(before)) && (!after || !filenameChar.test(after))) return true;
+    index = narrative.indexOf(filename, index + 1);
+  }
+  return false;
+}
+
 export function validatePersonAExtraction(
   record: unknown,
   narrative: string,
@@ -61,9 +74,25 @@ export function validatePersonAExtraction(
     })),
   ];
   for (const item of traced) {
-    if (array(item.spans).length === 0) {
+    const spans = array(item.spans);
+    if (spans.length === 0) {
       add(item.path, 'Narrative-derived objects require at least one source span.');
     }
+    spans.forEach((span, index) => {
+      const path = `${item.path}[${index}]`;
+      const validBounds =
+        Number.isInteger(span.start_char) &&
+        Number.isInteger(span.end_char) &&
+        span.start_char >= 0 &&
+        span.end_char >= span.start_char &&
+        span.end_char <= narrative.length;
+      if (!validBounds || span.end_char - span.start_char !== String(span.quote ?? '').length) {
+        add(
+          path,
+          'Source span offsets must be in bounds and end_char - start_char must equal quote.length.',
+        );
+      }
+    });
   }
 
   const expectedHash = createHash('sha256').update(narrative, 'utf8').digest('hex');
@@ -89,20 +118,32 @@ export function validatePersonAExtraction(
     }
   });
 
+  const reservedPartyIds = new Set(['party_a', 'party_b']);
+  array(object.third_parties).forEach((thirdParty, index) => {
+    if (reservedPartyIds.has(thirdParty.third_party_id)) {
+      add(
+        `$.third_parties[${index}].third_party_id`,
+        'Third-party IDs cannot reuse reserved party IDs.',
+      );
+    }
+  });
+
   const thirdPartyIds = new Set(
     array(object.third_parties)
       .map((thirdParty) => thirdParty.third_party_id)
-      .filter((id): id is string => typeof id === 'string'),
+      .filter(
+        (id): id is string => typeof id === 'string' && !reservedPartyIds.has(id),
+      ),
   );
   array(object.evidence).forEach((evidence, evidenceIndex) => {
     if (
       evidence.original_filename !== null &&
       (!isFilenameShaped(evidence.original_filename) ||
-        !narrative.includes(evidence.original_filename))
+        !hasExactFilenameLiteral(narrative, evidence.original_filename))
     ) {
       add(
         `$.evidence[${evidenceIndex}].original_filename`,
-        'original_filename must be a filename-shaped literal explicitly present in the narrative.',
+        'original_filename must be a filename-shaped, boundary-delimited literal explicitly present in the narrative.',
       );
     }
     if (
@@ -121,7 +162,7 @@ export function validatePersonAExtraction(
       ) {
         add(
           `$.evidence[${evidenceIndex}].extracts[${extractIndex}].author_third_party_id`,
-          'Evidence extract author_third_party_id must reference a registered third party.',
+          'Evidence extract author_third_party_id must reference a registered non-party third party.',
         );
       }
     });
