@@ -72,7 +72,7 @@ Non-question trigger:
 
 ## Ranking and budget
 
-The pure generator ranks questions by:
+The pure generator validates every assessment before ranking questions by:
 
 1. materiality;
 2. weakness type;
@@ -81,11 +81,31 @@ The pure generator ranks questions by:
 
 Every round is capped at six questions. The cap is an invariant, not a UI suggestion.
 
+Questions are deduplicated by target object and field, not by wording or trigger.
+When two triggers describe the same gap, the higher-ranked candidate wins using
+the same materiality, weakness, coverage, and stable lexical ordering. The
+ordering does not depend on input order or locale-sensitive sorting.
+
+Every question-producing assessment supplies a short `question_context` value.
+The generator accepts only bounded plain text and inserts it into
+trigger-specific deterministic copy. It does not accept caller-authored
+question text. This prevents empty, internal, or misleading hints from
+bypassing the deterministic templates and gives the user enough context to
+answer the question. The context itself must be derived from grounded testimony
+or verified record fields; the sidecar does not infer or embellish it.
+
+`unavailable` evidence does not generate a possession question. A question is
+generated only for `described_only` or `unknown` availability.
+
 ## Clarification phases
 
 ### Pre-lock
 
 Person A completes the primary clarification round before Person B is invited. The confirmed Person A record is then locked as the clean baseline.
+
+Question phases are `pre_lock` and `post_lock`. Amendment records use the
+separate literal `post_lock_amendment`; a question can never be mistaken for
+an applied amendment.
 
 ### Post-lock amendment
 
@@ -99,7 +119,21 @@ Later contradictions, new evidence, or material facts append an amendment contai
 - phase;
 - superseded amendment ID when applicable.
 
-The effective record can project the latest value, but the original object remains unchanged.
+The effective record can project the latest value, but the original object
+remains unchanged. Projection consumes the complete append-only amendment log
+for one object and returns:
+
+- the projected copy;
+- applied amendment audit entries;
+- explicitly ignored entries for other objects;
+- rejected entries with stable reason codes.
+
+An amendment applies only when its ID is unique, its phase and timestamp are
+valid, its top-level field exists and is mutable, its `prior_value` matches the
+current projection, and its `supersedes` pointer names the latest applied
+amendment for the same field. Malformed, stale, duplicate, cyclic, or
+contradictory chains fail closed and remain visible in the rejection report.
+The projection API does not silently repair an invalid audit trail.
 
 ## Golden-fixture extension
 
@@ -123,6 +157,8 @@ Regression tests should verify:
 - material questions outrank minor questions;
 - no round exceeds six questions;
 - append-only amendments preserve the original record.
+- stale or malformed amendments are reported rather than applied;
+- supersession chains remain consistent and auditable.
 
 ## Prototype
 
@@ -133,3 +169,8 @@ src/clarification/question-generator.ts
 ```
 
 It does not call a model and does not modify the v0.1.2 extraction schema. This allows offline validation before deciding whether the candidate enums become required canonical v0.2 fields.
+
+The sidecar is not wired into extraction or user-facing runtime flow. Its
+assessment inputs and amendment log are still prototype contracts; durable
+storage, authorization, record locking, and integration with extracted case
+objects remain future work.

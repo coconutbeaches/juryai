@@ -10,32 +10,52 @@ permissions:
   contents: read
 
 jobs:
-  validate:
+  tests:
+    name: Test ${{ matrix.test_file }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        test_file:
+          - src/tests/schema.test.ts
+          - src/tests/invariants.test.ts
+          - src/tests/golden-fixture.test.ts
+          - src/tests/person-a-validation.test.ts
+          - src/tests/person-a-evaluation.test.ts
+          - src/tests/person-a-epistemic.test.ts
+          - src/tests/openai-responses.test.ts
+          - src/tests/clarification-question-generator.test.ts
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
-
       - name: Install dependencies
         run: npm ci --ignore-scripts
+      - name: Run test file
+        run: npx --no-install vitest run "${{ matrix.test_file }}"
 
-      - name: Run tests
-        run: npm test
-
+  quality:
+    name: Quality gates
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
       - name: Typecheck
         run: npm run typecheck
-
       - name: Validate golden fixture
         run: npm run validate:golden
-
       - name: Check formatting
         run: npm run format:check
-
       - name: Audit dependencies
         run: npm audit --audit-level=low
