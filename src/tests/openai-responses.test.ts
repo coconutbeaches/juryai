@@ -79,12 +79,13 @@ describe('OpenAI Responses parsing', () => {
   it('fails loudly when the configured model is invalid', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () =>
-        ({
-          ok: false,
-          status: 400,
-          json: async () => ({ error: { message: 'Model gpt-5.6 is not available.' } }),
-        }) as Response,
+      vi.fn(
+        async () =>
+          ({
+            ok: false,
+            status: 400,
+            json: async () => ({ error: { message: 'Model gpt-5.6 is not available.' } }),
+          }) as Response,
       ),
     );
     const client = new OpenAIResponsesClient('test-key', 'https://example.test/v1');
