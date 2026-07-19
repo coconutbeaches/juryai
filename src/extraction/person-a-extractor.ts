@@ -16,7 +16,11 @@ export type ExtractPersonAOptions = {
   reasoningEffort?: 'low' | 'medium' | 'high';
 };
 
-export type PersonAExtractionResult = { extraction: JsonObject; modelOutput: JsonObject };
+export type PersonAExtractionResult = {
+  extraction: JsonObject;
+  modelOutput: JsonObject;
+  rawResponse: JsonObject;
+};
 
 export function sha256(value: string): string {
   return createHash('sha256').update(value, 'utf8').digest('hex');
@@ -107,11 +111,12 @@ export function assemblePersonAExtraction(
 export async function extractPersonA(
   options: ExtractPersonAOptions,
 ): Promise<PersonAExtractionResult> {
-  const modelOutput = await options.client.generate({
+  const generated = await options.client.generate({
     narrative: options.narrative,
     model: options.model,
     reasoningEffort: options.reasoningEffort,
   });
+  const modelOutput = generated.output;
   const extraction = assemblePersonAExtraction(modelOutput, options);
-  return { extraction, modelOutput };
+  return { extraction, modelOutput, rawResponse: generated.rawResponse };
 }
