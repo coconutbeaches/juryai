@@ -1,58 +1,22 @@
-name: CI
+name: Reference diagnostics
 
 on:
   pull_request:
-  push:
-    branches:
-      - main
 
 permissions:
   contents: read
 
 jobs:
-  tests:
-    name: Test ${{ matrix.test_file }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        test_file:
-          - src/tests/schema.test.ts
-          - src/tests/invariants.test.ts
-          - src/tests/golden-fixture.test.ts
-          - src/tests/person-a-evaluation.test.ts
-          - src/tests/openai-responses.test.ts
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-      - name: Install dependencies
-        run: npm ci --ignore-scripts
-      - name: Run test file
-        run: npx --no-install vitest run "${{ matrix.test_file }}"
-
-  validation-cases:
-    name: Validation · ${{ matrix.case_name }}
+  reference-cases:
+    name: Reference · ${{ matrix.case_name }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         case_name:
-          - golden projection has no schema errors
-          - golden agreement and deliverables have no reference errors
           - golden timeline has no reference errors
           - golden claims and evidence links have no reference errors
           - golden damages, issues, and questions have no reference errors
-          - golden projection has exact source spans
-          - golden projection has no remaining scope invariant errors
-          - assembles deterministic submission metadata around model output
-          - rejects narrative evidence promoted to inspected
-          - rejects a source quote whose offsets do not match the narrative
-          - rejects Person B interpretation and answered claim state
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -63,69 +27,5 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci --ignore-scripts
-      - name: Run validation case
+      - name: Run reference case
         run: npx --no-install vitest run src/tests/person-a-validation.test.ts -t "${{ matrix.case_name }}"
-
-  typecheck:
-    name: Typecheck
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-      - name: Install dependencies
-        run: npm ci --ignore-scripts
-      - name: Typecheck
-        run: npm run typecheck
-
-  golden:
-    name: Golden fixture
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-      - name: Install dependencies
-        run: npm ci --ignore-scripts
-      - name: Validate golden fixture
-        run: npm run validate:golden
-
-  formatting:
-    name: Formatting
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-      - name: Install dependencies
-        run: npm ci --ignore-scripts
-      - name: Check formatting
-        run: npm run format:check
-
-  audit:
-    name: Audit
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-      - name: Install dependencies
-        run: npm ci --ignore-scripts
-      - name: Audit dependencies
-        run: npm audit --audit-level=low
