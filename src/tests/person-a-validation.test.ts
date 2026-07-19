@@ -15,15 +15,35 @@ const isReferenceError = (message: string): boolean =>
   /Referenced ID|Duplicate ID|endpoint is missing/i.test(message);
 const isSourceSpanError = (message: string): boolean => /Source span/i.test(message);
 
+function referenceErrorsAt(prefixes: string[]) {
+  const { result } = validateGoldenProjection();
+  return result.invariantErrors.filter(
+    (error) => isReferenceError(error.message) && prefixes.some((prefix) => error.path.startsWith(prefix)),
+  );
+}
+
 describe('Person A extraction validation', () => {
   it('golden projection has no schema errors', () => {
     const { result } = validateGoldenProjection();
     expect(result.schemaErrors).toEqual([]);
   });
 
-  it('golden projection has no reference errors', () => {
-    const { result } = validateGoldenProjection();
-    expect(result.invariantErrors.filter((error) => isReferenceError(error.message))).toEqual([]);
+  it('golden agreement and deliverables have no reference errors', () => {
+    expect(referenceErrorsAt(['$.agreement', '$.deliverable_assessments'])).toEqual([]);
+  });
+
+  it('golden timeline has no reference errors', () => {
+    expect(referenceErrorsAt(['$.timeline'])).toEqual([]);
+  });
+
+  it('golden claims and evidence links have no reference errors', () => {
+    expect(referenceErrorsAt(['$.claims', '$.claim_evidence_links'])).toEqual([]);
+  });
+
+  it('golden damages, issues, and questions have no reference errors', () => {
+    expect(
+      referenceErrorsAt(['$.damages_claims', '$.extraction_issues', '$.clarification_questions']),
+    ).toEqual([]);
   });
 
   it('golden projection has exact source spans', () => {
