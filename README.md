@@ -21,6 +21,7 @@ Included:
 - critical/major/minor error classification
 - recall, precision, human-edit-rate, and weighted-error-rate reporting
 - regression tests for key epistemic failures
+- per-test-file CI plus independent type, fixture, formatting, and audit gates
 
 Not included:
 
