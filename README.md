@@ -65,7 +65,11 @@ artifacts/person-a/latest/
   alignment.json
   report.json
   report.md
+  request-metadata.json
+  raw-response.json        # live API runs only
 ```
+
+`request-metadata.json` records the requested model, reasoning effort, `store: false`, and submission timestamp. Live runs also retain the untouched Responses API payload so the returned model and usage metadata can be independently audited.
 
 Use a different narrative or output folder:
 
@@ -117,7 +121,7 @@ The report includes:
 
 - aligned pairs, scores, and ambiguity margins
 - unmatched golden objects as recall failures
-- unmatched extracted objects as possible hallucinations or over-segmentation
+- unmatched extracted objects as fabrication hard failures
 - critical, major, and minor field-level differences
 - recall and precision by object family
 - human edit rate
