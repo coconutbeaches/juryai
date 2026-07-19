@@ -195,16 +195,23 @@ export function familyItems(record: JsonObject, family: PersonAFamily): JsonObje
     case 'damages':
       return Array.isArray(record.damages_claims) ? record.damages_claims : [];
     case 'outcomes':
-      return Array.isArray(record.desired_outcomes?.outcomes) ? record.desired_outcomes.outcomes : [];
+      return Array.isArray(record.desired_outcomes?.outcomes)
+        ? record.desired_outcomes.outcomes
+        : [];
     case 'third_parties':
       return Array.isArray(record.third_parties) ? record.third_parties : [];
   }
 }
 
-function candidateScore(family: PersonAFamily, extracted: JsonObject, golden: JsonObject): number | null {
+function candidateScore(
+  family: PersonAFamily,
+  extracted: JsonObject,
+  golden: JsonObject,
+): number | null {
   switch (family) {
     case 'claims':
-      if (extracted.party_id !== golden.party_id || extracted.claim_type !== golden.claim_type) return null;
+      if (extracted.party_id !== golden.party_id || extracted.claim_type !== golden.claim_type)
+        return null;
       return semanticSimilarity(extracted.claim_text, golden.claim_text);
     case 'timeline': {
       const actorMatch =
@@ -212,7 +219,9 @@ function candidateScore(family: PersonAFamily, extracted: JsonObject, golden: Js
         extracted.actor_third_party_id === golden.actor_third_party_id;
       const dates = dateScore(extracted.date, golden.date);
       if (!actorMatch || dates === 0) return null;
-      return 0.72 * semanticSimilarity(extracted.event_summary, golden.event_summary) + 0.28 * dates;
+      return (
+        0.72 * semanticSimilarity(extracted.event_summary, golden.event_summary) + 0.28 * dates
+      );
     }
     case 'evidence':
       if (
@@ -223,7 +232,10 @@ function candidateScore(family: PersonAFamily, extracted: JsonObject, golden: Js
       return (
         0.48 * semanticSimilarity(extracted.title, golden.title) +
         0.37 *
-          semanticSimilarity(extracted.description_from_submitter, golden.description_from_submitter) +
+          semanticSimilarity(
+            extracted.description_from_submitter,
+            golden.description_from_submitter,
+          ) +
         0.1 * dateScore(extracted.created_date, golden.created_date) +
         0.05 *
           semanticSimilarity(extracted.provenance?.source_system, golden.provenance?.source_system)
@@ -232,8 +244,7 @@ function candidateScore(family: PersonAFamily, extracted: JsonObject, golden: Js
       if (extracted.term_type !== golden.term_type) return null;
       return (
         0.62 * semanticSimilarity(extracted.wording, golden.wording) +
-        0.38 *
-          semanticSimilarity(extracted.person_a_interpretation, golden.person_a_interpretation)
+        0.38 * semanticSimilarity(extracted.person_a_interpretation, golden.person_a_interpretation)
       );
     case 'deliverables':
       return (
@@ -242,7 +253,8 @@ function candidateScore(family: PersonAFamily, extracted: JsonObject, golden: Js
         0.15 * semanticSimilarity(join(extracted.repair_attempts), join(golden.repair_attempts))
       );
     case 'damages':
-      if (extracted.party_id !== golden.party_id || extracted.loss_type !== golden.loss_type) return null;
+      if (extracted.party_id !== golden.party_id || extracted.loss_type !== golden.loss_type)
+        return null;
       return (
         0.5 * semanticSimilarity(extracted.causal_theory, golden.causal_theory) +
         0.35 * amountScore(extracted, golden) +
@@ -373,7 +385,9 @@ function alignFamily(
     if (score === null || score === undefined || score < thresholds[family]) return;
     const alternatives = (scores[extractedIndex] ?? [])
       .map((candidateScoreValue, index) => ({ index, score: candidateScoreValue ?? 0 }))
-      .filter((candidate) => candidate.index !== goldenIndex && candidate.score >= thresholds[family])
+      .filter(
+        (candidate) => candidate.index !== goldenIndex && candidate.score >= thresholds[family],
+      )
       .sort((a, b) => b.score - a.score);
     const second = alternatives[0]?.score ?? 0;
     const margin = score - second;
@@ -382,7 +396,11 @@ function alignFamily(
         extracted_index: extractedIndex,
         extracted_id: idFor(family, extractedItems[extractedIndex] ?? {}, extractedIndex),
         candidates: [
-          { golden_index: goldenIndex, golden_id: idFor(family, goldenItems[goldenIndex] ?? {}, goldenIndex), score },
+          {
+            golden_index: goldenIndex,
+            golden_id: idFor(family, goldenItems[goldenIndex] ?? {}, goldenIndex),
+            score,
+          },
           ...alternatives.slice(0, 2).map((candidate) => ({
             golden_index: candidate.index,
             golden_id: idFor(family, goldenItems[candidate.index] ?? {}, candidate.index),
@@ -420,7 +438,11 @@ function alignFamily(
 export function alignPersonA(extracted: JsonObject, golden: JsonObject): PersonAAlignment {
   const families = {} as Record<PersonAFamily, FamilyAlignment>;
   for (const family of familyOrder) {
-    families[family] = alignFamily(family, familyItems(extracted, family), familyItems(golden, family));
+    families[family] = alignFamily(
+      family,
+      familyItems(extracted, family),
+      familyItems(golden, family),
+    );
   }
   return { version: 'person-a-alignment-v0.1.0', families };
 }

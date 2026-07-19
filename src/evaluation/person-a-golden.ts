@@ -47,7 +47,8 @@ export function buildPersonAGoldenProjection(): JsonObject {
   const record = clone(goldenRecord) as JsonObject;
   const party = record.parties.find((item: JsonObject) => item.party_id === 'party_a');
   const submission = record.submissions.find((item: JsonObject) => item.party_id === 'party_a');
-  if (!party || !submission) throw new Error('Dry Run 001 is missing Person A party or submission.');
+  if (!party || !submission)
+    throw new Error('Dry Run 001 is missing Person A party or submission.');
 
   const thirdParties = record.third_parties.filter(
     (item: JsonObject) => item.relationship_to_party_id === 'party_a',
@@ -62,7 +63,9 @@ export function buildPersonAGoldenProjection(): JsonObject {
     .map((item: JsonObject) => ({
       ...item,
       response_status: 'unanswered',
-      supporting_evidence_ids: item.supporting_evidence_ids.filter((id: string) => evidenceIds.has(id)),
+      supporting_evidence_ids: item.supporting_evidence_ids.filter((id: string) =>
+        evidenceIds.has(id),
+      ),
       contradicting_evidence_ids: item.contradicting_evidence_ids.filter((id: string) =>
         evidenceIds.has(id),
       ),

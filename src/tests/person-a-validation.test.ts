@@ -18,7 +18,8 @@ const isSourceSpanError = (message: string): boolean => /Source span/i.test(mess
 function referenceErrorsAt(prefixes: string[]) {
   const { result } = validateGoldenProjection();
   return result.invariantErrors.filter(
-    (error) => isReferenceError(error.message) && prefixes.some((prefix) => error.path.startsWith(prefix)),
+    (error) =>
+      isReferenceError(error.message) && prefixes.some((prefix) => error.path.startsWith(prefix)),
   );
 }
 
@@ -96,7 +97,9 @@ describe('Person A extraction validation', () => {
     const result = validatePersonAExtraction(extraction, extraction.submission.raw_text);
     expect(result.valid).toBe(false);
     expect(
-      result.invariantErrors.some((error) => error.message.includes('described_only or unavailable')),
+      result.invariantErrors.some((error) =>
+        error.message.includes('described_only or unavailable'),
+      ),
     ).toBe(true);
   });
 
@@ -105,7 +108,9 @@ describe('Person A extraction validation', () => {
     extraction.claims[0].source_spans[0].start_char += 1;
     const result = validatePersonAExtraction(extraction, extraction.submission.raw_text);
     expect(result.valid).toBe(false);
-    expect(result.invariantErrors.some((error) => error.message.includes('Source span'))).toBe(true);
+    expect(result.invariantErrors.some((error) => error.message.includes('Source span'))).toBe(
+      true,
+    );
   });
 
   it('rejects Person B interpretation and answered claim state', () => {

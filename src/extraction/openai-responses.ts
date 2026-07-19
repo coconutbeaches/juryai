@@ -26,7 +26,9 @@ export function extractResponseText(response: unknown): string {
     if (item?.type !== 'message') continue;
     for (const content of Array.isArray(item.content) ? item.content : []) {
       if (content?.type === 'refusal') {
-        throw new Error(`OpenAI refused the extraction request: ${content.refusal ?? 'unknown reason'}`);
+        throw new Error(
+          `OpenAI refused the extraction request: ${content.refusal ?? 'unknown reason'}`,
+        );
       }
       if (content?.type === 'output_text' && typeof content.text === 'string') {
         return content.text;

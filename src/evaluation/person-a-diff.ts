@@ -85,81 +85,281 @@ function comparePair(
   switch (family) {
     case 'claims':
       if (semanticSimilarity(extracted.claim_text, golden.claim_text) < 0.55)
-        add(errors, 'major', family, 'claim_meaning_distorted', 'Aligned claim meaning differs materially.', extractedId, goldenId);
+        add(
+          errors,
+          'major',
+          family,
+          'claim_meaning_distorted',
+          'Aligned claim meaning differs materially.',
+          extractedId,
+          goldenId,
+        );
       if (extracted.against_asserting_party_interest !== golden.against_asserting_party_interest)
-        add(errors, 'major', family, 'against_interest_flag', 'Against-interest admission flag differs.', extractedId, goldenId);
+        add(
+          errors,
+          'major',
+          family,
+          'against_interest_flag',
+          'Against-interest admission flag differs.',
+          extractedId,
+          goldenId,
+        );
       if (extracted.materiality !== golden.materiality)
-        add(errors, 'minor', family, 'materiality', 'Claim materiality differs.', extractedId, goldenId);
+        add(
+          errors,
+          'minor',
+          family,
+          'materiality',
+          'Claim materiality differs.',
+          extractedId,
+          goldenId,
+        );
       if (sourceCoverage(extracted) === 0 && sourceCoverage(golden) > 0)
-        add(errors, 'major', family, 'source_trace_missing', 'Claim lost its narrative source trace.', extractedId, goldenId);
+        add(
+          errors,
+          'major',
+          family,
+          'source_trace_missing',
+          'Claim lost its narrative source trace.',
+          extractedId,
+          goldenId,
+        );
       break;
     case 'timeline': {
       const extractedDate = extracted.date ?? {};
       const goldenDate = golden.date ?? {};
       if (goldenDate.approximate && !extractedDate.approximate)
-        add(errors, 'major', family, 'approximate_date_flattened', 'Approximate date was flattened into an exact date.', extractedId, goldenId);
+        add(
+          errors,
+          'major',
+          family,
+          'approximate_date_flattened',
+          'Approximate date was flattened into an exact date.',
+          extractedId,
+          goldenId,
+        );
       if (extractedDate.start !== goldenDate.start || extractedDate.end !== goldenDate.end)
-        add(errors, 'major', family, 'date_range', 'Timeline date or range differs.', extractedId, goldenId);
+        add(
+          errors,
+          'major',
+          family,
+          'date_range',
+          'Timeline date or range differs.',
+          extractedId,
+          goldenId,
+        );
       if (
         extracted.actor_party_id !== golden.actor_party_id ||
         extracted.actor_third_party_id !== golden.actor_third_party_id
       )
-        add(errors, 'critical', family, 'actor_reversed', 'Timeline actor differs.', extractedId, goldenId);
+        add(
+          errors,
+          'critical',
+          family,
+          'actor_reversed',
+          'Timeline actor differs.',
+          extractedId,
+          goldenId,
+        );
       if (semanticSimilarity(extracted.event_summary, golden.event_summary) < 0.5)
-        add(errors, 'major', family, 'event_meaning', 'Timeline event meaning differs materially.', extractedId, goldenId);
+        add(
+          errors,
+          'major',
+          family,
+          'event_meaning',
+          'Timeline event meaning differs materially.',
+          extractedId,
+          goldenId,
+        );
       break;
     }
     case 'evidence':
       if (extracted.submitted_by_party_id !== golden.submitted_by_party_id)
-        add(errors, 'critical', family, 'submitter_reversed', 'Evidence submitter differs.', extractedId, goldenId);
+        add(
+          errors,
+          'critical',
+          family,
+          'submitter_reversed',
+          'Evidence submitter differs.',
+          extractedId,
+          goldenId,
+        );
       if (!['described_only', 'unavailable'].includes(extracted.availability_status))
-        add(errors, 'critical', family, 'fabricated_inspection', 'Narrative-only evidence was treated as uploaded or inspected.', extractedId, goldenId);
+        add(
+          errors,
+          'critical',
+          family,
+          'fabricated_inspection',
+          'Narrative-only evidence was treated as uploaded or inspected.',
+          extractedId,
+          goldenId,
+        );
       if (extracted.evidence_type !== golden.evidence_type)
-        add(errors, 'major', family, 'evidence_type', 'Evidence type differs.', extractedId, goldenId);
+        add(
+          errors,
+          'major',
+          family,
+          'evidence_type',
+          'Evidence type differs.',
+          extractedId,
+          goldenId,
+        );
       if (semanticSimilarity(extracted.title, golden.title) < 0.45)
-        add(errors, 'major', family, 'evidence_identity', 'Evidence identity differs materially.', extractedId, goldenId);
+        add(
+          errors,
+          'major',
+          family,
+          'evidence_identity',
+          'Evidence identity differs materially.',
+          extractedId,
+          goldenId,
+        );
       break;
     case 'agreement_terms':
       if (semanticSimilarity(extracted.wording, golden.wording) < 0.5)
-        add(errors, 'major', family, 'term_wording', 'Agreement-term wording differs materially.', extractedId, goldenId);
+        add(
+          errors,
+          'major',
+          family,
+          'term_wording',
+          'Agreement-term wording differs materially.',
+          extractedId,
+          goldenId,
+        );
       if (
         semanticSimilarity(extracted.person_a_interpretation, golden.person_a_interpretation) < 0.45
       )
-        add(errors, 'major', family, 'party_interpretation', 'Person A interpretation was lost or distorted.', extractedId, goldenId);
+        add(
+          errors,
+          'major',
+          family,
+          'party_interpretation',
+          'Person A interpretation was lost or distorted.',
+          extractedId,
+          goldenId,
+        );
       break;
     case 'deliverables':
       if (extracted.scope_status !== golden.scope_status)
-        add(errors, 'major', family, 'scope_status', 'Deliverable scope status differs.', extractedId, goldenId);
+        add(
+          errors,
+          'major',
+          family,
+          'scope_status',
+          'Deliverable scope status differs.',
+          extractedId,
+          goldenId,
+        );
       if (extracted.completion_status_person_a !== golden.completion_status_person_a)
-        add(errors, 'major', family, 'completion_status', 'Person A completion position differs.', extractedId, goldenId);
+        add(
+          errors,
+          'major',
+          family,
+          'completion_status',
+          'Person A completion position differs.',
+          extractedId,
+          goldenId,
+        );
       if (semanticSimilarity(extracted.name, golden.name) < 0.45)
-        add(errors, 'major', family, 'deliverable_identity', 'Deliverable identity differs.', extractedId, goldenId);
+        add(
+          errors,
+          'major',
+          family,
+          'deliverable_identity',
+          'Deliverable identity differs.',
+          extractedId,
+          goldenId,
+        );
       break;
     case 'damages':
       if (extracted.amount_min !== golden.amount_min || extracted.amount_max !== golden.amount_max)
-        add(errors, 'major', family, 'damages_amount', 'Damages amount or range differs.', extractedId, goldenId);
+        add(
+          errors,
+          'major',
+          family,
+          'damages_amount',
+          'Damages amount or range differs.',
+          extractedId,
+          goldenId,
+        );
       if (semanticSimilarity(extracted.causal_theory, golden.causal_theory) < 0.45)
-        add(errors, 'major', family, 'causal_theory', 'Damages causal theory differs.', extractedId, goldenId);
+        add(
+          errors,
+          'major',
+          family,
+          'causal_theory',
+          'Damages causal theory differs.',
+          extractedId,
+          goldenId,
+        );
       break;
     case 'outcomes':
       if (transferDirection(extracted) !== transferDirection(golden))
-        add(errors, 'critical', family, 'transfer_direction', 'Requested transfer direction is reversed.', extractedId, goldenId);
+        add(
+          errors,
+          'critical',
+          family,
+          'transfer_direction',
+          'Requested transfer direction is reversed.',
+          extractedId,
+          goldenId,
+        );
       if (extracted.transfers?.[0]?.amount !== golden.transfers?.[0]?.amount)
-        add(errors, 'critical', family, 'outcome_amount', 'Requested transfer amount differs.', extractedId, goldenId);
+        add(
+          errors,
+          'critical',
+          family,
+          'outcome_amount',
+          'Requested transfer amount differs.',
+          extractedId,
+          goldenId,
+        );
       if (extracted.priority !== golden.priority)
-        add(errors, 'major', family, 'outcome_priority', 'Requested-outcome priority differs.', extractedId, goldenId);
+        add(
+          errors,
+          'major',
+          family,
+          'outcome_priority',
+          'Requested-outcome priority differs.',
+          extractedId,
+          goldenId,
+        );
       break;
     case 'third_parties':
       if (semanticSimilarity(extracted.role, golden.role) < 0.4)
-        add(errors, 'major', family, 'third_party_role', 'Third-party role differs.', extractedId, goldenId);
+        add(
+          errors,
+          'major',
+          family,
+          'third_party_role',
+          'Third-party role differs.',
+          extractedId,
+          goldenId,
+        );
       break;
     case 'extraction_issues':
       if (extracted.severity !== golden.severity)
-        add(errors, 'minor', family, 'issue_severity', 'Extraction-issue severity differs.', extractedId, goldenId);
+        add(
+          errors,
+          'minor',
+          family,
+          'issue_severity',
+          'Extraction-issue severity differs.',
+          extractedId,
+          goldenId,
+        );
       break;
     case 'clarification_questions':
       if (semanticSimilarity(extracted.question, golden.question) < 0.45)
-        add(errors, 'major', family, 'question_materiality', 'Clarification question does not cover the same material gap.', extractedId, goldenId);
+        add(
+          errors,
+          'major',
+          family,
+          'question_materiality',
+          'Clarification question does not cover the same material gap.',
+          extractedId,
+          goldenId,
+        );
       break;
   }
 }
@@ -201,7 +401,11 @@ export function evaluatePersonA(
       extracted_total: extractedItems.length,
       recall: goldenItems.length === 0 ? 1 : familyAlignment.pairs.length / goldenItems.length,
       precision:
-        extractedItems.length === 0 ? (goldenItems.length === 0 ? 1 : 0) : familyAlignment.pairs.length / extractedItems.length,
+        extractedItems.length === 0
+          ? goldenItems.length === 0
+            ? 1
+            : 0
+          : familyAlignment.pairs.length / extractedItems.length,
     };
 
     for (const pair of familyAlignment.pairs) {
@@ -219,17 +423,39 @@ export function evaluatePersonA(
       }
     }
     for (const ambiguous of familyAlignment.ambiguous) {
-      add(errors, 'major', family, 'ambiguous_alignment', 'Semantic alignment was ambiguous and requires human review.', ambiguous.extracted_id);
+      add(
+        errors,
+        'major',
+        family,
+        'ambiguous_alignment',
+        'Semantic alignment was ambiguous and requires human review.',
+        ambiguous.extracted_id,
+      );
     }
     for (const missing of familyAlignment.unmatched_golden) {
       const item = goldenItems[missing.index] ?? {};
       const severity = missingSeverity(family, item);
-      add(errors, severity, family, 'missing_golden_object', 'Golden object was not extracted.', undefined, missing.id);
+      add(
+        errors,
+        severity,
+        family,
+        'missing_golden_object',
+        'Golden object was not extracted.',
+        undefined,
+        missing.id,
+      );
       if (severity !== 'minor') editedGoldenObjects.add(`${family}:${missing.id}`);
     }
     for (const extra of familyAlignment.unmatched_extracted) {
       const item = extractedItems[extra.index] ?? {};
-      add(errors, extraSeverity(family, item), family, 'unmatched_extracted_object', 'Extracted object has no golden semantic match and may be hallucinated or over-segmented.', extra.id);
+      add(
+        errors,
+        extraSeverity(family, item),
+        family,
+        'unmatched_extracted_object',
+        'Extracted object has no golden semantic match and may be hallucinated or over-segmented.',
+        extra.id,
+      );
     }
   }
 
@@ -277,7 +503,9 @@ export function reportMarkdown(report: PersonAEvaluationReport): string {
   if (report.errors.length === 0) lines.push('No classified differences.');
   else
     report.errors.forEach((error) =>
-      lines.push(`- **${error.severity.toUpperCase()}** \`${error.family}/${error.code}\`: ${error.message}`),
+      lines.push(
+        `- **${error.severity.toUpperCase()}** \`${error.family}/${error.code}\`: ${error.message}`,
+      ),
     );
   return `${lines.join('\n')}\n`;
 }

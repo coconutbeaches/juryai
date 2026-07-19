@@ -40,7 +40,11 @@ describe('Person A semantic alignment and classified diff', () => {
     );
     admission.against_asserting_party_interest = false;
     const { report } = evaluate(extraction);
-    expect(report.errors.some((error) => error.code === 'against_interest_flag' && error.severity === 'major')).toBe(true);
+    expect(
+      report.errors.some(
+        (error) => error.code === 'against_interest_flag' && error.severity === 'major',
+      ),
+    ).toBe(true);
   });
 
   it('classifies a flattened approximate date as major', () => {
@@ -59,7 +63,11 @@ describe('Person A semantic alignment and classified diff', () => {
     const extraction = validPersonAExtraction();
     extraction.evidence[0].availability_status = 'inspected';
     const { report } = evaluate(extraction);
-    expect(report.errors.some((error) => error.code === 'fabricated_inspection' && error.severity === 'critical')).toBe(true);
+    expect(
+      report.errors.some(
+        (error) => error.code === 'fabricated_inspection' && error.severity === 'critical',
+      ),
+    ).toBe(true);
   });
 
   it('classifies a reversed requested transfer as critical', () => {
@@ -67,8 +75,16 @@ describe('Person A semantic alignment and classified diff', () => {
     const transfer = extraction.desired_outcomes.outcomes[0].transfers[0];
     [transfer.from_party_id, transfer.to_party_id] = [transfer.to_party_id, transfer.from_party_id];
     const { report } = evaluate(extraction);
-    expect(report.errors.some((error) => error.code === 'missing_golden_object' && error.severity === 'critical')).toBe(true);
-    expect(report.errors.some((error) => error.code === 'unmatched_extracted_object' && error.severity === 'critical')).toBe(true);
+    expect(
+      report.errors.some(
+        (error) => error.code === 'missing_golden_object' && error.severity === 'critical',
+      ),
+    ).toBe(true);
+    expect(
+      report.errors.some(
+        (error) => error.code === 'unmatched_extracted_object' && error.severity === 'critical',
+      ),
+    ).toBe(true);
   });
 
   it('classifies an omitted high-materiality claim as critical', () => {
@@ -78,6 +94,13 @@ describe('Person A semantic alignment and classified diff', () => {
     );
     extraction.claims.splice(index, 1);
     const { report } = evaluate(extraction);
-    expect(report.errors.some((error) => error.code === 'missing_golden_object' && error.family === 'claims' && error.severity === 'critical')).toBe(true);
+    expect(
+      report.errors.some(
+        (error) =>
+          error.code === 'missing_golden_object' &&
+          error.family === 'claims' &&
+          error.severity === 'critical',
+      ),
+    ).toBe(true);
   });
 });

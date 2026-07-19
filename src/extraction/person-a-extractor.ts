@@ -87,7 +87,9 @@ export function assemblePersonAExtraction(
   return extraction;
 }
 
-export async function extractPersonA(options: ExtractPersonAOptions): Promise<PersonAExtractionResult> {
+export async function extractPersonA(
+  options: ExtractPersonAOptions,
+): Promise<PersonAExtractionResult> {
   const modelOutput = await options.client.generate({
     narrative: options.narrative,
     model: options.model,
