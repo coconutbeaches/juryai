@@ -31,7 +31,14 @@ export function validatePersonAExtraction(
   narrative: string,
 ): PersonAValidationResult {
   const result = validateBase(record, narrative);
-  if (!record || typeof record !== 'object' || Array.isArray(record)) return result;
+  if (
+    result.schemaErrors.length > 0 ||
+    !record ||
+    typeof record !== 'object' ||
+    Array.isArray(record)
+  ) {
+    return result;
+  }
   const object = record as JsonObject;
   const extra: ValidationIssue[] = [];
   const add = (path: string, message: string): void => {
