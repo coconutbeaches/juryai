@@ -8,6 +8,10 @@ import type { ValidationIssue } from '../validation/custom-invariants.js';
 type JsonObject = Record<string, any>;
 const array = (value: unknown): any[] => (Array.isArray(value) ? value : []);
 
+function isFilenameShaped(value: string): boolean {
+  return value.length <= 255 && !/[\r\n]/.test(value) && /(^|[^.])\.[A-Za-z0-9]{1,12}$/.test(value);
+}
+
 export function validatePersonAExtraction(
   record: unknown,
   narrative: string,
@@ -21,6 +25,22 @@ export function validatePersonAExtraction(
       extra.push({ path, message });
     }
   };
+
+  const claimEvidenceLinkIds = new Set(
+    array(object.claim_evidence_links)
+      .map((link) => link.link_id)
+      .filter((id): id is string => typeof id === 'string'),
+  );
+  result.invariantErrors = result.invariantErrors.filter((error) => {
+    if (
+      !error.path.includes('.affected_object_ids[') &&
+      !error.path.includes('.linked_object_ids[')
+    ) {
+      return true;
+    }
+    const referencedId = error.message.match(/Referenced ID '([^']+)'/)?.[1];
+    return !referencedId || !claimEvidenceLinkIds.has(referencedId);
+  });
 
   const traced = [
     ...array(object.agreement?.terms).map((item, index) => ({
@@ -48,7 +68,10 @@ export function validatePersonAExtraction(
 
   const expectedHash = createHash('sha256').update(narrative, 'utf8').digest('hex');
   if (object.submission?.content_hash !== expectedHash) {
-    add('$.submission.content_hash', 'The submission content_hash must equal sha256(narrative).');
+    add(
+      '$.submission.content_hash',
+      'The submission content_hash must equal sha256(narrative).',
+    );
   }
   if (object.metadata?.input_hash !== expectedHash) {
     add('$.metadata.input_hash', 'The metadata input_hash must equal sha256(narrative).');
@@ -69,11 +92,20 @@ export function validatePersonAExtraction(
     }
   });
 
-  array(object.evidence).forEach((evidence, index) => {
-    if (evidence.original_filename !== null && !narrative.includes(evidence.original_filename)) {
+  const thirdPartyIds = new Set(
+    array(object.third_parties)
+      .map((thirdParty) => thirdParty.third_party_id)
+      .filter((id): id is string => typeof id === 'string'),
+  );
+  array(object.evidence).forEach((evidence, evidenceIndex) => {
+    if (
+      evidence.original_filename !== null &&
+      (!isFilenameShaped(evidence.original_filename) ||
+        !narrative.includes(evidence.original_filename))
+    ) {
       add(
-        `$.evidence[${index}].original_filename`,
-        'original_filename must be null unless the exact filename appears in the narrative.',
+        `$.evidence[${evidenceIndex}].original_filename`,
+        'original_filename must be a filename-shaped literal explicitly present in the narrative.',
       );
     }
     if (
@@ -81,10 +113,21 @@ export function validatePersonAExtraction(
       !['not_verified', 'not_assessable', 'unknown'].includes(evidence.authenticity_status)
     ) {
       add(
-        `$.evidence[${index}].authenticity_status`,
+        `$.evidence[${evidenceIndex}].authenticity_status`,
         'Uninspected narrative evidence cannot be marked metadata-consistent or otherwise verified.',
       );
     }
+    array(evidence.extracts).forEach((extract, extractIndex) => {
+      if (
+        extract.author_third_party_id !== null &&
+        !thirdPartyIds.has(extract.author_third_party_id)
+      ) {
+        add(
+          `$.evidence[${evidenceIndex}].extracts[${extractIndex}].author_third_party_id`,
+          'Evidence extract author_third_party_id must reference a registered third party.',
+        );
+      }
+    });
   });
 
   array(object.damages_claims).forEach((claim, index) => {
