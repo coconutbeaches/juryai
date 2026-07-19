@@ -112,7 +112,9 @@ function questionText(assessment: EpistemicAssessment): string {
     case 'required_bucket_missing':
       return `Please clarify the missing ${assessment.target_family.replaceAll('_', ' ')} information.`;
     case 'internal_representation':
-      throw new Error('Internal representation triggers must never become user questions.');
+      throw new Error(
+        'Internal representation triggers must never become user questions.',
+      );
   }
 }
 
@@ -142,7 +144,8 @@ export function generateClarificationQuestions(
 
   return [...unique.values()]
     .sort((left, right) => {
-      const materiality = materialityRank[right.materiality] - materialityRank[left.materiality];
+      const materiality =
+        materialityRank[right.materiality] - materialityRank[left.materiality];
       if (materiality !== 0) return materiality;
       const weakness = weaknessRank[right.trigger] - weaknessRank[left.trigger];
       if (weakness !== 0) return weakness;
@@ -157,7 +160,10 @@ export function generateClarificationQuestions(
       target_object_id: assessment.target_object_id,
       target_family: assessment.target_family,
       field: assessment.field,
-      trigger: assessment.trigger as Exclude<ClarificationTriggerKind, 'internal_representation'>,
+      trigger: assessment.trigger as Exclude<
+        ClarificationTriggerKind,
+        'internal_representation'
+      >,
       materiality: assessment.materiality,
       question: questionText(assessment),
       phase,
@@ -174,7 +180,9 @@ export function projectAmendments<T extends Record<string, unknown>>(
   const projected = structuredClone(original);
   const writable = projected as Record<string, unknown>;
   const originalObjectId = original.object_id;
-  const ordered = [...amendments].sort((a, b) => a.created_at.localeCompare(b.created_at));
+  const ordered = [...amendments].sort((a, b) =>
+    a.created_at.localeCompare(b.created_at),
+  );
   for (const amendment of ordered) {
     if (amendment.target_object_id !== originalObjectId) continue;
     writable[amendment.field] = structuredClone(amendment.new_value);
