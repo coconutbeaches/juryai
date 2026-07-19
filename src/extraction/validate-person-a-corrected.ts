@@ -17,8 +17,9 @@ export function validatePersonAExtraction(
   const object = record as JsonObject;
   const extra: ValidationIssue[] = [];
   const add = (path: string, message: string): void => {
-    if (!result.invariantErrors.some((error) => error.path === path && error.message === message))
+    if (!result.invariantErrors.some((error) => error.path === path && error.message === message)) {
       extra.push({ path, message });
+    }
   };
 
   const traced = [
@@ -40,22 +41,62 @@ export function validatePersonAExtraction(
     })),
   ];
   for (const item of traced) {
-    if (array(item.spans).length === 0)
+    if (array(item.spans).length === 0) {
       add(item.path, 'Narrative-derived objects require at least one source span.');
+    }
   }
 
   const expectedHash = createHash('sha256').update(narrative, 'utf8').digest('hex');
-  if (object.submission?.content_hash !== expectedHash)
-    add('$.submission.content_hash', 'The submission content_hash must equal sha256(narrative).');
-  if (object.metadata?.input_hash !== expectedHash)
+  if (object.submission?.content_hash !== expectedHash) {
+    add(
+      '$.submission.content_hash',
+      'The submission content_hash must equal sha256(narrative).',
+    );
+  }
+  if (object.metadata?.input_hash !== expectedHash) {
     add('$.metadata.input_hash', 'The metadata input_hash must equal sha256(narrative).');
+  }
+
+  array(object.agreement?.terms).forEach((term, index) => {
+    if (term.wording_status !== 'not_inspected') {
+      add(
+        `$.agreement.terms[${index}].wording_status`,
+        'Person A-only extraction cannot mark uninspected agreement wording agreed or disputed.',
+      );
+    }
+    if (!['unclear', 'not_applicable'].includes(term.interpretation_status)) {
+      add(
+        `$.agreement.terms[${index}].interpretation_status`,
+        'Person A-only extraction cannot mark a bilateral interpretation agreed or disputed.',
+      );
+    }
+  });
 
   array(object.evidence).forEach((evidence, index) => {
-    if (evidence.original_filename !== null && !narrative.includes(evidence.original_filename))
+    if (evidence.original_filename !== null && !narrative.includes(evidence.original_filename)) {
       add(
         `$.evidence[${index}].original_filename`,
         'original_filename must be null unless the exact filename appears in the narrative.',
       );
+    }
+    if (
+      ['described_only', 'unavailable'].includes(evidence.availability_status) &&
+      !['not_verified', 'not_assessable', 'unknown'].includes(evidence.authenticity_status)
+    ) {
+      add(
+        `$.evidence[${index}].authenticity_status`,
+        'Uninspected narrative evidence cannot be marked metadata-consistent or otherwise verified.',
+      );
+    }
+  });
+
+  array(object.damages_claims).forEach((claim, index) => {
+    if (!['none', 'not_assessed'].includes(claim.support_level)) {
+      add(
+        `$.damages_claims[${index}].support_level`,
+        'Uninspected evidence cannot receive an assessed damages support level.',
+      );
+    }
   });
 
   result.invariantErrors.push(...extra);
