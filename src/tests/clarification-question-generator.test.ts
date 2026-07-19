@@ -22,7 +22,7 @@ describe('deterministic clarification question generation', () => {
   it('generates a question for a genuine epistemic gap', () => {
     const questions = generateClarificationQuestions([assessment()]);
     expect(questions).toHaveLength(1);
-    expect(questions[0]).toMatchObject({
+    expect(questions[0]!).toMatchObject({
       trigger: 'actor_attribution',
       question: 'Who performed this action?',
       phase: 'pre_lock',
@@ -92,7 +92,7 @@ describe('deterministic clarification question generation', () => {
       assessment({ materiality: 'critical' }),
     ]);
     expect(questions).toHaveLength(1);
-    expect(questions[0].materiality).toBe('critical');
+    expect(questions[0]!.materiality).toBe('critical');
   });
 
   it('uses post-lock phase for later contradictions without mutating the source record', () => {
