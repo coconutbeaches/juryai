@@ -19,7 +19,8 @@ function hasExactFilenameLiteral(narrative: string, filename: string): boolean {
     const afterIndex = index + filename.length;
     const after = afterIndex < narrative.length ? narrative[afterIndex] : '';
     const filenameChar = /[A-Za-z0-9._-]/;
-    if ((!before || !filenameChar.test(before)) && (!after || !filenameChar.test(after))) return true;
+    if ((!before || !filenameChar.test(before)) && (!after || !filenameChar.test(after)))
+      return true;
     index = narrative.indexOf(filename, index + 1);
   }
   return false;
@@ -131,9 +132,7 @@ export function validatePersonAExtraction(
   const thirdPartyIds = new Set(
     array(object.third_parties)
       .map((thirdParty) => thirdParty.third_party_id)
-      .filter(
-        (id): id is string => typeof id === 'string' && !reservedPartyIds.has(id),
-      ),
+      .filter((id): id is string => typeof id === 'string' && !reservedPartyIds.has(id)),
   );
   array(object.evidence).forEach((evidence, evidenceIndex) => {
     if (
