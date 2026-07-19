@@ -1,11 +1,17 @@
 import { createHash } from 'node:crypto';
-import { validatePersonAExtraction as validateBase, type PersonAValidationResult } from './validate-person-a.js';
+import {
+  validatePersonAExtraction as validateBase,
+  type PersonAValidationResult,
+} from './validate-person-a.js';
 import type { ValidationIssue } from '../validation/custom-invariants.js';
 
 type JsonObject = Record<string, any>;
 const array = (value: unknown): any[] => (Array.isArray(value) ? value : []);
 
-export function validatePersonAExtraction(record: unknown, narrative: string): PersonAValidationResult {
+export function validatePersonAExtraction(
+  record: unknown,
+  narrative: string,
+): PersonAValidationResult {
   const result = validateBase(record, narrative);
   if (!record || typeof record !== 'object' || Array.isArray(record)) return result;
   const object = record as JsonObject;
@@ -16,10 +22,22 @@ export function validatePersonAExtraction(record: unknown, narrative: string): P
   };
 
   const traced = [
-    ...array(object.agreement?.terms).map((item, index) => ({ spans: item.source_spans, path: `$.agreement.terms[${index}].source_spans` })),
-    ...array(object.timeline).map((item, index) => ({ spans: item.source_spans, path: `$.timeline[${index}].source_spans` })),
-    ...array(object.claims).map((item, index) => ({ spans: item.source_spans, path: `$.claims[${index}].source_spans` })),
-    ...array(object.extraction_issues).map((item, index) => ({ spans: item.source_spans, path: `$.extraction_issues[${index}].source_spans` })),
+    ...array(object.agreement?.terms).map((item, index) => ({
+      spans: item.source_spans,
+      path: `$.agreement.terms[${index}].source_spans`,
+    })),
+    ...array(object.timeline).map((item, index) => ({
+      spans: item.source_spans,
+      path: `$.timeline[${index}].source_spans`,
+    })),
+    ...array(object.claims).map((item, index) => ({
+      spans: item.source_spans,
+      path: `$.claims[${index}].source_spans`,
+    })),
+    ...array(object.extraction_issues).map((item, index) => ({
+      spans: item.source_spans,
+      path: `$.extraction_issues[${index}].source_spans`,
+    })),
   ];
   for (const item of traced) {
     if (array(item.spans).length === 0)

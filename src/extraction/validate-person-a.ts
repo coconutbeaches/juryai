@@ -316,10 +316,7 @@ export function validatePersonAExtraction(
         `$.timeline[${index}].person_b_interpretation`,
         'Person B interpretation must be null.',
       );
-    if (
-      event.asserted_by_party_ids.length !== 1 ||
-      event.asserted_by_party_ids[0] !== 'party_a'
-    )
+    if (event.asserted_by_party_ids.length !== 1 || event.asserted_by_party_ids[0] !== 'party_a')
       add(
         invariantErrors,
         `$.timeline[${index}].asserted_by_party_ids`,
@@ -359,7 +356,11 @@ export function validatePersonAExtraction(
   array(record.evidence).forEach((evidence, index) => {
     const path = `$.evidence[${index}]`;
     if (evidence.submitted_by_party_id !== 'party_a')
-      add(invariantErrors, `${path}.submitted_by_party_id`, 'Evidence stubs must be submitted by party_a.');
+      add(
+        invariantErrors,
+        `${path}.submitted_by_party_id`,
+        'Evidence stubs must be submitted by party_a.',
+      );
     if (!['described_only', 'unavailable'].includes(evidence.availability_status))
       add(
         invariantErrors,

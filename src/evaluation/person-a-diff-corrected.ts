@@ -3,7 +3,11 @@ import {
   reportMarkdown,
   type PersonAEvaluationReport,
 } from './person-a-diff.js';
-import { familyItems, type PersonAAlignment, type PersonAFamily } from '../alignment/person-a-alignment-corrected.js';
+import {
+  familyItems,
+  type PersonAAlignment,
+  type PersonAFamily,
+} from '../alignment/person-a-alignment-corrected.js';
 
 type JsonObject = Record<string, any>;
 
@@ -47,7 +51,8 @@ export function evaluatePersonA(
     if (error.code === 'unmatched_extracted_object') {
       error.severity = 'critical';
       error.code = 'unsupported_extra_object';
-      error.message = 'Extracted object has no supported golden match and is a fabrication hard failure.';
+      error.message =
+        'Extracted object has no supported golden match and is a fabrication hard failure.';
     }
     if (error.golden_id) editedObjects.add(`${error.family}:${error.golden_id}`);
     else if (error.code === 'ambiguous_alignment' && error.extracted_id)

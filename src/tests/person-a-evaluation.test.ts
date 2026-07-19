@@ -53,14 +53,16 @@ describe('Person A semantic alignment and classified diff', () => {
     expect(family.ambiguous).toHaveLength(1);
     expect(family.unmatched_extracted).toEqual([]);
     const ambiguousGoldenIndexes = new Set(
-      family.ambiguous.flatMap((item) => item.candidates.map((candidate) => candidate.golden_index)),
+      family.ambiguous.flatMap((item) =>
+        item.candidates.map((candidate) => candidate.golden_index),
+      ),
     );
     const ambiguousGoldenIds = new Set(
       family.ambiguous.flatMap((item) => item.candidates.map((candidate) => candidate.golden_id)),
     );
-    expect(
-      family.unmatched_golden.some((item) => ambiguousGoldenIndexes.has(item.index)),
-    ).toBe(false);
+    expect(family.unmatched_golden.some((item) => ambiguousGoldenIndexes.has(item.index))).toBe(
+      false,
+    );
     const report = evaluatePersonA(extraction, golden, alignment);
     expect(report.errors.filter((error) => error.code === 'ambiguous_alignment')).toHaveLength(1);
     expect(
@@ -82,12 +84,16 @@ describe('Person A semantic alignment and classified diff', () => {
 
   it('classifies a reversed timeline actor as one critical error', () => {
     const extraction = validPersonAExtraction();
-    const event = extraction.timeline.find((item: Record<string, any>) => item.actor_party_id === 'party_b');
+    const event = extraction.timeline.find(
+      (item: Record<string, any>) => item.actor_party_id === 'party_b',
+    );
     expect(event).toBeTruthy();
     event.actor_party_id = 'party_a';
     const { report } = evaluate(extraction);
     expect(report.errors.filter((error) => error.code === 'actor_reversed')).toHaveLength(1);
-    expect(report.errors.find((error) => error.code === 'actor_reversed')?.severity).toBe('critical');
+    expect(report.errors.find((error) => error.code === 'actor_reversed')?.severity).toBe(
+      'critical',
+    );
     expect(
       report.errors.some(
         (error) => error.code === 'missing_golden_object' && error.family === 'timeline',

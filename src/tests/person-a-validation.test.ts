@@ -70,7 +70,8 @@ describe('Person A extraction validation', () => {
       if (Array.isArray(value)) return value.forEach(visit);
       if (!value || typeof value !== 'object') return;
       const object = value as Record<string, any>;
-      if ('submission_id' in object && 'quote' in object) object.submission_id = 'model_submission_917';
+      if ('submission_id' in object && 'quote' in object)
+        object.submission_id = 'model_submission_917';
       Object.values(object).forEach(visit);
     };
     visit(modelOutput);
@@ -97,7 +98,9 @@ describe('Person A extraction validation', () => {
     const extraction = validPersonAExtraction();
     extraction.timeline[0].source_spans = [];
     const result = validatePersonAExtraction(extraction, extraction.submission.raw_text);
-    expect(result.schemaErrors.some((error) => error.path.includes('/timeline/0/source_spans'))).toBe(true);
+    expect(
+      result.schemaErrors.some((error) => error.path.includes('/timeline/0/source_spans')),
+    ).toBe(true);
     expect(
       result.invariantErrors.some(
         (error) =>
@@ -184,7 +187,9 @@ describe('Person A extraction validation', () => {
     extraction.claims[0].source_spans[0].start_char += 1;
     const result = validatePersonAExtraction(extraction, extraction.submission.raw_text);
     expect(result.valid).toBe(false);
-    expect(result.invariantErrors.some((error) => error.message.includes('Source span'))).toBe(true);
+    expect(result.invariantErrors.some((error) => error.message.includes('Source span'))).toBe(
+      true,
+    );
   });
 
   it('rejects Person B interpretation and answered claim state', () => {

@@ -21,9 +21,13 @@ function removeAmbiguousDuplicates(alignment: PersonAAlignment): void {
   for (const family of Object.values(alignment.families)) {
     const extracted = new Set(family.ambiguous.map((item) => item.extracted_index));
     const golden = new Set(
-      family.ambiguous.flatMap((item) => item.candidates.map((candidate) => candidate.golden_index)),
+      family.ambiguous.flatMap((item) =>
+        item.candidates.map((candidate) => candidate.golden_index),
+      ),
     );
-    family.unmatched_extracted = family.unmatched_extracted.filter((item) => !extracted.has(item.index));
+    family.unmatched_extracted = family.unmatched_extracted.filter(
+      (item) => !extracted.has(item.index),
+    );
     family.unmatched_golden = family.unmatched_golden.filter((item) => !golden.has(item.index));
   }
 }
@@ -47,7 +51,8 @@ function recoverActorReversals(
         left.actor_third_party_id !== right.actor_third_party_id;
       if (!actorsDiffer || dateOverlap(left.date, right.date) === 0) continue;
       const score = semanticSimilarity(left.event_summary, right.event_summary);
-      if (score >= 0.65) candidates.push({ extractedIndex: extra.index, goldenIndex: missing.index, score });
+      if (score >= 0.65)
+        candidates.push({ extractedIndex: extra.index, goldenIndex: missing.index, score });
     }
   }
 
@@ -56,7 +61,8 @@ function recoverActorReversals(
   const usedGolden = new Set<number>();
   const recovered: AlignmentPair[] = [];
   for (const candidate of candidates) {
-    if (usedExtracted.has(candidate.extractedIndex) || usedGolden.has(candidate.goldenIndex)) continue;
+    if (usedExtracted.has(candidate.extractedIndex) || usedGolden.has(candidate.goldenIndex))
+      continue;
     usedExtracted.add(candidate.extractedIndex);
     usedGolden.add(candidate.goldenIndex);
     const left = extractedItems[candidate.extractedIndex] ?? {};
@@ -71,7 +77,9 @@ function recoverActorReversals(
     });
   }
   family.pairs.push(...recovered);
-  family.unmatched_extracted = family.unmatched_extracted.filter((item) => !usedExtracted.has(item.index));
+  family.unmatched_extracted = family.unmatched_extracted.filter(
+    (item) => !usedExtracted.has(item.index),
+  );
   family.unmatched_golden = family.unmatched_golden.filter((item) => !usedGolden.has(item.index));
 }
 

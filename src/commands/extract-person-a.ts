@@ -39,7 +39,9 @@ function parseArgs(argv: string[]): Args {
     submittedAt: values.get('submitted-at') ?? '2026-07-18T12:00:00Z',
     model: values.get('model') ?? process.env.JURYAI_MODEL ?? 'gpt-5.6',
     outputDir: resolve(projectRoot, values.get('output-dir') ?? 'artifacts/person-a/latest'),
-    ...(values.get('extraction') ? { extraction: resolve(projectRoot, values.get('extraction')!) } : {}),
+    ...(values.get('extraction')
+      ? { extraction: resolve(projectRoot, values.get('extraction')!) }
+      : {}),
     failOnCritical: flags.has('fail-on-critical'),
   };
 }
@@ -64,8 +66,7 @@ async function main(): Promise<void> {
       model: args.model,
       client,
       reasoningEffort:
-        (process.env.JURYAI_REASONING_EFFORT as 'low' | 'medium' | 'high' | undefined) ??
-        'medium',
+        (process.env.JURYAI_REASONING_EFFORT as 'low' | 'medium' | 'high' | undefined) ?? 'medium',
     });
     extraction = result.extraction;
   }
@@ -83,8 +84,14 @@ async function main(): Promise<void> {
   const report = evaluatePersonA(extraction, golden, alignment);
   await mkdir(args.outputDir, { recursive: true });
   await Promise.all([
-    writeFile(resolve(args.outputDir, 'extraction.json'), `${JSON.stringify(extraction, null, 2)}\n`),
-    writeFile(resolve(args.outputDir, 'golden-projection.json'), `${JSON.stringify(golden, null, 2)}\n`),
+    writeFile(
+      resolve(args.outputDir, 'extraction.json'),
+      `${JSON.stringify(extraction, null, 2)}\n`,
+    ),
+    writeFile(
+      resolve(args.outputDir, 'golden-projection.json'),
+      `${JSON.stringify(golden, null, 2)}\n`,
+    ),
     writeFile(resolve(args.outputDir, 'alignment.json'), `${JSON.stringify(alignment, null, 2)}\n`),
     writeFile(resolve(args.outputDir, 'report.json'), `${JSON.stringify(report, null, 2)}\n`),
     writeFile(resolve(args.outputDir, 'report.md'), reportMarkdown(report)),
