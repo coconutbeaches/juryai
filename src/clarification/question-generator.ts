@@ -162,10 +162,12 @@ export function projectAmendments<T extends Record<string, unknown>>(
   amendments: ClarificationAmendment[],
 ): T {
   const projected = structuredClone(original);
+  const writable = projected as Record<string, unknown>;
+  const originalObjectId = original.object_id;
   const ordered = [...amendments].sort((a, b) => a.created_at.localeCompare(b.created_at));
   for (const amendment of ordered) {
-    if (amendment.target_object_id !== original.object_id) continue;
-    projected[amendment.field] = structuredClone(amendment.new_value);
+    if (amendment.target_object_id !== originalObjectId) continue;
+    writable[amendment.field] = structuredClone(amendment.new_value);
   }
   return projected;
 }
