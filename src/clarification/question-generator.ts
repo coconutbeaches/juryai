@@ -76,11 +76,17 @@ function needsHumanClarification(assessment: EpistemicAssessment): boolean {
     case 'actor_attribution':
       return assessment.actor_attribution !== 'explicit';
     case 'causal_link':
-      return assessment.causal_link_status === 'inferred' || assessment.causal_link_status === 'unstated';
+      return (
+        assessment.causal_link_status === 'inferred' ||
+        assessment.causal_link_status === 'unstated'
+      );
     case 'merge_risk':
       return assessment.merge_risk !== undefined && assessment.merge_risk !== 'none';
     case 'evidence_availability':
-      return assessment.evidence_availability === 'described_only' || assessment.evidence_availability === 'unknown';
+      return (
+        assessment.evidence_availability === 'described_only' ||
+        assessment.evidence_availability === 'unknown'
+      );
     case 'date_precision':
       return assessment.date_precision === 'unknown';
     case 'required_bucket_missing':
@@ -126,7 +132,10 @@ export function generateClarificationQuestions(
     if (!needsHumanClarification(assessment)) continue;
     const key = dedupeKey(assessment);
     const existing = unique.get(key);
-    if (!existing || materialityRank[assessment.materiality] > materialityRank[existing.materiality]) {
+    if (
+      !existing ||
+      materialityRank[assessment.materiality] > materialityRank[existing.materiality]
+    ) {
       unique.set(key, assessment);
     }
   }
@@ -137,7 +146,8 @@ export function generateClarificationQuestions(
       if (materiality !== 0) return materiality;
       const weakness = weaknessRank[right.trigger] - weaknessRank[left.trigger];
       if (weakness !== 0) return weakness;
-      const coverage = (right.resolves_object_ids?.length ?? 1) - (left.resolves_object_ids?.length ?? 1);
+      const coverage =
+        (right.resolves_object_ids?.length ?? 1) - (left.resolves_object_ids?.length ?? 1);
       if (coverage !== 0) return coverage;
       return dedupeKey(left).localeCompare(dedupeKey(right));
     })
