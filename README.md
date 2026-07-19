@@ -105,6 +105,14 @@ Source quotes must match `narrative.slice(start_char, end_char)` exactly. The go
 
 Objects are blocked and matched by party, type, actor, date overlap, transfer direction, and semantic content. A Hungarian maximum-weight assignment enforces one-to-one matching. Generated IDs and array order do not contribute to similarity.
 
+The lexical synonym table in `person-a-alignment.ts` is intentionally calibrated to Dry Run 001. It contains fixture-specific aliases such as `client → Maya` and `freelancer → Alex`; future case types must inject or replace these aliases rather than treating them as a general semantic model.
+
+Human edit rate is fixed as:
+
+`objects requiring any human correction / total golden objects`
+
+An aligned object counts once regardless of the number of field corrections. An ambiguous alignment counts once. Unsupported unmatched extracted objects are fabrication hard failures rather than minor-error allowances.
+
 The report includes:
 
 - aligned pairs, scores, and ambiguity margins
