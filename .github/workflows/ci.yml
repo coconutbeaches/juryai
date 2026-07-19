@@ -25,17 +25,70 @@ jobs:
       - name: Install dependencies
         run: npm ci --ignore-scripts
 
+      - name: Prepare CI logs
+        run: mkdir -p .ci-logs
+
       - name: Run tests
-        run: npm test
+        id: tests
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee .ci-logs/tests.log
 
       - name: Typecheck
-        run: npm run typecheck
+        id: typecheck
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run typecheck 2>&1 | tee .ci-logs/typecheck.log
 
       - name: Validate golden fixture
-        run: npm run validate:golden
+        id: golden
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run validate:golden 2>&1 | tee .ci-logs/golden.log
 
       - name: Check formatting
-        run: npm run format:check
+        id: formatting
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run format:check 2>&1 | tee .ci-logs/formatting.log
 
       - name: Audit dependencies
-        run: npm audit --audit-level=low
+        id: audit
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm audit --audit-level=low 2>&1 | tee .ci-logs/audit.log
+
+      - name: Upload CI logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-logs
+          path: .ci-logs
+          retention-days: 7
+
+      - name: Enforce CI result
+        if: always()
+        env:
+          TESTS: ${{ steps.tests.outcome }}
+          TYPECHECK: ${{ steps.typecheck.outcome }}
+          GOLDEN: ${{ steps.golden.outcome }}
+          FORMATTING: ${{ steps.formatting.outcome }}
+          AUDIT: ${{ steps.audit.outcome }}
+        run: |
+          printf 'tests=%s\ntypecheck=%s\ngolden=%s\nformatting=%s\naudit=%s\n' \
+            "$TESTS" "$TYPECHECK" "$GOLDEN" "$FORMATTING" "$AUDIT"
+          test "$TESTS" = success
+          test "$TYPECHECK" = success
+          test "$GOLDEN" = success
+          test "$FORMATTING" = success
+          test "$AUDIT" = success
