@@ -13,7 +13,8 @@ function exactQuoteOffset(narrative: string, quote: string, preferredStart: numb
     matches.push(cursor);
     cursor = narrative.indexOf(quote, cursor + 1);
   }
-  if (matches.length === 0) throw new Error(`Golden source quote is not present in Person A narrative: ${quote}`);
+  if (matches.length === 0)
+    throw new Error(`Golden source quote is not present in Person A narrative: ${quote}`);
   return matches.reduce((best, candidate) =>
     Math.abs(candidate - preferredStart) < Math.abs(best - preferredStart) ? candidate : best,
   );
@@ -31,7 +32,10 @@ function personASpans(item: JsonObject, submissionId: string): JsonObject[] {
 }
 
 function normalizeSourceSpans(value: unknown, narrative: string, submissionId: string): void {
-  if (Array.isArray(value)) return value.forEach((entry) => normalizeSourceSpans(entry, narrative, submissionId));
+  if (Array.isArray(value)) {
+    value.forEach((entry) => normalizeSourceSpans(entry, narrative, submissionId));
+    return;
+  }
   if (!value || typeof value !== 'object') return;
   const object = value as JsonObject;
   if (
@@ -57,7 +61,8 @@ export function buildPersonAGoldenProjection(): JsonObject {
   const record = clone(goldenRecord) as JsonObject;
   const party = record.parties.find((item: JsonObject) => item.party_id === 'party_a');
   const submission = record.submissions.find((item: JsonObject) => item.party_id === 'party_a');
-  if (!party || !submission) throw new Error('Dry Run 001 is missing Person A party or submission.');
+  if (!party || !submission)
+    throw new Error('Dry Run 001 is missing Person A party or submission.');
 
   const thirdParties = record.third_parties
     .filter((item: JsonObject) => item.relationship_to_party_id === 'party_a')
@@ -66,7 +71,8 @@ export function buildPersonAGoldenProjection(): JsonObject {
       name_or_label: item.name_or_label,
       role: item.role,
       relationship_to_party_id: item.relationship_to_party_id,
-      identity_status: item.identity_status,
+      contacted_for_case: item.contacted_for_case,
+      notes: item.notes,
     }));
   const thirdPartyIds = new Set(thirdParties.map((item: JsonObject) => item.third_party_id));
 
@@ -80,15 +86,20 @@ export function buildPersonAGoldenProjection(): JsonObject {
     .map((item: JsonObject) => ({
       claim_id: item.claim_id,
       party_id: 'party_a',
-      claim_type: item.claim_type,
       claim_text: item.claim_text,
+      claim_type: item.claim_type,
       response_status: 'unanswered',
-      support_level: item.support_level,
-      supporting_evidence_ids: item.supporting_evidence_ids.filter((id: string) => evidenceIds.has(id)),
-      contradicting_evidence_ids: item.contradicting_evidence_ids.filter((id: string) => evidenceIds.has(id)),
-      counterclaim_ids: [],
-      against_asserting_party_interest: item.against_asserting_party_interest,
       materiality: item.materiality,
+      support_level: item.support_level,
+      supporting_evidence_ids: item.supporting_evidence_ids.filter((id: string) =>
+        evidenceIds.has(id),
+      ),
+      contradicting_evidence_ids: item.contradicting_evidence_ids.filter((id: string) =>
+        evidenceIds.has(id),
+      ),
+      counterclaim_ids: [],
+      requires_clarification: item.requires_clarification,
+      against_asserting_party_interest: item.against_asserting_party_interest,
       source_spans: personASpans(item, submission.submission_id),
     }));
   const claimIds = new Set(claims.map((item: JsonObject) => item.claim_id));
@@ -119,8 +130,8 @@ export function buildPersonAGoldenProjection(): JsonObject {
       completion_status_person_b: 'unknown',
       use_status: 'unknown',
       alleged_defects: [],
-      repair_attempts: array(item.repair_attempts).filter((attempt) =>
-        typeof attempt === 'string' && /^Alex\b/i.test(attempt),
+      repair_attempts: array(item.repair_attempts).filter(
+        (attempt) => typeof attempt === 'string' && /^Alex\b/i.test(attempt),
       ),
       source_claim_ids: item.source_claim_ids.filter((id: string) => claimIds.has(id)),
       source_evidence_ids: item.source_evidence_ids.filter((id: string) => evidenceIds.has(id)),
@@ -157,7 +168,8 @@ export function buildPersonAGoldenProjection(): JsonObject {
       evidence_id: item.evidence_id,
       relationship: item.relationship,
       strength: 'not_assessed',
-      notes: item.notes,
+      decision_critical: item.decision_critical,
+      explanation: item.explanation,
     }));
 
   const damagesClaims = record.damages_claims
@@ -171,13 +183,16 @@ export function buildPersonAGoldenProjection(): JsonObject {
       currency: item.currency,
       causal_theory: item.causal_theory,
       calculation_basis: item.calculation_basis,
-      calculation_support_status: item.calculation_support_status,
+      calculation_status: item.calculation_status,
+      support_level: item.support_level,
       source_claim_ids: item.source_claim_ids.filter((id: string) => claimIds.has(id)),
       source_evidence_ids: item.source_evidence_ids.filter((id: string) => evidenceIds.has(id)),
-      materiality: item.materiality,
+      requires_clarification: item.requires_clarification,
     }));
 
-  const desiredSource = record.desired_outcomes.find((item: JsonObject) => item.party_id === 'party_a');
+  const desiredSource = record.desired_outcomes.find(
+    (item: JsonObject) => item.party_id === 'party_a',
+  );
   if (!desiredSource) throw new Error('Dry Run 001 is missing Person A outcomes.');
   const desiredOutcomes = {
     party_id: 'party_a',
@@ -185,7 +200,11 @@ export function buildPersonAGoldenProjection(): JsonObject {
   };
 
   const knownIds = new Set<string>([
-    'party_a', submission.submission_id, ...thirdPartyIds, ...evidenceIds, ...claimIds,
+    'party_a',
+    submission.submission_id,
+    ...thirdPartyIds,
+    ...evidenceIds,
+    ...claimIds,
     ...agreementTerms.map((item: JsonObject) => item.term_id),
     ...deliverableAssessments.map((item: JsonObject) => item.deliverable_id),
     ...timeline.map((item: JsonObject) => item.event_id),
@@ -200,11 +219,10 @@ export function buildPersonAGoldenProjection(): JsonObject {
     .map(({ item, spans }: { item: JsonObject; spans: JsonObject[] }) => ({
       issue_id: item.issue_id,
       issue_type: item.issue_type,
-      description: quoteSummary(spans),
       severity: item.severity,
+      description: quoteSummary(spans),
       affected_object_ids: item.affected_object_ids.filter((id: string) => knownIds.has(id)),
       resolution_status: item.resolution_status,
-      resolution: item.resolution,
       source_spans: spans,
     }));
   extractionIssues.forEach((item: JsonObject) => knownIds.add(item.issue_id));
@@ -216,8 +234,8 @@ export function buildPersonAGoldenProjection(): JsonObject {
       target_party_id: 'party_a',
       question: item.question,
       reason: item.reason,
-      materiality: item.materiality,
       linked_object_ids: item.linked_object_ids.filter((id: string) => knownIds.has(id)),
+      priority: item.priority,
       answer: null,
       answer_evidence_ids: [],
       status: 'pending',
@@ -232,8 +250,11 @@ export function buildPersonAGoldenProjection(): JsonObject {
     agreement: {
       agreement_exists: record.agreement.agreement_exists,
       agreement_form: record.agreement.agreement_form,
-      agreement_summary: 'Alex describes a written agreement for a five-page website priced at $2,400 with a $1,200 deposit and balance due on completion.',
-      source_evidence_ids: record.agreement.source_evidence_ids.filter((id: string) => evidenceIds.has(id)),
+      agreement_summary:
+        'Alex describes a written agreement for a five-page website priced at $2,400 with a $1,200 deposit and balance due on completion.',
+      source_evidence_ids: record.agreement.source_evidence_ids.filter((id: string) =>
+        evidenceIds.has(id),
+      ),
       terms: agreementTerms,
       open_issues: [
         'The described contract has not been uploaded or inspected.',
