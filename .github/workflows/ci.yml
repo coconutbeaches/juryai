@@ -15,14 +15,14 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-    matrix:
-      test_file:
-        - src/tests/schema.test.ts
-        - src/tests/invariants.test.ts
-        - src/tests/golden-fixture.test.ts
-        - src/tests/person-a-validation.test.ts
-        - src/tests/person-a-evaluation.test.ts
-        - src/tests/openai-responses.test.ts
+      matrix:
+        test_file:
+          - src/tests/schema.test.ts
+          - src/tests/invariants.test.ts
+          - src/tests/golden-fixture.test.ts
+          - src/tests/person-a-validation.test.ts
+          - src/tests/person-a-evaluation.test.ts
+          - src/tests/openai-responses.test.ts
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
