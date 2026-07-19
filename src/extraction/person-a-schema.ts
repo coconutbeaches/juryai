@@ -66,7 +66,7 @@ const modelRootDefinitions = [
 const extractionRootDefinitions = [...modelRootDefinitions, 'party', 'submission'];
 
 const modelProperties: Record<string, JsonSchema> = {
-  schema_version: { const: '0.1.2' },
+  schema_version: { type: 'string', const: '0.1.2' },
   party_profile: {
     type: 'object',
     additionalProperties: false,

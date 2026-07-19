@@ -1,5 +1,30 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { extractResponseText, OpenAIResponsesClient } from '../extraction/openai-responses.js';
+import { buildOpenAIResponseSchema } from '../extraction/person-a-schema.js';
+
+type SchemaNode = Record<string, unknown>;
+
+function collectSchemaNodes(value: unknown, path = '#'): Array<{ node: SchemaNode; path: string }> {
+  if (Array.isArray(value)) {
+    return value.flatMap((entry, index) => collectSchemaNodes(entry, `${path}/${index}`));
+  }
+  if (!value || typeof value !== 'object') return [];
+
+  const node = value as SchemaNode;
+  return [
+    { node, path },
+    ...Object.entries(node).flatMap(([key, child]) =>
+      collectSchemaNodes(child, `${path}/${key.replaceAll('~', '~0').replaceAll('/', '~1')}`),
+    ),
+  ];
+}
+
+function jsonTypeOf(value: unknown): string {
+  if (value === null) return 'null';
+  if (Array.isArray(value)) return 'array';
+  if (typeof value === 'number' && Number.isInteger(value)) return 'integer';
+  return typeof value;
+}
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -7,6 +32,64 @@ afterEach(() => {
 });
 
 describe('OpenAI Responses parsing', () => {
+  it('uses explicit matching types for every const in the recursively assembled schema', () => {
+    const issues = collectSchemaNodes(buildOpenAIResponseSchema()).flatMap(({ node, path }) => {
+      if (!Object.hasOwn(node, 'const')) return [];
+      const declaredTypes = Array.isArray(node.type) ? node.type : [node.type];
+      const actualType = jsonTypeOf(node.const);
+      const compatibleTypes = actualType === 'integer' ? ['integer', 'number'] : [actualType];
+      return compatibleTypes.some((type) => declaredTypes.includes(type))
+        ? []
+        : [`${path}: const is ${actualType}`];
+    });
+
+    expect(issues).toEqual([]);
+  });
+
+  it('meets documented strict Structured Outputs object requirements', () => {
+    const schema = buildOpenAIResponseSchema();
+    const issues = collectSchemaNodes(schema).flatMap(({ node, path }) => {
+      if (node.type !== 'object') return [];
+      const properties =
+        node.properties && typeof node.properties === 'object'
+          ? Object.keys(node.properties as SchemaNode)
+          : [];
+      const required = Array.isArray(node.required) ? node.required : [];
+      const missingRequired = properties.filter((property) => !required.includes(property));
+      return [
+        ...(node.additionalProperties === false
+          ? []
+          : [`${path}: additionalProperties must be false`]),
+        ...(missingRequired.length === 0
+          ? []
+          : [`${path}: missing required ${missingRequired.join(', ')}`]),
+      ];
+    });
+
+    expect(schema.type).toBe('object');
+    expect(schema).not.toHaveProperty('anyOf');
+    expect(issues).toEqual([]);
+  });
+
+  it('omits unsupported composition keywords from the recursively assembled schema', () => {
+    const unsupported = new Set([
+      'allOf',
+      'not',
+      'dependentRequired',
+      'dependentSchemas',
+      'if',
+      'then',
+      'else',
+    ]);
+    const issues = collectSchemaNodes(buildOpenAIResponseSchema()).flatMap(({ node, path }) =>
+      Object.keys(node)
+        .filter((key) => unsupported.has(key))
+        .map((key) => `${path}/${key}`),
+    );
+
+    expect(issues).toEqual([]);
+  });
+
   it('reads structured output text from a message item', () => {
     const text = extractResponseText({
       output: [
