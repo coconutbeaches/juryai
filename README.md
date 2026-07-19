@@ -161,6 +161,8 @@ npm run format:check
 npm audit --audit-level=low
 ```
 
+The final offline review-fix gate is pinned in PR #4 to the exact reviewed head and GitHub Actions run. Live acceptance remains a separate, later gate.
+
 ## Golden-fixture posture
 
 Dry Run 001 remains intentionally pre-inspection. The contract, messages, recordings, and campaign record were described but not supplied. The canonical record therefore keeps them `described_only` or `unavailable`, leaves the record unlocked, keeps required questions pending, blocks deliberation, and keeps recommendation `null`.
