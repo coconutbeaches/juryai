@@ -37,7 +37,7 @@ function parseArgs(argv: string[]): Args {
   return {
     input: resolve(projectRoot, values.get('input') ?? 'src/fixtures/dry_run_001.person_a.txt'),
     submittedAt: values.get('submitted-at') ?? '2026-07-18T12:00:00Z',
-    model: values.get('model') ?? process.env.JURYAI_MODEL ?? 'gpt-5.1',
+    model: values.get('model') ?? process.env.JURYAI_MODEL ?? 'gpt-5.6',
     outputDir: resolve(projectRoot, values.get('output-dir') ?? 'artifacts/person-a/latest'),
     ...(values.get('extraction')
       ? { extraction: resolve(projectRoot, values.get('extraction')!) }
@@ -67,8 +67,8 @@ async function main(): Promise<void> {
       model: args.model,
       client,
       reasoningEffort:
-        (process.env.JURYAI_REASONING_EFFORT as 'low' | 'medium' | 'high' | 'xhigh' | undefined) ??
-        'high',
+        (process.env.JURYAI_REASONING_EFFORT as 'low' | 'medium' | 'high' | undefined) ??
+        'medium',
     });
     extraction = result.extraction;
   }
