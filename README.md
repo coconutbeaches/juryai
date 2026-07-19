@@ -111,6 +111,8 @@ The extractor fails closed when it:
 
 Source quotes must match `narrative.slice(start_char, end_char)` exactly. Their offsets must remain within the narrative, and `end_char - start_char` must equal the quote length. The golden projection recomputes stored offsets from the verbatim narrative before evaluation rather than trusting manually copied character positions.
 
+Reserved party IDs such as `party_a` and `party_b` cannot be reused by third-party records. Filename validation uses token boundaries, so a value such as `contract.pdf` does not match merely because `signed-contract.pdf` appears in the narrative.
+
 Extraction issues and clarification questions may target a specific `claim_evidence_link` when the uncertainty concerns the evidence-to-claim relationship itself.
 
 ## Semantic evaluation
