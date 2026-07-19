@@ -43,11 +43,11 @@ For live extraction, set an API key locally. Never commit it:
 export OPENAI_API_KEY="..."
 ```
 
-Optional configuration:
+The OpenAI juror default is GPT-5.6 with medium reasoning:
 
 ```bash
-export JURYAI_MODEL="gpt-5.1"
-export JURYAI_REASONING_EFFORT="high"
+export JURYAI_MODEL="gpt-5.6"
+export JURYAI_REASONING_EFFORT="medium"
 ```
 
 ## Run the Person A extractor
