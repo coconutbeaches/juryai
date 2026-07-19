@@ -6,7 +6,7 @@ type JsonObject = Record<string, any>;
 export type StructuredExtractionRequest = {
   narrative: string;
   model: string;
-  reasoningEffort?: 'low' | 'medium' | 'high' | 'xhigh';
+  reasoningEffort?: 'low' | 'medium' | 'high';
 };
 
 export interface StructuredExtractionClient {
@@ -58,7 +58,7 @@ export class OpenAIResponsesClient implements StructuredExtractionClient {
         model: request.model,
         instructions: PERSON_A_EXTRACTION_INSTRUCTIONS,
         input: request.narrative,
-        reasoning: { effort: request.reasoningEffort ?? 'high' },
+        reasoning: { effort: request.reasoningEffort ?? 'medium' },
         store: false,
         text: {
           format: {
