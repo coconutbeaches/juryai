@@ -98,7 +98,9 @@ The extractor fails closed when it:
 - invents Person B’s position or counterclaims
 - flattens approximate dates
 - treats described evidence as uploaded or inspected
-- assigns evidentiary strength before inspection
+- marks uninspected evidence as metadata-verified
+- marks uninspected agreement wording or bilateral interpretation as agreed
+- assigns evidentiary strength to claims or damages before inspection
 - loses exact narrative source spans
 - introduces private settlement information
 - creates legal conclusions, findings, deliberation, or recommendations
