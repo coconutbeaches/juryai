@@ -1,0 +1,42 @@
+name: PR 4 diagnostics
+
+on:
+  pull_request:
+    types: [ready_for_review, synchronize, reopened]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  diagnose:
+    if: github.event.pull_request.number == 4
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Capture focused failures
+        id: tests
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          npx --no-install vitest run src/tests/person-a-validation.test.ts src/tests/person-a-evaluation.test.ts > /tmp/pr4-tests.log 2>&1
+          echo "status=$?" >> "$GITHUB_OUTPUT"
+      - name: Post concise diagnostic
+        if: steps.tests.outputs.status != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo '### PR #4 focused test diagnostic'
+            echo '```text'
+            tail -120 /tmp/pr4-tests.log
+            echo '```'
+          } > /tmp/comment.md
+          gh pr comment 4 --body-file /tmp/comment.md
