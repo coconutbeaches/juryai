@@ -6,6 +6,43 @@ type JsonObject = Record<string, any>;
 const clone = <T>(value: T): T => structuredClone(value);
 const array = (value: unknown): any[] => (Array.isArray(value) ? value : []);
 
+function exactQuoteOffset(narrative: string, quote: string, preferredStart: number): number {
+  const matches: number[] = [];
+  let cursor = narrative.indexOf(quote);
+  while (cursor >= 0) {
+    matches.push(cursor);
+    cursor = narrative.indexOf(quote, cursor + 1);
+  }
+  if (matches.length === 0) {
+    throw new Error(`Golden source quote is not present verbatim in Person A narrative: ${quote}`);
+  }
+  return matches.reduce((best, candidate) =>
+    Math.abs(candidate - preferredStart) < Math.abs(best - preferredStart) ? candidate : best,
+  );
+}
+
+function normalizeSourceSpans(value: unknown, narrative: string, submissionId: string): void {
+  if (Array.isArray(value)) {
+    value.forEach((entry) => normalizeSourceSpans(entry, narrative, submissionId));
+    return;
+  }
+  if (!value || typeof value !== 'object') return;
+  const object = value as JsonObject;
+  if (
+    typeof object.submission_id === 'string' &&
+    typeof object.quote === 'string' &&
+    typeof object.start_char === 'number' &&
+    typeof object.end_char === 'number'
+  ) {
+    const start = exactQuoteOffset(narrative, object.quote, object.start_char);
+    object.submission_id = submissionId;
+    object.start_char = start;
+    object.end_char = start + object.quote.length;
+    return;
+  }
+  Object.values(object).forEach((child) => normalizeSourceSpans(child, narrative, submissionId));
+}
+
 export function buildPersonAGoldenProjection(): JsonObject {
   const record = clone(goldenRecord) as JsonObject;
   const party = record.parties.find((item: JsonObject) => item.party_id === 'party_a');
@@ -42,9 +79,7 @@ export function buildPersonAGoldenProjection(): JsonObject {
     }));
 
   const deliverableAssessments = record.deliverable_assessments
-    .filter((item: JsonObject) =>
-      item.source_claim_ids.some((id: string) => claimIds.has(id)),
-    )
+    .filter((item: JsonObject) => item.source_claim_ids.some((id: string) => claimIds.has(id)))
     .map((item: JsonObject) => ({
       ...item,
       completion_status_person_b: 'unknown',
@@ -119,7 +154,7 @@ export function buildPersonAGoldenProjection(): JsonObject {
       status: 'pending',
     }));
 
-  return {
+  const projection: JsonObject = {
     schema_version: '0.1.2',
     extractor_version: PERSON_A_EXTRACTOR_VERSION,
     party,
@@ -151,4 +186,7 @@ export function buildPersonAGoldenProjection(): JsonObject {
       generated_at: '2026-07-18T12:30:00Z',
     },
   };
+
+  normalizeSourceSpans(projection, submission.raw_text, submission.submission_id);
+  return projection;
 }
