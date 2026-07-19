@@ -206,6 +206,28 @@ describe('deterministic clarification question generation', () => {
     ]);
   });
 
+  it('deduplicates merge and split risks deterministically in both input orders', () => {
+    const possibleMerge = assessment({
+      field: 'identity',
+      trigger: 'merge_risk',
+      actor_attribution: undefined,
+      merge_risk: 'possible_merge',
+      question_context: 'the mobile and desktop mockups',
+    });
+    const possibleSplit = assessment({
+      ...possibleMerge,
+      merge_risk: 'possible_split',
+    });
+    const forward = generateClarificationQuestions([possibleMerge, possibleSplit]);
+    const reverse = generateClarificationQuestions([possibleSplit, possibleMerge]);
+
+    expect(JSON.stringify(reverse)).toBe(JSON.stringify(forward));
+    expect(forward).toHaveLength(1);
+    expect(forward[0]!.question).toBe(
+      'Are these separate items, or one combined item — the mobile and desktop mockups?',
+    );
+  });
+
   it('asks about described-only and unknown evidence availability', () => {
     const questions = generateClarificationQuestions([
       assessment({
@@ -226,6 +248,63 @@ describe('deterministic clarification question generation', () => {
       }),
     ]);
     expect(questions).toHaveLength(2);
+  });
+
+  it('deduplicates described-only and unknown evidence deterministically in both input orders', () => {
+    const describedOnly = assessment({
+      field: 'availability',
+      trigger: 'evidence_availability',
+      actor_attribution: undefined,
+      evidence_availability: 'described_only',
+      question_context: 'the WhatsApp messages about delivery',
+    });
+    const unknown = assessment({
+      ...describedOnly,
+      evidence_availability: 'unknown',
+    });
+    const forward = generateClarificationQuestions([describedOnly, unknown]);
+    const reverse = generateClarificationQuestions([unknown, describedOnly]);
+
+    expect(JSON.stringify(reverse)).toBe(JSON.stringify(forward));
+    expect(forward).toHaveLength(1);
+    expect(forward[0]!.question).toBe(
+      'Do you currently have the evidence described here — the WhatsApp messages about delivery?',
+    );
+  });
+
+  it('deduplicates identical assessments while preserving the higher-materiality winner', () => {
+    const duplicate = assessment();
+    expect(generateClarificationQuestions([duplicate, { ...duplicate }])).toHaveLength(1);
+
+    const questions = generateClarificationQuestions([
+      assessment({ materiality: 'medium' }),
+      assessment({ materiality: 'critical' }),
+    ]);
+    expect(questions).toHaveLength(1);
+    expect(questions[0]!.materiality).toBe('critical');
+  });
+
+  it('returns byte-for-byte identical output across repeated runs', () => {
+    const inputs = [
+      assessment({
+        field: 'identity',
+        trigger: 'merge_risk',
+        actor_attribution: undefined,
+        merge_risk: 'possible_split',
+      }),
+      assessment({
+        field: 'identity',
+        trigger: 'merge_risk',
+        actor_attribution: undefined,
+        merge_risk: 'possible_merge',
+      }),
+      assessment({ target_object_id: 'event_002' }),
+    ];
+    const expected = JSON.stringify(generateClarificationQuestions(inputs));
+
+    for (let run = 0; run < 25; run += 1) {
+      expect(JSON.stringify(generateClarificationQuestions([...inputs]))).toBe(expected);
+    }
   });
 
   it('does not ask whether explicitly unavailable evidence is possessed', () => {
@@ -396,6 +475,78 @@ describe('append-only clarification amendment projection', () => {
     expect(result.projected.actor_party_id).toBeNull();
     expect(result.rejected).toHaveLength(2);
     expect(result.rejected.every((issue) => issue.code === 'duplicate_amendment_id')).toBe(true);
+  });
+
+  it.each([
+    ['malformed then valid', true],
+    ['valid then malformed', false],
+  ] as const)('rejects a duplicate ID shared by %s amendments', (_label, malformedFirst) => {
+    const malformed = {
+      ...amendment(),
+      response_text: '   ',
+    };
+    const valid = amendment();
+    const entries = malformedFirst ? [malformed, valid] : [valid, malformed];
+    const result = projectAmendments(original(), entries);
+
+    expect(result.projected).toEqual(original());
+    expect(result.applied).toEqual([]);
+    expect(result.rejected.filter((issue) => issue.code === 'duplicate_amendment_id')).toHaveLength(
+      2,
+    );
+    expect(result.rejected).toContainEqual(
+      expect.objectContaining({
+        amendment_id: 'amd_001',
+        code: 'invalid_amendment',
+      }),
+    );
+  });
+
+  it('rejects duplicate IDs even when they target different objects', () => {
+    const result = projectAmendments(original(), [
+      amendment(),
+      amendment({ target_object_id: 'event_999' }),
+    ]);
+
+    expect(result.projected).toEqual(original());
+    expect(result.applied).toEqual([]);
+    expect(result.ignored).toEqual([]);
+    expect(result.rejected).toHaveLength(2);
+    expect(result.rejected.every((issue) => issue.code === 'duplicate_amendment_id')).toBe(true);
+  });
+
+  it('applies unique valid amendments and keeps duplicate projection results deterministic', () => {
+    const unique = amendment({ amendment_id: 'amd_unique' });
+    expect(projectAmendments(original(), [unique]).projected.actor_party_id).toBe('party_b');
+
+    const duplicateEntries = [
+      amendment({ amendment_id: 'amd_z' }),
+      amendment({ amendment_id: 'amd_a', field: 'date', new_value: '2026-05-12' }),
+      amendment({ amendment_id: 'amd_z', target_object_id: 'event_999' }),
+      amendment({
+        amendment_id: 'amd_a',
+        target_object_id: 'event_999',
+        field: 'date',
+        new_value: '2026-05-12',
+      }),
+    ];
+    const forward = projectAmendments(original(), duplicateEntries);
+    const reordered = projectAmendments(original(), [
+      duplicateEntries[2],
+      duplicateEntries[0],
+      duplicateEntries[3],
+      duplicateEntries[1],
+    ]);
+
+    expect(forward.projected).toEqual(original());
+    expect(forward.applied).toEqual([]);
+    expect(reordered).toEqual(forward);
+    expect(forward.rejected.map((issue) => issue.amendment_id)).toEqual([
+      'amd_a',
+      'amd_a',
+      'amd_z',
+      'amd_z',
+    ]);
   });
 
   it('rejects malformed amendments and preserves a report instead of throwing', () => {

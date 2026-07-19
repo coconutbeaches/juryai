@@ -141,6 +141,10 @@ function lexicalCompare(left: string, right: string): number {
   return 0;
 }
 
+function isIdentifier(value: unknown): value is string {
+  return typeof value === 'string' && /^[A-Za-z0-9_.:-]+$/u.test(value) && value.length <= 160;
+}
+
 function normalizeQuestionContext(value: unknown): string {
   if (typeof value !== 'string') {
     throw new TypeError('question_context must be supplied for every generated question');
@@ -156,7 +160,7 @@ function normalizeQuestionContext(value: unknown): string {
 }
 
 function assertIdentifier(value: unknown, label: string): asserts value is string {
-  if (typeof value !== 'string' || !/^[A-Za-z0-9_.:-]+$/u.test(value) || value.length > 160) {
+  if (!isIdentifier(value)) {
     throw new TypeError(`${label} must be a non-empty stable identifier`);
   }
 }
@@ -245,6 +249,24 @@ function normalizedCoverage(assessment: EpistemicAssessment): string[] {
   ].sort(lexicalCompare);
 }
 
+function triggerState(assessment: EpistemicAssessment): string | null {
+  switch (assessment.trigger) {
+    case 'actor_attribution':
+      return assessment.actor_attribution ?? null;
+    case 'causal_link':
+      return assessment.causal_link_status ?? null;
+    case 'merge_risk':
+      return assessment.merge_risk ?? null;
+    case 'evidence_availability':
+      return assessment.evidence_availability ?? null;
+    case 'date_precision':
+      return assessment.date_precision ?? null;
+    case 'required_bucket_missing':
+    case 'internal_representation':
+      return null;
+  }
+}
+
 function prepareAssessment(assessment: EpistemicAssessment): PreparedAssessment {
   const resolvesObjectIds = normalizedCoverage(assessment);
   const context = normalizeQuestionContext(assessment.question_context);
@@ -257,6 +279,7 @@ function prepareAssessment(assessment: EpistemicAssessment): PreparedAssessment 
       assessment.target_family,
       assessment.field,
       assessment.trigger,
+      triggerState(assessment),
       context,
       resolvesObjectIds,
     ]),
@@ -513,27 +536,34 @@ export function projectAmendments<T extends Record<string, unknown>>(
   const rejected: AmendmentProjectionIssue[] = [];
   const ignored: AmendmentProjectionIssue[] = [];
   const valid: ClarificationAmendment[] = [];
+  const idCounts = new Map<string, number>();
+
+  amendments.forEach((value) => {
+    const amendmentId = isRecord(value) ? value.amendment_id : undefined;
+    if (isIdentifier(amendmentId)) {
+      idCounts.set(amendmentId, (idCounts.get(amendmentId) ?? 0) + 1);
+    }
+  });
 
   amendments.forEach((value, index) => {
     const result = validateAmendment(value, index);
     if (result.issue) rejected.push(result.issue);
     if (result.amendment) valid.push(result.amendment);
+    const amendmentId = isRecord(value) ? value.amendment_id : undefined;
+    if (isIdentifier(amendmentId) && (idCounts.get(amendmentId) ?? 0) > 1) {
+      rejected.push(
+        amendmentIssue(
+          amendmentId,
+          'duplicate_amendment_id',
+          'duplicate amendment IDs are not auditable',
+        ),
+      );
+    }
   });
 
-  const idCounts = new Map<string, number>();
-  valid.forEach((amendment) =>
-    idCounts.set(amendment.amendment_id, (idCounts.get(amendment.amendment_id) ?? 0) + 1),
-  );
   const candidates = valid
     .filter((amendment) => {
       if ((idCounts.get(amendment.amendment_id) ?? 0) > 1) {
-        rejected.push(
-          amendmentIssue(
-            amendment.amendment_id,
-            'duplicate_amendment_id',
-            'duplicate amendment IDs are not auditable',
-          ),
-        );
         return false;
       }
       if (amendment.target_object_id !== original.object_id) {
