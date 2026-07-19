@@ -99,7 +99,7 @@ The extractor fails closed when it:
 - introduces private settlement information
 - creates legal conclusions, findings, deliberation, or recommendations
 
-Source quotes must match `narrative.slice(start_char, end_char)` exactly.
+Source quotes must match `narrative.slice(start_char, end_char)` exactly. The golden projection recomputes stored offsets from the verbatim narrative before evaluation, rather than trusting manually copied character positions.
 
 ## Semantic evaluation
 
