@@ -37,12 +37,15 @@ describe('Person A semantic alignment and classified diff', () => {
     const extraction = validPersonAExtraction();
     const golden = buildPersonAGoldenProjection();
     const questions = golden.clarification_questions;
+    expect(questions.length).toBeGreaterThanOrEqual(2);
+    questions[1] = {
+      ...questions[0],
+      question_id: 'golden_duplicate_question',
+    };
     extraction.clarification_questions = [
       {
         ...questions[0],
         question_id: 'generated_ambiguous_question',
-        question: `${questions[0].question} ${questions[1].question}`,
-        reason: `${questions[0].reason} ${questions[1].reason}`,
       },
     ];
     const alignment = alignPersonA(extraction, golden);
@@ -73,25 +76,37 @@ describe('Person A semantic alignment and classified diff', () => {
 
   it('counts multiple field errors on one object as one human edit', () => {
     const extraction = validPersonAExtraction();
-    extraction.claims[0].against_asserting_party_interest = !extraction.claims[0].against_asserting_party_interest;
+    extraction.claims[0].against_asserting_party_interest =
+      !extraction.claims[0].against_asserting_party_interest;
     extraction.claims[0].materiality = extraction.claims[0].materiality === 'high' ? 'low' : 'high';
     const { report, golden } = evaluate(extraction);
-    const totalGolden = Object.values(report.metrics).reduce((sum, metric) => sum + metric.golden_total, 0);
+    const totalGolden = Object.values(report.metrics).reduce(
+      (sum, metric) => sum + metric.golden_total,
+      0,
+    );
     expect(report.summary.human_edit_rate).toBeCloseTo(1 / totalGolden);
     expect(golden.claims.length).toBeGreaterThan(0);
   });
 
   it('classifies a dropped against-interest admission as major', () => {
     const extraction = validPersonAExtraction();
-    const admission = extraction.claims.find((claim: Record<string, any>) => claim.against_asserting_party_interest);
+    const admission = extraction.claims.find(
+      (claim: Record<string, any>) => claim.against_asserting_party_interest,
+    );
     admission.against_asserting_party_interest = false;
     const { report } = evaluate(extraction);
-    expect(report.errors.some((error) => error.code === 'against_interest_flag' && error.severity === 'major')).toBe(true);
+    expect(
+      report.errors.some(
+        (error) => error.code === 'against_interest_flag' && error.severity === 'major',
+      ),
+    ).toBe(true);
   });
 
   it('classifies a flattened approximate date as major', () => {
     const extraction = validPersonAExtraction();
-    const event = extraction.timeline.find((item: Record<string, any>) => item.date.approximate && item.date.end);
+    const event = extraction.timeline.find(
+      (item: Record<string, any>) => item.date.approximate && item.date.end,
+    );
     event.date.end = null;
     event.date.precision = 'day';
     event.date.approximate = false;
@@ -103,7 +118,11 @@ describe('Person A semantic alignment and classified diff', () => {
     const extraction = validPersonAExtraction();
     extraction.evidence[0].availability_status = 'inspected';
     const { report } = evaluate(extraction);
-    expect(report.errors.some((error) => error.code === 'fabricated_inspection' && error.severity === 'critical')).toBe(true);
+    expect(
+      report.errors.some(
+        (error) => error.code === 'fabricated_inspection' && error.severity === 'critical',
+      ),
+    ).toBe(true);
   });
 
   it('classifies a reversed requested transfer as critical', () => {
@@ -116,9 +135,18 @@ describe('Person A semantic alignment and classified diff', () => {
 
   it('classifies an omitted high-materiality claim as critical', () => {
     const extraction = validPersonAExtraction();
-    const index = extraction.claims.findIndex((claim: Record<string, any>) => claim.materiality === 'high');
+    const index = extraction.claims.findIndex(
+      (claim: Record<string, any>) => claim.materiality === 'high',
+    );
     extraction.claims.splice(index, 1);
     const { report } = evaluate(extraction);
-    expect(report.errors.some((error) => error.code === 'missing_golden_object' && error.family === 'claims' && error.severity === 'critical')).toBe(true);
+    expect(
+      report.errors.some(
+        (error) =>
+          error.code === 'missing_golden_object' &&
+          error.family === 'claims' &&
+          error.severity === 'critical',
+      ),
+    ).toBe(true);
   });
 });
