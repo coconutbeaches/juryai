@@ -50,6 +50,36 @@ function collectDefs(rootNames: string[]): Record<string, JsonSchema> {
   return collected;
 }
 
+function applyPersonAModelConstraints(schema: JsonSchema): void {
+  const agreementTerm = schema.$defs?.agreementTerm;
+  if (agreementTerm?.properties) {
+    agreementTerm.properties.wording_status = {
+      type: 'string',
+      const: 'not_inspected',
+      description:
+        'Person A-only intake has not inspected bilateral agreement wording, so this must be not_inspected.',
+    };
+    agreementTerm.properties.interpretation_status = {
+      type: 'string',
+      enum: ['unclear', 'not_applicable'],
+      description:
+        'Person A-only intake cannot establish bilateral agreement or dispute; use only unclear or not_applicable.',
+    };
+  }
+
+  const sourceSpan = schema.$defs?.sourceSpan;
+  if (sourceSpan?.properties) {
+    sourceSpan.description =
+      'An exact narrative substring with JavaScript UTF-16 offsets. quote must equal narrative.slice(start_char, end_char), and end_char - start_char must equal quote.length.';
+    sourceSpan.properties.quote.description =
+      'Copy an exact contiguous substring from the supplied narrative without changing any character, punctuation, or whitespace.';
+    sourceSpan.properties.start_char.description =
+      'Zero-based JavaScript UTF-16 code-unit offset where the exact quote starts in the supplied narrative.';
+    sourceSpan.properties.end_char.description =
+      'Exclusive JavaScript UTF-16 code-unit offset equal to start_char + quote.length.';
+  }
+}
+
 const modelRootDefinitions = [
   'thirdParty',
   'agreement',
@@ -111,7 +141,7 @@ export const personAModelOutputSchema: JsonSchema = {
 
 const extractionProperties: Record<string, JsonSchema> = {
   schema_version: { const: '0.1.2' },
-  extractor_version: { const: 'person-a-v0.1.0' },
+  extractor_version: { const: 'person-a-v0.1.1' },
   party: { $ref: '#/$defs/party' },
   submission: { $ref: '#/$defs/submission' },
   third_parties: { type: 'array', items: { $ref: '#/$defs/thirdParty' } },
@@ -142,7 +172,7 @@ const extractionProperties: Record<string, JsonSchema> = {
     required: ['model', 'prompt_version', 'input_hash', 'generated_at'],
     properties: {
       model: { type: 'string', minLength: 1 },
-      prompt_version: { const: 'person-a-v0.1.0' },
+      prompt_version: { const: 'person-a-v0.1.1' },
       input_hash: { type: 'string', pattern: '^[a-f0-9]{64}$' },
       generated_at: { type: 'string', format: 'date-time' },
     },
@@ -162,6 +192,7 @@ export const personAExtractionSchema: JsonSchema = {
 
 export function buildOpenAIResponseSchema(): JsonSchema {
   const schema = structuredClone(personAModelOutputSchema);
+  applyPersonAModelConstraints(schema);
   const stripUnsupportedKeywords = (value: unknown): void => {
     if (Array.isArray(value)) {
       value.forEach(stripUnsupportedKeywords);

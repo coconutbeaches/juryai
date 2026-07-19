@@ -30,6 +30,15 @@ function recursiveText(value: unknown): string {
   return '';
 }
 
+function assemblyOptions(narrative: string) {
+  return {
+    narrative,
+    submittedAt: '2026-07-18T12:00:00Z',
+    model: 'test-model',
+    generatedAt: '2026-07-19T00:00:00Z',
+  };
+}
+
 describe('Person A extraction validation', () => {
   it('golden projection has no schema or invariant errors', () => {
     const { result } = validateGoldenProjection();
@@ -92,6 +101,85 @@ describe('Person A extraction validation', () => {
     };
     collect(extraction);
     expect(new Set(spanIds)).toEqual(new Set(['sub_a_extracted']));
+  });
+
+  it('normalizes inaccurate offsets for one unique exact quote', () => {
+    const modelOutput = modelOutputFromGolden();
+    const narrative = validPersonAExtraction().submission.raw_text;
+    const span = modelOutput.claims[0].source_spans[0];
+    const expectedStart = narrative.indexOf(span.quote);
+    expect(expectedStart).toBeGreaterThanOrEqual(0);
+    expect(narrative.indexOf(span.quote, expectedStart + 1)).toBe(-1);
+    span.start_char = 0;
+    span.end_char = span.quote.length;
+
+    const extraction = assemblePersonAExtraction(modelOutput, assemblyOptions(narrative));
+    const normalized = extraction.claims[0].source_spans[0];
+
+    expect(normalized.quote).toBe(span.quote);
+    expect(normalized.start_char).toBe(expectedStart);
+    expect(normalized.end_char).toBe(expectedStart + span.quote.length);
+    expect(narrative.slice(normalized.start_char, normalized.end_char)).toBe(normalized.quote);
+  });
+
+  it('fails closed instead of normalizing a repeated exact quote ambiguously', () => {
+    const modelOutput = modelOutputFromGolden();
+    const baseNarrative = validPersonAExtraction().submission.raw_text;
+    const span = modelOutput.claims[0].source_spans[0];
+    const narrative = `${baseNarrative}\n${span.quote}`;
+    span.start_char = 0;
+    span.end_char = span.quote.length;
+
+    expect(() => assemblePersonAExtraction(modelOutput, assemblyOptions(narrative))).toThrow(
+      /Source span does not match/,
+    );
+  });
+
+  it('fails closed instead of normalizing a quote absent from the narrative', () => {
+    const modelOutput = modelOutputFromGolden();
+    const narrative = validPersonAExtraction().submission.raw_text;
+    const span = modelOutput.claims[0].source_spans[0];
+    span.quote = `${span.quote} [not in narrative]`;
+    span.end_char = span.start_char + span.quote.length;
+
+    expect(() => assemblePersonAExtraction(modelOutput, assemblyOptions(narrative))).toThrow(
+      /Source span does not match/,
+    );
+  });
+
+  it('does not silently coerce invalid agreement wording status', () => {
+    const modelOutput = modelOutputFromGolden();
+    const narrative = validPersonAExtraction().submission.raw_text;
+    modelOutput.agreement.terms[0].wording_status = 'agreed';
+
+    expect(() => assemblePersonAExtraction(modelOutput, assemblyOptions(narrative))).toThrow(
+      /wording_status/,
+    );
+    expect(modelOutput.agreement.terms[0].wording_status).toBe('agreed');
+  });
+
+  it('keeps invalid bilateral agreement interpretation fail-closed', () => {
+    const modelOutput = modelOutputFromGolden();
+    const narrative = validPersonAExtraction().submission.raw_text;
+    modelOutput.agreement.terms[0].interpretation_status = 'disputed';
+
+    expect(() => assemblePersonAExtraction(modelOutput, assemblyOptions(narrative))).toThrow(
+      /interpretation_status/,
+    );
+    expect(modelOutput.agreement.terms[0].interpretation_status).toBe('disputed');
+  });
+
+  it('assembles a compliant Person A model object successfully', () => {
+    const modelOutput = modelOutputFromGolden();
+    const narrative = validPersonAExtraction().submission.raw_text;
+    const extraction = assemblePersonAExtraction(modelOutput, assemblyOptions(narrative));
+    const result = validatePersonAExtraction(extraction, narrative);
+
+    expect(result.valid).toBe(true);
+    expect(result.schemaErrors).toEqual([]);
+    expect(result.invariantErrors).toEqual([]);
+    expect(extraction.extractor_version).toBe('person-a-v0.1.1');
+    expect(extraction.metadata.prompt_version).toBe('person-a-v0.1.1');
   });
 
   it('requires non-empty source spans in the schema', () => {

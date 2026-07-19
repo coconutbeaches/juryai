@@ -60,6 +60,39 @@ describe('OpenAI Responses parsing', () => {
     });
   });
 
+  it('constrains Person A agreement statuses and documents exact UTF-16 source spans', () => {
+    expect(buildOpenAIResponseSchema()).toMatchObject({
+      $defs: {
+        agreementTerm: {
+          properties: {
+            wording_status: {
+              type: 'string',
+              const: 'not_inspected',
+            },
+            interpretation_status: {
+              type: 'string',
+              enum: ['unclear', 'not_applicable'],
+            },
+          },
+        },
+        sourceSpan: {
+          description: expect.stringContaining('UTF-16'),
+          properties: {
+            quote: {
+              description: expect.stringContaining('exact contiguous substring'),
+            },
+            start_char: {
+              description: expect.stringContaining('UTF-16'),
+            },
+            end_char: {
+              description: expect.stringContaining('start_char + quote.length'),
+            },
+          },
+        },
+      },
+    });
+  });
+
   it('meets documented strict Structured Outputs object requirements', () => {
     const schema = buildOpenAIResponseSchema();
     const issues = collectSchemaNodes(schema).flatMap(({ node, path }) => {
@@ -151,6 +184,10 @@ describe('OpenAI Responses parsing', () => {
       expect(body.model).toBe('gpt-5.6');
       expect(body.reasoning).toEqual({ effort: 'medium' });
       expect(body.store).toBe(false);
+      expect(body.instructions).toContain('UTF-16 code-unit indices');
+      expect(body.instructions).toContain('end_char = start_char + quote.length');
+      expect(body.instructions).toContain('wording_status not_inspected');
+      expect(body.instructions).toContain('interpretation_status unclear or not_applicable');
       expect(body.text.format.type).toBe('json_schema');
       expect(body.text.format.strict).toBe(true);
       return {

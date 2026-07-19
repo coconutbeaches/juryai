@@ -5,7 +5,7 @@ import { validatePersonAExtraction } from './validate-person-a-corrected.js';
 
 type JsonObject = Record<string, any>;
 
-export const PERSON_A_EXTRACTOR_VERSION = 'person-a-v0.1.0';
+export const PERSON_A_EXTRACTOR_VERSION = 'person-a-v0.1.1';
 
 export type ExtractPersonAOptions = {
   narrative: string;
@@ -44,6 +44,37 @@ function normalizeSourceSpanSubmissionIds(value: unknown, submissionId: string):
   Object.values(object).forEach((child) => normalizeSourceSpanSubmissionIds(child, submissionId));
 }
 
+function normalizeUniqueExactSourceSpanOffsets(value: unknown, narrative: string): void {
+  if (Array.isArray(value)) {
+    value.forEach((item) => normalizeUniqueExactSourceSpanOffsets(item, narrative));
+    return;
+  }
+  if (!value || typeof value !== 'object') return;
+  const object = value as JsonObject;
+  if (
+    typeof object.quote === 'string' &&
+    object.quote.length > 0 &&
+    Number.isInteger(object.start_char) &&
+    Number.isInteger(object.end_char) &&
+    'submission_id' in object
+  ) {
+    const offsetsAlreadyExact =
+      object.start_char >= 0 &&
+      object.end_char >= object.start_char &&
+      object.end_char <= narrative.length &&
+      object.end_char - object.start_char === object.quote.length &&
+      narrative.slice(object.start_char, object.end_char) === object.quote;
+    if (!offsetsAlreadyExact) {
+      const uniqueStart = narrative.indexOf(object.quote);
+      if (uniqueStart >= 0 && narrative.indexOf(object.quote, uniqueStart + 1) === -1) {
+        object.start_char = uniqueStart;
+        object.end_char = uniqueStart + object.quote.length;
+      }
+    }
+  }
+  Object.values(object).forEach((child) => normalizeUniqueExactSourceSpanOffsets(child, narrative));
+}
+
 export function assemblePersonAExtraction(
   modelOutput: JsonObject,
   options: Omit<ExtractPersonAOptions, 'client' | 'reasoningEffort'>,
@@ -53,6 +84,7 @@ export function assemblePersonAExtraction(
   const generatedAt = options.generatedAt ?? new Date().toISOString();
   const normalizedModelOutput = structuredClone(modelOutput);
   normalizeSourceSpanSubmissionIds(normalizedModelOutput, submissionId);
+  normalizeUniqueExactSourceSpanOffsets(normalizedModelOutput, options.narrative);
 
   const extraction: JsonObject = {
     schema_version: '0.1.2',
