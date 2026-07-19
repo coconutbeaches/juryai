@@ -46,6 +46,19 @@ describe('Person A extraction validation', () => {
     ).toEqual([]);
   });
 
+  it('does not import a Person B-only third-party actor', () => {
+    const extraction = validPersonAExtraction();
+    const photoDelivery = extraction.timeline.find(
+      (event: Record<string, any>) => event.event_id === 'tl_photo_delivery',
+    );
+    expect(photoDelivery.actor_third_party_id).toBeNull();
+    expect(
+      extraction.third_parties.some(
+        (thirdParty: Record<string, any>) => thirdParty.third_party_id === 'tp_maya_assistant',
+      ),
+    ).toBe(false);
+  });
+
   it('golden projection has exact source spans', () => {
     const { result } = validateGoldenProjection();
     expect(result.invariantErrors.filter((error) => isSourceSpanError(error.message))).toEqual([]);
