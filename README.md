@@ -1,55 +1,34 @@
 # JuryAI Extraction Lab
 
-A deliberately small, local validation lab for JuryAI’s first machine-readable case record.
+A deliberately small, local validation lab for JuryAI’s machine-readable case record and narrative extraction pipeline.
 
-This repository currently answers one question:
+The repository now answers two measurable questions:
 
-> Can the manually validated Dry Run 001 dispute be encoded as strict JSON without inventing evidence, and can a validator enforce the project’s epistemic rules?
+1. Can Dry Run 001 be encoded as strict JSON without inventing evidence?
+2. Can a model reliably populate the Person A portion of that record from messy narrative input?
 
 ## Current scope
 
 Included:
 
-- JSON Schema Draft 2020-12 case-record schema
+- JSON Schema Draft 2020-12 case-record schema v0.1.2
 - complete Dry Run 001 golden JSON fixture
 - verbatim Person A and Person B narratives
-- Ajv schema validation
-- custom cross-object invariants
-- malformed-fixture tests
-- semantic-alignment contract for the future extractor regression harness
+- Ajv schema validation and custom invariants
+- Person A structured-output extractor using the OpenAI Responses API
+- deterministic Person A projection from the full golden record
+- semantic, one-to-one alignment that ignores IDs, array order, and exact prose
+- critical/major/minor error classification
+- recall, precision, human-edit-rate, and weighted-error-rate reporting
+- regression tests for key epistemic failures
 
 Not included:
 
-- model calls
-- Person A extractor
-- semantic alignment implementation
+- Person B extraction
 - Supabase
 - application state machine
-- UI
-- invitations
-- recommendations
-
-## Files
-
-```text
-src/
-  schemas/
-    juryai-case-record-v0.1.2.schema.json
-  fixtures/
-    dry_run_001.person_a.txt
-    dry_run_001.person_b.txt
-    dry_run_001.golden.json
-  validation/
-    validate-case-record.ts
-    custom-invariants.ts
-  alignment/
-    alignment-contract.md
-  tests/
-    schema.test.ts
-    invariants.test.ts
-    golden-fixture.test.ts
-SCHEMA_QUESTIONS.md
-```
+- UI or invitation flow
+- fact findings, deliberation, or recommendation generation
 
 ## Setup
 
@@ -57,7 +36,85 @@ SCHEMA_QUESTIONS.md
 npm install
 ```
 
-## Validate the golden fixture
+For live extraction, set an API key locally. Never commit it:
+
+```bash
+export OPENAI_API_KEY="..."
+```
+
+Optional configuration:
+
+```bash
+export JURYAI_MODEL="gpt-5.1"
+export JURYAI_REASONING_EFFORT="high"
+```
+
+## Run the Person A extractor
+
+```bash
+npm run extract:person-a
+```
+
+The default command reads `src/fixtures/dry_run_001.person_a.txt`, calls the configured model, validates the result, aligns it with the Person A golden projection, and writes:
+
+```text
+artifacts/person-a/latest/
+  extraction.json
+  golden-projection.json
+  alignment.json
+  report.json
+  report.md
+```
+
+Use a different narrative or output folder:
+
+```bash
+npm run extract:person-a -- \
+  --input path/to/narrative.txt \
+  --submitted-at 2026-07-19T00:00:00Z \
+  --output-dir artifacts/person-a/run-001
+```
+
+Evaluate an existing extraction without an API call:
+
+```bash
+npm run extract:person-a -- \
+  --input src/fixtures/dry_run_001.person_a.txt \
+  --extraction path/to/extraction.json
+```
+
+Add `--fail-on-critical` when a critical regression should produce a nonzero exit code.
+
+## Person A extraction rules
+
+The extractor fails closed when it:
+
+- promotes a claim into a fact
+- invents Person B’s position or counterclaims
+- flattens approximate dates
+- treats described evidence as uploaded or inspected
+- assigns evidentiary strength before inspection
+- loses exact narrative source spans
+- introduces private settlement information
+- creates legal conclusions, findings, deliberation, or recommendations
+
+Source quotes must match `narrative.slice(start_char, end_char)` exactly.
+
+## Semantic evaluation
+
+Objects are blocked and matched by party, type, actor, date overlap, transfer direction, and semantic content. A Hungarian maximum-weight assignment enforces one-to-one matching. Generated IDs and array order do not contribute to similarity.
+
+The report includes:
+
+- aligned pairs, scores, and ambiguity margins
+- unmatched golden objects as recall failures
+- unmatched extracted objects as possible hallucinations or over-segmentation
+- critical, major, and minor field-level differences
+- recall and precision by object family
+- human edit rate
+- weighted error rate
+
+## Validate the canonical fixture
 
 ```bash
 npm run validate:golden
@@ -77,47 +134,13 @@ npm test
 npm run typecheck
 npm run validate:golden
 npm run format:check
+npm audit --audit-level=low
 ```
-
-## Validation layers
-
-### JSON Schema
-
-The Draft 2020-12 schema enforces:
-
-- required canonical sections
-- strict object shapes
-- exact enums
-- categorical confidence only
-- evidence availability and provenance structures
-- separate occurrence and interpretation
-- separate submitter and quoted-message author
-- ordered public outcomes with bidirectional transfers
-- no private settlement fields in defined object shapes
-
-### Custom invariants
-
-Code enforces rules that JSON Schema cannot express cleanly:
-
-- global ID uniqueness
-- valid cross-object references and object families
-- financial envelope derivation
-- no completed evidence comparison before inspection
-- no decision-critical finding from uninspected evidence
-- no recommendation while deliberation is ineligible
-- no record lock before confirmation or neutral correction-opportunity exhaustion
-- no party-private evidence in deliberation
-- consistent schema and record versions
-- no private settlement fields anywhere in the tree
 
 ## Golden-fixture posture
 
-Dry Run 001 is intentionally pre-inspection.
+Dry Run 001 remains intentionally pre-inspection. The contract, messages, recordings, and campaign record were described but not supplied. The canonical record therefore keeps them `described_only` or `unavailable`, leaves the record unlocked, keeps required questions pending, blocks deliberation, and keeps recommendation `null`.
 
-The actual contract, messages, recordings, and campaign record were described but not supplied. The fixture therefore keeps them `described_only` or `unavailable`, leaves the record unlocked, keeps required questions pending, sets deliberation eligibility to `false`, and sets recommendation to `null`.
+A structurally convenient fictional verdict is a validation failure, not progress.
 
-A structurally convenient fictional verdict would be a validation failure, not progress.
-
-## Future extractor evaluation
-
-The future comparison harness must align objects by semantic content before comparing fields. It must not align by generated ID, array order, or exact wording. See [`src/alignment/alignment-contract.md`](src/alignment/alignment-contract.md).
+See [`src/alignment/alignment-contract.md`](src/alignment/alignment-contract.md) for the full comparison contract.
