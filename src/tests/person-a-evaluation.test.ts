@@ -52,14 +52,32 @@ describe('Person A semantic alignment and classified diff', () => {
     const family = alignment.families.clarification_questions;
     expect(family.ambiguous).toHaveLength(1);
     expect(family.unmatched_extracted).toEqual([]);
-    const ambiguousGolden = new Set(
+    const ambiguousGoldenIndexes = new Set(
       family.ambiguous.flatMap((item) => item.candidates.map((candidate) => candidate.golden_index)),
     );
-    expect(family.unmatched_golden.some((item) => ambiguousGolden.has(item.index))).toBe(false);
+    const ambiguousGoldenIds = new Set(
+      family.ambiguous.flatMap((item) => item.candidates.map((candidate) => candidate.golden_id)),
+    );
+    expect(
+      family.unmatched_golden.some((item) => ambiguousGoldenIndexes.has(item.index)),
+    ).toBe(false);
     const report = evaluatePersonA(extraction, golden, alignment);
     expect(report.errors.filter((error) => error.code === 'ambiguous_alignment')).toHaveLength(1);
-    expect(report.errors.some((error) => error.code === 'missing_golden_object')).toBe(false);
-    expect(report.errors.some((error) => error.code === 'unsupported_extra_object')).toBe(false);
+    expect(
+      report.errors.some(
+        (error) =>
+          error.code === 'missing_golden_object' &&
+          typeof error.golden_id === 'string' &&
+          ambiguousGoldenIds.has(error.golden_id),
+      ),
+    ).toBe(false);
+    expect(
+      report.errors.some(
+        (error) =>
+          error.code === 'unsupported_extra_object' &&
+          error.extracted_id === 'generated_ambiguous_question',
+      ),
+    ).toBe(false);
   });
 
   it('classifies a reversed timeline actor as one critical error', () => {
@@ -70,8 +88,16 @@ describe('Person A semantic alignment and classified diff', () => {
     const { report } = evaluate(extraction);
     expect(report.errors.filter((error) => error.code === 'actor_reversed')).toHaveLength(1);
     expect(report.errors.find((error) => error.code === 'actor_reversed')?.severity).toBe('critical');
-    expect(report.errors.some((error) => error.code === 'missing_golden_object' && error.family === 'timeline')).toBe(false);
-    expect(report.errors.some((error) => error.code === 'unsupported_extra_object' && error.family === 'timeline')).toBe(false);
+    expect(
+      report.errors.some(
+        (error) => error.code === 'missing_golden_object' && error.family === 'timeline',
+      ),
+    ).toBe(false);
+    expect(
+      report.errors.some(
+        (error) => error.code === 'unsupported_extra_object' && error.family === 'timeline',
+      ),
+    ).toBe(false);
   });
 
   it('counts multiple field errors on one object as one human edit', () => {
