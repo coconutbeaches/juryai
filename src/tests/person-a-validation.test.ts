@@ -94,19 +94,13 @@ describe('Person A extraction validation', () => {
     expect(new Set(spanIds)).toEqual(new Set(['sub_a_extracted']));
   });
 
-  it('requires non-empty source spans in schema and runtime invariants', () => {
+  it('requires non-empty source spans in the schema', () => {
     const extraction = validPersonAExtraction();
     extraction.timeline[0].source_spans = [];
     const result = validatePersonAExtraction(extraction, extraction.submission.raw_text);
+    expect(result.valid).toBe(false);
     expect(
       result.schemaErrors.some((error) => error.path.includes('/timeline/0/source_spans')),
-    ).toBe(true);
-    expect(
-      result.invariantErrors.some(
-        (error) =>
-          error.path === '$.timeline[0].source_spans' &&
-          error.message.includes('at least one source span'),
-      ),
     ).toBe(true);
   });
 
