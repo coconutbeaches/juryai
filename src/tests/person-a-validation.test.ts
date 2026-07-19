@@ -3,11 +3,41 @@ import { assemblePersonAExtraction } from '../extraction/person-a-extractor.js';
 import { validatePersonAExtraction } from '../extraction/validate-person-a.js';
 import { modelOutputFromGolden, validPersonAExtraction, clone } from './person-a-test-helpers.js';
 
+function validateGoldenProjection() {
+  const extraction = validPersonAExtraction();
+  return {
+    extraction,
+    result: validatePersonAExtraction(extraction, extraction.submission.raw_text),
+  };
+}
+
+const isReferenceError = (message: string): boolean =>
+  /Referenced ID|Duplicate ID|endpoint is missing/i.test(message);
+const isSourceSpanError = (message: string): boolean => /Source span/i.test(message);
+
 describe('Person A extraction validation', () => {
-  it('accepts the deterministic Person A golden projection', () => {
-    const extraction = validPersonAExtraction();
-    const result = validatePersonAExtraction(extraction, extraction.submission.raw_text);
-    expect(result).toEqual({ valid: true, schemaErrors: [], invariantErrors: [] });
+  it('golden projection has no schema errors', () => {
+    const { result } = validateGoldenProjection();
+    expect(result.schemaErrors).toEqual([]);
+  });
+
+  it('golden projection has no reference errors', () => {
+    const { result } = validateGoldenProjection();
+    expect(result.invariantErrors.filter((error) => isReferenceError(error.message))).toEqual([]);
+  });
+
+  it('golden projection has exact source spans', () => {
+    const { result } = validateGoldenProjection();
+    expect(result.invariantErrors.filter((error) => isSourceSpanError(error.message))).toEqual([]);
+  });
+
+  it('golden projection has no remaining scope invariant errors', () => {
+    const { result } = validateGoldenProjection();
+    expect(
+      result.invariantErrors.filter(
+        (error) => !isReferenceError(error.message) && !isSourceSpanError(error.message),
+      ),
+    ).toEqual([]);
   });
 
   it('assembles deterministic submission metadata around model output', () => {
