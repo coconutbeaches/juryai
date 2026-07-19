@@ -42,7 +42,10 @@ jobs:
       fail-fast: false
       matrix:
         case_name:
-          - accepts the deterministic Person A golden projection
+          - golden projection has no schema errors
+          - golden projection has no reference errors
+          - golden projection has exact source spans
+          - golden projection has no remaining scope invariant errors
           - assembles deterministic submission metadata around model output
           - rejects narrative evidence promoted to inspected
           - rejects a source quote whose offsets do not match the narrative
