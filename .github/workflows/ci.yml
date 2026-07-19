@@ -31,8 +31,23 @@ jobs:
       - name: Run tests
         shell: bash
         run: |
-          set -o pipefail
-          npm test 2>&1 | tee .ci-logs/tests.log
+          set +e
+          npx --no-install vitest run --reporter=json --outputFile=.ci-logs/tests.json >/dev/null 2>&1
+          status=$?
+          if [ "$status" -ne 0 ]; then
+            node <<'NODE'
+          const fs = require('node:fs');
+          const result = JSON.parse(fs.readFileSync('.ci-logs/tests.json', 'utf8'));
+          for (const file of result.testResults ?? []) {
+            for (const assertion of file.assertionResults ?? []) {
+              if (assertion.status !== 'failed') continue;
+              console.log(`FAIL ${file.name} :: ${assertion.ancestorTitles.join(' > ')} > ${assertion.title}`);
+              for (const message of assertion.failureMessages ?? []) console.log(message.slice(0, 5000));
+            }
+          }
+          NODE
+          fi
+          exit "$status"
 
       - name: Typecheck
         shell: bash
