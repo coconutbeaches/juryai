@@ -2,11 +2,11 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { alignPersonA } from '../alignment/person-a-alignment-corrected.js';
-import { evaluatePersonA, reportMarkdown } from '../evaluation/person-a-diff.js';
+import { evaluatePersonA, reportMarkdown } from '../evaluation/person-a-diff-corrected.js';
 import { buildPersonAGoldenProjection } from '../evaluation/person-a-golden.js';
 import { extractPersonA } from '../extraction/person-a-extractor.js';
 import { OpenAIResponsesClient } from '../extraction/openai-responses.js';
-import { validatePersonAExtraction } from '../extraction/validate-person-a.js';
+import { validatePersonAExtraction } from '../extraction/validate-person-a-corrected.js';
 
 type Args = {
   input: string;
