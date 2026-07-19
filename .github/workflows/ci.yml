@@ -22,6 +22,7 @@ jobs:
           - src/tests/golden-fixture.test.ts
           - src/tests/person-a-validation.test.ts
           - src/tests/person-a-evaluation.test.ts
+          - src/tests/person-a-epistemic.test.ts
           - src/tests/openai-responses.test.ts
     steps:
       - name: Check out repository
