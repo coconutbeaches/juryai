@@ -87,9 +87,7 @@ function applyRecoveredPairs(
   family.unmatched_extracted = family.unmatched_extracted.filter(
     (item) => !usedExtracted.has(item.index),
   );
-  family.unmatched_golden = family.unmatched_golden.filter(
-    (item) => !usedGolden.has(item.index),
-  );
+  family.unmatched_golden = family.unmatched_golden.filter((item) => !usedGolden.has(item.index));
 }
 
 function recoverActorReversals(
@@ -117,14 +115,7 @@ function recoverActorReversals(
     }
   }
 
-  applyRecoveredPairs(
-    family,
-    extractedItems,
-    goldenItems,
-    candidates,
-    'event_id',
-    'timeline',
-  );
+  applyRecoveredPairs(family, extractedItems, goldenItems, candidates, 'event_id', 'timeline');
 }
 
 function recoverOutcomeTransferReversals(
@@ -157,14 +148,7 @@ function recoverOutcomeTransferReversals(
     }
   }
 
-  applyRecoveredPairs(
-    family,
-    extractedItems,
-    goldenItems,
-    candidates,
-    'outcome_id',
-    'outcome',
-  );
+  applyRecoveredPairs(family, extractedItems, goldenItems, candidates, 'outcome_id', 'outcome');
 }
 
 export function alignPersonA(extracted: JsonObject, golden: JsonObject): PersonAAlignment {

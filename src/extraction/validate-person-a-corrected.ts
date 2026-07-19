@@ -48,10 +48,7 @@ export function validatePersonAExtraction(
 
   const expectedHash = createHash('sha256').update(narrative, 'utf8').digest('hex');
   if (object.submission?.content_hash !== expectedHash) {
-    add(
-      '$.submission.content_hash',
-      'The submission content_hash must equal sha256(narrative).',
-    );
+    add('$.submission.content_hash', 'The submission content_hash must equal sha256(narrative).');
   }
   if (object.metadata?.input_hash !== expectedHash) {
     add('$.metadata.input_hash', 'The metadata input_hash must equal sha256(narrative).');

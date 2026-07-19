@@ -48,9 +48,7 @@ describe('Person A later-review epistemic regressions', () => {
 
     expect(result.valid).toBe(false);
     expect(
-      result.invariantErrors.some(
-        (error) => error.path === '$.agreement.terms[0].wording_status',
-      ),
+      result.invariantErrors.some((error) => error.path === '$.agreement.terms[0].wording_status'),
     ).toBe(true);
     expect(
       result.invariantErrors.some(
@@ -63,10 +61,7 @@ describe('Person A later-review epistemic regressions', () => {
     const extraction = validPersonAExtraction();
     const golden = buildPersonAGoldenProjection();
     const transfer = extraction.desired_outcomes.outcomes[0].transfers[0];
-    [transfer.from_party_id, transfer.to_party_id] = [
-      transfer.to_party_id,
-      transfer.from_party_id,
-    ];
+    [transfer.from_party_id, transfer.to_party_id] = [transfer.to_party_id, transfer.from_party_id];
 
     const alignment = alignPersonA(extraction, golden);
     const report = evaluatePersonA(extraction, golden, alignment);
