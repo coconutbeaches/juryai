@@ -49,7 +49,10 @@ function parseArgs(argv: string[]): Args {
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   const narrative = await readFile(args.input, 'utf8');
+  const reasoningEffort =
+    (process.env.JURYAI_REASONING_EFFORT as 'low' | 'medium' | 'high' | undefined) ?? 'medium';
   let extraction: Record<string, any>;
+  let rawResponse: Record<string, any> | null = null;
 
   if (args.extraction) {
     extraction = JSON.parse(await readFile(args.extraction, 'utf8')) as Record<string, any>;
@@ -65,10 +68,10 @@ async function main(): Promise<void> {
       submittedAt: args.submittedAt,
       model: args.model,
       client,
-      reasoningEffort:
-        (process.env.JURYAI_REASONING_EFFORT as 'low' | 'medium' | 'high' | undefined) ?? 'medium',
+      reasoningEffort,
     });
     extraction = result.extraction;
+    rawResponse = result.rawResponse;
   }
 
   const validation = validatePersonAExtraction(extraction, narrative);
@@ -83,7 +86,7 @@ async function main(): Promise<void> {
   const alignment = alignPersonA(extraction, golden);
   const report = evaluatePersonA(extraction, golden, alignment);
   await mkdir(args.outputDir, { recursive: true });
-  await Promise.all([
+  const writes = [
     writeFile(
       resolve(args.outputDir, 'extraction.json'),
       `${JSON.stringify(extraction, null, 2)}\n`,
@@ -95,7 +98,29 @@ async function main(): Promise<void> {
     writeFile(resolve(args.outputDir, 'alignment.json'), `${JSON.stringify(alignment, null, 2)}\n`),
     writeFile(resolve(args.outputDir, 'report.json'), `${JSON.stringify(report, null, 2)}\n`),
     writeFile(resolve(args.outputDir, 'report.md'), reportMarkdown(report)),
-  ]);
+    writeFile(
+      resolve(args.outputDir, 'request-metadata.json'),
+      `${JSON.stringify(
+        {
+          requested_model: args.model,
+          requested_reasoning_effort: reasoningEffort,
+          store: false,
+          submitted_at: args.submittedAt,
+        },
+        null,
+        2,
+      )}\n`,
+    ),
+  ];
+  if (rawResponse) {
+    writes.push(
+      writeFile(
+        resolve(args.outputDir, 'raw-response.json'),
+        `${JSON.stringify(rawResponse, null, 2)}\n`,
+      ),
+    );
+  }
+  await Promise.all(writes);
 
   console.log('✓ Person A extraction valid against v0.1.2');
   console.log(`✓ Results written to ${args.outputDir}`);
