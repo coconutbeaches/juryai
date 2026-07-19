@@ -13,7 +13,7 @@ export type ExtractPersonAOptions = {
   model: string;
   client: StructuredExtractionClient;
   generatedAt?: string;
-  reasoningEffort?: 'low' | 'medium' | 'high' | 'xhigh';
+  reasoningEffort?: 'low' | 'medium' | 'high';
 };
 
 export type PersonAExtractionResult = {
