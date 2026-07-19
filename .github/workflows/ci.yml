@@ -1,22 +1,28 @@
-name: Reference diagnostics
+name: CI
 
 on:
   pull_request:
+  push:
+    branches:
+      - main
 
 permissions:
   contents: read
 
 jobs:
-  reference-cases:
-    name: Reference · ${{ matrix.case_name }}
+  tests:
+    name: Test ${{ matrix.test_file }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        case_name:
-          - golden timeline has no reference errors
-          - golden claims and evidence links have no reference errors
-          - golden damages, issues, and questions have no reference errors
+        test_file:
+          - src/tests/schema.test.ts
+          - src/tests/invariants.test.ts
+          - src/tests/golden-fixture.test.ts
+          - src/tests/person-a-validation.test.ts
+          - src/tests/person-a-evaluation.test.ts
+          - src/tests/openai-responses.test.ts
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -27,5 +33,64 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci --ignore-scripts
-      - name: Run reference case
-        run: npx --no-install vitest run src/tests/person-a-validation.test.ts -t "${{ matrix.case_name }}"
+      - name: Run test file
+        run: npx --no-install vitest run "${{ matrix.test_file }}"
+
+  quality:
+    name: Quality gates
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Validate golden fixture
+        run: npm run validate:golden
+      - name: Check formatting
+        run: npm run format:check
+      - name: Audit dependencies
+        run: npm audit --audit-level=low
+
+  format-person-a-branch:
+    name: Format Person A branch
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.head_ref == 'agent/person-a-extraction-harness' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+      - name: Format files
+        run: npx --no-install prettier --write .
+      - name: Commit formatting when needed
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo 'Formatting already clean.'
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Format Person A extraction harness"
+          git push origin HEAD:${{ github.head_ref }}
