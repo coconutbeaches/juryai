@@ -5,11 +5,64 @@ import {
 } from './person-a-diff.js';
 import {
   familyItems,
+  semanticSimilarity,
   type PersonAAlignment,
   type PersonAFamily,
 } from '../alignment/person-a-alignment-corrected.js';
 
 type JsonObject = Record<string, any>;
+
+function compareEvidenceExtractAuthors(
+  extracted: JsonObject,
+  golden: JsonObject,
+  alignment: PersonAAlignment,
+  report: PersonAEvaluationReport,
+): void {
+  const extractedItems = familyItems(extracted, 'evidence');
+  const goldenItems = familyItems(golden, 'evidence');
+
+  for (const pair of alignment.families.evidence.pairs) {
+    const extractedEvidence = extractedItems[pair.extracted_index] ?? {};
+    const goldenEvidence = goldenItems[pair.golden_index] ?? {};
+    const extractedExtracts = Array.isArray(extractedEvidence.extracts)
+      ? extractedEvidence.extracts
+      : [];
+    const goldenExtracts = Array.isArray(goldenEvidence.extracts) ? goldenEvidence.extracts : [];
+    let authorReversed = false;
+
+    for (const goldenExtract of goldenExtracts) {
+      let best: JsonObject | null = null;
+      let bestScore = 0;
+      for (const extractedExtract of extractedExtracts) {
+        const score = semanticSimilarity(extractedExtract.text, goldenExtract.text);
+        if (score > bestScore) {
+          bestScore = score;
+          best = extractedExtract;
+        }
+      }
+      if (
+        best &&
+        bestScore >= 0.6 &&
+        (best.author_party_id !== goldenExtract.author_party_id ||
+          best.author_third_party_id !== goldenExtract.author_third_party_id)
+      ) {
+        authorReversed = true;
+        break;
+      }
+    }
+
+    if (authorReversed) {
+      report.errors.push({
+        severity: 'critical',
+        family: 'evidence',
+        code: 'extract_author_reversed',
+        message: 'A quoted evidence extract was attributed to the wrong author.',
+        extracted_id: pair.extracted_id,
+        golden_id: pair.golden_id,
+      });
+    }
+  }
+}
 
 export function evaluatePersonA(
   extracted: JsonObject,
@@ -17,6 +70,8 @@ export function evaluatePersonA(
   alignment: PersonAAlignment,
 ): PersonAEvaluationReport {
   const report = evaluateBase(extracted, golden, alignment);
+  compareEvidenceExtractAuthors(extracted, golden, alignment, report);
+
   const editedObjects = new Set<string>();
   let goldenTotal = 0;
 
@@ -55,8 +110,9 @@ export function evaluatePersonA(
         'Extracted object has no supported golden match and is a fabrication hard failure.';
     }
     if (error.golden_id) editedObjects.add(`${error.family}:${error.golden_id}`);
-    else if (error.code === 'ambiguous_alignment' && error.extracted_id)
+    else if (error.code === 'ambiguous_alignment' && error.extracted_id) {
       editedObjects.add(`${error.family}:ambiguous:${error.extracted_id}`);
+    }
   }
 
   report.summary.critical = report.errors.filter((error) => error.severity === 'critical').length;
