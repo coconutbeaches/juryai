@@ -9,8 +9,13 @@ export type StructuredExtractionRequest = {
   reasoningEffort?: 'low' | 'medium' | 'high';
 };
 
+export type StructuredExtractionResult = {
+  output: JsonObject;
+  rawResponse: JsonObject;
+};
+
 export interface StructuredExtractionClient {
-  generate(request: StructuredExtractionRequest): Promise<JsonObject>;
+  generate(request: StructuredExtractionRequest): Promise<StructuredExtractionResult>;
 }
 
 export function extractResponseText(response: unknown): string {
@@ -47,7 +52,7 @@ export class OpenAIResponsesClient implements StructuredExtractionClient {
     if (!apiKey) throw new Error('OPENAI_API_KEY is required for live extraction.');
   }
 
-  async generate(request: StructuredExtractionRequest): Promise<JsonObject> {
+  async generate(request: StructuredExtractionRequest): Promise<StructuredExtractionResult> {
     const response = await fetch(`${this.baseUrl}/responses`, {
       method: 'POST',
       headers: {
@@ -80,7 +85,10 @@ export class OpenAIResponsesClient implements StructuredExtractionClient {
 
     const text = extractResponseText(payload);
     try {
-      return JSON.parse(text) as JsonObject;
+      return {
+        output: JSON.parse(text) as JsonObject,
+        rawResponse: payload,
+      };
     } catch (error) {
       throw new Error(
         `OpenAI structured output was not valid JSON: ${error instanceof Error ? error.message : String(error)}`,
