@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { StructuredExtractionClient } from './openai-responses.js';
 import { PERSON_A_PROMPT_VERSION } from './person-a-prompt.js';
-import { validatePersonAExtraction } from './validate-person-a.js';
+import { validatePersonAExtraction } from './validate-person-a-corrected.js';
 
 type JsonObject = Record<string, any>;
 
@@ -54,18 +54,26 @@ export function assemblePersonAExtraction(
     schema_version: '0.1.2',
     extractor_version: PERSON_A_EXTRACTOR_VERSION,
     party: {
-      party_id: 'party_a', role: 'person_a',
+      party_id: 'party_a',
+      role: 'person_a',
       display_name: normalizedModelOutput.party_profile.display_name,
       email: null,
       country: normalizedModelOutput.party_profile.country,
       language: normalizedModelOutput.party_profile.language,
-      identity_status: 'unverified', consented_at: null,
-      submission_complete: true, record_confirmed_at: null,
+      identity_status: 'unverified',
+      consented_at: null,
+      submission_complete: true,
+      record_confirmed_at: null,
     },
     submission: {
-      submission_id: submissionId, party_id: 'party_a', submission_type: 'initial_position',
-      raw_text: options.narrative, submitted_at: options.submittedAt,
-      supersedes_submission_id: null, is_locked: true, content_hash: inputHash,
+      submission_id: submissionId,
+      party_id: 'party_a',
+      submission_type: 'initial_position',
+      raw_text: options.narrative,
+      submitted_at: options.submittedAt,
+      supersedes_submission_id: null,
+      is_locked: true,
+      content_hash: inputHash,
     },
     third_parties: normalizedModelOutput.third_parties ?? [],
     agreement: normalizedModelOutput.agreement,
@@ -96,7 +104,9 @@ export function assemblePersonAExtraction(
   return extraction;
 }
 
-export async function extractPersonA(options: ExtractPersonAOptions): Promise<PersonAExtractionResult> {
+export async function extractPersonA(
+  options: ExtractPersonAOptions,
+): Promise<PersonAExtractionResult> {
   const modelOutput = await options.client.generate({
     narrative: options.narrative,
     model: options.model,
