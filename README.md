@@ -101,17 +101,15 @@ The extractor fails closed when it:
 - marks uninspected evidence as metadata-verified
 - marks uninspected agreement wording or bilateral interpretation as agreed
 - assigns evidentiary strength to claims or damages before inspection
-- uses an `original_filename` that is not a filename-shaped, boundary-delimited literal explicitly present in the narrative
-- reuses reserved party IDs for third-party objects
+- uses an `original_filename` that is not a filename-shaped literal explicitly present in the narrative
 - attributes a quoted extract to an unregistered third party
-- stores source spans outside the narrative or with offsets inconsistent with the exact quote length
 - loses exact narrative source spans
 - introduces private settlement information
 - creates legal conclusions, findings, deliberation, or recommendations
 
-Source quotes must match `narrative.slice(start_char, end_char)` exactly. Their offsets must remain within the narrative, and `end_char - start_char` must equal the quote length. The golden projection recomputes stored offsets from the verbatim narrative before evaluation rather than trusting manually copied character positions.
+Schema-invalid nested data is returned as a normal validation failure before additional invariant checks run. Malformed replay files therefore report schema errors instead of crashing the evaluator.
 
-Reserved party IDs such as `party_a` and `party_b` cannot be reused by third-party records. Filename validation uses token boundaries, so a value such as `contract.pdf` does not match merely because `signed-contract.pdf` appears in the narrative.
+Source quotes must match `narrative.slice(start_char, end_char)` exactly. The golden projection recomputes stored offsets from the verbatim narrative before evaluation, rather than trusting manually copied character positions.
 
 Extraction issues and clarification questions may target a specific `claim_evidence_link` when the uncertainty concerns the evidence-to-claim relationship itself.
 
@@ -160,8 +158,6 @@ npm run validate:golden
 npm run format:check
 npm audit --audit-level=low
 ```
-
-The final offline review-fix gate is pinned in PR #4 to the exact reviewed head and GitHub Actions run. Live acceptance remains a separate, later gate.
 
 ## Golden-fixture posture
 
