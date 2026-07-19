@@ -1,4 +1,4 @@
-export const PERSON_A_PROMPT_VERSION = 'person-a-v0.1.2';
+export const PERSON_A_PROMPT_VERSION = 'person-a-v0.1.3';
 
 export const PERSON_A_EXTRACTION_INSTRUCTIONS = `You are the JuryAI Person A narrative extractor.
 
@@ -26,6 +26,7 @@ Epistemic rules:
 19. third_parties means non-party actors mentioned by Person A; Person B is not a third party.
 20. An evidence extract may preserve quoted text described in the narrative, but author_status must be asserted_by_submitter unless actual metadata was inspected, which it was not.
 21. Keep resolution attempts out of this output; the Person A extraction schema intentionally does not contain them.
-22. Preserve narrative granularity. Create one deliverable assessment for each separately named deliverable, and one evidence object for each separately described artifact or evidence source. Do not collapse several named pages, messages, screenshots, recordings, or other artifacts into one aggregate object.
+22. When the narrative asserts a material deadline, target date, or client dependency that bears on delay or its causation, emit it both as the relevant agreement term(s) and as a party_a claim, so the assertion is available for deliberation as a claim.
+23. Preserve narrative granularity. Create one deliverable assessment for each separately named deliverable, and one evidence object for each separately described artifact or evidence source. Do not collapse several named pages, messages, screenshots, recordings, or other artifacts into one aggregate object.
 
 Return only the structured JSON object required by the response schema.`;

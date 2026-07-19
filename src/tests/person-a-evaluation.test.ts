@@ -108,13 +108,16 @@ describe('Person A semantic alignment and classified diff', () => {
 
   it('uses an exact source trace to classify wrong timeline dates and actors once', () => {
     const extraction = validPersonAExtraction();
-    const event = extraction.timeline[0];
+    const event = extraction.timeline.find(
+      (item: Record<string, any>) => item.actor_party_id === 'party_a',
+    );
+    expect(event).toBeTruthy();
     const eventId = event.event_id;
     event.date.start = '2010-04-01';
     event.date.end = '2010-04-10';
     event.date.precision = 'range';
     event.date.approximate = true;
-    event.actor_party_id = 'party_a';
+    event.actor_party_id = 'party_b';
     const { report } = evaluate(extraction);
     expect(
       report.errors.some(
@@ -425,5 +428,88 @@ describe('Person A semantic alignment and classified diff', () => {
           error.severity === 'critical',
       ),
     ).toBe(true);
+  });
+
+  it('classifies a specified actor against a null golden actor as major, not critical', () => {
+    const extraction = validPersonAExtraction();
+    const event = extraction.timeline.find(
+      (item: Record<string, any>) =>
+        item.actor_party_id === null && item.actor_third_party_id === null,
+    );
+    expect(event).toBeTruthy();
+    event.actor_party_id = 'party_a';
+    const { report } = evaluate(extraction);
+    const specificity = report.errors.filter((error) => error.code === 'actor_specificity');
+    expect(specificity).toHaveLength(1);
+    expect(specificity[0]?.severity).toBe('major');
+    expect(report.errors.some((error) => error.code === 'actor_reversed')).toBe(false);
+    expect(report.summary.critical).toBe(0);
+  });
+
+  it('classifies an extra deliverable grounded in a matched quoted claim as major', () => {
+    const extraction = validPersonAExtraction();
+    const groundedClaim = extraction.claims.find(
+      (claim: Record<string, any>) => claim.claim_id === 'cl_a_004',
+    );
+    expect(groundedClaim).toBeTruthy();
+    expect(Array.isArray(groundedClaim.source_spans)).toBe(true);
+    extraction.deliverable_assessments.push({
+      ...clone(extraction.deliverable_assessments[0]),
+      deliverable_id: 'del_extra_split',
+      name: 'Added homepage design changes',
+      scope_status: 'added_later',
+      source_claim_ids: [groundedClaim.claim_id],
+      source_evidence_ids: [],
+    });
+    const { report } = evaluate(extraction);
+    const extras = report.errors.filter(
+      (error) => error.family === 'deliverables' && error.extracted_id === 'del_extra_split',
+    );
+    expect(extras).toHaveLength(1);
+    expect(extras[0]?.code).toBe('source_grounded_extra_object');
+    expect(extras[0]?.severity).toBe('major');
+    expect(report.summary.critical).toBe(0);
+  });
+
+  it('keeps a genuinely unsupported extra deliverable critical', () => {
+    const extraction = validPersonAExtraction();
+    extraction.deliverable_assessments.push({
+      ...clone(extraction.deliverable_assessments[0]),
+      deliverable_id: 'del_fabricated',
+      name: 'Search engine optimization package',
+      scope_status: 'included',
+      source_claim_ids: ['claim_that_does_not_exist'],
+      source_evidence_ids: [],
+    });
+    const { report } = evaluate(extraction);
+    const extras = report.errors.filter(
+      (error) => error.family === 'deliverables' && error.extracted_id === 'del_fabricated',
+    );
+    expect(extras).toHaveLength(1);
+    expect(extras[0]?.code).toBe('unsupported_extra_object');
+    expect(extras[0]?.severity).toBe('critical');
+  });
+
+  it('keeps an unrelated extra deliverable critical even when it cites a real matched claim', () => {
+    const extraction = validPersonAExtraction();
+    const groundedClaim = extraction.claims.find(
+      (claim: Record<string, any>) => claim.claim_id === 'cl_a_004',
+    );
+    expect(groundedClaim).toBeTruthy();
+    extraction.deliverable_assessments.push({
+      ...clone(extraction.deliverable_assessments[0]),
+      deliverable_id: 'del_laundered',
+      name: 'Search engine optimization retainer',
+      scope_status: 'included',
+      source_claim_ids: [groundedClaim.claim_id],
+      source_evidence_ids: [],
+    });
+    const { report } = evaluate(extraction);
+    const extras = report.errors.filter(
+      (error) => error.family === 'deliverables' && error.extracted_id === 'del_laundered',
+    );
+    expect(extras).toHaveLength(1);
+    expect(extras[0]?.code).toBe('unsupported_extra_object');
+    expect(extras[0]?.severity).toBe('critical');
   });
 });

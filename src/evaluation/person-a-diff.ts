@@ -153,16 +153,31 @@ function comparePair(
       if (
         extracted.actor_party_id !== golden.actor_party_id ||
         extracted.actor_third_party_id !== golden.actor_third_party_id
-      )
-        add(
-          errors,
-          'critical',
-          family,
-          'actor_reversed',
-          'Timeline actor differs.',
-          extractedId,
-          goldenId,
-        );
+      ) {
+        const extractedHasActor =
+          extracted.actor_party_id != null || extracted.actor_third_party_id != null;
+        const goldenHasActor = golden.actor_party_id != null || golden.actor_third_party_id != null;
+        if (extractedHasActor && goldenHasActor)
+          add(
+            errors,
+            'critical',
+            family,
+            'actor_reversed',
+            'Timeline actor is attributed to the wrong party.',
+            extractedId,
+            goldenId,
+          );
+        else
+          add(
+            errors,
+            'major',
+            family,
+            'actor_specificity',
+            'Timeline actor specificity differs from golden (one side has no attributed actor).',
+            extractedId,
+            goldenId,
+          );
+      }
       if (semanticSimilarity(extracted.event_summary, golden.event_summary) < 0.5)
         add(
           errors,

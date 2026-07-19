@@ -61,13 +61,56 @@ function hasQuotedMeaning(family: PersonAFamily, item: JsonObject): boolean {
   return quotes.length > 0 && semanticSimilarity(familyMeaning(family, item), quotes) >= 0.4;
 }
 
+function meaningTokens(value: unknown): string[] {
+  return typeof value === 'string'
+    ? value
+        .toLocaleLowerCase()
+        .replace(/[^\p{L}\p{N}]+/gu, ' ')
+        .trim()
+        .split(/\s+/)
+        .filter((token) => token.length > 0)
+    : [];
+}
+
+function claimSupportsDeliverableName(item: JsonObject, claim: JsonObject): boolean {
+  const nameTokens = meaningTokens(item.name);
+  if (nameTokens.length === 0) return false;
+  const quotes = Array.isArray(claim.source_spans)
+    ? claim.source_spans
+        .map((span: JsonObject) => span?.quote)
+        .filter((quote: unknown): quote is string => typeof quote === 'string')
+        .join(' ')
+    : '';
+  const support = new Set(meaningTokens(`${claim.claim_text ?? ''} ${quotes}`));
+  const covered = nameTokens.filter((token) => support.has(token)).length;
+  return covered / nameTokens.length >= 0.5;
+}
+
 function isSourceGroundedExtra(
   family: PersonAFamily,
   item: JsonObject,
   extracted: JsonObject,
+  alignment: PersonAAlignment,
 ): boolean {
   if (family === 'claims') return item.party_id === 'party_a' && hasQuotedMeaning(family, item);
   if (family === 'timeline') return hasQuotedMeaning(family, item);
+  if (family === 'deliverables') {
+    const claimIds = Array.isArray(item.source_claim_ids) ? item.source_claim_ids : [];
+    if (claimIds.length === 0) return false;
+    const claims = familyItems(extracted, 'claims');
+    const matchedExtractedClaimIds = new Set(
+      alignment.families.claims.pairs.map((pair) => pair.extracted_id),
+    );
+    return claimIds.some((claimId) => {
+      const claim = claims.find((candidate) => candidate.claim_id === claimId);
+      return (
+        claim !== undefined &&
+        matchedExtractedClaimIds.has(claimId) &&
+        hasQuotedMeaning('claims', claim) &&
+        claimSupportsDeliverableName(item, claim)
+      );
+    });
+  }
   if (
     family !== 'evidence' ||
     item.submitted_by_party_id !== 'party_a' ||
@@ -193,7 +236,7 @@ export function evaluatePersonA(
         error.code = 'granularity_split';
         error.message =
           'Extracted object splits a source-grounded golden object and requires consolidation.';
-      } else if (isSourceGroundedExtra(error.family, extractedItem, extracted)) {
+      } else if (isSourceGroundedExtra(error.family, extractedItem, extracted, alignment)) {
         error.severity = 'major';
         error.code = 'source_grounded_extra_object';
         error.message =
