@@ -123,7 +123,9 @@ describe('Person A later-review epistemic regressions', () => {
 
   it('rejects an evidence extract third-party author outside the registered family', () => {
     const extraction = validPersonAExtraction();
-    const evidence = extraction.evidence.find((item: Record<string, any>) => item.extracts.length > 0);
+    const evidence = extraction.evidence.find(
+      (item: Record<string, any>) => item.extracts.length > 0,
+    );
     expect(evidence).toBeTruthy();
     evidence.extracts[0].author_party_id = null;
     evidence.extracts[0].author_third_party_id = extraction.claims[0].claim_id;
@@ -154,7 +156,8 @@ describe('Person A later-review epistemic regressions', () => {
     expect(
       result.invariantErrors.filter(
         (error) =>
-          error.path.includes('.affected_object_ids[') || error.path.includes('.linked_object_ids['),
+          error.path.includes('.affected_object_ids[') ||
+          error.path.includes('.linked_object_ids['),
       ),
     ).toEqual([]);
   });
