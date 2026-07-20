@@ -5,10 +5,12 @@ import {
   buildPersonAAssessmentResult,
   PERSON_A_ASSESSMENT_ADAPTER_VERSION,
 } from '../clarification/build-assessments.js';
+import { CLARIFICATION_GENERATOR_VERSION } from '../clarification/question-generator.js';
 import {
-  CLARIFICATION_GENERATOR_VERSION,
-  generateClarificationQuestions,
-} from '../clarification/question-generator.js';
+  classifyQuestionNecessity,
+  generateNecessaryClarificationQuestions,
+  QUESTION_NECESSITY_CLASSIFIER_VERSION,
+} from '../clarification/question-necessity.js';
 
 type Args = {
   extraction: string;
@@ -72,21 +74,27 @@ async function main(): Promise<void> {
     readJson(args.alignment, 'alignment'),
   ]);
   const result = buildPersonAAssessmentResult(extraction, report, alignment);
-  const generatedQuestions = generateClarificationQuestions(result.assessments, {
-    maxQuestions: 6,
-    phase: 'pre_lock',
-  });
+  const necessity = classifyQuestionNecessity(result.assessments, extraction);
+  const generatedQuestions = generateNecessaryClarificationQuestions(
+    necessity.question_candidates,
+    {
+      maxQuestions: 6,
+    },
+  );
   const output = {
     generator_version: CLARIFICATION_GENERATOR_VERSION,
     adapter_version: PERSON_A_ASSESSMENT_ADAPTER_VERSION,
+    necessity_classifier_version: QUESTION_NECESSITY_CLASSIFIER_VERSION,
     source_artifacts: {
       extraction: displayPath(args.extraction),
       report: displayPath(args.report),
       alignment: displayPath(args.alignment),
     },
     assessments: result.assessments,
+    necessity_classification: necessity.necessity_classification,
     generated_questions: generatedQuestions,
     question_count: generatedQuestions.length,
+    suppressed_candidates: necessity.suppressed_candidates,
     excluded_internal_issues: result.excluded_internal_issues,
   };
 

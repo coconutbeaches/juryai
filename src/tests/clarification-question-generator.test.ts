@@ -7,6 +7,10 @@ import {
   type ClarificationAmendment,
   type EpistemicAssessment,
 } from '../clarification/question-generator.js';
+import {
+  classifyQuestionNecessity,
+  generateNecessaryClarificationQuestions,
+} from '../clarification/question-necessity.js';
 import { evaluatePersonA } from '../evaluation/person-a-diff-corrected.js';
 import { buildPersonAGoldenProjection } from '../evaluation/person-a-golden.js';
 import { validPersonAExtraction } from './person-a-test-helpers.js';
@@ -650,6 +654,202 @@ describe('Person A artifact assessment adapter', () => {
     expect(() =>
       buildPersonAAssessmentResult(second.extraction, second.report, second.alignment),
     ).toThrow(/missing golden object/u);
+  });
+});
+
+describe('deterministic clarification necessity classification', () => {
+  it('classifies a genuinely absent actor as ask_human', () => {
+    const extraction = validPersonAExtraction();
+    const event = extraction.timeline[0];
+    event.actor_party_id = null;
+    event.actor_third_party_id = null;
+    const candidate = assessment({
+      target_object_id: event.event_id,
+      question_context: event.source_spans[0].quote,
+    });
+
+    const result = classifyQuestionNecessity([candidate], extraction);
+
+    expect(result.necessity_classification[0]).toMatchObject({
+      classification: 'ask_human',
+      assessment: { target_object_id: event.event_id },
+    });
+    expect(result.question_candidates).toHaveLength(1);
+  });
+
+  it('classifies a source-backed material tension as contradiction and asks once', () => {
+    const extraction = validPersonAExtraction();
+    const first = 'I sent a complete version on June 3.';
+    const second = 'I made only some of the requested changes after June 3.';
+    extraction.extraction_issues.push({
+      issue_id: 'issue_true_contradiction',
+      issue_type: 'internal_tension',
+      severity: 'major',
+      description:
+        'The submitter calls the June 3 version complete but also says requested changes remained.',
+      affected_object_ids: [],
+      resolution_status: 'clarification_requested',
+      source_spans: [
+        {
+          submission_id: 'submission_01',
+          quote: first,
+          start_char: 0,
+          end_char: first.length,
+        },
+        {
+          submission_id: 'submission_01',
+          quote: second,
+          start_char: 100,
+          end_char: 100 + second.length,
+        },
+      ],
+    });
+    const candidate = assessment({
+      target_object_id: 'issue_true_contradiction',
+      target_family: 'completion',
+      field: 'required_information',
+      trigger: 'required_bucket_missing',
+      question_context:
+        'The submitter calls the June 3 version complete but also says requested changes remained',
+      actor_attribution: undefined,
+    });
+
+    const result = classifyQuestionNecessity([candidate], extraction);
+    const questions = generateNecessaryClarificationQuestions(result.question_candidates);
+
+    expect(result.necessity_classification[0]).toMatchObject({
+      classification: 'contradiction',
+      contradiction_alternatives: [{ text: first }, { text: second }],
+    });
+    expect(questions).toHaveLength(1);
+    expect(questions[0]).toMatchObject({
+      necessity_classification: 'contradiction',
+      target_object_id: 'issue_true_contradiction',
+    });
+    expect(questions[0]!.question).toContain('complete');
+    expect(questions[0]!.question).toContain('unfinished');
+  });
+
+  it('classifies an answer already present on the extracted object as already_explicit', () => {
+    const extraction = validPersonAExtraction();
+    const event = extraction.timeline[0];
+    event.actor_party_id = 'party_a';
+    const candidate = assessment({
+      target_object_id: event.event_id,
+      question_context: event.source_spans[0].quote,
+    });
+
+    const result = classifyQuestionNecessity([candidate], extraction);
+
+    expect(result.necessity_classification[0]).toMatchObject({
+      classification: 'already_explicit',
+    });
+    expect(result.necessity_classification[0]!.grounding_references).toContainEqual(
+      expect.objectContaining({
+        kind: 'extracted_object',
+        object_id: event.event_id,
+        field: 'actor_party_id',
+        value: 'party_a',
+      }),
+    );
+    expect(generateNecessaryClarificationQuestions(result.question_candidates)).toEqual([]);
+  });
+
+  it('classifies bucket duplication as internal_representation and never asks the human', () => {
+    const extraction = validPersonAExtraction();
+    const claim = extraction.claims[0];
+    const candidate = assessment({
+      target_object_id: claim.claim_id,
+      target_family: 'claims',
+      field: 'duplicate_into_claims',
+      trigger: 'internal_representation',
+      actor_attribution: undefined,
+      question_context: undefined,
+    });
+
+    const result = classifyQuestionNecessity([candidate], extraction);
+
+    expect(result.necessity_classification[0]).toMatchObject({
+      classification: 'internal_representation',
+    });
+    expect(result.suppressed_candidates).toHaveLength(1);
+    expect(generateNecessaryClarificationQuestions(result.question_candidates)).toEqual([]);
+  });
+
+  it('fails closed as insufficient_grounding when the referenced object is missing', () => {
+    const result = classifyQuestionNecessity(
+      [assessment({ target_object_id: 'missing_event' })],
+      validPersonAExtraction(),
+    );
+
+    expect(result.necessity_classification[0]).toMatchObject({
+      classification: 'insufficient_grounding',
+    });
+    expect(result.question_candidates).toEqual([]);
+    expect(result.suppressed_candidates).toHaveLength(1);
+  });
+
+  it('suppresses an explicit source answer instead of turning it into a question', () => {
+    const extraction = validPersonAExtraction();
+    const event = extraction.timeline[0];
+    event.actor_party_id = 'party_a';
+    const candidate = assessment({
+      target_object_id: event.event_id,
+      question_context: event.source_spans[0].quote,
+    });
+
+    const result = classifyQuestionNecessity([candidate], extraction);
+
+    expect(result.suppressed_candidates[0]!.classification).toBe('already_explicit');
+    expect(generateNecessaryClarificationQuestions(result.question_candidates)).toHaveLength(0);
+  });
+
+  it('suppresses evidence possession when the extracted source description says it is attached', () => {
+    const extraction = validPersonAExtraction();
+    const evidence = extraction.evidence[0];
+    evidence.availability_status = 'described_only';
+    evidence.description_from_submitter = 'The signed agreement is attached.';
+    const candidate = assessment({
+      target_object_id: evidence.evidence_id,
+      target_family: 'evidence',
+      field: 'availability_status',
+      trigger: 'evidence_availability',
+      materiality: 'high',
+      evidence_availability: 'described_only',
+      actor_attribution: undefined,
+      question_context: evidence.title,
+    });
+
+    const result = classifyQuestionNecessity([candidate], extraction);
+
+    expect(result.necessity_classification[0]!.classification).toBe('already_explicit');
+    expect(generateNecessaryClarificationQuestions(result.question_candidates)).toEqual([]);
+  });
+
+  it('keeps necessity classification and generated questions stable across input order', () => {
+    const extraction = validPersonAExtraction();
+    const evidence = extraction.evidence.slice(0, 2);
+    for (const item of evidence) item.availability_status = 'described_only';
+    const candidates = evidence.map(
+      (item: { evidence_id: string; title: string; availability_status: string }) =>
+        assessment({
+          target_object_id: item.evidence_id,
+          target_family: 'evidence',
+          field: 'availability_status',
+          trigger: 'evidence_availability',
+          evidence_availability: 'described_only',
+          actor_attribution: undefined,
+          question_context: item.title,
+        }),
+    );
+
+    const forward = classifyQuestionNecessity(candidates, extraction);
+    const reverse = classifyQuestionNecessity([...candidates].reverse(), extraction);
+
+    expect(JSON.stringify(reverse)).toBe(JSON.stringify(forward));
+    expect(
+      JSON.stringify(generateNecessaryClarificationQuestions(reverse.question_candidates)),
+    ).toBe(JSON.stringify(generateNecessaryClarificationQuestions(forward.question_candidates)));
   });
 });
 
