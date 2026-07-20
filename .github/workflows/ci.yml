@@ -26,6 +26,7 @@ jobs:
           - src/tests/openai-responses.test.ts
           - src/tests/clarification-question-generator.test.ts
           - src/tests/clarification-round-simulation.test.ts
+          - src/tests/person-a-record-repair.test.ts
     steps:
       - name: Check out repository
         uses: actions/checkout@v4

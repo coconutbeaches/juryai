@@ -12,6 +12,7 @@
     "evaluate:person-a": "tsx src/commands/extract-person-a.ts --extraction artifacts/person-a/latest/extraction.json",
     "clarify:person-a": "tsx src/commands/generate-person-a-clarifications.ts",
     "simulate:clarification": "tsx src/commands/simulate-person-a-clarification-round.ts",
+    "repair:person-a": "tsx src/commands/repair-person-a-extraction.ts",
     "format:check": "prettier --check ."
   },
   "devDependencies": {
