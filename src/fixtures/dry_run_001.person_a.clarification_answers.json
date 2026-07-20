@@ -1,0 +1,104 @@
+{
+  "version": "person-a-clarification-answers-v0.1.0",
+  "answers": [
+    {
+      "amendment_id": "clarification_amendment_01",
+      "question_id": "clarification_01",
+      "target_object_id": "claim_completion_01",
+      "field": "claim_text",
+      "response_text": "The core pages and mobile layout were substantially complete after June 3, while the pricing comparison and newsletter signup remained partially complete and mobile issues had required repairs.",
+      "prior_value": "Alex sent what he considered a complete staging version on June 3.",
+      "new_value": "The June 3 staging version was complete or substantially complete.",
+      "created_at": "2026-07-19T13:01:00Z",
+      "phase": "post_lock_amendment",
+      "supersedes": null,
+      "grounding": [
+        {
+          "source": "golden_fixture",
+          "object_id": "cl_a_005",
+          "field": "claim_text"
+        },
+        {
+          "source": "golden_fixture",
+          "object_id": "del_pricing",
+          "field": "completion_status_person_a"
+        },
+        {
+          "source": "golden_fixture",
+          "object_id": "del_newsletter",
+          "field": "completion_status_person_a"
+        },
+        {
+          "source": "golden_fixture",
+          "object_id": "del_mobile",
+          "field": "completion_status_person_a"
+        },
+        {
+          "source": "person_a_narrative",
+          "submission_id": "sub_a_extracted",
+          "quote": "I sent what I considered a complete staging version on June 3.",
+          "start_char": 1033,
+          "end_char": 1095
+        }
+      ],
+      "synthetic_golden_test_data": true,
+      "fully_resolves_question": true
+    },
+    {
+      "amendment_id": "clarification_amendment_02",
+      "question_id": "clarification_02",
+      "target_object_id": "term_credentials_01",
+      "field": "wording",
+      "response_text": "Payment before transfer is Alex's proposed sequence; the available Person A testimony does not establish it as inspected contract wording.",
+      "prior_value": "Alex states that final editable source files and administrator credentials will be transferred when the balance is paid.",
+      "new_value": "Alex proposes transferring source files and administrator credentials when the balance is paid.",
+      "created_at": "2026-07-19T13:02:00Z",
+      "phase": "post_lock_amendment",
+      "supersedes": null,
+      "grounding": [
+        {
+          "source": "golden_fixture",
+          "object_id": "term_credentials",
+          "field": "wording"
+        },
+        {
+          "source": "person_a_narrative",
+          "submission_id": "sub_a_extracted",
+          "quote": "I will transfer the final editable source files and administrator credentials when the balance is paid.",
+          "start_char": 2106,
+          "end_char": 2209
+        }
+      ],
+      "synthetic_golden_test_data": true,
+      "fully_resolves_question": true
+    },
+    {
+      "amendment_id": "clarification_amendment_03",
+      "question_id": "clarification_04",
+      "target_object_id": "claim_added_scope_01",
+      "field": "claim_text",
+      "response_text": "Alex treated the pricing comparison, newsletter signup, and homepage changes as added scope, but the record still does not establish an agreed price or deadline change.",
+      "prior_value": "Maya added requests for a pricing comparison section, newsletter signup, and several homepage design changes during the project.",
+      "new_value": "Maya requested added scope including a pricing comparison, newsletter signup, and homepage changes.",
+      "created_at": "2026-07-19T13:03:00Z",
+      "phase": "post_lock_amendment",
+      "supersedes": null,
+      "grounding": [
+        {
+          "source": "golden_fixture",
+          "object_id": "cl_a_004",
+          "field": "claim_text"
+        },
+        {
+          "source": "person_a_narrative",
+          "submission_id": "sub_a_extracted",
+          "quote": "During the project Maya also asked for a pricing comparison section, a newsletter signup, and several changes to the homepage design.",
+          "start_char": 709,
+          "end_char": 842
+        }
+      ],
+      "synthetic_golden_test_data": true,
+      "fully_resolves_question": false
+    }
+  ]
+}
