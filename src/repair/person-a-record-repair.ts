@@ -1,13 +1,12 @@
 type JsonObject = Record<string, any>;
 
-export const PERSON_A_REPAIR_VERSION = 'person-a-record-repair-v0.1.0';
+export const PERSON_A_REPAIR_VERSION = 'person-a-record-repair-v0.1.1';
 
 export type RepairRuleId =
   | 'agreement_dependency_claim_projection'
+  | 'aggregate_split_unsupported_v0_1_2'
   | 'explicit_actor_normalization'
   | 'wrong_family_evidence_support_projection'
-  | 'separate_named_deliverables'
-  | 'separate_named_evidence'
   | 'deterministic_claim_type_normalization';
 
 export type RepairStatus = 'applied' | 'skipped' | 'rejected';
@@ -18,7 +17,7 @@ export type PersonARepairRecord = {
   rule_id: RepairRuleId;
   target_family: string;
   target_object_id: string;
-  operation: 'append' | 'normalize' | 'project' | 'split' | 'inspect';
+  operation: 'append' | 'normalize' | 'project' | 'inspect';
   before: unknown;
   after: unknown;
   source_spans: JsonObject[];
@@ -41,23 +40,6 @@ export type PersonARepairResult = {
     objects_changed: string[];
   };
 };
-
-const deliverableNames = [
-  'Homepage',
-  'About page',
-  'Services page',
-  'Contact page',
-  'Mobile-responsive layout',
-  'Pricing comparison section',
-  'Newsletter signup',
-] as const;
-
-const evidenceNames = [
-  'social media posts',
-  'part of the site was briefly published',
-  'signed agreement',
-  'list of changes',
-] as const;
 
 function isRecord(value: unknown): value is JsonObject {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -120,137 +102,8 @@ function partyAActor(extraction: JsonObject, quote: string): boolean {
   );
 }
 
-type ClaimGrounding<T extends string> =
-  | { status: 'grounded'; names: T[]; spans: JsonObject[] }
-  | {
-      status: 'rejected';
-      reason:
-        | 'ambiguous_claim_grounding'
-        | 'claim_grounding_missing'
-        | 'explicit_enumeration_missing'
-        | 'source_spans_missing_or_invalid';
-    };
-
-function groundedEnumeration<T extends string>(
-  claimIds: unknown,
-  claims: JsonObject[],
-  narrative: string,
-  names: readonly T[],
-): ClaimGrounding<T> {
-  if (!Array.isArray(claimIds) || claimIds.length === 0) {
-    return { status: 'rejected', reason: 'claim_grounding_missing' };
-  }
-  const candidates: Array<{ names: T[]; spans: JsonObject[] }> = [];
-  for (const claimId of [...new Set(claimIds)].sort()) {
-    const claim = claims.find((item) => item.claim_id === claimId);
-    if (!claim) return { status: 'rejected', reason: 'claim_grounding_missing' };
-    const spans = exactSpans(claim, narrative);
-    if (!spans) return { status: 'rejected', reason: 'source_spans_missing_or_invalid' };
-    const quote = spans
-      .map((span) => span.quote)
-      .join(' ')
-      .toLowerCase();
-    const found = names.filter((name) => quote.includes(name.toLowerCase()));
-    if (found.length >= 2) candidates.push({ names: found, spans });
-  }
-  if (candidates.length === 0) {
-    return { status: 'rejected', reason: 'explicit_enumeration_missing' };
-  }
-  const signatures = new Set(
-    candidates.map((candidate) =>
-      [...candidate.names]
-        .map((name) => name.toLowerCase())
-        .sort(lexicalCompare)
-        .join('|'),
-    ),
-  );
-  if (signatures.size !== 1) {
-    return { status: 'rejected', reason: 'ambiguous_claim_grounding' };
-  }
-  const spans = candidates
-    .flatMap((candidate) => candidate.spans)
-    .filter(
-      (span, index, all) =>
-        all.findIndex(
-          (candidate) =>
-            candidate.submission_id === span.submission_id &&
-            candidate.start_char === span.start_char &&
-            candidate.end_char === span.end_char &&
-            candidate.quote === span.quote,
-        ) === index,
-    )
-    .sort(
-      (left, right) =>
-        Number(left.start_char) - Number(right.start_char) ||
-        Number(left.end_char) - Number(right.end_char),
-    );
-  return { status: 'grounded', names: candidates[0]!.names, spans };
-}
-
-function exactLabelPattern(label: string): RegExp {
-  const escaped = label.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
-  return new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, 'giu');
-}
-
-function aggregateIdentityMatchesEnumeration<T extends string>(
-  aggregate: JsonObject,
-  identityField: string,
-  enumeratedNames: T[],
-): boolean {
-  // v0.1.2 has no aggregate-to-child membership relation. A split is therefore
-  // authorized only when exact grounded labels account for the full canonical
-  // identity and leave no unknown material text behind.
-  const identity = aggregate[identityField];
-  if (typeof identity !== 'string' || identity.length === 0) return false;
-  const uniqueNames = [...new Set(enumeratedNames.map((name) => name.toLowerCase()))];
-  if (uniqueNames.length !== enumeratedNames.length || uniqueNames.length < 2) return false;
-
-  let residual = identity.normalize('NFC');
-  for (const name of enumeratedNames) {
-    const matches = [...residual.matchAll(exactLabelPattern(name))];
-    if (matches.length !== 1) return false;
-    residual = residual.replace(exactLabelPattern(name), ' ');
-  }
-
-  residual = residual
-    .toLowerCase()
-    .replace(/[,.:;()&]/gu, ' ')
-    .replace(
-      /\b(?:a|an|and|artifact|artifacts|deliverable|deliverables|evidence|item|items|page|pages|the)\b/gu,
-      ' ',
-    )
-    .replace(/\s+/gu, ' ')
-    .trim();
-  return residual.length === 0;
-}
-
-function expandReferenceArrays(
-  value: unknown,
-  fields: Set<string>,
-  replacedId: string,
-  replacementIds: string[],
-  preserveOriginal: boolean,
-): void {
-  if (Array.isArray(value)) {
-    value.forEach((entry) =>
-      expandReferenceArrays(entry, fields, replacedId, replacementIds, preserveOriginal),
-    );
-    return;
-  }
-  if (!isRecord(value)) return;
-  for (const [field, child] of Object.entries(value)) {
-    if (fields.has(field) && Array.isArray(child) && child.includes(replacedId)) {
-      value[field] = [
-        ...new Set([
-          ...child.filter((item) => item !== replacedId),
-          ...(preserveOriginal ? [replacedId] : []),
-          ...replacementIds,
-        ]),
-      ].sort(lexicalCompare);
-      continue;
-    }
-    expandReferenceArrays(child, fields, replacedId, replacementIds, preserveOriginal);
-  }
+function looksLikeAggregateLabel(value: unknown): boolean {
+  return typeof value === 'string' && /[,&/]|\b(?:and|or)\b/iu.test(value);
 }
 
 export function repairPersonAExtraction(options: {
@@ -558,237 +411,41 @@ export function repairPersonAExtraction(options: {
     );
   }
 
-  // Rule D: split only aggregates tied to claims whose exact spans enumerate the items.
+  // Aggregate splitting is intentionally unsupported until the canonical schema
+  // provides explicit, source-grounded aggregate-to-child membership.
   for (const aggregate of [...deliverables].sort((a, b) =>
     lexicalCompare(identifier(a.deliverable_id), identifier(b.deliverable_id)),
   )) {
-    if (!/[,&/]|\band\b/iu.test(String(aggregate.name ?? ''))) continue;
-    const grounding = groundedEnumeration(
-      aggregate.source_claim_ids,
-      claims,
-      options.narrative,
-      deliverableNames,
-    );
-    if (grounding.status === 'rejected') {
-      record(
-        'separate_named_deliverables',
-        'deliverables',
-        identifier(aggregate.deliverable_id),
-        'split',
-        aggregate,
-        null,
-        [],
-        'A deliverable split requires one unambiguous set of items enumerated in exact source-grounded claims.',
-        'rejected',
-        grounding.reason,
-      );
-      continue;
-    }
-    if (!aggregateIdentityMatchesEnumeration(aggregate, 'name', grounding.names)) {
-      record(
-        'separate_named_deliverables',
-        'deliverables',
-        identifier(aggregate.deliverable_id),
-        'split',
-        aggregate,
-        null,
-        grounding.spans,
-        'Every grounded deliverable name must match the aggregate identity exactly, with no missing or unrelated components.',
-        'rejected',
-        'aggregate_identity_mismatch',
-      );
-      continue;
-    }
-    const replacements: JsonObject[] = [];
-    const created: JsonObject[] = [];
-    for (const name of grounding.names) {
-      const existing = deliverables.find(
-        (item) =>
-          String(item.name ?? '').toLowerCase() === name.toLowerCase() && item !== aggregate,
-      );
-      if (existing) {
-        replacements.push(existing);
-        continue;
-      }
-      const replacement = {
-        ...structuredClone(aggregate),
-        deliverable_id: `repair_deliverable_${slug(name)}`,
-        name,
-      };
-      replacements.push(replacement);
-      created.push(replacement);
-    }
-    if (replacements.length < 2) continue;
-    const independent = /\b(?:package|project|website|site)\b/iu.test(String(aggregate.name ?? ''));
-    deliverables.push(...created);
-    if (!independent) {
-      const index = deliverables.indexOf(aggregate);
-      if (index >= 0) deliverables.splice(index, 1);
-    }
-    expandReferenceArrays(
-      repaired,
-      new Set(['affected_object_ids', 'linked_object_ids']),
-      identifier(aggregate.deliverable_id),
-      replacements.map((item) => identifier(item.deliverable_id)),
-      independent,
-    );
+    if (!looksLikeAggregateLabel(aggregate.name)) continue;
     record(
-      'separate_named_deliverables',
+      'aggregate_split_unsupported_v0_1_2',
       'deliverables',
       identifier(aggregate.deliverable_id),
-      'split',
+      'inspect',
       aggregate,
-      replacements,
-      grounding.spans,
-      'Splits only deliverables enumerated in exact spans on their schema-valid source claims.',
-      'applied',
+      aggregate,
+      [],
+      'Canonical schema v0.1.2 does not provide an explicit aggregate-to-child membership relation; the aggregate was preserved unchanged.',
+      'skipped',
+      'aggregate_split_unsupported_v0_1_2',
     );
   }
 
-  // Rule E: split only evidence tied by typed links to claims that enumerate the artifacts.
   for (const aggregate of [...evidence].sort((a, b) =>
     lexicalCompare(identifier(a.evidence_id), identifier(b.evidence_id)),
   )) {
-    if (!/[,&/]|\band\b/iu.test(String(aggregate.title ?? ''))) continue;
-    const aggregateLinks = links.filter((link) => link.evidence_id === aggregate.evidence_id);
-    const grounding = groundedEnumeration(
-      aggregateLinks.map((link) => link.claim_id),
-      claims,
-      options.narrative,
-      evidenceNames,
-    );
-    if (grounding.status === 'rejected') {
-      record(
-        'separate_named_evidence',
-        'evidence',
-        identifier(aggregate.evidence_id),
-        'split',
-        aggregate,
-        null,
-        [],
-        'An evidence split requires typed claim links to one unambiguous exact enumeration.',
-        'rejected',
-        grounding.reason,
-      );
-      continue;
-    }
-    if (!aggregateIdentityMatchesEnumeration(aggregate, 'title', grounding.names)) {
-      record(
-        'separate_named_evidence',
-        'evidence',
-        identifier(aggregate.evidence_id),
-        'split',
-        aggregate,
-        null,
-        grounding.spans,
-        'Every grounded evidence name must match the aggregate identity exactly, with no missing or unrelated components.',
-        'rejected',
-        'aggregate_identity_mismatch',
-      );
-      continue;
-    }
-    if (!['described_only', 'unavailable'].includes(aggregate.availability_status)) {
-      record(
-        'separate_named_evidence',
-        'evidence',
-        identifier(aggregate.evidence_id),
-        'split',
-        aggregate,
-        null,
-        grounding.spans,
-        'Splitting inspected or uploaded evidence could misstate artifact identity or inspection state.',
-        'rejected',
-        'evidence_state_not_splittable',
-      );
-      continue;
-    }
-    if (Array.isArray(aggregate.extracts) && aggregate.extracts.length > 0) {
-      record(
-        'separate_named_evidence',
-        'evidence',
-        identifier(aggregate.evidence_id),
-        'split',
-        aggregate,
-        null,
-        grounding.spans,
-        'Evidence with artifact-specific extracts cannot be partitioned without inference.',
-        'rejected',
-        'evidence_content_not_splittable',
-      );
-      continue;
-    }
-    const replacements: JsonObject[] = [];
-    const created: JsonObject[] = [];
-    for (const title of grounding.names) {
-      const existing = evidence.find(
-        (item) =>
-          String(item.title ?? '').toLowerCase() === title.toLowerCase() && item !== aggregate,
-      );
-      if (existing) {
-        replacements.push(existing);
-        continue;
-      }
-      const cloned = structuredClone(aggregate);
-      const replacement = {
-        ...cloned,
-        evidence_id: `repair_evidence_${slug(title)}`,
-        title,
-        description_from_submitter: title,
-        file_reference: null,
-        original_filename: null,
-        file_hash: null,
-      };
-      replacements.push(replacement);
-      created.push(replacement);
-    }
-    if (replacements.length < 2) continue;
-    evidence.push(...created);
-    const independent = /\b(?:collection|bundle|archive|history)\b/iu.test(
-      String(aggregate.title ?? ''),
-    );
-    if (!independent) {
-      const index = evidence.indexOf(aggregate);
-      if (index >= 0) evidence.splice(index, 1);
-    }
-    const replacementIds = replacements.map((item) => identifier(item.evidence_id));
-    expandReferenceArrays(
-      repaired,
-      new Set([
-        'affected_object_ids',
-        'contradicting_evidence_ids',
-        'linked_object_ids',
-        'source_evidence_ids',
-        'supporting_evidence_ids',
-      ]),
-      identifier(aggregate.evidence_id),
-      replacementIds,
-      independent,
-    );
-    const replacementLinks = aggregateLinks.flatMap((link) =>
-      replacements.map((item) => ({
-        ...structuredClone(link),
-        link_id: `repair_${slug(identifier(link.link_id)).slice(0, 20)}_${slug(
-          identifier(item.evidence_id),
-        ).slice(0, 35)}`,
-        evidence_id: item.evidence_id,
-      })),
-    );
-    links.push(...replacementLinks);
-    if (!independent) {
-      for (let index = links.length - 1; index >= 0; index -= 1) {
-        if (aggregateLinks.includes(links[index]!)) links.splice(index, 1);
-      }
-    }
+    if (!looksLikeAggregateLabel(aggregate.title)) continue;
     record(
-      'separate_named_evidence',
+      'aggregate_split_unsupported_v0_1_2',
       'evidence',
       identifier(aggregate.evidence_id),
-      'split',
+      'inspect',
       aggregate,
-      replacements,
-      grounding.spans,
-      'Splits only artifacts enumerated in exact spans on claims connected by typed evidence links.',
-      'applied',
+      aggregate,
+      [],
+      'Canonical schema v0.1.2 does not provide an explicit aggregate-to-child membership relation; the aggregate was preserved unchanged.',
+      'skipped',
+      'aggregate_split_unsupported_v0_1_2',
     );
   }
 

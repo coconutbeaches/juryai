@@ -316,343 +316,133 @@ describe('deterministic Person A record repair', () => {
     expect(repairedEvent.actor_party_id).toBe('party_b');
   });
 
-  it('splits separately named deliverables with exact shared grounding', () => {
+  it('skips a correctly grounded apparent deliverable enumeration unchanged', () => {
     const { extraction, narrative } = aggregateDeliverableFixture();
-    expectValid(extraction, narrative);
-
-    const result = repair(extraction, narrative);
-    expectValid(result.repaired_extraction, narrative);
-    const names = result.repaired_extraction.deliverable_assessments.map(
-      (item: Record<string, any>) => item.name,
+    const before = structuredClone(
+      extraction.deliverable_assessments.find(
+        (item: Record<string, any>) => item.deliverable_id === 'del_aggregate_pages',
+      ),
     );
-
-    expect(names).toContain('Homepage');
-    expect(names).toContain('About page');
-    expect(names).not.toContain('Homepage and About page');
-  });
-
-  it.each([
-    'Logo design, Homepage and About page',
-    'Homepage, Logo design, and About page',
-    'Homepage, About page, and Logo design',
-  ])('rejects unexplained material text in aggregate identity: %s', (name) => {
-    const { extraction, narrative } = aggregateDeliverableFixture();
-    const aggregate = extraction.deliverable_assessments.find(
-      (item: Record<string, any>) => item.deliverable_id === 'del_aggregate_pages',
-    );
-    aggregate.name = name;
-    const before = structuredClone(aggregate);
+    const beforeCount = extraction.deliverable_assessments.length;
     expectValid(extraction, narrative);
 
     const result = repair(extraction, narrative);
     expectValid(result.repaired_extraction, narrative);
 
-    expect(result.rejected_repairs).toContainEqual(
-      expect.objectContaining({
-        target_object_id: 'del_aggregate_pages',
-        rejection_reason: 'aggregate_identity_mismatch',
-      }),
-    );
+    expect(result.repaired_extraction.deliverable_assessments).toHaveLength(beforeCount);
     expect(
       result.repaired_extraction.deliverable_assessments.find(
         (item: Record<string, any>) => item.deliverable_id === 'del_aggregate_pages',
       ),
     ).toEqual(before);
-  });
-
-  it('allows only generic structural words and punctuation around exact components', () => {
-    const { extraction, narrative } = aggregateDeliverableFixture();
-    const aggregate = extraction.deliverable_assessments.find(
-      (item: Record<string, any>) => item.deliverable_id === 'del_aggregate_pages',
-    );
-    aggregate.name = 'The deliverables: Homepage, and About page.';
-
-    const result = repair(extraction, narrative);
-    expectValid(result.repaired_extraction, narrative);
-
-    expect(result.applied_repairs).toContainEqual(
+    expect(result.skipped_repairs).toContainEqual(
       expect.objectContaining({
+        rule_id: 'aggregate_split_unsupported_v0_1_2',
         target_object_id: 'del_aggregate_pages',
-        rule_id: 'separate_named_deliverables',
-      }),
-    );
-  });
-
-  it('supports reordered exact component sets deterministically', () => {
-    const { extraction, narrative } = aggregateDeliverableFixture();
-    const aggregate = extraction.deliverable_assessments.find(
-      (item: Record<string, any>) => item.deliverable_id === 'del_aggregate_pages',
-    );
-    aggregate.name = 'About page and Homepage';
-
-    const first = repair(extraction, narrative);
-    const second = repair(extraction, narrative);
-
-    expect(first.applied_repairs).toContainEqual(
-      expect.objectContaining({ target_object_id: 'del_aggregate_pages' }),
-    );
-    expect(JSON.stringify(second)).toBe(JSON.stringify(first));
-  });
-
-  it('rejects duplicate aggregate component labels without data loss', () => {
-    const { extraction, narrative } = aggregateDeliverableFixture();
-    const aggregate = extraction.deliverable_assessments.find(
-      (item: Record<string, any>) => item.deliverable_id === 'del_aggregate_pages',
-    );
-    aggregate.name = 'Homepage, Homepage, and About page';
-    const before = structuredClone(aggregate);
-
-    const result = repair(extraction, narrative);
-
-    expect(result.rejected_repairs).toContainEqual(
-      expect.objectContaining({
-        target_object_id: 'del_aggregate_pages',
-        rejection_reason: 'aggregate_identity_mismatch',
+        status: 'skipped',
       }),
     );
     expect(
-      result.repaired_extraction.deliverable_assessments.find(
-        (item: Record<string, any>) => item.deliverable_id === 'del_aggregate_pages',
+      result.repaired_extraction.deliverable_assessments.some((item: Record<string, any>) =>
+        String(item.deliverable_id).startsWith('repair_deliverable_'),
       ),
-    ).toEqual(before);
+    ).toBe(false);
   });
 
-  it('fails closed on ambiguous coordinated aggregate identity', () => {
-    const { extraction, narrative } = aggregateDeliverableFixture();
-    const aggregate = extraction.deliverable_assessments.find(
-      (item: Record<string, any>) => item.deliverable_id === 'del_aggregate_pages',
-    );
-    aggregate.name = 'Homepage or About page';
-    const before = structuredClone(aggregate);
-
-    const result = repair(extraction, narrative);
-
-    expect(result.applied_repairs).not.toContainEqual(
-      expect.objectContaining({ target_object_id: 'del_aggregate_pages' }),
-    );
-    expect(
-      result.repaired_extraction.deliverable_assessments.find(
-        (item: Record<string, any>) => item.deliverable_id === 'del_aggregate_pages',
-      ),
-    ).toEqual(before);
-  });
-
-  it('preserves a deliverable aggregate linked to an unrelated broader enumeration', () => {
-    const { extraction, narrative } = aggregateDeliverableFixture();
-    const aggregate = extraction.deliverable_assessments.find(
-      (item: Record<string, any>) => item.deliverable_id === 'del_aggregate_pages',
-    );
-    aggregate.name = 'Homepage and About page';
-    const quote =
-      'During the project Maya also asked for a pricing comparison section, a newsletter signup, and several changes to the homepage design.';
-    addGroundedClaim(extraction, narrative, 'cl_mismatched_deliverables', quote);
-    aggregate.source_claim_ids = ['cl_mismatched_deliverables'];
-    const before = structuredClone(aggregate);
-    expectValid(extraction, narrative);
-
-    const result = repair(extraction, narrative);
-    expectValid(result.repaired_extraction, narrative);
-
-    expect(result.rejected_repairs).toContainEqual(
-      expect.objectContaining({
-        target_object_id: 'del_aggregate_pages',
-        rejection_reason: 'aggregate_identity_mismatch',
-      }),
-    );
-    expect(
-      result.repaired_extraction.deliverable_assessments.find(
-        (item: Record<string, any>) => item.deliverable_id === 'del_aggregate_pages',
-      ),
-    ).toEqual(before);
-  });
-
-  it('rejects partial aggregate overlap on homepage alone', () => {
-    const { extraction, narrative } = aggregateDeliverableFixture();
-    const aggregate = extraction.deliverable_assessments.find(
-      (item: Record<string, any>) => item.deliverable_id === 'del_aggregate_pages',
-    );
-    aggregate.name = 'Homepage and About page';
-    const quote =
-      'During the project Maya also asked for a pricing comparison section, a newsletter signup, and several changes to the homepage design.';
-    addGroundedClaim(extraction, narrative, 'cl_partial_overlap', quote);
-    aggregate.source_claim_ids = ['cl_partial_overlap'];
-
-    const result = repair(extraction, narrative);
-
-    expect(result.applied_repairs).not.toContainEqual(
-      expect.objectContaining({ target_object_id: 'del_aggregate_pages' }),
-    );
-    expect(
-      result.repaired_extraction.deliverable_assessments.find(
-        (item: Record<string, any>) => item.deliverable_id === 'del_aggregate_pages',
-      )?.name,
-    ).toBe('Homepage and About page');
-  });
-
-  it('rejects an enumeration missing one aggregate component', () => {
-    const { extraction, narrative } = aggregateDeliverableFixture();
-    const aggregate = extraction.deliverable_assessments.find(
-      (item: Record<string, any>) => item.deliverable_id === 'del_aggregate_pages',
-    );
-    aggregate.name = 'Pricing comparison section, Newsletter signup, and Homepage';
-    const quote = 'a pricing comparison section, a newsletter signup';
-    addGroundedClaim(extraction, narrative, 'cl_missing_component', quote);
-    aggregate.source_claim_ids = ['cl_missing_component'];
-
-    const result = repair(extraction, narrative);
-
-    expect(result.rejected_repairs).toContainEqual(
-      expect.objectContaining({
-        target_object_id: 'del_aggregate_pages',
-        rejection_reason: 'aggregate_identity_mismatch',
-      }),
-    );
-  });
-
-  it('rejects an enumeration containing an extra unrelated component', () => {
-    const { extraction, narrative } = aggregateDeliverableFixture();
-    const aggregate = extraction.deliverable_assessments.find(
-      (item: Record<string, any>) => item.deliverable_id === 'del_aggregate_pages',
-    );
-    aggregate.name = 'Pricing comparison section and Newsletter signup';
-    const quote =
-      'a pricing comparison section, a newsletter signup, and several changes to the homepage design';
-    addGroundedClaim(extraction, narrative, 'cl_extra_component', quote);
-    aggregate.source_claim_ids = ['cl_extra_component'];
-
-    const first = repair(extraction, narrative);
-    const second = repair(extraction, narrative);
-
-    expect(first.rejected_repairs).toContainEqual(
-      expect.objectContaining({
-        target_object_id: 'del_aggregate_pages',
-        rejection_reason: 'aggregate_identity_mismatch',
-      }),
-    );
-    expect(JSON.stringify(second)).toBe(JSON.stringify(first));
-  });
-
-  it('does not split an aggregate without explicit enumeration', () => {
-    const { extraction, narrative } = aggregateDeliverableFixture();
-    const aggregate = extraction.deliverable_assessments.find(
-      (item: Record<string, any>) => item.deliverable_id === 'del_aggregate_pages',
-    );
-    aggregate.source_claim_ids = [];
-    expectValid(extraction, narrative);
-
-    const result = repair(extraction, narrative);
-
-    expect(result.rejected_repairs).toContainEqual(
-      expect.objectContaining({
-        target_object_id: 'del_aggregate_pages',
-        rejection_reason: 'claim_grounding_missing',
-      }),
-    );
-  });
-
-  it('rejects ambiguous deliverable claim grounding', () => {
+  it('skips mismatched and conflicting deliverable grounding without inspecting it', () => {
     const { extraction, narrative } = aggregateDeliverableFixture();
     const aggregate = extraction.deliverable_assessments.find(
       (item: Record<string, any>) => item.deliverable_id === 'del_aggregate_pages',
     );
     const quote =
       'During the project Maya also asked for a pricing comparison section, a newsletter signup, and several changes to the homepage design.';
-    const start = narrative.indexOf(quote);
-    extraction.claims.push({
-      ...structuredClone(
-        extraction.claims.find((item: Record<string, any>) => item.claim_id === 'cl_a_004'),
-      ),
-      claim_id: 'cl_ambiguous_deliverables',
-      claim_text: 'The later requests included a pricing comparison section and newsletter signup.',
-      source_spans: [
-        {
-          submission_id: 'sub_a_extracted',
-          quote,
-          start_char: start,
-          end_char: start + quote.length,
-        },
-      ],
-    });
-    aggregate.source_claim_ids.push('cl_ambiguous_deliverables');
+    addGroundedClaim(extraction, narrative, 'cl_conflicting_deliverables', quote);
+    aggregate.source_claim_ids.push('cl_conflicting_deliverables');
+    aggregate.name = 'Homepage, About page, and Logo design';
+    const before = structuredClone(aggregate);
     expectValid(extraction, narrative);
 
     const result = repair(extraction, narrative);
+    expectValid(result.repaired_extraction, narrative);
 
-    expect(result.rejected_repairs).toContainEqual(
-      expect.objectContaining({
-        target_object_id: 'del_aggregate_pages',
-        rejection_reason: 'ambiguous_claim_grounding',
-      }),
+    expect(
+      result.repaired_extraction.deliverable_assessments.find(
+        (item: Record<string, any>) => item.deliverable_id === 'del_aggregate_pages',
+      ),
+    ).toEqual(before);
+    expect(result.rejected_repairs).not.toContainEqual(
+      expect.objectContaining({ target_object_id: 'del_aggregate_pages' }),
     );
   });
 
-  it('splits distinct evidence artifacts without changing availability state', () => {
+  it('skips a correctly grounded apparent evidence enumeration unchanged', () => {
     const { extraction, narrative } = aggregateEvidenceFixture();
+    const beforeCount = extraction.evidence.length;
+    const aggregate = structuredClone(
+      extraction.evidence.find(
+        (item: Record<string, any>) => item.evidence_id === 'ev_aggregate_use',
+      ),
+    );
+    const aggregateLinks = structuredClone(
+      extraction.claim_evidence_links.filter(
+        (item: Record<string, any>) => item.evidence_id === 'ev_aggregate_use',
+      ),
+    );
     expectValid(extraction, narrative);
 
     const result = repair(extraction, narrative);
     expectValid(result.repaired_extraction, narrative);
-    const split = result.repaired_extraction.evidence.filter((item: Record<string, any>) =>
-      String(item.evidence_id).startsWith('repair_evidence_'),
-    );
 
-    expect(split).toHaveLength(2);
+    expect(result.repaired_extraction.evidence).toHaveLength(beforeCount);
     expect(
-      split.every((item: Record<string, any>) => item.availability_status === 'described_only'),
-    ).toBe(true);
-    expect(split.every((item: Record<string, any>) => item.inspected_at === null)).toBe(true);
-    expect(split.map((item: Record<string, any>) => item.title).sort()).toEqual([
-      'part of the site was briefly published',
-      'social media posts',
-    ]);
-  });
-
-  it('preserves evidence whose grounded enumeration mismatches its identity', () => {
-    const { extraction, narrative } = aggregateEvidenceFixture();
-    const aggregate = extraction.evidence.find(
-      (item: Record<string, any>) => item.evidence_id === 'ev_aggregate_use',
-    );
-    aggregate.title = 'Signed agreement and list of changes';
-    aggregate.description_from_submitter =
-      'Person A described a signed agreement and a list of changes.';
-    const before = structuredClone(aggregate);
-    expectValid(extraction, narrative);
-
-    const result = repair(extraction, narrative);
-    expectValid(result.repaired_extraction, narrative);
-
-    expect(result.rejected_repairs).toContainEqual(
-      expect.objectContaining({
-        target_object_id: 'ev_aggregate_use',
-        rejection_reason: 'aggregate_identity_mismatch',
-      }),
-    );
+      result.repaired_extraction.claim_evidence_links.filter(
+        (item: Record<string, any>) => item.evidence_id === 'ev_aggregate_use',
+      ),
+    ).toEqual(aggregateLinks);
     expect(
       result.repaired_extraction.evidence.find(
         (item: Record<string, any>) => item.evidence_id === 'ev_aggregate_use',
       ),
-    ).toEqual(before);
+    ).toEqual(aggregate);
+    expect(result.skipped_repairs).toContainEqual(
+      expect.objectContaining({
+        rule_id: 'aggregate_split_unsupported_v0_1_2',
+        target_object_id: 'ev_aggregate_use',
+        status: 'skipped',
+      }),
+    );
+    expect(
+      result.repaired_extraction.evidence.some((item: Record<string, any>) =>
+        String(item.evidence_id).startsWith('repair_evidence_'),
+      ),
+    ).toBe(false);
   });
 
-  it('preserves evidence when an unknown identity component is not grounded', () => {
+  it.each([
+    {
+      title: 'Social media posts and website publication',
+      description:
+        'Person A also described source files and administrator credentials that are not itemized in the title.',
+    },
+    {
+      title:
+        'Social media posts, part of the site was briefly published, and administrator credentials',
+      description:
+        'Person A described social media posts and part of the site being briefly published.',
+    },
+  ])('preserves all evidence identity and state fields for $title', ({ title, description }) => {
     const { extraction, narrative } = aggregateEvidenceFixture();
     const aggregate = extraction.evidence.find(
       (item: Record<string, any>) => item.evidence_id === 'ev_aggregate_use',
     );
-    aggregate.title =
-      'Social media posts, part of the site was briefly published, and administrator credentials';
+    aggregate.title = title;
+    aggregate.description_from_submitter = description;
     const before = structuredClone(aggregate);
 
     const first = repair(extraction, narrative);
     const second = repair(extraction, narrative);
     expectValid(first.repaired_extraction, narrative);
 
-    expect(first.rejected_repairs).toContainEqual(
-      expect.objectContaining({
-        target_object_id: 'ev_aggregate_use',
-        rejection_reason: 'aggregate_identity_mismatch',
-      }),
-    );
     expect(
       first.repaired_extraction.evidence.find(
         (item: Record<string, any>) => item.evidence_id === 'ev_aggregate_use',
@@ -661,52 +451,18 @@ describe('deterministic Person A record repair', () => {
     expect(JSON.stringify(second)).toBe(JSON.stringify(first));
   });
 
-  it('rejects evidence splitting without a typed claim link', () => {
+  it('does not expose unsupported aggregate split audit entries as clarification questions', () => {
     const { extraction, narrative } = aggregateEvidenceFixture();
-    extraction.claim_evidence_links = extraction.claim_evidence_links.filter(
-      (item: Record<string, any>) => item.evidence_id !== 'ev_aggregate_use',
-    );
-    expectValid(extraction, narrative);
+    const reference = validPersonAExtraction();
+    const repaired = repair(extraction, narrative).repaired_extraction;
+    const alignment = alignPersonA(repaired, reference);
+    const report = evaluatePersonA(repaired, reference, alignment);
+    const assessments = buildPersonAAssessmentResult(repaired, report, alignment);
+    const necessity = classifyQuestionNecessity(assessments.assessments, repaired);
+    const questions = generateNecessaryClarificationQuestions(necessity.question_candidates);
 
-    const result = repair(extraction, narrative);
-
-    expect(result.rejected_repairs).toContainEqual(
-      expect.objectContaining({
-        target_object_id: 'ev_aggregate_use',
-        rejection_reason: 'claim_grounding_missing',
-      }),
-    );
-  });
-
-  it('rejects evidence splitting when its linked claim span is malformed', () => {
-    const { extraction, narrative } = aggregateEvidenceFixture();
-    const claim = extraction.claims.find(
-      (item: Record<string, any>) => item.claim_id === 'cl_a_008',
-    );
-    claim.source_spans[0].end_char += 1;
-    expect(validatePersonAExtraction(extraction, narrative).valid).toBe(false);
-
-    const result = repair(extraction, narrative);
-
-    expect(result.rejected_repairs).toContainEqual(
-      expect.objectContaining({
-        target_object_id: 'ev_aggregate_use',
-        rejection_reason: 'source_spans_missing_or_invalid',
-      }),
-    );
-  });
-
-  it('never fabricates filenames while splitting evidence', () => {
-    const { extraction, narrative } = aggregateEvidenceFixture();
-    expectValid(extraction, narrative);
-
-    const result = repair(extraction, narrative);
-    const split = result.repaired_extraction.evidence.filter((item: Record<string, any>) =>
-      String(item.evidence_id).startsWith('repair_evidence_'),
-    );
-
-    expect(split.every((item: Record<string, any>) => item.original_filename === null)).toBe(true);
-    expect(split.every((item: Record<string, any>) => item.file_reference === null)).toBe(true);
+    expect(JSON.stringify(questions)).not.toContain('aggregate_split_unsupported_v0_1_2');
+    expect(JSON.stringify(questions)).not.toContain('aggregate-to-child');
   });
 
   it('preserves exact source spans on wrong-family dependency projection', () => {
