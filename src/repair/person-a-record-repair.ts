@@ -187,28 +187,41 @@ function groundedEnumeration<T extends string>(
   return { status: 'grounded', names: candidates[0]!.names, spans };
 }
 
-function containsExactLabel(value: string, label: string): boolean {
+function exactLabelPattern(label: string): RegExp {
   const escaped = label.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
-  return new RegExp(`(?:^|[^\\p{L}\\p{N}])${escaped}(?=$|[^\\p{L}\\p{N}])`, 'iu').test(value);
+  return new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, 'giu');
 }
 
 function aggregateIdentityMatchesEnumeration<T extends string>(
   aggregate: JsonObject,
-  identityFields: string[],
+  identityField: string,
   enumeratedNames: T[],
-  knownNames: readonly T[],
 ): boolean {
-  // v0.1.2 has no aggregate-to-child membership relation, so only exact full
-  // containment in the aggregate's own identity fields can authorize a split.
-  const identity = identityFields
-    .map((field) => aggregate[field])
-    .filter((value): value is string => typeof value === 'string' && value.length > 0)
-    .join(' ');
-  const identityNames = knownNames.filter((name) => containsExactLabel(identity, name));
-  if (identityNames.length < 2) return false;
-  const signature = (names: readonly T[]) =>
-    [...new Set(names.map((name) => name.toLowerCase()))].sort(lexicalCompare).join('|');
-  return signature(identityNames) === signature(enumeratedNames);
+  // v0.1.2 has no aggregate-to-child membership relation. A split is therefore
+  // authorized only when exact grounded labels account for the full canonical
+  // identity and leave no unknown material text behind.
+  const identity = aggregate[identityField];
+  if (typeof identity !== 'string' || identity.length === 0) return false;
+  const uniqueNames = [...new Set(enumeratedNames.map((name) => name.toLowerCase()))];
+  if (uniqueNames.length !== enumeratedNames.length || uniqueNames.length < 2) return false;
+
+  let residual = identity.normalize('NFC');
+  for (const name of enumeratedNames) {
+    const matches = [...residual.matchAll(exactLabelPattern(name))];
+    if (matches.length !== 1) return false;
+    residual = residual.replace(exactLabelPattern(name), ' ');
+  }
+
+  residual = residual
+    .toLowerCase()
+    .replace(/[,.:;()&]/gu, ' ')
+    .replace(
+      /\b(?:a|an|and|artifact|artifacts|deliverable|deliverables|evidence|item|items|page|pages|the)\b/gu,
+      ' ',
+    )
+    .replace(/\s+/gu, ' ')
+    .trim();
+  return residual.length === 0;
 }
 
 function expandReferenceArrays(
@@ -571,9 +584,7 @@ export function repairPersonAExtraction(options: {
       );
       continue;
     }
-    if (
-      !aggregateIdentityMatchesEnumeration(aggregate, ['name'], grounding.names, deliverableNames)
-    ) {
+    if (!aggregateIdentityMatchesEnumeration(aggregate, 'name', grounding.names)) {
       record(
         'separate_named_deliverables',
         'deliverables',
@@ -661,14 +672,7 @@ export function repairPersonAExtraction(options: {
       );
       continue;
     }
-    if (
-      !aggregateIdentityMatchesEnumeration(
-        aggregate,
-        ['title', 'description_from_submitter'],
-        grounding.names,
-        evidenceNames,
-      )
-    ) {
+    if (!aggregateIdentityMatchesEnumeration(aggregate, 'title', grounding.names)) {
       record(
         'separate_named_evidence',
         'evidence',

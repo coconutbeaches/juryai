@@ -57,22 +57,14 @@ function replaceLinkedObjectId(value: unknown, replacedIds: string[], replacemen
 
 function aggregateDeliverableFixture() {
   const { extraction, narrative } = fixture();
-  const componentIds = [
-    'del_homepage_01',
-    'del_about_01',
-    'del_services_01',
-    'del_contact_01',
-    'del_mobile_01',
-  ];
+  const componentIds = ['del_homepage_01', 'del_about_01'];
   extraction.deliverable_assessments = extraction.deliverable_assessments.filter(
     (item: Record<string, any>) => !componentIds.includes(item.deliverable_id),
   );
-  const quote =
-    'The original job was a homepage, about page, services page, contact page, and mobile-responsive layout, with two revision rounds.';
+  const quote = 'a homepage, about page';
   const start = narrative.indexOf(quote);
   const claim = extraction.claims.find((item: Record<string, any>) => item.claim_id === 'cl_a_004');
-  claim.claim_text =
-    'The original job expressly listed a homepage, about page, services page, contact page, and mobile-responsive layout.';
+  claim.claim_text = 'The original job expressly listed a homepage and about page.';
   claim.source_spans = [
     {
       submission_id: 'sub_a_extracted',
@@ -84,7 +76,7 @@ function aggregateDeliverableFixture() {
   extraction.deliverable_assessments.push({
     ...structuredClone(extraction.deliverable_assessments[0]),
     deliverable_id: 'del_aggregate_pages',
-    name: 'Homepage, About page, Services page, Contact page, and Mobile-responsive layout',
+    name: 'Homepage and About page',
     source_claim_ids: ['cl_a_004'],
   });
   replaceLinkedObjectId(extraction, componentIds, 'del_aggregate_pages');
@@ -336,9 +328,113 @@ describe('deterministic Person A record repair', () => {
 
     expect(names).toContain('Homepage');
     expect(names).toContain('About page');
-    expect(names).not.toContain(
-      'Homepage, About page, Services page, Contact page, and Mobile-responsive layout',
+    expect(names).not.toContain('Homepage and About page');
+  });
+
+  it.each([
+    'Logo design, Homepage and About page',
+    'Homepage, Logo design, and About page',
+    'Homepage, About page, and Logo design',
+  ])('rejects unexplained material text in aggregate identity: %s', (name) => {
+    const { extraction, narrative } = aggregateDeliverableFixture();
+    const aggregate = extraction.deliverable_assessments.find(
+      (item: Record<string, any>) => item.deliverable_id === 'del_aggregate_pages',
     );
+    aggregate.name = name;
+    const before = structuredClone(aggregate);
+    expectValid(extraction, narrative);
+
+    const result = repair(extraction, narrative);
+    expectValid(result.repaired_extraction, narrative);
+
+    expect(result.rejected_repairs).toContainEqual(
+      expect.objectContaining({
+        target_object_id: 'del_aggregate_pages',
+        rejection_reason: 'aggregate_identity_mismatch',
+      }),
+    );
+    expect(
+      result.repaired_extraction.deliverable_assessments.find(
+        (item: Record<string, any>) => item.deliverable_id === 'del_aggregate_pages',
+      ),
+    ).toEqual(before);
+  });
+
+  it('allows only generic structural words and punctuation around exact components', () => {
+    const { extraction, narrative } = aggregateDeliverableFixture();
+    const aggregate = extraction.deliverable_assessments.find(
+      (item: Record<string, any>) => item.deliverable_id === 'del_aggregate_pages',
+    );
+    aggregate.name = 'The deliverables: Homepage, and About page.';
+
+    const result = repair(extraction, narrative);
+    expectValid(result.repaired_extraction, narrative);
+
+    expect(result.applied_repairs).toContainEqual(
+      expect.objectContaining({
+        target_object_id: 'del_aggregate_pages',
+        rule_id: 'separate_named_deliverables',
+      }),
+    );
+  });
+
+  it('supports reordered exact component sets deterministically', () => {
+    const { extraction, narrative } = aggregateDeliverableFixture();
+    const aggregate = extraction.deliverable_assessments.find(
+      (item: Record<string, any>) => item.deliverable_id === 'del_aggregate_pages',
+    );
+    aggregate.name = 'About page and Homepage';
+
+    const first = repair(extraction, narrative);
+    const second = repair(extraction, narrative);
+
+    expect(first.applied_repairs).toContainEqual(
+      expect.objectContaining({ target_object_id: 'del_aggregate_pages' }),
+    );
+    expect(JSON.stringify(second)).toBe(JSON.stringify(first));
+  });
+
+  it('rejects duplicate aggregate component labels without data loss', () => {
+    const { extraction, narrative } = aggregateDeliverableFixture();
+    const aggregate = extraction.deliverable_assessments.find(
+      (item: Record<string, any>) => item.deliverable_id === 'del_aggregate_pages',
+    );
+    aggregate.name = 'Homepage, Homepage, and About page';
+    const before = structuredClone(aggregate);
+
+    const result = repair(extraction, narrative);
+
+    expect(result.rejected_repairs).toContainEqual(
+      expect.objectContaining({
+        target_object_id: 'del_aggregate_pages',
+        rejection_reason: 'aggregate_identity_mismatch',
+      }),
+    );
+    expect(
+      result.repaired_extraction.deliverable_assessments.find(
+        (item: Record<string, any>) => item.deliverable_id === 'del_aggregate_pages',
+      ),
+    ).toEqual(before);
+  });
+
+  it('fails closed on ambiguous coordinated aggregate identity', () => {
+    const { extraction, narrative } = aggregateDeliverableFixture();
+    const aggregate = extraction.deliverable_assessments.find(
+      (item: Record<string, any>) => item.deliverable_id === 'del_aggregate_pages',
+    );
+    aggregate.name = 'Homepage or About page';
+    const before = structuredClone(aggregate);
+
+    const result = repair(extraction, narrative);
+
+    expect(result.applied_repairs).not.toContainEqual(
+      expect.objectContaining({ target_object_id: 'del_aggregate_pages' }),
+    );
+    expect(
+      result.repaired_extraction.deliverable_assessments.find(
+        (item: Record<string, any>) => item.deliverable_id === 'del_aggregate_pages',
+      ),
+    ).toEqual(before);
   });
 
   it('preserves a deliverable aggregate linked to an unrelated broader enumeration', () => {
@@ -536,6 +632,33 @@ describe('deterministic Person A record repair', () => {
         (item: Record<string, any>) => item.evidence_id === 'ev_aggregate_use',
       ),
     ).toEqual(before);
+  });
+
+  it('preserves evidence when an unknown identity component is not grounded', () => {
+    const { extraction, narrative } = aggregateEvidenceFixture();
+    const aggregate = extraction.evidence.find(
+      (item: Record<string, any>) => item.evidence_id === 'ev_aggregate_use',
+    );
+    aggregate.title =
+      'Social media posts, part of the site was briefly published, and administrator credentials';
+    const before = structuredClone(aggregate);
+
+    const first = repair(extraction, narrative);
+    const second = repair(extraction, narrative);
+    expectValid(first.repaired_extraction, narrative);
+
+    expect(first.rejected_repairs).toContainEqual(
+      expect.objectContaining({
+        target_object_id: 'ev_aggregate_use',
+        rejection_reason: 'aggregate_identity_mismatch',
+      }),
+    );
+    expect(
+      first.repaired_extraction.evidence.find(
+        (item: Record<string, any>) => item.evidence_id === 'ev_aggregate_use',
+      ),
+    ).toEqual(before);
+    expect(JSON.stringify(second)).toBe(JSON.stringify(first));
   });
 
   it('rejects evidence splitting without a typed claim link', () => {
