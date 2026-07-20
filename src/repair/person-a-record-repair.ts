@@ -187,6 +187,30 @@ function groundedEnumeration<T extends string>(
   return { status: 'grounded', names: candidates[0]!.names, spans };
 }
 
+function containsExactLabel(value: string, label: string): boolean {
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+  return new RegExp(`(?:^|[^\\p{L}\\p{N}])${escaped}(?=$|[^\\p{L}\\p{N}])`, 'iu').test(value);
+}
+
+function aggregateIdentityMatchesEnumeration<T extends string>(
+  aggregate: JsonObject,
+  identityFields: string[],
+  enumeratedNames: T[],
+  knownNames: readonly T[],
+): boolean {
+  // v0.1.2 has no aggregate-to-child membership relation, so only exact full
+  // containment in the aggregate's own identity fields can authorize a split.
+  const identity = identityFields
+    .map((field) => aggregate[field])
+    .filter((value): value is string => typeof value === 'string' && value.length > 0)
+    .join(' ');
+  const identityNames = knownNames.filter((name) => containsExactLabel(identity, name));
+  if (identityNames.length < 2) return false;
+  const signature = (names: readonly T[]) =>
+    [...new Set(names.map((name) => name.toLowerCase()))].sort(lexicalCompare).join('|');
+  return signature(identityNames) === signature(enumeratedNames);
+}
+
 function expandReferenceArrays(
   value: unknown,
   fields: Set<string>,
@@ -547,6 +571,23 @@ export function repairPersonAExtraction(options: {
       );
       continue;
     }
+    if (
+      !aggregateIdentityMatchesEnumeration(aggregate, ['name'], grounding.names, deliverableNames)
+    ) {
+      record(
+        'separate_named_deliverables',
+        'deliverables',
+        identifier(aggregate.deliverable_id),
+        'split',
+        aggregate,
+        null,
+        grounding.spans,
+        'Every grounded deliverable name must match the aggregate identity exactly, with no missing or unrelated components.',
+        'rejected',
+        'aggregate_identity_mismatch',
+      );
+      continue;
+    }
     const replacements: JsonObject[] = [];
     const created: JsonObject[] = [];
     for (const name of grounding.names) {
@@ -617,6 +658,28 @@ export function repairPersonAExtraction(options: {
         'An evidence split requires typed claim links to one unambiguous exact enumeration.',
         'rejected',
         grounding.reason,
+      );
+      continue;
+    }
+    if (
+      !aggregateIdentityMatchesEnumeration(
+        aggregate,
+        ['title', 'description_from_submitter'],
+        grounding.names,
+        evidenceNames,
+      )
+    ) {
+      record(
+        'separate_named_evidence',
+        'evidence',
+        identifier(aggregate.evidence_id),
+        'split',
+        aggregate,
+        null,
+        grounding.spans,
+        'Every grounded evidence name must match the aggregate identity exactly, with no missing or unrelated components.',
+        'rejected',
+        'aggregate_identity_mismatch',
       );
       continue;
     }
