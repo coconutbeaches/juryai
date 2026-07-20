@@ -7,6 +7,7 @@ import {
   generateNecessaryClarificationQuestions,
 } from '../clarification/question-necessity.js';
 import { evaluatePersonA } from '../evaluation/person-a-diff-corrected.js';
+import { validatePersonAExtraction } from '../extraction/validate-person-a-corrected.js';
 import { repairPersonAExtraction } from '../repair/person-a-record-repair.js';
 import { validPersonAExtraction } from './person-a-test-helpers.js';
 
@@ -23,6 +24,90 @@ function removeDependencyClaim(extraction: Record<string, any>) {
 
 function repair(extraction: Record<string, any>, narrative: string) {
   return repairPersonAExtraction({ extraction, narrative });
+}
+
+function expectValid(extraction: Record<string, any>, narrative: string) {
+  const validation = validatePersonAExtraction(extraction, narrative);
+  expect(
+    [...validation.schemaErrors, ...validation.invariantErrors],
+    JSON.stringify(validation, null, 2),
+  ).toEqual([]);
+}
+
+function replaceLinkedObjectId(value: unknown, replacedIds: string[], replacementId: string): void {
+  if (Array.isArray(value)) {
+    value.forEach((entry) => replaceLinkedObjectId(entry, replacedIds, replacementId));
+    return;
+  }
+  if (!value || typeof value !== 'object') return;
+  for (const [field, child] of Object.entries(value as Record<string, any>)) {
+    if (
+      ['affected_object_ids', 'linked_object_ids'].includes(field) &&
+      Array.isArray(child) &&
+      child.some((item) => replacedIds.includes(item))
+    ) {
+      (value as Record<string, any>)[field] = [
+        ...new Set([...child.filter((item) => !replacedIds.includes(item)), replacementId]),
+      ];
+      continue;
+    }
+    replaceLinkedObjectId(child, replacedIds, replacementId);
+  }
+}
+
+function aggregateDeliverableFixture() {
+  const { extraction, narrative } = fixture();
+  extraction.deliverable_assessments = extraction.deliverable_assessments.filter(
+    (item: Record<string, any>) => !['del_homepage', 'del_about'].includes(item.deliverable_id),
+  );
+  const quote =
+    'The original job was a homepage, about page, services page, contact page, and mobile-responsive layout, with two revision rounds.';
+  const start = narrative.indexOf(quote);
+  const claim = extraction.claims.find((item: Record<string, any>) => item.claim_id === 'cl_a_004');
+  claim.claim_text =
+    'The original job expressly listed a homepage, about page, services page, contact page, and mobile-responsive layout.';
+  claim.source_spans = [
+    {
+      submission_id: 'sub_a_extracted',
+      quote,
+      start_char: start,
+      end_char: start + quote.length,
+    },
+  ];
+  extraction.deliverable_assessments.push({
+    ...structuredClone(extraction.deliverable_assessments[0]),
+    deliverable_id: 'del_aggregate_pages',
+    name: 'Homepage and About page',
+    source_claim_ids: ['cl_a_004'],
+  });
+  replaceLinkedObjectId(extraction, ['del_homepage', 'del_about'], 'del_aggregate_pages');
+  return { extraction, narrative };
+}
+
+function aggregateEvidenceFixture() {
+  const { extraction, narrative } = fixture();
+  const claim = extraction.claims.find((item: Record<string, any>) => item.claim_id === 'cl_a_008');
+  const aggregate = {
+    ...structuredClone(
+      extraction.evidence.find((item: Record<string, any>) => item.evidence_id === 'ev_007'),
+    ),
+    evidence_id: 'ev_aggregate_use',
+    title: 'Social media posts and website publication',
+    description_from_submitter:
+      'Person A described social media posts and part of the site being briefly published.',
+  };
+  extraction.evidence.push(aggregate);
+  claim.supporting_evidence_ids.push(aggregate.evidence_id);
+  extraction.claim_evidence_links.push({
+    ...structuredClone(
+      extraction.claim_evidence_links.find(
+        (item: Record<string, any>) => item.link_id === 'ce_007',
+      ),
+    ),
+    link_id: 'ce_aggregate_use',
+    evidence_id: aggregate.evidence_id,
+  });
+  return { extraction, narrative };
 }
 
 function publicationExtraFixture() {
@@ -208,28 +293,11 @@ describe('deterministic Person A record repair', () => {
   });
 
   it('splits separately named deliverables with exact shared grounding', () => {
-    const { extraction, narrative } = fixture();
-    extraction.deliverable_assessments = extraction.deliverable_assessments.filter(
-      (item: Record<string, any>) => !['del_homepage', 'del_about'].includes(item.deliverable_id),
-    );
-    const quote =
-      'The original job was a homepage, about page, services page, contact page, and mobile-responsive layout, with two revision rounds.';
-    const start = narrative.indexOf(quote);
-    extraction.deliverable_assessments.push({
-      ...structuredClone(extraction.deliverable_assessments[0]),
-      deliverable_id: 'del_aggregate_pages',
-      name: 'Homepage and About page',
-      source_spans: [
-        {
-          submission_id: 'sub_a_extracted',
-          quote,
-          start_char: start,
-          end_char: start + quote.length,
-        },
-      ],
-    });
+    const { extraction, narrative } = aggregateDeliverableFixture();
+    expectValid(extraction, narrative);
 
     const result = repair(extraction, narrative);
+    expectValid(result.repaired_extraction, narrative);
     const names = result.repaired_extraction.deliverable_assessments.map(
       (item: Record<string, any>) => item.name,
     );
@@ -240,43 +308,37 @@ describe('deterministic Person A record repair', () => {
   });
 
   it('does not split an aggregate without explicit enumeration', () => {
-    const { extraction, narrative } = fixture();
-    const quote = 'I sent what I considered a complete staging version on June 3.';
-    const start = narrative.indexOf(quote);
-    extraction.deliverable_assessments.push({
-      ...structuredClone(extraction.deliverable_assessments[0]),
-      deliverable_id: 'del_unsupported_aggregate',
-      name: 'Homepage and About page',
-      source_spans: [
-        {
-          submission_id: 'sub_a_extracted',
-          quote,
-          start_char: start,
-          end_char: start + quote.length,
-        },
-      ],
-    });
+    const { extraction, narrative } = aggregateDeliverableFixture();
+    const aggregate = extraction.deliverable_assessments.find(
+      (item: Record<string, any>) => item.deliverable_id === 'del_aggregate_pages',
+    );
+    aggregate.source_claim_ids = [];
+    expectValid(extraction, narrative);
 
     const result = repair(extraction, narrative);
 
     expect(result.rejected_repairs).toContainEqual(
       expect.objectContaining({
-        target_object_id: 'del_unsupported_aggregate',
-        rejection_reason: 'explicit_enumeration_missing',
+        target_object_id: 'del_aggregate_pages',
+        rejection_reason: 'claim_grounding_missing',
       }),
     );
   });
 
-  it('splits distinct evidence artifacts without changing availability state', () => {
-    const { extraction, narrative } = fixture();
+  it('rejects ambiguous deliverable claim grounding', () => {
+    const { extraction, narrative } = aggregateDeliverableFixture();
+    const aggregate = extraction.deliverable_assessments.find(
+      (item: Record<string, any>) => item.deliverable_id === 'del_aggregate_pages',
+    );
     const quote =
-      'Maya also used images from the website in social media posts, and I believe at least part of the site was briefly published, although I cannot prove exactly what was live or for how long.';
+      'During the project Maya also asked for a pricing comparison section, a newsletter signup, and several changes to the homepage design.';
     const start = narrative.indexOf(quote);
-    extraction.evidence.push({
-      ...structuredClone(extraction.evidence[0]),
-      evidence_id: 'ev_aggregate_use',
-      title: 'Social posts and website publication',
-      availability_status: 'described_only',
+    extraction.claims.push({
+      ...structuredClone(
+        extraction.claims.find((item: Record<string, any>) => item.claim_id === 'cl_a_004'),
+      ),
+      claim_id: 'cl_ambiguous_deliverables',
+      claim_text: 'The later requests included a pricing comparison section and newsletter signup.',
       source_spans: [
         {
           submission_id: 'sub_a_extracted',
@@ -286,8 +348,25 @@ describe('deterministic Person A record repair', () => {
         },
       ],
     });
+    aggregate.source_claim_ids.push('cl_ambiguous_deliverables');
+    expectValid(extraction, narrative);
 
     const result = repair(extraction, narrative);
+
+    expect(result.rejected_repairs).toContainEqual(
+      expect.objectContaining({
+        target_object_id: 'del_aggregate_pages',
+        rejection_reason: 'ambiguous_claim_grounding',
+      }),
+    );
+  });
+
+  it('splits distinct evidence artifacts without changing availability state', () => {
+    const { extraction, narrative } = aggregateEvidenceFixture();
+    expectValid(extraction, narrative);
+
+    const result = repair(extraction, narrative);
+    expectValid(result.repaired_extraction, narrative);
     const split = result.repaired_extraction.evidence.filter((item: Record<string, any>) =>
       String(item.evidence_id).startsWith('repair_evidence_'),
     );
@@ -297,27 +376,50 @@ describe('deterministic Person A record repair', () => {
       split.every((item: Record<string, any>) => item.availability_status === 'described_only'),
     ).toBe(true);
     expect(split.every((item: Record<string, any>) => item.inspected_at === null)).toBe(true);
+    expect(split.map((item: Record<string, any>) => item.title).sort()).toEqual([
+      'part of the site was briefly published',
+      'social media posts',
+    ]);
+  });
+
+  it('rejects evidence splitting without a typed claim link', () => {
+    const { extraction, narrative } = aggregateEvidenceFixture();
+    extraction.claim_evidence_links = extraction.claim_evidence_links.filter(
+      (item: Record<string, any>) => item.evidence_id !== 'ev_aggregate_use',
+    );
+    expectValid(extraction, narrative);
+
+    const result = repair(extraction, narrative);
+
+    expect(result.rejected_repairs).toContainEqual(
+      expect.objectContaining({
+        target_object_id: 'ev_aggregate_use',
+        rejection_reason: 'claim_grounding_missing',
+      }),
+    );
+  });
+
+  it('rejects evidence splitting when its linked claim span is malformed', () => {
+    const { extraction, narrative } = aggregateEvidenceFixture();
+    const claim = extraction.claims.find(
+      (item: Record<string, any>) => item.claim_id === 'cl_a_008',
+    );
+    claim.source_spans[0].end_char += 1;
+    expect(validatePersonAExtraction(extraction, narrative).valid).toBe(false);
+
+    const result = repair(extraction, narrative);
+
+    expect(result.rejected_repairs).toContainEqual(
+      expect.objectContaining({
+        target_object_id: 'ev_aggregate_use',
+        rejection_reason: 'source_spans_missing_or_invalid',
+      }),
+    );
   });
 
   it('never fabricates filenames while splitting evidence', () => {
-    const { extraction, narrative } = fixture();
-    const quote =
-      'Maya also used images from the website in social media posts, and I believe at least part of the site was briefly published, although I cannot prove exactly what was live or for how long.';
-    const start = narrative.indexOf(quote);
-    extraction.evidence.push({
-      ...structuredClone(extraction.evidence[0]),
-      evidence_id: 'ev_aggregate_no_filename',
-      title: 'Social posts and website publication',
-      original_filename: 'aggregate.zip',
-      source_spans: [
-        {
-          submission_id: 'sub_a_extracted',
-          quote,
-          start_char: start,
-          end_char: start + quote.length,
-        },
-      ],
-    });
+    const { extraction, narrative } = aggregateEvidenceFixture();
+    expectValid(extraction, narrative);
 
     const result = repair(extraction, narrative);
     const split = result.repaired_extraction.evidence.filter((item: Record<string, any>) =>

@@ -5,10 +5,13 @@ import { alignPersonA } from '../alignment/person-a-alignment-corrected.js';
 import { evaluatePersonA, reportMarkdown } from '../evaluation/person-a-diff-corrected.js';
 import { buildPersonAGoldenProjection } from '../evaluation/person-a-golden.js';
 import { extractPersonA } from '../extraction/person-a-extractor.js';
-import { OpenAIResponsesClient } from '../extraction/openai-responses.js';
+import {
+  OpenAIResponsesClient,
+  type StructuredExtractionClient,
+} from '../extraction/openai-responses.js';
 import { validatePersonAExtraction } from '../extraction/validate-person-a-corrected.js';
 
-type Args = {
+export type ExtractPersonACommandArgs = {
   input: string;
   submittedAt: string;
   model: string;
@@ -20,19 +23,32 @@ type Args = {
 const currentFile = fileURLToPath(import.meta.url);
 const projectRoot = resolve(currentFile, '../../..');
 
-function parseArgs(argv: string[]): Args {
+export function parseExtractPersonAArgs(argv: string[]): ExtractPersonACommandArgs {
+  const valueOptions = new Set(['input', 'submitted-at', 'model', 'output-dir', 'extraction']);
+  const flagOptions = new Set(['fail-on-critical']);
   const values = new Map<string, string>();
   const flags = new Set<string>();
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
-    if (!token?.startsWith('--')) continue;
-    const name = token.slice(2);
-    const next = argv[index + 1];
-    if (!next || next.startsWith('--')) flags.add(name);
-    else {
-      values.set(name, next);
-      index += 1;
+    if (!token?.startsWith('--')) {
+      throw new TypeError(`Unexpected positional or short argument: ${String(token)}`);
     }
+    const name = token.slice(2);
+    if (flagOptions.has(name)) {
+      if (flags.has(name)) throw new TypeError(`Duplicate option: --${name}`);
+      const next = argv[index + 1];
+      if (next !== undefined && !next.startsWith('-')) {
+        throw new TypeError(`Boolean flag --${name} does not accept a value`);
+      }
+      flags.add(name);
+      continue;
+    }
+    if (!valueOptions.has(name)) throw new TypeError(`Unknown option: --${name}`);
+    if (values.has(name)) throw new TypeError(`Duplicate option: --${name}`);
+    const next = argv[index + 1];
+    if (!next || next.startsWith('-')) throw new TypeError(`Missing value for --${name}`);
+    values.set(name, next);
+    index += 1;
   }
   return {
     input: resolve(projectRoot, values.get('input') ?? 'src/fixtures/dry_run_001.person_a.txt'),
@@ -46,24 +62,49 @@ function parseArgs(argv: string[]): Args {
   };
 }
 
-async function main(): Promise<void> {
-  const args = parseArgs(process.argv.slice(2));
+export type ExtractPersonACommandDependencies = {
+  getEnvironment: (name: string) => string | undefined;
+  createClient: (apiKey: string, baseUrl?: string) => StructuredExtractionClient;
+  extract: typeof extractPersonA;
+};
+
+const defaultDependencies: ExtractPersonACommandDependencies = {
+  getEnvironment: (name) => process.env[name],
+  createClient: (apiKey, baseUrl) => new OpenAIResponsesClient(apiKey, baseUrl),
+  extract: extractPersonA,
+};
+
+export async function runExtractPersonACommand(
+  argv: string[],
+  dependencies: ExtractPersonACommandDependencies = defaultDependencies,
+): Promise<void> {
+  const args = parseExtractPersonAArgs(argv);
   const narrative = await readFile(args.input, 'utf8');
+  const configuredReasoning = dependencies.getEnvironment('JURYAI_REASONING_EFFORT');
+  if (
+    configuredReasoning !== undefined &&
+    !['low', 'medium', 'high'].includes(configuredReasoning)
+  ) {
+    throw new TypeError('JURYAI_REASONING_EFFORT must be low, medium, or high');
+  }
   const reasoningEffort =
-    (process.env.JURYAI_REASONING_EFFORT as 'low' | 'medium' | 'high' | undefined) ?? 'medium';
+    (configuredReasoning as 'low' | 'medium' | 'high' | undefined) ?? 'medium';
   let extraction: Record<string, any>;
   let rawResponse: Record<string, any> | null = null;
 
   if (args.extraction) {
     extraction = JSON.parse(await readFile(args.extraction, 'utf8')) as Record<string, any>;
   } else {
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = dependencies.getEnvironment('OPENAI_API_KEY');
     if (!apiKey)
       throw new Error(
         'OPENAI_API_KEY is required for live extraction. Use --extraction <file.json> to evaluate an existing output without an API call.',
       );
-    const client = new OpenAIResponsesClient(apiKey, process.env.OPENAI_BASE_URL);
-    const result = await extractPersonA({
+    const client = dependencies.createClient(
+      apiKey,
+      dependencies.getEnvironment('OPENAI_BASE_URL'),
+    );
+    const result = await dependencies.extract({
       narrative,
       submittedAt: args.submittedAt,
       model: args.model,
@@ -130,9 +171,11 @@ async function main(): Promise<void> {
   if (args.failOnCritical && report.summary.critical > 0) process.exitCode = 2;
 }
 
-try {
-  await main();
-} catch (error) {
-  console.error(error instanceof Error ? (error.stack ?? error.message) : String(error));
-  process.exitCode = 1;
+if (process.argv[1] && resolve(process.argv[1]) === currentFile) {
+  try {
+    await runExtractPersonACommand(process.argv.slice(2));
+  } catch (error) {
+    console.error(error instanceof Error ? (error.stack ?? error.message) : String(error));
+    process.exitCode = 1;
+  }
 }

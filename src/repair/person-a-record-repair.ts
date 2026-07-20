@@ -53,10 +53,10 @@ const deliverableNames = [
 ] as const;
 
 const evidenceNames = [
-  { phrase: 'social media posts', title: 'Social media posts using website images' },
-  { phrase: 'part of the site was briefly published', title: 'Brief website publication' },
-  { phrase: 'signed agreement', title: 'Signed project agreement' },
-  { phrase: 'list of changes', title: 'Post-staging list of requested changes' },
+  'social media posts',
+  'part of the site was briefly published',
+  'signed agreement',
+  'list of changes',
 ] as const;
 
 function isRecord(value: unknown): value is JsonObject {
@@ -104,20 +104,6 @@ function exactSpans(item: JsonObject, narrative: string): JsonObject[] | null {
   return spans;
 }
 
-function sameSpan(left: JsonObject, right: JsonObject): boolean {
-  const leftSpans = Array.isArray(left.source_spans) ? left.source_spans : [];
-  const rightSpans = Array.isArray(right.source_spans) ? right.source_spans : [];
-  return leftSpans.some((a: JsonObject) =>
-    rightSpans.some(
-      (b: JsonObject) =>
-        a.submission_id === b.submission_id &&
-        a.start_char === b.start_char &&
-        a.end_char === b.end_char &&
-        a.quote === b.quote,
-    ),
-  );
-}
-
 function includesAll(value: unknown, terms: string[]): boolean {
   if (typeof value !== 'string') return false;
   const normalized = value.toLowerCase();
@@ -132,6 +118,102 @@ function partyAActor(extraction: JsonObject, quote: string): boolean {
       displayName.length > 0 &&
       quote.toLowerCase().includes(displayName.toLowerCase()))
   );
+}
+
+type ClaimGrounding<T extends string> =
+  | { status: 'grounded'; names: T[]; spans: JsonObject[] }
+  | {
+      status: 'rejected';
+      reason:
+        | 'ambiguous_claim_grounding'
+        | 'claim_grounding_missing'
+        | 'explicit_enumeration_missing'
+        | 'source_spans_missing_or_invalid';
+    };
+
+function groundedEnumeration<T extends string>(
+  claimIds: unknown,
+  claims: JsonObject[],
+  narrative: string,
+  names: readonly T[],
+): ClaimGrounding<T> {
+  if (!Array.isArray(claimIds) || claimIds.length === 0) {
+    return { status: 'rejected', reason: 'claim_grounding_missing' };
+  }
+  const candidates: Array<{ names: T[]; spans: JsonObject[] }> = [];
+  for (const claimId of [...new Set(claimIds)].sort()) {
+    const claim = claims.find((item) => item.claim_id === claimId);
+    if (!claim) return { status: 'rejected', reason: 'claim_grounding_missing' };
+    const spans = exactSpans(claim, narrative);
+    if (!spans) return { status: 'rejected', reason: 'source_spans_missing_or_invalid' };
+    const quote = spans
+      .map((span) => span.quote)
+      .join(' ')
+      .toLowerCase();
+    const found = names.filter((name) => quote.includes(name.toLowerCase()));
+    if (found.length >= 2) candidates.push({ names: found, spans });
+  }
+  if (candidates.length === 0) {
+    return { status: 'rejected', reason: 'explicit_enumeration_missing' };
+  }
+  const signatures = new Set(
+    candidates.map((candidate) =>
+      [...candidate.names]
+        .map((name) => name.toLowerCase())
+        .sort(lexicalCompare)
+        .join('|'),
+    ),
+  );
+  if (signatures.size !== 1) {
+    return { status: 'rejected', reason: 'ambiguous_claim_grounding' };
+  }
+  const spans = candidates
+    .flatMap((candidate) => candidate.spans)
+    .filter(
+      (span, index, all) =>
+        all.findIndex(
+          (candidate) =>
+            candidate.submission_id === span.submission_id &&
+            candidate.start_char === span.start_char &&
+            candidate.end_char === span.end_char &&
+            candidate.quote === span.quote,
+        ) === index,
+    )
+    .sort(
+      (left, right) =>
+        Number(left.start_char) - Number(right.start_char) ||
+        Number(left.end_char) - Number(right.end_char),
+    );
+  return { status: 'grounded', names: candidates[0]!.names, spans };
+}
+
+function expandReferenceArrays(
+  value: unknown,
+  fields: Set<string>,
+  replacedId: string,
+  replacementIds: string[],
+  preserveOriginal: boolean,
+): void {
+  if (Array.isArray(value)) {
+    value.forEach((entry) =>
+      expandReferenceArrays(entry, fields, replacedId, replacementIds, preserveOriginal),
+    );
+    return;
+  }
+  if (!isRecord(value)) return;
+  for (const [field, child] of Object.entries(value)) {
+    if (fields.has(field) && Array.isArray(child) && child.includes(replacedId)) {
+      value[field] = [
+        ...new Set([
+          ...child.filter((item) => item !== replacedId),
+          ...(preserveOriginal ? [replacedId] : []),
+          ...replacementIds,
+        ]),
+      ].sort(lexicalCompare);
+      continue;
+    }
+    expandReferenceArrays(child, fields, replacedId, replacementIds, preserveOriginal);
+  }
 }
 
 export function repairPersonAExtraction(options: {
@@ -439,17 +521,18 @@ export function repairPersonAExtraction(options: {
     );
   }
 
-  // Rule D: split only aggregate deliverables whose exact quote enumerates known items.
+  // Rule D: split only aggregates tied to claims whose exact spans enumerate the items.
   for (const aggregate of [...deliverables].sort((a, b) =>
     lexicalCompare(identifier(a.deliverable_id), identifier(b.deliverable_id)),
   )) {
-    const spans = exactSpans(aggregate, options.narrative);
-    if (!spans || !/[,&/]|\band\b/iu.test(String(aggregate.name ?? ''))) continue;
-    const quote = spans.map((span) => span.quote).join(' ');
-    const named = deliverableNames.filter((name) =>
-      quote.toLowerCase().includes(name.toLowerCase()),
+    if (!/[,&/]|\band\b/iu.test(String(aggregate.name ?? ''))) continue;
+    const grounding = groundedEnumeration(
+      aggregate.source_claim_ids,
+      claims,
+      options.narrative,
+      deliverableNames,
     );
-    if (named.length < 2) {
+    if (grounding.status === 'rejected') {
       record(
         'separate_named_deliverables',
         'deliverables',
@@ -457,86 +540,141 @@ export function repairPersonAExtraction(options: {
         'split',
         aggregate,
         null,
-        spans,
-        'The source does not explicitly enumerate at least two recognized deliverables.',
+        [],
+        'A deliverable split requires one unambiguous set of items enumerated in exact source-grounded claims.',
         'rejected',
-        'explicit_enumeration_missing',
+        grounding.reason,
       );
       continue;
     }
-    const created = named.flatMap((name) => {
-      if (
-        deliverables.some(
-          (item) =>
-            String(item.name ?? '').toLowerCase() === name.toLowerCase() && item !== aggregate,
-        )
-      ) {
-        return [];
+    const replacements: JsonObject[] = [];
+    const created: JsonObject[] = [];
+    for (const name of grounding.names) {
+      const existing = deliverables.find(
+        (item) =>
+          String(item.name ?? '').toLowerCase() === name.toLowerCase() && item !== aggregate,
+      );
+      if (existing) {
+        replacements.push(existing);
+        continue;
       }
-      return [
-        {
-          ...structuredClone(aggregate),
-          deliverable_id: `repair_deliverable_${slug(name)}`,
-          name,
-          source_spans: spans,
-        },
-      ];
-    });
-    if (created.length === 0) continue;
+      const replacement = {
+        ...structuredClone(aggregate),
+        deliverable_id: `repair_deliverable_${slug(name)}`,
+        name,
+      };
+      replacements.push(replacement);
+      created.push(replacement);
+    }
+    if (replacements.length < 2) continue;
     const independent = /\b(?:package|project|website|site)\b/iu.test(String(aggregate.name ?? ''));
     deliverables.push(...created);
     if (!independent) {
       const index = deliverables.indexOf(aggregate);
       if (index >= 0) deliverables.splice(index, 1);
     }
+    expandReferenceArrays(
+      repaired,
+      new Set(['affected_object_ids', 'linked_object_ids']),
+      identifier(aggregate.deliverable_id),
+      replacements.map((item) => identifier(item.deliverable_id)),
+      independent,
+    );
     record(
       'separate_named_deliverables',
       'deliverables',
       identifier(aggregate.deliverable_id),
       'split',
       aggregate,
-      created,
-      spans,
-      'Splits only deliverables explicitly enumerated in the exact source quote.',
+      replacements,
+      grounding.spans,
+      'Splits only deliverables enumerated in exact spans on their schema-valid source claims.',
       'applied',
     );
   }
 
-  // Rule E: split separately named artifacts without changing evidence state or filenames.
+  // Rule E: split only evidence tied by typed links to claims that enumerate the artifacts.
   for (const aggregate of [...evidence].sort((a, b) =>
     lexicalCompare(identifier(a.evidence_id), identifier(b.evidence_id)),
   )) {
-    const spans = exactSpans(aggregate, options.narrative);
-    if (!spans) continue;
-    const quote = spans.map((span) => span.quote).join(' ');
-    const named = evidenceNames.filter((item) =>
-      quote.toLowerCase().includes(item.phrase.toLowerCase()),
+    if (!/[,&/]|\band\b/iu.test(String(aggregate.title ?? ''))) continue;
+    const aggregateLinks = links.filter((link) => link.evidence_id === aggregate.evidence_id);
+    const grounding = groundedEnumeration(
+      aggregateLinks.map((link) => link.claim_id),
+      claims,
+      options.narrative,
+      evidenceNames,
     );
-    if (named.length < 2) continue;
-    const created = named.flatMap((item) => {
-      if (
-        evidence.some(
-          (existing) =>
-            String(existing.title ?? '').toLowerCase() === item.title.toLowerCase() &&
-            existing !== aggregate,
-        )
-      ) {
-        return [];
+    if (grounding.status === 'rejected') {
+      record(
+        'separate_named_evidence',
+        'evidence',
+        identifier(aggregate.evidence_id),
+        'split',
+        aggregate,
+        null,
+        [],
+        'An evidence split requires typed claim links to one unambiguous exact enumeration.',
+        'rejected',
+        grounding.reason,
+      );
+      continue;
+    }
+    if (!['described_only', 'unavailable'].includes(aggregate.availability_status)) {
+      record(
+        'separate_named_evidence',
+        'evidence',
+        identifier(aggregate.evidence_id),
+        'split',
+        aggregate,
+        null,
+        grounding.spans,
+        'Splitting inspected or uploaded evidence could misstate artifact identity or inspection state.',
+        'rejected',
+        'evidence_state_not_splittable',
+      );
+      continue;
+    }
+    if (Array.isArray(aggregate.extracts) && aggregate.extracts.length > 0) {
+      record(
+        'separate_named_evidence',
+        'evidence',
+        identifier(aggregate.evidence_id),
+        'split',
+        aggregate,
+        null,
+        grounding.spans,
+        'Evidence with artifact-specific extracts cannot be partitioned without inference.',
+        'rejected',
+        'evidence_content_not_splittable',
+      );
+      continue;
+    }
+    const replacements: JsonObject[] = [];
+    const created: JsonObject[] = [];
+    for (const title of grounding.names) {
+      const existing = evidence.find(
+        (item) =>
+          String(item.title ?? '').toLowerCase() === title.toLowerCase() && item !== aggregate,
+      );
+      if (existing) {
+        replacements.push(existing);
+        continue;
       }
       const cloned = structuredClone(aggregate);
-      delete cloned.source_spans;
-      return [
-        {
-          ...cloned,
-          evidence_id: `repair_evidence_${slug(item.title)}`,
-          title: item.title,
-          file_reference: null,
-          original_filename: null,
-          file_hash: null,
-        },
-      ];
-    });
-    if (created.length === 0) continue;
+      const replacement = {
+        ...cloned,
+        evidence_id: `repair_evidence_${slug(title)}`,
+        title,
+        description_from_submitter: title,
+        file_reference: null,
+        original_filename: null,
+        file_hash: null,
+      };
+      replacements.push(replacement);
+      created.push(replacement);
+    }
+    if (replacements.length < 2) continue;
     evidence.push(...created);
     const independent = /\b(?:collection|bundle|archive|history)\b/iu.test(
       String(aggregate.title ?? ''),
@@ -545,15 +683,44 @@ export function repairPersonAExtraction(options: {
       const index = evidence.indexOf(aggregate);
       if (index >= 0) evidence.splice(index, 1);
     }
+    const replacementIds = replacements.map((item) => identifier(item.evidence_id));
+    expandReferenceArrays(
+      repaired,
+      new Set([
+        'affected_object_ids',
+        'contradicting_evidence_ids',
+        'linked_object_ids',
+        'source_evidence_ids',
+        'supporting_evidence_ids',
+      ]),
+      identifier(aggregate.evidence_id),
+      replacementIds,
+      independent,
+    );
+    const replacementLinks = aggregateLinks.flatMap((link) =>
+      replacements.map((item) => ({
+        ...structuredClone(link),
+        link_id: `repair_${slug(identifier(link.link_id)).slice(0, 20)}_${slug(
+          identifier(item.evidence_id),
+        ).slice(0, 35)}`,
+        evidence_id: item.evidence_id,
+      })),
+    );
+    links.push(...replacementLinks);
+    if (!independent) {
+      for (let index = links.length - 1; index >= 0; index -= 1) {
+        if (aggregateLinks.includes(links[index]!)) links.splice(index, 1);
+      }
+    }
     record(
       'separate_named_evidence',
       'evidence',
       identifier(aggregate.evidence_id),
       'split',
       aggregate,
-      created,
-      spans,
-      'Splits exact separately named artifacts while preserving availability and inspection state.',
+      replacements,
+      grounding.spans,
+      'Splits only artifacts enumerated in exact spans on claims connected by typed evidence links.',
       'applied',
     );
   }
@@ -600,6 +767,9 @@ export function repairPersonAExtraction(options: {
   repaired.timeline = timeline;
   repaired.evidence = evidence.sort((a, b) =>
     lexicalCompare(identifier(a.evidence_id), identifier(b.evidence_id)),
+  );
+  repaired.claim_evidence_links = links.sort((a, b) =>
+    lexicalCompare(identifier(a.link_id), identifier(b.link_id)),
   );
   repaired.deliverable_assessments = deliverables.sort((a, b) =>
     lexicalCompare(identifier(a.deliverable_id), identifier(b.deliverable_id)),
