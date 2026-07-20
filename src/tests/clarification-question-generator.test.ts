@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest';
+import { alignPersonA } from '../alignment/person-a-alignment-corrected.js';
+import { buildPersonAAssessmentResult } from '../clarification/build-assessments.js';
 import {
   generateClarificationQuestions,
   projectAmendments,
   type ClarificationAmendment,
   type EpistemicAssessment,
 } from '../clarification/question-generator.js';
+import { evaluatePersonA } from '../evaluation/person-a-diff-corrected.js';
+import { buildPersonAGoldenProjection } from '../evaluation/person-a-golden.js';
+import { validPersonAExtraction } from './person-a-test-helpers.js';
 
 const assessment = (overrides: Partial<EpistemicAssessment> = {}): EpistemicAssessment => ({
   target_object_id: 'event_001',
@@ -36,6 +41,38 @@ const amendment = (overrides: Partial<ClarificationAmendment> = {}): Clarificati
   supersedes: null,
   ...overrides,
 });
+
+function adapterFixture() {
+  const extraction = validPersonAExtraction();
+  const golden = buildPersonAGoldenProjection();
+  const alignment = alignPersonA(extraction, golden);
+  const report = evaluatePersonA(extraction, golden, alignment);
+  return { extraction, alignment, report };
+}
+
+function addReportError(
+  report: ReturnType<typeof adapterFixture>['report'],
+  error: {
+    severity: 'critical' | 'major' | 'minor';
+    family:
+      | 'agreement_terms'
+      | 'deliverables'
+      | 'timeline'
+      | 'claims'
+      | 'evidence'
+      | 'damages'
+      | 'outcomes'
+      | 'third_parties'
+      | 'extraction_issues'
+      | 'clarification_questions';
+    code: string;
+    message: string;
+    extracted_id?: string;
+    golden_id?: string;
+  },
+): void {
+  report.errors.push(error);
+}
 
 describe('deterministic clarification question generation', () => {
   it('asks contextual questions for unstated and inferred actors', () => {
@@ -367,6 +404,252 @@ describe('deterministic clarification question generation', () => {
       'post_lock',
     );
     expect(amendment().phase).toBe('post_lock_amendment');
+  });
+});
+
+describe('Person A artifact assessment adapter', () => {
+  it('generates no more than six questions from an oversized assessment set', () => {
+    const { extraction, alignment, report } = adapterFixture();
+    for (const event of extraction.timeline) {
+      addReportError(report, {
+        severity: 'major',
+        family: 'timeline',
+        code: 'actor_specificity',
+        message: 'Timeline actor specificity differs.',
+        extracted_id: event.event_id,
+      });
+    }
+    const result = buildPersonAAssessmentResult(extraction, report, alignment);
+    expect(generateClarificationQuestions(result.assessments)).toHaveLength(6);
+  });
+
+  it('never turns internal bookkeeping into a generated question', () => {
+    const { extraction, alignment, report } = adapterFixture();
+    const claim = extraction.claims[0];
+    addReportError(report, {
+      severity: 'major',
+      family: 'claims',
+      code: 'generated_id_difference',
+      message: 'Generated IDs differ.',
+      extracted_id: claim.claim_id,
+    });
+    const result = buildPersonAAssessmentResult(extraction, report, alignment);
+    const internal = result.assessments.find(
+      (item) =>
+        item.target_object_id === claim.claim_id && item.trigger === 'internal_representation',
+    );
+    expect(internal).toBeTruthy();
+    expect(result.excluded_internal_issues).toContainEqual(
+      expect.objectContaining({ code: 'generated_id_difference' }),
+    );
+    expect(
+      generateClarificationQuestions(result.assessments).some(
+        (question) => question.target_object_id === claim.claim_id,
+      ),
+    ).toBe(false);
+  });
+
+  it('turns genuine actor uncertainty into a grounded contextual question', () => {
+    const { extraction, alignment, report } = adapterFixture();
+    const pair = alignment.families.timeline.pairs[0]!;
+    const event = extraction.timeline[pair.extracted_index];
+    addReportError(report, {
+      severity: 'major',
+      family: 'timeline',
+      code: 'actor_specificity',
+      message: 'Timeline actor specificity differs.',
+      extracted_id: pair.extracted_id,
+      golden_id: pair.golden_id,
+    });
+    const result = buildPersonAAssessmentResult(extraction, report, alignment);
+    const actor = result.assessments.find(
+      (item) => item.target_object_id === event.event_id && item.trigger === 'actor_attribution',
+    )!;
+    const questions = generateClarificationQuestions([actor]);
+    expect(actor.question_context).toBe(event.source_spans[0].quote);
+    expect(questions[0]).toMatchObject({
+      target_object_id: event.event_id,
+      trigger: 'actor_attribution',
+    });
+  });
+
+  it('turns inferred causation into a grounded question', () => {
+    const { extraction, alignment, report } = adapterFixture();
+    const damages = extraction.damages_claims[0];
+    const pair = alignment.families.damages.pairs[0]!;
+    addReportError(report, {
+      severity: 'major',
+      family: 'damages',
+      code: 'causal_theory',
+      message: 'Damages causal theory differs.',
+      extracted_id: pair.extracted_id,
+      golden_id: pair.golden_id,
+    });
+    const result = buildPersonAAssessmentResult(extraction, report, alignment);
+    const causal = result.assessments.find(
+      (item) =>
+        item.target_object_id === damages.damages_claim_id && item.trigger === 'causal_link',
+    )!;
+    expect(causal.question_context).toBe(damages.causal_theory.replace(/\.$/u, ''));
+    expect(generateClarificationQuestions([causal])[0]!.trigger).toBe('causal_link');
+  });
+
+  it('asks about described evidence possession with its extracted title', () => {
+    const { extraction, alignment, report } = adapterFixture();
+    const evidence = extraction.evidence[0];
+    evidence.availability_status = 'described_only';
+    const result = buildPersonAAssessmentResult(extraction, report, alignment);
+    const availability = result.assessments.find(
+      (item) =>
+        item.target_object_id === evidence.evidence_id && item.trigger === 'evidence_availability',
+    )!;
+    expect(availability.question_context).toBe(evidence.title);
+    expect(generateClarificationQuestions([availability])[0]!.question).toContain(evidence.title);
+  });
+
+  it('does not ask a possession question for unavailable evidence', () => {
+    const { extraction, alignment, report } = adapterFixture();
+    const evidence = extraction.evidence[0];
+    evidence.availability_status = 'unavailable';
+    const result = buildPersonAAssessmentResult(extraction, report, alignment);
+    const availability = result.assessments.find(
+      (item) =>
+        item.target_object_id === evidence.evidence_id && item.trigger === 'evidence_availability',
+    )!;
+    expect(availability.evidence_availability).toBe('unavailable');
+    expect(generateClarificationQuestions([availability])).toEqual([]);
+  });
+
+  it('turns a reported split risk into a contextual question', () => {
+    const { extraction, alignment, report } = adapterFixture();
+    const claim = extraction.claims[0];
+    addReportError(report, {
+      severity: 'major',
+      family: 'claims',
+      code: 'granularity_split',
+      message: 'The claim may split one source-grounded object.',
+      extracted_id: claim.claim_id,
+    });
+    const result = buildPersonAAssessmentResult(extraction, report, alignment);
+    const mergeRisk = result.assessments.find(
+      (item) => item.target_object_id === claim.claim_id && item.trigger === 'merge_risk',
+    )!;
+    expect(mergeRisk).toMatchObject({ merge_risk: 'possible_split' });
+    expect(generateClarificationQuestions([mergeRisk])[0]!.question).toContain(
+      claim.source_spans[0].quote.slice(0, 80),
+    );
+  });
+
+  it('turns a material unknown date issue into one contextual question', () => {
+    const { extraction, alignment, report } = adapterFixture();
+    extraction.extraction_issues.push({
+      issue_id: 'issue_unknown_year',
+      issue_type: 'ambiguous_date',
+      severity: 'major',
+      description: 'The agreement month and day are stated, but the calendar year is unknown.',
+      affected_object_ids: [extraction.timeline[0].event_id],
+      resolution_status: 'clarification_requested',
+      source_spans: [],
+    });
+    const result = buildPersonAAssessmentResult(extraction, report, alignment);
+    const date = result.assessments.find(
+      (item) => item.target_object_id === 'issue_unknown_year' && item.trigger === 'date_precision',
+    )!;
+    expect(date.question_context).toBe(
+      'The agreement month and day are stated, but the calendar year is unknown',
+    );
+    expect(generateClarificationQuestions([date])).toHaveLength(1);
+  });
+
+  it('collapses duplicate report gaps deterministically', () => {
+    const { extraction, alignment, report } = adapterFixture();
+    const pair = alignment.families.timeline.pairs[0]!;
+    const error = {
+      severity: 'major' as const,
+      family: 'timeline' as const,
+      code: 'actor_specificity',
+      message: 'Timeline actor specificity differs.',
+      extracted_id: pair.extracted_id,
+      golden_id: pair.golden_id,
+    };
+    addReportError(report, error);
+    addReportError(report, { ...error });
+    const result = buildPersonAAssessmentResult(extraction, report, alignment);
+    expect(
+      result.assessments.filter(
+        (item) =>
+          item.target_object_id === pair.extracted_id && item.trigger === 'actor_attribution',
+      ),
+    ).toHaveLength(1);
+  });
+
+  it('produces stable assessments and questions across report input order', () => {
+    const fixture = adapterFixture();
+    const actorPair = fixture.alignment.families.timeline.pairs[0]!;
+    const damagePair = fixture.alignment.families.damages.pairs[0]!;
+    addReportError(fixture.report, {
+      severity: 'major',
+      family: 'timeline',
+      code: 'actor_specificity',
+      message: 'Timeline actor specificity differs.',
+      extracted_id: actorPair.extracted_id,
+      golden_id: actorPair.golden_id,
+    });
+    addReportError(fixture.report, {
+      severity: 'major',
+      family: 'damages',
+      code: 'causal_theory',
+      message: 'Damages causal theory differs.',
+      extracted_id: damagePair.extracted_id,
+      golden_id: damagePair.golden_id,
+    });
+    const forward = buildPersonAAssessmentResult(
+      fixture.extraction,
+      fixture.report,
+      fixture.alignment,
+    );
+    const reversedReport = structuredClone(fixture.report);
+    reversedReport.errors.reverse();
+    const reverse = buildPersonAAssessmentResult(
+      fixture.extraction,
+      reversedReport,
+      fixture.alignment,
+    );
+    expect(JSON.stringify(reverse)).toBe(JSON.stringify(forward));
+    expect(JSON.stringify(generateClarificationQuestions(reverse.assessments))).toBe(
+      JSON.stringify(generateClarificationQuestions(forward.assessments)),
+    );
+  });
+
+  it('fails closed for malformed reports and missing referenced objects', () => {
+    const { extraction, alignment, report } = adapterFixture();
+    expect(() => buildPersonAAssessmentResult(extraction, {}, alignment)).toThrow(
+      /report.version/u,
+    );
+
+    addReportError(report, {
+      severity: 'major',
+      family: 'claims',
+      code: 'claim_type',
+      message: 'Claim type differs.',
+      extracted_id: 'claim_does_not_exist',
+    });
+    expect(() => buildPersonAAssessmentResult(extraction, report, alignment)).toThrow(
+      /missing extracted object/u,
+    );
+
+    const second = adapterFixture();
+    addReportError(second.report, {
+      severity: 'major',
+      family: 'claims',
+      code: 'claim_type',
+      message: 'Claim type differs.',
+      extracted_id: second.extraction.claims[0].claim_id,
+      golden_id: 'golden_claim_does_not_exist',
+    });
+    expect(() =>
+      buildPersonAAssessmentResult(second.extraction, second.report, second.alignment),
+    ).toThrow(/missing golden object/u);
   });
 });
 

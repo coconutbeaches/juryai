@@ -7,6 +7,8 @@ export type Materiality = 'critical' | 'high' | 'medium' | 'low';
 export type ClarificationQuestionPhase = 'pre_lock' | 'post_lock';
 export type ClarificationAmendmentPhase = 'post_lock_amendment';
 
+export const CLARIFICATION_GENERATOR_VERSION = 'clarification-v0.1.0';
+
 export type ClarificationTriggerKind =
   | 'actor_attribution'
   | 'causal_link'
