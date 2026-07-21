@@ -69,9 +69,13 @@ are offline test/CLI fixtures, not the final production assessment engine.
 - Reject malformed or duplicate assessments and suppress context-free or ungrounded candidates.
 - Treat an assessment-provider batch atomically: one rejected item fails the whole assessment
   stage and no item in that response can produce a question.
-- Validate the provider batch container before mapping, cloning, or serializing it. It must be a
-  plain, dense JSON array with no expando, symbol, accessor, inherited-enumerable, or unusual
-  prototype state.
+- Inspect and snapshot the provider batch in one protected descriptor traversal before mapping,
+  cloning, or serializing anything. It must be a plain, dense JSON array with no expando, symbol,
+  accessor, inherited-enumerable, or unusual prototype state.
+- Never invoke provider-owned methods, iterators, getters, or ordinary index/property reads.
+  Protected own-key and descriptor captures must remain stable across two passes; inconsistent or
+  throwing Proxy traps fail closed. Recursive descriptor values are copied into a new plain JSON
+  tree, and every later stage operates only on that detached snapshot.
 - Reject cycles, accessors, unusual prototypes, symbols, functions, bigint, `undefined`, sparse or
   extended arrays, and non-finite numbers before JSON serialization. Traversal is cycle-aware,
   capped at 64 levels and 10,000 visited values, and returns a bounded audit description.
@@ -151,6 +155,9 @@ rule can turn an aggregate-split audit into a human question.
 - Sparse, extended, accessor-backed, symbol-keyed, cyclic, and oversized provider batch arrays
   fail atomically before iteration, and huge declared lengths are rejected before proportional
   allocation.
+- Throwing, changing, or revoked Proxy batches produce a bounded structured rejection. Valid Proxy
+  wrappers can be accepted only through stable descriptor snapshots; neither `map` nor numeric
+  index `get` traps are requested, and later provider mutation cannot change any result artifact.
 - Wrong-family trigger/field combinations fail the assessment batch atomically.
 - Golden/evaluation modules are absent from the runtime dependency graph.
 - Assessment order does not change serialized output.

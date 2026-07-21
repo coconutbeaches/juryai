@@ -375,6 +375,160 @@ describe('Person A runtime orchestration', () => {
     expect(result.question_count).toBe(1);
   });
 
+  it('fails closed through descriptor inspection without requesting provider map', () => {
+    let mapRequested = false;
+    const batch = new Proxy([assessment()], {
+      get: (target, key, receiver) => {
+        if (key === 'map') {
+          mapRequested = true;
+          throw new Error('provider map must not be requested');
+        }
+        return Reflect.get(target, key, receiver);
+      },
+      getOwnPropertyDescriptor: () => {
+        throw new Error('descriptor trap failed');
+      },
+    });
+    let result: ReturnType<typeof orchestratePersonAPlanning> | undefined;
+    expect(() => {
+      result = runProviderOutput(batch);
+    }).not.toThrow();
+    expect(mapRequested).toBe(false);
+    expect(result?.rejected_assessments[0]?.code).toBe('assessment_not_json');
+    expect(result?.question_count).toBe(0);
+    expect(result?.stage_statuses.find((item) => item.stage === 'necessity')?.status).toBe(
+      'skipped',
+    );
+  });
+
+  it('never uses ordinary map or numeric-index access on a valid Proxy batch', () => {
+    const requestedKeys: PropertyKey[] = [];
+    const batch = new Proxy([assessment()], {
+      get: (_target, key) => {
+        requestedKeys.push(key);
+        throw new Error(`ordinary provider access is forbidden: ${String(key)}`);
+      },
+    });
+    const result = runProviderOutput(batch);
+    expect(result.audit_summary.final_status).toBe('passed');
+    expect(result.question_count).toBe(1);
+    expect(requestedKeys).toEqual([]);
+  });
+
+  it('rejects a Proxy whose own-key report changes during snapshotting', () => {
+    const target = [assessment()] as unknown[] & JsonObject;
+    Object.defineProperty(target, 'extra', {
+      value: 'changing shape',
+      enumerable: true,
+      configurable: true,
+    });
+    let ownKeyReads = 0;
+    const batch = new Proxy(target, {
+      ownKeys: (source) => {
+        ownKeyReads += 1;
+        return ownKeyReads === 1 ? ['0', 'length'] : Reflect.ownKeys(source);
+      },
+    });
+    const result = runProviderOutput(batch);
+    expect(result.rejected_assessments[0]?.message).toContain(
+      'properties changed during inspection',
+    );
+    expect(result.question_count).toBe(0);
+  });
+
+  it('rejects a Proxy whose descriptors change during snapshotting', () => {
+    const first = assessment();
+    const second = assessment({ question_context: 'changed descriptor value' });
+    const target = [first];
+    let indexDescriptorReads = 0;
+    const batch = new Proxy(target, {
+      getOwnPropertyDescriptor: (source, key) => {
+        const descriptor = Reflect.getOwnPropertyDescriptor(source, key);
+        if (key !== '0' || !descriptor || !('value' in descriptor)) return descriptor;
+        indexDescriptorReads += 1;
+        return {
+          ...descriptor,
+          value: indexDescriptorReads === 1 ? first : second,
+        };
+      },
+    });
+    const result = runProviderOutput(batch);
+    expect(result.rejected_assessments[0]?.message).toContain(
+      'descriptors changed during inspection',
+    );
+    expect(result.question_count).toBe(0);
+  });
+
+  it('rejects a revoked Proxy with a bounded structured audit', () => {
+    const revocable = Proxy.revocable([assessment()], {});
+    revocable.revoke();
+    let result: ReturnType<typeof orchestratePersonAPlanning> | undefined;
+    expect(() => {
+      result = runProviderOutput(revocable.proxy);
+    }).not.toThrow();
+    expect(result?.rejected_assessments[0]).toMatchObject({
+      code: 'assessment_not_json',
+      assessment: {
+        audit_type: 'rejected_non_json_assessment',
+        value_type: 'uninspectable',
+        own_keys: [],
+      },
+    });
+    expect(result?.question_count).toBe(0);
+  });
+
+  it('detaches a valid Proxy batch and every nested provider-owned value', () => {
+    const candidate = assessment();
+    const resolvesObjectIds = candidate.resolves_object_ids!;
+    const proxiedCandidate = new Proxy(candidate as JsonObject, {
+      get: (_target, key) => {
+        throw new Error(`ordinary nested access is forbidden: ${String(key)}`);
+      },
+    });
+    const target = [proxiedCandidate];
+    const batch = new Proxy(target, {
+      get: (_source, key) => {
+        throw new Error(`ordinary batch access is forbidden: ${String(key)}`);
+      },
+    });
+    const result = runProviderOutput(batch);
+    expect(result.audit_summary.final_status).toBe('passed');
+    expect(result.raw_assessments[0] === proxiedCandidate).toBe(false);
+    expect((result.raw_assessments[0] as JsonObject).resolves_object_ids).not.toBe(
+      resolvesObjectIds,
+    );
+    expect(result.validated_assessments[0]).not.toBe(candidate);
+
+    const resultBytes = JSON.stringify(result);
+    candidate.question_context = 'mutated after orchestration';
+    resolvesObjectIds.push('ev_002');
+    target.push(assessment({ target_object_id: 'ev_002' }));
+    expect(JSON.stringify(result)).toBe(resultBytes);
+  });
+
+  it('does not retain references to a mutable plain provider batch', () => {
+    const candidate = assessment();
+    const batch = [candidate];
+    const result = runProviderOutput(batch);
+    const resultBytes = JSON.stringify(result);
+    candidate.question_context = 'changed after return';
+    candidate.resolves_object_ids?.push('ev_002');
+    batch.push(assessment({ target_object_id: 'ev_002' }));
+    expect(JSON.stringify(result)).toBe(resultBytes);
+  });
+
+  it('returns byte-identical output for repeated valid Proxy snapshots', () => {
+    const execute = () =>
+      runProviderOutput(
+        new Proxy([assessment()], {
+          get: (_target, key) => {
+            throw new Error(`ordinary access is forbidden: ${String(key)}`);
+          },
+        }),
+      );
+    expect(JSON.stringify(execute())).toBe(JSON.stringify(execute()));
+  });
+
   it('rejects a huge sparse batch length before proportional allocation', () => {
     const batch: unknown[] = [];
     batch.length = 2 ** 32 - 1;

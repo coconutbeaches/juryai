@@ -20,7 +20,7 @@ import {
 
 type JsonObject = Record<string, any>;
 
-export const PERSON_A_RUNTIME_ORCHESTRATION_VERSION = 'person-a-runtime-orchestration-v0.1.2';
+export const PERSON_A_RUNTIME_ORCHESTRATION_VERSION = 'person-a-runtime-orchestration-v0.1.3';
 export const MAX_RUNTIME_ASSESSMENT_JSON_DEPTH = 64;
 export const MAX_RUNTIME_ASSESSMENT_BATCH_SIZE = 100;
 export const MAX_RUNTIME_ASSESSMENT_NESTED_ARRAY_LENGTH = 1_000;
@@ -270,10 +270,28 @@ function safeClone(value: unknown): unknown {
   }
 }
 
-interface JsonInspection {
-  valid: boolean;
-  reason: string | null;
+type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
+
+interface SafeAuditDescription extends JsonObject {
+  audit_type: 'rejected_non_json_assessment';
+  reason: string;
+  value_type: string;
+  own_keys: string[];
 }
+
+type JsonSnapshotInspection =
+  | {
+      valid: true;
+      clone: JsonValue;
+      reason: null;
+      auditDescription: null;
+    }
+  | {
+      valid: false;
+      clone?: never;
+      reason: string;
+      auditDescription: SafeAuditDescription;
+    };
 
 interface JsonInspectionOptions {
   rootArrayLengthLimit: number;
@@ -314,41 +332,113 @@ function prototypeHasEnumerableProperties(prototype: object): boolean {
   }
 }
 
-function inspectJsonValue(
+function boundedAuditKeys(keys: readonly (string | symbol)[]): string[] {
+  return keys
+    .slice(0, MAX_RUNTIME_REJECTED_AUDIT_KEYS)
+    .map((key) => (typeof key === 'symbol' ? key.toString() : key))
+    .sort(lexicalCompare);
+}
+
+function snapshotFailure(
+  reason: string,
+  valueType: string,
+  keys: readonly (string | symbol)[] = [],
+): JsonSnapshotInspection {
+  return {
+    valid: false,
+    reason,
+    auditDescription: {
+      audit_type: 'rejected_non_json_assessment',
+      reason,
+      value_type: valueType,
+      own_keys: boundedAuditKeys(keys),
+    },
+  };
+}
+
+function samePropertyKeys(
+  left: readonly (string | symbol)[],
+  right: readonly (string | symbol)[],
+): boolean {
+  return left.length === right.length && left.every((key, index) => key === right[index]);
+}
+
+function samePropertyDescriptor(
+  left: PropertyDescriptor | undefined,
+  right: PropertyDescriptor | undefined,
+): boolean {
+  if (!left || !right) return left === right;
+  if (
+    left.configurable !== right.configurable ||
+    left.enumerable !== right.enumerable ||
+    'value' in left !== 'value' in right
+  ) {
+    return false;
+  }
+  if ('value' in left && 'value' in right) {
+    return left.writable === right.writable && Object.is(left.value, right.value);
+  }
+  return left.get === right.get && left.set === right.set;
+}
+
+function captureDescriptorMap(
+  value: object,
+  keys: readonly (string | symbol)[],
+): Map<string | symbol, PropertyDescriptor> | null {
+  const descriptors = new Map<string | symbol, PropertyDescriptor>();
+  try {
+    for (const key of keys) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      if (!descriptor) return null;
+      descriptors.set(key, descriptor);
+    }
+  } catch {
+    return null;
+  }
+  return descriptors;
+}
+
+function defineSnapshotProperty(target: object, key: string, value: JsonValue): void {
+  Object.defineProperty(target, key, {
+    value,
+    enumerable: true,
+    configurable: true,
+    writable: true,
+  });
+}
+
+function inspectAndCloneJsonValue(
   value: unknown,
   options: JsonInspectionOptions = nestedJsonInspectionOptions,
   depth = 0,
   context: JsonInspectionContext = { active: new WeakSet(), nodesVisited: 0 },
-): JsonInspection {
+): JsonSnapshotInspection {
   context.nodesVisited += 1;
   if (context.nodesVisited > MAX_RUNTIME_ASSESSMENT_JSON_NODES) {
-    return {
-      valid: false,
-      reason: `Assessment exceeds the maximum JSON traversal size of ${MAX_RUNTIME_ASSESSMENT_JSON_NODES} values.`,
-    };
+    return snapshotFailure(
+      `Assessment exceeds the maximum JSON traversal size of ${MAX_RUNTIME_ASSESSMENT_JSON_NODES} values.`,
+      typeof value,
+    );
   }
   if (depth > MAX_RUNTIME_ASSESSMENT_JSON_DEPTH) {
-    return {
-      valid: false,
-      reason: `Assessment exceeds the maximum JSON depth of ${MAX_RUNTIME_ASSESSMENT_JSON_DEPTH}.`,
-    };
+    return snapshotFailure(
+      `Assessment exceeds the maximum JSON depth of ${MAX_RUNTIME_ASSESSMENT_JSON_DEPTH}.`,
+      typeof value,
+    );
   }
   if (value === null || typeof value === 'string' || typeof value === 'boolean') {
-    return { valid: true, reason: null };
+    return { valid: true, clone: value, reason: null, auditDescription: null };
   }
   if (typeof value === 'number') {
     return Number.isFinite(value)
-      ? { valid: true, reason: null }
-      : { valid: false, reason: 'Assessment contains a non-finite number.' };
+      ? { valid: true, clone: value, reason: null, auditDescription: null }
+      : snapshotFailure('Assessment contains a non-finite number.', 'number');
   }
   if (typeof value !== 'object') {
-    return {
-      valid: false,
-      reason: `Assessment contains unsupported ${typeof value} data.`,
-    };
+    return snapshotFailure(`Assessment contains unsupported ${typeof value} data.`, typeof value);
   }
   if (context.active.has(value)) {
-    return { valid: false, reason: 'Assessment contains a cyclic object or array.' };
+    return snapshotFailure('Assessment contains a cyclic object or array.', 'object');
   }
   let arrayValue: boolean;
   let prototype: object | null;
@@ -356,60 +446,68 @@ function inspectJsonValue(
     arrayValue = Array.isArray(value);
     prototype = Object.getPrototypeOf(value);
   } catch {
-    return { valid: false, reason: 'Assessment object metadata cannot be safely inspected.' };
+    return snapshotFailure(
+      'Assessment object metadata cannot be safely inspected.',
+      'uninspectable',
+    );
   }
+  const valueType = arrayValue ? 'array' : 'object';
   if (
     (arrayValue && prototype !== Array.prototype) ||
     (!arrayValue && prototype !== Object.prototype && prototype !== null)
   ) {
-    return { valid: false, reason: 'Assessment contains an object with an unusual prototype.' };
+    return snapshotFailure('Assessment contains an object with an unusual prototype.', valueType);
   }
   if (prototype !== null && prototypeHasEnumerableProperties(prototype)) {
-    return { valid: false, reason: 'Assessment contains inherited enumerable properties.' };
+    return snapshotFailure('Assessment contains inherited enumerable properties.', valueType);
   }
+  let initialLengthDescriptor: PropertyDescriptor | undefined;
   if (arrayValue) {
-    let lengthDescriptor: PropertyDescriptor | undefined;
     try {
-      lengthDescriptor = Object.getOwnPropertyDescriptor(value, 'length');
+      initialLengthDescriptor = Object.getOwnPropertyDescriptor(value, 'length');
     } catch {
-      return { valid: false, reason: 'Assessment array length cannot be safely inspected.' };
+      return snapshotFailure('Assessment array length cannot be safely inspected.', valueType);
     }
     if (
-      !lengthDescriptor ||
-      !('value' in lengthDescriptor) ||
-      lengthDescriptor.enumerable ||
-      !Number.isSafeInteger(lengthDescriptor.value) ||
-      lengthDescriptor.value < 0
+      !initialLengthDescriptor ||
+      !('value' in initialLengthDescriptor) ||
+      initialLengthDescriptor.enumerable ||
+      !Number.isSafeInteger(initialLengthDescriptor.value) ||
+      initialLengthDescriptor.value < 0
     ) {
-      return { valid: false, reason: 'Assessment array length cannot be safely inspected.' };
+      return snapshotFailure('Assessment array length cannot be safely inspected.', valueType);
     }
     const arrayLengthLimit =
       depth === 0 ? options.rootArrayLengthLimit : MAX_RUNTIME_ASSESSMENT_NESTED_ARRAY_LENGTH;
-    if (lengthDescriptor.value > arrayLengthLimit) {
-      return {
-        valid: false,
-        reason: `Assessment array length exceeds the supported limit of ${arrayLengthLimit}.`,
-      };
+    if (initialLengthDescriptor.value > arrayLengthLimit) {
+      return snapshotFailure(
+        `Assessment array length exceeds the supported limit of ${arrayLengthLimit}.`,
+        valueType,
+      );
     }
   }
-  let keys: (string | symbol)[];
+  let keysBefore: (string | symbol)[];
   try {
-    keys = Reflect.ownKeys(value);
+    keysBefore = Reflect.ownKeys(value);
   } catch {
-    return { valid: false, reason: 'Assessment object properties cannot be safely inspected.' };
+    return snapshotFailure(
+      'Assessment object properties cannot be safely inspected.',
+      'uninspectable',
+    );
   }
-  if (keys.some((key) => typeof key === 'symbol')) {
-    return { valid: false, reason: 'Assessment contains a symbol-keyed property.' };
+  if (keysBefore.some((key) => typeof key === 'symbol')) {
+    return snapshotFailure('Assessment contains a symbol-keyed property.', valueType, keysBefore);
   }
-  const stringKeys = keys as string[];
+  const stringKeys = keysBefore as string[];
   if (!arrayValue && stringKeys.length > MAX_RUNTIME_ASSESSMENT_OBJECT_KEYS) {
-    return {
-      valid: false,
-      reason: `Assessment object exceeds the supported own-key limit of ${MAX_RUNTIME_ASSESSMENT_OBJECT_KEYS}.`,
-    };
+    return snapshotFailure(
+      `Assessment object exceeds the supported own-key limit of ${MAX_RUNTIME_ASSESSMENT_OBJECT_KEYS}.`,
+      valueType,
+      keysBefore,
+    );
   }
   if (arrayValue) {
-    const length = Object.getOwnPropertyDescriptor(value, 'length')?.value as number;
+    const length = initialLengthDescriptor!.value as number;
     let indexCount = 0;
     let minimumIndex = Number.POSITIVE_INFINITY;
     let maximumIndex = Number.NEGATIVE_INFINITY;
@@ -417,7 +515,11 @@ function inspectJsonValue(
       if (key === 'length') continue;
       const index = canonicalArrayIndex(key);
       if (index === null || index >= length) {
-        return { valid: false, reason: 'Assessment contains a sparse or extended array.' };
+        return snapshotFailure(
+          'Assessment contains a sparse or extended array.',
+          valueType,
+          keysBefore,
+        );
       }
       indexCount += 1;
       minimumIndex = Math.min(minimumIndex, index);
@@ -427,63 +529,103 @@ function inspectJsonValue(
       indexCount !== length ||
       (length > 0 && (minimumIndex !== 0 || maximumIndex !== length - 1))
     ) {
-      return { valid: false, reason: 'Assessment contains a sparse or extended array.' };
+      return snapshotFailure(
+        'Assessment contains a sparse or extended array.',
+        valueType,
+        keysBefore,
+      );
     }
   }
+  const firstDescriptors = captureDescriptorMap(value, keysBefore);
+  let keysMiddle: (string | symbol)[];
+  if (!firstDescriptors) {
+    return snapshotFailure(
+      'Assessment property descriptors cannot be safely inspected.',
+      valueType,
+      keysBefore,
+    );
+  }
+  try {
+    keysMiddle = Reflect.ownKeys(value);
+  } catch {
+    return snapshotFailure(
+      'Assessment object properties changed during inspection.',
+      valueType,
+      keysBefore,
+    );
+  }
+  if (!samePropertyKeys(keysBefore, keysMiddle)) {
+    return snapshotFailure(
+      'Assessment object properties changed during inspection.',
+      valueType,
+      keysBefore,
+    );
+  }
+  const secondDescriptors = captureDescriptorMap(value, keysMiddle);
+  let keysAfter: (string | symbol)[];
+  if (!secondDescriptors) {
+    return snapshotFailure(
+      'Assessment property descriptors changed during inspection.',
+      valueType,
+      keysBefore,
+    );
+  }
+  try {
+    keysAfter = Reflect.ownKeys(value);
+  } catch {
+    return snapshotFailure(
+      'Assessment object properties changed during inspection.',
+      valueType,
+      keysBefore,
+    );
+  }
+  if (
+    !samePropertyKeys(keysBefore, keysAfter) ||
+    stringKeys.some(
+      (key) => !samePropertyDescriptor(firstDescriptors.get(key), secondDescriptors.get(key)),
+    )
+  ) {
+    return snapshotFailure(
+      'Assessment property descriptors changed during inspection.',
+      valueType,
+      keysBefore,
+    );
+  }
+  if (
+    arrayValue &&
+    !samePropertyDescriptor(initialLengthDescriptor, secondDescriptors.get('length'))
+  ) {
+    return snapshotFailure(
+      'Assessment array length changed during inspection.',
+      valueType,
+      keysBefore,
+    );
+  }
+  const clone: JsonValue = arrayValue
+    ? new Array(initialLengthDescriptor!.value as number)
+    : prototype === null
+      ? Object.create(null)
+      : {};
   context.active.add(value);
   try {
     for (const key of stringKeys) {
       if (arrayValue && key === 'length') continue;
-      let descriptor: PropertyDescriptor | undefined;
-      try {
-        descriptor = Object.getOwnPropertyDescriptor(value, key);
-      } catch {
-        return { valid: false, reason: 'Assessment object properties cannot be safely inspected.' };
-      }
+      const descriptor = secondDescriptors.get(key);
       if (!descriptor || !('value' in descriptor) || !descriptor.enumerable) {
-        return { valid: false, reason: 'Assessment contains an accessor or hidden property.' };
+        return snapshotFailure(
+          'Assessment contains an accessor or hidden property.',
+          valueType,
+          keysBefore,
+        );
       }
-      const child = inspectJsonValue(descriptor.value, options, depth + 1, context);
+      const child = inspectAndCloneJsonValue(descriptor.value, options, depth + 1, context);
       if (!child.valid) return child;
+      defineSnapshotProperty(clone as object, key, child.clone);
     }
   } finally {
     context.active.delete(value);
   }
-  return { valid: true, reason: null };
-}
-
-function rejectedAuditValue(value: unknown, reason: string): JsonObject {
-  let valueType = value === null ? 'null' : typeof value;
-  let ownKeys: string[] = [];
-  try {
-    if (Array.isArray(value)) valueType = 'array';
-  } catch {
-    valueType = 'uninspectable';
-  }
-  if (value !== null && (typeof value === 'object' || typeof value === 'function')) {
-    try {
-      ownKeys = Reflect.ownKeys(value)
-        .slice(0, MAX_RUNTIME_REJECTED_AUDIT_KEYS)
-        .map((key) => (typeof key === 'symbol' ? key.toString() : key))
-        .sort(lexicalCompare);
-    } catch {
-      valueType = 'uninspectable';
-    }
-  }
-  return {
-    audit_type: 'rejected_non_json_assessment',
-    reason,
-    value_type: valueType,
-    own_keys: ownKeys,
-  };
-}
-
-function isSafelyArray(value: unknown): value is unknown[] {
-  try {
-    return Array.isArray(value);
-  } catch {
-    return false;
-  }
+  return { valid: true, clone, reason: null, auditDescription: null };
 }
 
 function extractionHash(value: unknown): string | null {
@@ -889,19 +1031,28 @@ export function orchestratePersonAPlanning(
     );
     return finish();
   }
-  const providerInspection = inspectJsonValue(providerOutput, {
+  const providerSnapshot = inspectAndCloneJsonValue(providerOutput, {
     rootArrayLengthLimit: MAX_RUNTIME_ASSESSMENT_BATCH_SIZE,
   });
-  if (!isSafelyArray(providerOutput)) {
+  if (!providerSnapshot.valid) {
+    rawAssessments = [providerSnapshot.auditDescription];
     rejectedAssessments = [
       {
         sequence_number: null,
-        assessment: providerInspection.valid
-          ? canonicalize(safeClone(providerOutput))
-          : rejectedAuditValue(
-              providerOutput,
-              providerInspection.reason ?? 'Provider result is not valid JSON.',
-            ),
+        assessment: providerSnapshot.auditDescription,
+        code: 'assessment_not_json',
+        message: providerSnapshot.reason,
+      },
+    ];
+    fail('assessment', 'invalid_assessments', 'The runtime assessment batch was rejected.');
+    return finish();
+  }
+  const detachedProviderOutput = providerSnapshot.clone;
+  if (!Array.isArray(detachedProviderOutput)) {
+    rejectedAssessments = [
+      {
+        sequence_number: null,
+        assessment: canonicalize(detachedProviderOutput),
         code: 'assessment_result_not_array',
         message: 'Assessment provider must return an array.',
       },
@@ -913,27 +1064,10 @@ export function orchestratePersonAPlanning(
     );
     return finish();
   }
-  if (!providerInspection.valid) {
-    const rejectedBatch = rejectedAuditValue(
-      providerOutput,
-      providerInspection.reason ?? 'Assessment batch is not valid JSON.',
-    );
-    rawAssessments = [rejectedBatch];
-    rejectedAssessments = [
-      {
-        sequence_number: null,
-        assessment: rejectedBatch,
-        code: 'assessment_not_json',
-        message: providerInspection.reason ?? 'Assessment batch must be a plain dense JSON array.',
-      },
-    ];
-    fail('assessment', 'invalid_assessments', 'The runtime assessment batch was rejected.');
-    return finish();
-  }
-  const preparedAssessments = providerOutput
+  const preparedAssessments = detachedProviderOutput
     .map((value) => {
       return {
-        audit: canonicalize(safeClone(value)),
+        audit: canonicalize(value),
       };
     })
     .sort((left, right) => lexicalCompare(stableKey(left.audit), stableKey(right.audit)));
