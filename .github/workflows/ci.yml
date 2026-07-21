@@ -28,6 +28,7 @@ jobs:
           - src/tests/clarification-round-simulation.test.ts
           - src/tests/person-a-record-repair.test.ts
           - src/tests/person-a-cli.test.ts
+          - src/tests/person-a-runtime-orchestrator.test.ts
     steps:
       - name: Check out repository
         uses: actions/checkout@v4

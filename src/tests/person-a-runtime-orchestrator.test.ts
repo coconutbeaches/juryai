@@ -1,0 +1,554 @@
+import { readFileSync, readdirSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { describe, expect, it, vi } from 'vitest';
+import {
+  parsePlanPersonARuntimeArgs,
+  runPlanPersonARuntimeCommand,
+  type PlanPersonARuntimeCommandDependencies,
+} from '../commands/plan-person-a-runtime.js';
+import type { EpistemicAssessment } from '../clarification/question-generator.js';
+import { repairPersonAExtraction } from '../repair/person-a-record-repair.js';
+import {
+  orchestratePersonAPlanning,
+  type RuntimeAssessmentContext,
+  type RuntimeAssessmentProvider,
+} from '../runtime/person-a-runtime-orchestrator.js';
+import { createStaticRuntimeAssessmentProvider } from '../runtime/static-assessment-provider.js';
+import { validPersonAExtraction } from './person-a-test-helpers.js';
+
+type JsonObject = Record<string, any>;
+
+function fixture() {
+  const extraction = validPersonAExtraction();
+  return { extraction, narrative: extraction.submission.raw_text as string };
+}
+
+function assessment(overrides: Partial<EpistemicAssessment> = {}): EpistemicAssessment {
+  const result: EpistemicAssessment = {
+    target_object_id: 'ev_001',
+    target_family: 'evidence',
+    field: 'availability_status',
+    trigger: 'evidence_availability',
+    materiality: 'high',
+    evidence_availability: 'described_only',
+    question_context: 'signed website agreement',
+    resolves_object_ids: ['ev_001'],
+    ...overrides,
+  };
+  for (const [key, value] of Object.entries(result)) {
+    if (value === undefined) delete (result as JsonObject)[key];
+  }
+  return result;
+}
+
+function run(assessments: unknown = [assessment()]) {
+  const { extraction, narrative } = fixture();
+  return {
+    extraction,
+    narrative,
+    result: orchestratePersonAPlanning({
+      extraction,
+      narrative,
+      assessmentProvider: createStaticRuntimeAssessmentProvider(assessments),
+    }),
+  };
+}
+
+function addContradiction(extraction: JsonObject): string {
+  const first = structuredClone(extraction.claims[0].source_spans[0]);
+  const second = structuredClone(extraction.claims[1].source_spans[0]);
+  extraction.extraction_issues.push({
+    issue_id: 'issue_runtime_contradiction',
+    issue_type: 'internal_tension',
+    severity: 'major',
+    description: 'Two exact statements conflict about material completion.',
+    affected_object_ids: [extraction.claims[0].claim_id, extraction.claims[1].claim_id],
+    resolution_status: 'open',
+    source_spans: [first, second],
+  });
+  return 'issue_runtime_contradiction';
+}
+
+describe('Person A runtime orchestration', () => {
+  it('produces a validated repaired record and grounded clarification plan', () => {
+    const { result } = run();
+    expect(result.audit_summary.final_status).toBe('passed');
+    expect(result.audit_summary.original_valid).toBe(true);
+    expect(result.audit_summary.repaired_valid).toBe(true);
+    expect(result.question_count).toBe(1);
+    expect(result.generated_questions[0]?.grounding_references.length).toBeGreaterThan(0);
+    expect(result.stage_statuses.every((item) => item.status === 'passed')).toBe(true);
+  });
+
+  it('preserves the original extraction byte-equivalently and does not mutate provider data', () => {
+    const { extraction, narrative } = fixture();
+    const originalBytes = JSON.stringify(extraction);
+    const assessments = [assessment()];
+    const assessmentBytes = JSON.stringify(assessments);
+    const result = orchestratePersonAPlanning({
+      extraction,
+      narrative,
+      assessmentProvider: createStaticRuntimeAssessmentProvider(assessments),
+    });
+    expect(JSON.stringify(extraction)).toBe(originalBytes);
+    expect(JSON.stringify(result.original_extraction)).toBe(originalBytes);
+    expect(JSON.stringify(assessments)).toBe(assessmentBytes);
+    expect(result.audit_summary.original_unchanged).toBe(true);
+  });
+
+  it('validates repaired output before assessment', () => {
+    const { extraction, narrative } = fixture();
+    const assess = vi.fn((_context: RuntimeAssessmentContext) => []);
+    const result = orchestratePersonAPlanning(
+      { extraction, narrative, assessmentProvider: { assess } },
+      {
+        validate: (record, text) => {
+          if ((record as JsonObject).schema_version === 'broken') {
+            return {
+              valid: false,
+              schemaErrors: [{ path: '$.schema_version', message: 'broken' }],
+              invariantErrors: [],
+            };
+          }
+          return { valid: true, schemaErrors: [], invariantErrors: [] };
+        },
+        repair: (options) => {
+          const repaired = repairPersonAExtraction(options);
+          repaired.repaired_extraction.schema_version = 'broken';
+          return repaired;
+        },
+        classify: () => {
+          throw new Error('classification must not run');
+        },
+        generate: () => {
+          throw new Error('generation must not run');
+        },
+      },
+    );
+    expect(assess).not.toHaveBeenCalled();
+    expect(result.audit_summary.failure_stage).toBe('repaired_validation');
+    expect(result.stage_statuses.find((item) => item.stage === 'assessment')?.status).toBe(
+      'skipped',
+    );
+  });
+
+  it('passes only runtime-safe inputs to the assessment provider', () => {
+    const { extraction, narrative } = fixture();
+    const assess = vi.fn((_context: RuntimeAssessmentContext) => []);
+    orchestratePersonAPlanning({ extraction, narrative, assessmentProvider: { assess } });
+    expect(assess).toHaveBeenCalledOnce();
+    expect(Object.keys(assess.mock.calls[0]![0]).sort()).toEqual([
+      'narrative',
+      'original_extraction',
+      'repair_audit',
+      'repaired_extraction',
+    ]);
+  });
+
+  it('fails closed with audit context when the provider throws', () => {
+    const { extraction, narrative } = fixture();
+    const provider: RuntimeAssessmentProvider = {
+      assess: () => {
+        throw new Error('deterministic provider failure');
+      },
+    };
+    const result = orchestratePersonAPlanning({
+      extraction,
+      narrative,
+      assessmentProvider: provider,
+    });
+    expect(result.audit_summary.failure_stage).toBe('assessment');
+    expect(result.generated_questions).toEqual([]);
+    expect(result.repair_result).not.toBeNull();
+    expect(result.stage_statuses.find((item) => item.stage === 'assessment')?.errors[0]?.code).toBe(
+      'assessment_provider_failed',
+    );
+  });
+
+  it.each([
+    {
+      label: 'non-array',
+      value: { assessment: assessment() },
+      code: 'malformed_assessment_result',
+    },
+    {
+      label: 'missing field',
+      value: [{ target_object_id: 'ev_001' }],
+      code: 'invalid_assessments',
+    },
+  ])('fails closed on malformed assessments: $label', ({ value, code }) => {
+    const { result } = run(value);
+    expect(result.audit_summary.failure_stage).toBe('assessment');
+    expect(result.stage_statuses.find((item) => item.stage === 'assessment')?.errors[0]?.code).toBe(
+      code,
+    );
+    expect(result.generated_questions).toEqual([]);
+    expect(result.rejected_assessments.length).toBeGreaterThan(0);
+  });
+
+  it('fails closed instead of silently dropping non-JSON assessment data', () => {
+    const candidate = { ...assessment(), unsupported: undefined };
+    const { result } = run([candidate]);
+    expect(result.rejected_assessments[0]?.code).toBe('assessment_not_json');
+    expect(result.question_count).toBe(0);
+  });
+
+  it('fails closed when an assessment references an unknown object', () => {
+    const { result } = run([assessment({ target_object_id: 'ev_missing' })]);
+    expect(result.rejected_assessments[0]?.code).toBe('unknown_target_object');
+    expect(result.question_count).toBe(0);
+  });
+
+  it('fails closed on an unsupported assessment field', () => {
+    const { result } = run([assessment({ field: 'uploaded_at' })]);
+    expect(result.rejected_assessments[0]?.code).toBe('unsupported_assessment_field');
+    expect(result.question_count).toBe(0);
+  });
+
+  it('fails closed on duplicate assessments', () => {
+    const candidate = assessment();
+    const { result } = run([candidate, structuredClone(candidate)]);
+    expect(result.rejected_assessments[0]?.code).toBe('duplicate_assessment');
+    expect(result.question_count).toBe(0);
+  });
+
+  it('suppresses an otherwise valid candidate with insufficient grounding', () => {
+    const { extraction, narrative } = fixture();
+    const target = extraction.clarification_questions[0];
+    expect(target).toBeDefined();
+    const candidate = assessment({
+      target_object_id: target.question_id,
+      target_family: 'clarification_questions',
+      field: 'identity',
+      trigger: 'merge_risk',
+      merge_risk: 'possible_merge',
+      question_context: 'possible duplicate clarification item',
+      evidence_availability: undefined,
+      resolves_object_ids: [target.question_id],
+    });
+    const result = orchestratePersonAPlanning({
+      extraction,
+      narrative,
+      assessmentProvider: createStaticRuntimeAssessmentProvider([candidate]),
+    });
+    expect(result.audit_summary.final_status).toBe('passed');
+    expect(result.question_count).toBe(0);
+    expect(result.suppressed_candidates[0]?.classification).toBe('insufficient_grounding');
+  });
+
+  it('never exposes internal representation work as a question', () => {
+    const { result } = run([
+      assessment({
+        field: 'title',
+        trigger: 'internal_representation',
+        evidence_availability: undefined,
+        question_context: undefined,
+      }),
+    ]);
+    expect(result.question_count).toBe(0);
+    expect(result.suppressed_candidates[0]?.classification).toBe('internal_representation');
+  });
+
+  it('suppresses facts whose evidence availability is already explicit', () => {
+    const { result } = run([
+      assessment({
+        target_object_id: 'ev_009',
+        evidence_availability: 'unavailable',
+        question_context: 'two unrecorded video calls',
+        resolves_object_ids: ['ev_009'],
+      }),
+    ]);
+    expect(result.question_count).toBe(0);
+    expect(result.suppressed_candidates[0]?.classification).toBe('already_explicit');
+  });
+
+  it('generates one contextual question for a grounded contradiction', () => {
+    const { extraction, narrative } = fixture();
+    const issueId = addContradiction(extraction);
+    const result = orchestratePersonAPlanning({
+      extraction,
+      narrative,
+      assessmentProvider: createStaticRuntimeAssessmentProvider([
+        assessment({
+          target_object_id: issueId,
+          target_family: 'extraction_issues',
+          field: 'required_information',
+          trigger: 'required_bucket_missing',
+          evidence_availability: undefined,
+          question_context: 'what remained incomplete',
+          resolves_object_ids: [issueId],
+        }),
+      ]),
+    });
+    expect(result.question_count).toBe(1);
+    expect(result.generated_questions[0]?.necessity_classification).toBe('contradiction');
+    expect(result.generated_questions[0]?.contradiction_alternatives).toHaveLength(2);
+  });
+
+  it('never generates more than six questions', () => {
+    const candidates = Array.from({ length: 8 }, (_, index) =>
+      assessment({
+        target_object_id: `ev_00${index + 1}`,
+        question_context: `evidence item ${index + 1}`,
+        resolves_object_ids: [`ev_00${index + 1}`],
+      }),
+    );
+    const { result } = run(candidates);
+    expect(result.question_count).toBe(6);
+    expect(result.unresolved_material_gaps).toHaveLength(8);
+  });
+
+  it('accepts a valid zero-question plan', () => {
+    const { result } = run([]);
+    expect(result.audit_summary.final_status).toBe('passed');
+    expect(result.question_count).toBe(0);
+    expect(result.generated_questions).toEqual([]);
+  });
+
+  it('fails closed if necessity classification cannot safely classify', () => {
+    const { extraction, narrative } = fixture();
+    const result = orchestratePersonAPlanning(
+      {
+        extraction,
+        narrative,
+        assessmentProvider: createStaticRuntimeAssessmentProvider([assessment()]),
+      },
+      {
+        validate: () => ({ valid: true, schemaErrors: [], invariantErrors: [] }),
+        repair: repairPersonAExtraction,
+        classify: () => {
+          throw new Error('unsafe classifier state');
+        },
+        generate: () => [],
+      },
+    );
+    expect(result.audit_summary.failure_stage).toBe('necessity');
+    expect(result.generated_questions).toEqual([]);
+  });
+
+  it('fails closed if generated question grounding is invalid', () => {
+    const { extraction, narrative } = fixture();
+    const result = orchestratePersonAPlanning(
+      {
+        extraction,
+        narrative,
+        assessmentProvider: createStaticRuntimeAssessmentProvider([assessment()]),
+      },
+      {
+        validate: () => ({ valid: true, schemaErrors: [], invariantErrors: [] }),
+        repair: repairPersonAExtraction,
+        classify: (assessments) => ({
+          necessity_classification: [
+            {
+              assessment: assessments[0]!,
+              classification: 'ask_human',
+              reason: 'test',
+              grounding_references: [],
+              contradiction_alternatives: [],
+            },
+          ],
+          question_candidates: [
+            {
+              assessment: assessments[0]!,
+              classification: 'ask_human',
+              reason: 'test',
+              grounding_references: [],
+              contradiction_alternatives: [],
+            },
+          ],
+          suppressed_candidates: [],
+        }),
+        generate: () => [
+          {
+            question_id: 'clarification_01',
+            target_object_id: 'ev_001',
+            target_family: 'evidence',
+            field: 'availability_status',
+            trigger: 'evidence_availability',
+            materiality: 'high',
+            question: 'Groundless question',
+            phase: 'pre_lock',
+            resolves_object_ids: ['ev_001'],
+            necessity_classification: 'ask_human',
+            grounding_references: [],
+            contradiction_alternatives: [],
+          },
+        ],
+      },
+    );
+    expect(result.audit_summary.failure_stage).toBe('clarification');
+    expect(result.generated_questions).toEqual([]);
+  });
+
+  it('is stable across assessment input order and repeated execution', () => {
+    const candidates = [
+      assessment(),
+      assessment({
+        target_object_id: 'ev_002',
+        question_context: 'deposit invoice and payment receipt',
+        resolves_object_ids: ['ev_002'],
+      }),
+    ];
+    const forward = run(candidates).result;
+    const reverse = run([...candidates].reverse()).result;
+    const repeated = run(candidates).result;
+    expect(JSON.stringify(forward)).toBe(JSON.stringify(reverse));
+    expect(JSON.stringify(forward)).toBe(JSON.stringify(repeated));
+  });
+
+  it('keeps aggregate split audit records internal and preserves aggregate objects', () => {
+    const { extraction, narrative } = fixture();
+    const aggregate = extraction.deliverable_assessments[0];
+    aggregate.name = 'Homepage and About page';
+    const before = JSON.stringify(aggregate);
+    const result = orchestratePersonAPlanning({
+      extraction,
+      narrative,
+      assessmentProvider: createStaticRuntimeAssessmentProvider([]),
+    });
+    expect(
+      result.repair_result?.skipped_repairs.some(
+        (item) => item.rule_id === 'aggregate_split_unsupported_v0_1_2',
+      ),
+    ).toBe(true);
+    expect(
+      JSON.stringify(
+        result.repaired_extraction?.deliverable_assessments.find(
+          (item: JsonObject) => item.deliverable_id === aggregate.deliverable_id,
+        ),
+      ),
+    ).toBe(before);
+    expect(result.question_count).toBe(0);
+  });
+
+  it('prevents repair when the original extraction is invalid', () => {
+    const { extraction, narrative } = fixture();
+    extraction.schema_version = 'invalid';
+    const repair = vi.fn(repairPersonAExtraction);
+    const dependencies = {
+      validate: () => ({
+        valid: false,
+        schemaErrors: [{ path: '$.schema_version', message: 'invalid' }],
+        invariantErrors: [],
+      }),
+      repair,
+      classify: vi.fn(),
+      generate: vi.fn(),
+    } as any;
+    const result = orchestratePersonAPlanning(
+      { extraction, narrative, assessmentProvider: createStaticRuntimeAssessmentProvider([]) },
+      dependencies,
+    );
+    expect(repair).not.toHaveBeenCalled();
+    expect(result.audit_summary.failure_stage).toBe('original_validation');
+    expect(result.repaired_extraction).toBeNull();
+  });
+
+  it('does not apply answers, amendments, or mutate persistent state', () => {
+    const { result } = run();
+    expect(JSON.stringify(result)).not.toMatch(/applied_amendment|clarification_answer|durable/iu);
+    expect(result.generated_questions.every((question) => question.phase === 'pre_lock')).toBe(
+      true,
+    );
+  });
+});
+
+describe('runtime dependency boundary', () => {
+  it('contains no runtime imports of laboratory, artifact, or model modules', () => {
+    const runtimeDirectory = resolve(process.cwd(), 'src/runtime');
+    const sources = [
+      ...readdirSync(runtimeDirectory)
+        .filter((name) => name.endsWith('.ts'))
+        .map((name) => readFileSync(resolve(runtimeDirectory, name), 'utf8')),
+      readFileSync(resolve(process.cwd(), 'src/clarification/question-necessity.ts'), 'utf8'),
+      readFileSync(resolve(process.cwd(), 'src/commands/plan-person-a-runtime.ts'), 'utf8'),
+    ].join('\n');
+    expect(sources).not.toMatch(
+      /from\s+['"][^'"]*(?:evaluation|alignment|golden|artifacts|openai)[^'"]*['"]/iu,
+    );
+    expect(sources).not.toMatch(/['"](?:\.\.\/)*artifacts\/|live-run-[0-9]/iu);
+    expect(sources).not.toMatch(/OPENAI_API_KEY|process\.env|new\s+OpenAI/iu);
+  });
+});
+
+describe('offline runtime planning CLI', () => {
+  const validArgs = [
+    '--input',
+    'input.txt',
+    '--extraction',
+    'extraction.json',
+    '--assessments',
+    'assessments.json',
+    '--output-dir',
+    'output',
+  ];
+
+  it.each([
+    ['unknown', [...validArgs, '--extracton', 'wrong.json'], 'Unknown option: --extracton'],
+    ['duplicate', [...validArgs, '--extraction', 'again.json'], 'Duplicate option: --extraction'],
+    ['missing value', ['--input', '--extraction', 'value'], 'Missing value for --input'],
+    ['positional', [...validArgs, 'extra'], 'Unexpected positional or short argument: extra'],
+    ['short option', ['-i', 'input.txt'], 'Unexpected positional or short argument: -i'],
+  ])('rejects %s arguments before any I/O or orchestration', async (_label, argv, message) => {
+    const readText = vi.fn<PlanPersonARuntimeCommandDependencies['readText']>();
+    const orchestrate = vi.fn<PlanPersonARuntimeCommandDependencies['orchestrate']>();
+    await expect(
+      runPlanPersonARuntimeCommand(argv, {
+        readText,
+        orchestrate,
+        makeDirectory: vi.fn(),
+        writeText: vi.fn(),
+      }),
+    ).rejects.toThrow(message);
+    expect(readText).not.toHaveBeenCalled();
+    expect(orchestrate).not.toHaveBeenCalled();
+  });
+
+  it('parses a complete invocation without environment or client setup', () => {
+    expect(parsePlanPersonARuntimeArgs(validArgs)).toMatchObject({
+      input: expect.stringMatching(/input\.txt$/u),
+      extraction: expect.stringMatching(/extraction\.json$/u),
+      assessments: expect.stringMatching(/assessments\.json$/u),
+      outputDir: expect.stringMatching(/output$/u),
+    });
+  });
+
+  it('writes deterministic offline artifacts without network or model setup', async () => {
+    const { extraction, narrative } = fixture();
+    const writes = new Map<string, string>();
+    const dependencies: PlanPersonARuntimeCommandDependencies = {
+      readText: async (path) => {
+        if (path.endsWith('input.txt')) return narrative;
+        if (path.endsWith('extraction.json')) return JSON.stringify(extraction);
+        if (path.endsWith('assessments.json')) return JSON.stringify([assessment()]);
+        throw new Error(`Unexpected read: ${path}`);
+      },
+      writeText: async (path, value) => {
+        writes.set(path, value);
+      },
+      makeDirectory: async () => undefined,
+      orchestrate: orchestratePersonAPlanning,
+    };
+    const first = await runPlanPersonARuntimeCommand(validArgs, dependencies);
+    const firstWrites = [...writes.entries()].sort();
+    writes.clear();
+    const second = await runPlanPersonARuntimeCommand(validArgs, dependencies);
+    expect(first.audit_summary.final_status).toBe('passed');
+    expect(first.question_count).toBe(1);
+    expect([...writes.entries()].sort()).toEqual(firstWrites);
+    expect(JSON.stringify(second)).toBe(JSON.stringify(first));
+    expect(firstWrites.map(([path]) => path.split('/').at(-1))).toEqual(
+      expect.arrayContaining([
+        'runtime-plan.json',
+        'original-extraction.json',
+        'repaired-extraction.json',
+        'repair-audit.json',
+        'assessments.json',
+        'necessity-classifications.json',
+        'clarification-questions.json',
+        'suppressed-candidates.json',
+        'orchestration-audit.json',
+      ]),
+    );
+  });
+});

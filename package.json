@@ -13,6 +13,7 @@
     "clarify:person-a": "tsx src/commands/generate-person-a-clarifications.ts",
     "simulate:clarification": "tsx src/commands/simulate-person-a-clarification-round.ts",
     "repair:person-a": "tsx src/commands/repair-person-a-extraction.ts",
+    "plan:person-a-runtime": "tsx src/commands/plan-person-a-runtime.ts",
     "format:check": "prettier --check ."
   },
   "devDependencies": {

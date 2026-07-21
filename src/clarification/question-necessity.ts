@@ -3,9 +3,20 @@ import {
   type EpistemicAssessment,
   type GeneratedClarificationQuestion,
 } from './question-generator.js';
-import { familyItems, type PersonAFamily } from '../alignment/person-a-alignment-corrected.js';
 
 type JsonObject = Record<string, any>;
+
+type PersonAFamily =
+  | 'agreement_terms'
+  | 'deliverables'
+  | 'timeline'
+  | 'claims'
+  | 'evidence'
+  | 'damages'
+  | 'outcomes'
+  | 'third_parties'
+  | 'extraction_issues'
+  | 'clarification_questions';
 
 export const QUESTION_NECESSITY_CLASSIFIER_VERSION = 'question-necessity-v0.1.0';
 
@@ -71,6 +82,29 @@ const familyIdFields: Record<PersonAFamily, string> = {
   extraction_issues: 'issue_id',
   clarification_questions: 'question_id',
 };
+
+function familyItems(record: JsonObject, family: PersonAFamily): unknown[] {
+  switch (family) {
+    case 'agreement_terms':
+      return Array.isArray(record.agreement?.terms) ? record.agreement.terms : [];
+    case 'deliverables':
+      return Array.isArray(record.deliverable_assessments) ? record.deliverable_assessments : [];
+    case 'timeline':
+    case 'claims':
+    case 'evidence':
+    case 'extraction_issues':
+    case 'clarification_questions':
+      return Array.isArray(record[family]) ? record[family] : [];
+    case 'damages':
+      return Array.isArray(record.damages_claims) ? record.damages_claims : [];
+    case 'outcomes':
+      return Array.isArray(record.desired_outcomes?.outcomes)
+        ? record.desired_outcomes.outcomes
+        : [];
+    case 'third_parties':
+      return Array.isArray(record.third_parties) ? record.third_parties : [];
+  }
+}
 
 function isRecord(value: unknown): value is JsonObject {
   return typeof value === 'object' && value !== null && !Array.isArray(value);

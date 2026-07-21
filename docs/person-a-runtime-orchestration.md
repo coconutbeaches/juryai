@@ -1,6 +1,6 @@
 # Person A runtime orchestration: repair and clarification planning
 
-Status: design contract for the next implementation PR.
+Status: first runtime-safe planning milestone implemented in draft PR #5.
 
 ## Objective
 
@@ -30,40 +30,38 @@ The current `buildPersonAAssessmentResult()` adapter consumes semantic alignment
 
 Runtime assessment must use only the submitted narrative, the validated extraction, deterministic repair audit data, and explicitly configured runtime policy. Golden fixtures, alignment scores, evaluation severities, and expected object IDs are prohibited runtime inputs.
 
-## Proposed pure API
+## Pure API
 
 The first implementation should expose a pure function with injected assessment logic:
 
 ```ts
-type PersonARuntimePlanningInput = {
-  extraction: unknown;
-  narrative: string;
-  buildRuntimeAssessments: (context: {
-    original: PersonAExtraction;
-    repaired: PersonAExtraction;
-    repairAudit: PersonARepairResult;
-    narrative: string;
-  }) => EpistemicAssessment[];
-};
-
-type PersonARuntimePlanningResult = {
-  original: PersonAExtraction;
-  repaired: PersonAExtraction;
-  repairAudit: PersonARepairResult;
-  assessments: EpistemicAssessment[];
-  necessity: QuestionNecessityResult;
-  clarificationQuestions: NecessaryClarificationQuestion[];
-};
+orchestratePersonAPlanning({
+  extraction,
+  narrative,
+  assessmentProvider,
+  options: { maxQuestions: 6 },
+});
 ```
 
-The injected boundary keeps repair/planning orchestration testable while preventing accidental use of the golden-based laboratory adapter. A later reviewed change may provide the production assessment implementation.
+`RuntimeAssessmentProvider.assess()` receives only the original extraction, repaired extraction,
+narrative, and deterministic repair audit. The returned result includes both records and hashes,
+the complete repair result, raw/validated/rejected assessments, necessity classifications,
+questions, suppressed candidates, unresolved material gaps, and stage-by-stage audit data.
+
+Each stage is categorized as `not_started`, `passed`, `skipped`, or `failed_closed`. The public
+function returns structured audit context on data or provider failures instead of exposing a
+partially trusted question plan.
+
+The injected boundary keeps repair/planning orchestration testable while preventing accidental
+use of the golden-based laboratory adapter. The checked-in static provider and assessment JSON
+are offline test/CLI fixtures, not the final production assessment engine.
 
 ## Fail-closed invariants
 
 - Validate the original extraction before repair.
 - Preserve the original extraction byte-equivalently.
 - Validate the repaired extraction before assessment or question generation.
-- Reject malformed, duplicate, context-free, or ungrounded assessments.
+- Reject malformed or duplicate assessments and suppress context-free or ungrounded candidates.
 - Suppress `already_explicit`, `internal_representation`, and `insufficient_grounding` candidates.
 - Generate at most six deterministic questions.
 - Never convert a skipped repair audit entry directly into a human question.
@@ -76,16 +74,39 @@ The injected boundary keeps repair/planning orchestration testable while prevent
 
 The existing extraction CLI should remain unchanged until the pure orchestrator and runtime assessment provider have independent deterministic tests. Runtime integration should then be explicit, opt-in, and occur only after extraction validation succeeds.
 
-Suggested output artifacts:
+The strict offline command is:
+
+```sh
+npm run plan:person-a-runtime -- \
+  --input src/fixtures/dry_run_001.person_a.txt \
+  --extraction artifacts/person-a/live-run-1-v3/extraction.json \
+  --assessments src/fixtures/dry_run_001.person_a.runtime_assessments.json \
+  --output-dir artifacts/person-a/runtime-plan-v1
+```
+
+It writes deterministic output artifacts:
 
 - `original-extraction.json`;
 - `repaired-extraction.json`;
 - `repair-audit.json`;
-- `epistemic-assessments.json`;
-- `necessity-classification.json`;
-- `clarification-plan.json`.
+- `assessments.json`;
+- `necessity-classifications.json`;
+- `clarification-questions.json`;
+- `suppressed-candidates.json`;
+- `orchestration-audit.json`;
+- `runtime-plan.json`.
 
-## Required tests for implementation
+Argument parsing completes before file reads. This command contains no environment-variable,
+credential, OpenAI-client, or network setup.
+
+## Dependency guard
+
+The runtime orchestration test statically scans the runtime boundary and fails if it imports
+evaluation, alignment, golden, saved-artifact, or OpenAI modules, or references environment/API
+key setup. Family indexing needed by necessity classification is local to clarification logic and
+does not import semantic alignment.
+
+## Implemented verification coverage
 
 - Original extraction remains byte-identical.
 - Invalid original or repaired records fail closed.
