@@ -302,7 +302,11 @@ function classifyCandidate(
   }
 
   if (assessment.trigger === 'actor_attribution') {
-    if (typeof item.actor_party_id === 'string' || typeof item.actor_third_party_id === 'string') {
+    if (
+      typeof item.party_id === 'string' ||
+      typeof item.actor_party_id === 'string' ||
+      typeof item.actor_third_party_id === 'string'
+    ) {
       return classified(
         assessment,
         'already_explicit',

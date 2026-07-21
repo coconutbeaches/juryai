@@ -48,6 +48,11 @@ narrative, and deterministic repair audit. The returned result includes both rec
 the complete repair result, raw/validated/rejected assessments, necessity classifications,
 questions, suppressed candidates, unresolved material gaps, and stage-by-stage audit data.
 
+Artifact hashes never stand in for absent artifacts. An absent repaired extraction has a `null`
+hash. A repaired artifact that was produced but failed validation is retained with its actual hash
+and `present_invalid` audit status. A valid artifact is `present_hashed`. Original hashes are
+published only after original validation succeeds.
+
 Each stage is categorized as `not_started`, `passed`, `skipped`, or `failed_closed`. The public
 function returns structured audit context on data or provider failures instead of exposing a
 partially trusted question plan.
@@ -62,6 +67,13 @@ are offline test/CLI fixtures, not the final production assessment engine.
 - Preserve the original extraction byte-equivalently.
 - Validate the repaired extraction before assessment or question generation.
 - Reject malformed or duplicate assessments and suppress context-free or ungrounded candidates.
+- Treat an assessment-provider batch atomically: one rejected item fails the whole assessment
+  stage and no item in that response can produce a question.
+- Reject cycles, accessors, unusual prototypes, symbols, functions, bigint, `undefined`, sparse or
+  extended arrays, and non-finite numbers before JSON serialization. Traversal is cycle-aware and
+  capped at 64 levels; rejected values receive a bounded audit description.
+- Enforce an explicit trigger, target-family, and field matrix with no wildcard fallback. The
+  target object's resolved family and actual shape must agree with the assessment.
 - Suppress `already_explicit`, `internal_representation`, and `insufficient_grounding` candidates.
 - Generate at most six deterministic questions.
 - Never convert a skipped repair audit entry directly into a human question.
@@ -106,10 +118,30 @@ evaluation, alignment, golden, saved-artifact, or OpenAI modules, or references 
 key setup. Family indexing needed by necessity classification is local to clarification logic and
 does not import semantic alignment.
 
+## Runtime assessment compatibility
+
+The first milestone intentionally supports only reviewed schema v0.1.2 combinations:
+
+- actor attribution: timeline actor fields and claim `party_id`;
+- evidence availability: evidence `availability_status`;
+- date precision: timeline `date`;
+- causal link: damages `causal_theory`;
+- merge risk: grounded extraction-issue `description` only;
+- required missing information: selected agreement, claim, and extraction-issue fields;
+- internal representation: an explicit list of existing label/content fields across supported
+  families.
+
+`required_information` is the only intentionally absent virtual field, and only for a grounded
+extraction issue. Aggregate deliverable/evidence splitting remains unsupported; no compatibility
+rule can turn an aggregate-split audit into a human question.
+
 ## Implemented verification coverage
 
 - Original extraction remains byte-identical.
 - Invalid original or repaired records fail closed.
+- Absent artifacts have null hashes, while produced invalid repairs retain their real hashes.
+- Cyclic and over-depth provider output fails closed without recursion overflow.
+- Wrong-family trigger/field combinations fail the assessment batch atomically.
 - Golden/evaluation modules are absent from the runtime dependency graph.
 - Assessment order does not change serialized output.
 - Internal repair bookkeeping never becomes a question.

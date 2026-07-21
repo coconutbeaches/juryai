@@ -20,9 +20,11 @@ import {
 
 type JsonObject = Record<string, any>;
 
-export const PERSON_A_RUNTIME_ORCHESTRATION_VERSION = 'person-a-runtime-orchestration-v0.1.0';
+export const PERSON_A_RUNTIME_ORCHESTRATION_VERSION = 'person-a-runtime-orchestration-v0.1.1';
+export const MAX_RUNTIME_ASSESSMENT_JSON_DEPTH = 64;
 
 export type RuntimeStageStatus = 'not_started' | 'passed' | 'skipped' | 'failed_closed';
+export type RuntimeArtifactStatus = 'absent' | 'present_hashed' | 'present_invalid';
 export type RuntimeStageName =
   | 'original_validation'
   | 'repair'
@@ -90,6 +92,8 @@ export interface PersonARuntimePlanningResult {
     original_valid: boolean;
     repaired_valid: boolean;
     original_unchanged: boolean;
+    original_artifact_status: RuntimeArtifactStatus;
+    repaired_artifact_status: RuntimeArtifactStatus;
     assessments_received: number;
     assessments_validated: number;
     assessments_rejected: number;
@@ -125,6 +129,11 @@ const families = [
   'clarification_questions',
 ] as const;
 type RuntimeFamily = (typeof families)[number];
+
+interface IndexedRuntimeObject {
+  family: RuntimeFamily;
+  item: JsonObject;
+}
 
 const familyIdFields: Record<RuntimeFamily, string> = {
   agreement_terms: 'term_id',
@@ -180,30 +189,49 @@ const stateKeys = new Set([
   'evidence_availability',
   'date_precision',
 ]);
-const supportedFieldsByTrigger: Record<ClarificationTriggerKind, Set<string>> = {
-  actor_attribution: new Set(['actor_party_id', 'actor_third_party_id']),
-  causal_link: new Set(['causal_theory']),
-  merge_risk: new Set(['identity', 'name', 'title', 'description', 'claim_text', 'event_summary']),
-  evidence_availability: new Set(['availability_status']),
-  date_precision: new Set(['date', 'required_information']),
-  required_bucket_missing: new Set([
-    'required_information',
-    'description',
-    'identity',
-    'wording',
-    'person_a_interpretation',
-    'claim_text',
-  ]),
-  internal_representation: new Set([
-    'identity',
-    'name',
-    'title',
-    'description',
-    'required_information',
-    'claim_text',
-    'event_summary',
-    'availability_status',
-  ]),
+interface AssessmentCompatibilityRule {
+  family: RuntimeFamily;
+  field: string;
+  allow_missing_field?: boolean;
+}
+
+const assessmentCompatibility: Record<
+  ClarificationTriggerKind,
+  readonly AssessmentCompatibilityRule[]
+> = {
+  actor_attribution: [
+    { family: 'timeline', field: 'actor_party_id' },
+    { family: 'timeline', field: 'actor_third_party_id' },
+    { family: 'claims', field: 'party_id' },
+  ],
+  causal_link: [{ family: 'damages', field: 'causal_theory' }],
+  merge_risk: [{ family: 'extraction_issues', field: 'description' }],
+  evidence_availability: [{ family: 'evidence', field: 'availability_status' }],
+  date_precision: [{ family: 'timeline', field: 'date' }],
+  required_bucket_missing: [
+    { family: 'agreement_terms', field: 'wording' },
+    { family: 'agreement_terms', field: 'person_a_interpretation' },
+    { family: 'claims', field: 'claim_text' },
+    { family: 'extraction_issues', field: 'description' },
+    {
+      family: 'extraction_issues',
+      field: 'required_information',
+      allow_missing_field: true,
+    },
+  ],
+  internal_representation: [
+    { family: 'agreement_terms', field: 'wording' },
+    { family: 'deliverables', field: 'name' },
+    { family: 'timeline', field: 'event_summary' },
+    { family: 'claims', field: 'claim_text' },
+    { family: 'evidence', field: 'title' },
+    { family: 'evidence', field: 'availability_status' },
+    { family: 'damages', field: 'causal_theory' },
+    { family: 'outcomes', field: 'rationale' },
+    { family: 'third_parties', field: 'name_or_label' },
+    { family: 'extraction_issues', field: 'description' },
+    { family: 'clarification_questions', field: 'question' },
+  ],
 };
 
 function isRecord(value: unknown): value is JsonObject {
@@ -237,16 +265,114 @@ function safeClone(value: unknown): unknown {
   }
 }
 
-function isJsonValue(value: unknown): boolean {
-  if (value === null || typeof value === 'string' || typeof value === 'boolean') return true;
-  if (typeof value === 'number') return Number.isFinite(value);
-  if (Array.isArray(value)) return value.every(isJsonValue);
-  if (!isRecord(value)) return false;
-  const prototype = Object.getPrototypeOf(value);
-  return (
-    (prototype === Object.prototype || prototype === null) &&
-    Object.values(value).every(isJsonValue)
-  );
+interface JsonInspection {
+  valid: boolean;
+  reason: string | null;
+}
+
+function inspectJsonValue(
+  value: unknown,
+  depth = 0,
+  active: WeakSet<object> = new WeakSet(),
+): JsonInspection {
+  if (depth > MAX_RUNTIME_ASSESSMENT_JSON_DEPTH) {
+    return {
+      valid: false,
+      reason: `Assessment exceeds the maximum JSON depth of ${MAX_RUNTIME_ASSESSMENT_JSON_DEPTH}.`,
+    };
+  }
+  if (value === null || typeof value === 'string' || typeof value === 'boolean') {
+    return { valid: true, reason: null };
+  }
+  if (typeof value === 'number') {
+    return Number.isFinite(value)
+      ? { valid: true, reason: null }
+      : { valid: false, reason: 'Assessment contains a non-finite number.' };
+  }
+  if (typeof value !== 'object') {
+    return {
+      valid: false,
+      reason: `Assessment contains unsupported ${typeof value} data.`,
+    };
+  }
+  if (active.has(value)) {
+    return { valid: false, reason: 'Assessment contains a cyclic object or array.' };
+  }
+  let arrayValue: boolean;
+  let prototype: object | null;
+  try {
+    arrayValue = Array.isArray(value);
+    prototype = Object.getPrototypeOf(value);
+  } catch {
+    return { valid: false, reason: 'Assessment object metadata cannot be safely inspected.' };
+  }
+  if (!arrayValue) {
+    if (prototype !== Object.prototype && prototype !== null) {
+      return { valid: false, reason: 'Assessment contains an object with an unusual prototype.' };
+    }
+  }
+  let descriptors: PropertyDescriptorMap;
+  let keys: (string | symbol)[];
+  try {
+    descriptors = Object.getOwnPropertyDescriptors(value);
+    keys = Reflect.ownKeys(value);
+  } catch {
+    return { valid: false, reason: 'Assessment object properties cannot be safely inspected.' };
+  }
+  if (keys.some((key) => typeof key === 'symbol')) {
+    return { valid: false, reason: 'Assessment contains a symbol-keyed property.' };
+  }
+  const stringKeys = keys as string[];
+  if (arrayValue) {
+    const length = descriptors.length?.value;
+    if (!Number.isSafeInteger(length) || length < 0) {
+      return { valid: false, reason: 'Assessment array length cannot be safely inspected.' };
+    }
+    const expectedKeys = Array.from({ length }, (_, index) => String(index));
+    const actualKeys = stringKeys.filter((key) => key !== 'length');
+    if (
+      actualKeys.length !== expectedKeys.length ||
+      actualKeys.some((key, index) => key !== expectedKeys[index])
+    ) {
+      return { valid: false, reason: 'Assessment contains a sparse or extended array.' };
+    }
+  }
+  active.add(value);
+  try {
+    for (const key of stringKeys) {
+      if (arrayValue && key === 'length') continue;
+      const descriptor = descriptors[key];
+      if (!descriptor || !('value' in descriptor) || !descriptor.enumerable) {
+        return { valid: false, reason: 'Assessment contains an accessor or hidden property.' };
+      }
+      const child = inspectJsonValue(descriptor.value, depth + 1, active);
+      if (!child.valid) return child;
+    }
+  } finally {
+    active.delete(value);
+  }
+  return { valid: true, reason: null };
+}
+
+function rejectedAuditValue(value: unknown, reason: string): JsonObject {
+  let valueType = value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value;
+  let ownKeys: string[] = [];
+  if (value !== null && (typeof value === 'object' || typeof value === 'function')) {
+    try {
+      ownKeys = Reflect.ownKeys(value)
+        .map((key) => (typeof key === 'symbol' ? key.toString() : key))
+        .sort(lexicalCompare)
+        .slice(0, 20);
+    } catch {
+      valueType = 'uninspectable';
+    }
+  }
+  return {
+    audit_type: 'rejected_non_json_assessment',
+    reason,
+    value_type: valueType,
+    own_keys: ownKeys,
+  };
 }
 
 function extractionHash(value: unknown): string | null {
@@ -283,12 +409,14 @@ function familyItems(record: JsonObject, family: RuntimeFamily): unknown[] {
   }
 }
 
-function buildObjectIndex(record: JsonObject): Map<string, RuntimeFamily> {
-  const result = new Map<string, RuntimeFamily>();
+function buildObjectIndex(record: JsonObject): Map<string, IndexedRuntimeObject> {
+  const result = new Map<string, IndexedRuntimeObject>();
   for (const family of families) {
     const idField = familyIdFields[family];
     for (const item of familyItems(record, family)) {
-      if (isRecord(item) && typeof item[idField] === 'string') result.set(item[idField], family);
+      if (isRecord(item) && typeof item[idField] === 'string') {
+        result.set(item[idField], { family, item });
+      }
     }
   }
   return result;
@@ -317,7 +445,7 @@ function reject(
 function validateAssessment(
   value: unknown,
   sequence: number,
-  objectIndex: Map<string, RuntimeFamily>,
+  objectIndex: Map<string, IndexedRuntimeObject>,
 ): EpistemicAssessment | RejectedRuntimeAssessment {
   if (!isRecord(value))
     return reject(sequence, value, 'assessment_not_object', 'Assessment must be an object.');
@@ -366,8 +494,8 @@ function validateAssessment(
   if (!materialities.has(value.materiality)) {
     return reject(sequence, value, 'invalid_materiality', 'materiality must be categorical.');
   }
-  const actualFamily = objectIndex.get(value.target_object_id);
-  if (!actualFamily) {
+  const target = objectIndex.get(value.target_object_id);
+  if (!target) {
     return reject(
       sequence,
       value,
@@ -375,7 +503,7 @@ function validateAssessment(
       'Assessment target does not exist in the repaired extraction.',
     );
   }
-  if (actualFamily !== value.target_family) {
+  if (target.family !== value.target_family) {
     return reject(
       sequence,
       value,
@@ -384,12 +512,23 @@ function validateAssessment(
     );
   }
   const trigger = value.trigger as ClarificationTriggerKind;
-  if (!supportedFieldsByTrigger[trigger].has(value.field)) {
+  const compatibility = assessmentCompatibility[trigger].find(
+    (rule) => rule.family === target.family && rule.field === value.field,
+  );
+  if (!compatibility) {
     return reject(
       sequence,
       value,
-      'unsupported_assessment_field',
-      `Field ${value.field} is not supported for ${trigger}.`,
+      'incompatible_assessment_target',
+      `${trigger} cannot assess ${target.family}.${value.field}.`,
+    );
+  }
+  if (!Object.hasOwn(target.item, value.field) && !compatibility.allow_missing_field) {
+    return reject(
+      sequence,
+      value,
+      'assessment_field_missing',
+      `Target object ${value.target_object_id} does not contain ${value.field}.`,
     );
   }
   const expectedState = triggerStates[trigger];
@@ -508,12 +647,26 @@ export function orchestratePersonAPlanning(
 
   const finish = (): PersonARuntimePlanningResult => {
     const failedStage = stages.find((item) => item.status === 'failed_closed')?.stage ?? null;
+    const originalHash = originalValid ? extractionHash(originalSnapshot) : null;
+    const repairedHash = repaired === null ? null : extractionHash(repaired);
+    const originalArtifactStatus: RuntimeArtifactStatus =
+      originalSnapshot === null
+        ? 'absent'
+        : originalValid && originalHash !== null
+          ? 'present_hashed'
+          : 'present_invalid';
+    const repairedArtifactStatus: RuntimeArtifactStatus =
+      repaired === null
+        ? 'absent'
+        : repairedValid && repairedHash !== null
+          ? 'present_hashed'
+          : 'present_invalid';
     return {
       orchestration_version: PERSON_A_RUNTIME_ORCHESTRATION_VERSION,
       original_extraction: originalSnapshot,
       repaired_extraction: repaired,
-      original_extraction_hash: extractionHash(originalSnapshot),
-      repaired_extraction_hash: extractionHash(repaired),
+      original_extraction_hash: originalHash,
+      repaired_extraction_hash: repairedHash,
       repair_result: repairResult,
       raw_assessments: rawAssessments,
       validated_assessments: validatedAssessments,
@@ -530,6 +683,8 @@ export function orchestratePersonAPlanning(
         original_valid: originalValid,
         repaired_valid: repairedValid,
         original_unchanged: originalUnchanged,
+        original_artifact_status: originalArtifactStatus,
+        repaired_artifact_status: repairedArtifactStatus,
         assessments_received: rawAssessments.length,
         assessments_validated: validatedAssessments.length,
         assessments_rejected: rejectedAssessments.length,
@@ -572,6 +727,8 @@ export function orchestratePersonAPlanning(
     });
     repaired = structuredClone(repairResult.repaired_extraction);
   } catch (error) {
+    repairResult = null;
+    repaired = null;
     originalUnchanged = JSON.stringify(input.extraction) === originalSerialized;
     fail('repair', 'repair_failed', error instanceof Error ? error.message : String(error));
     return finish();
@@ -622,10 +779,16 @@ export function orchestratePersonAPlanning(
     return finish();
   }
   if (!Array.isArray(providerOutput)) {
+    const inspection = inspectJsonValue(providerOutput);
     rejectedAssessments = [
       {
         sequence_number: null,
-        assessment: safeClone(providerOutput),
+        assessment: inspection.valid
+          ? canonicalize(safeClone(providerOutput))
+          : rejectedAuditValue(
+              providerOutput,
+              inspection.reason ?? 'Provider result is not valid JSON.',
+            ),
         code: 'assessment_result_not_array',
         message: 'Assessment provider must return an array.',
       },
@@ -638,23 +801,29 @@ export function orchestratePersonAPlanning(
     return finish();
   }
   const preparedAssessments = providerOutput
-    .map((value) => ({
-      original: value,
-      audit: canonicalize(safeClone(value)),
-    }))
+    .map((value) => {
+      const inspection = inspectJsonValue(value);
+      return {
+        original: value,
+        inspection,
+        audit: inspection.valid
+          ? canonicalize(safeClone(value))
+          : rejectedAuditValue(value, inspection.reason ?? 'Assessment is not valid JSON.'),
+      };
+    })
     .sort((left, right) => lexicalCompare(stableKey(left.audit), stableKey(right.audit)));
   rawAssessments = preparedAssessments.map((item) => item.audit);
   const objectIndex = buildObjectIndex(repaired);
   const acceptedKeys = new Set<string>();
   for (const [index, prepared] of preparedAssessments.entries()) {
     const value = prepared.audit;
-    if (!isJsonValue(prepared.original)) {
+    if (!prepared.inspection.valid) {
       rejectedAssessments.push(
         reject(
           index + 1,
           value,
           'assessment_not_json',
-          'Assessment must contain JSON-compatible values only.',
+          prepared.inspection.reason ?? 'Assessment must contain JSON-compatible values only.',
         ),
       );
       continue;
@@ -688,6 +857,19 @@ export function orchestratePersonAPlanning(
 
   try {
     const necessity = dependencies.classify(validatedAssessments, repaired);
+    if (
+      !Array.isArray(necessity.necessity_classification) ||
+      !Array.isArray(necessity.question_candidates) ||
+      !Array.isArray(necessity.suppressed_candidates) ||
+      necessity.necessity_classification.some(
+        (candidate) => typeof candidate.reason !== 'string' || candidate.reason.trim().length === 0,
+      ) ||
+      necessity.suppressed_candidates.some(
+        (candidate) => typeof candidate.reason !== 'string' || candidate.reason.trim().length === 0,
+      )
+    ) {
+      throw new Error('Necessity classification returned incomplete candidate audit data.');
+    }
     classifications = necessity.necessity_classification;
     suppressedCandidates = necessity.suppressed_candidates;
     unresolvedMaterialGaps = necessity.question_candidates;

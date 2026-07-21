@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
@@ -54,6 +55,10 @@ function run(assessments: unknown = [assessment()]) {
   };
 }
 
+function hashJson(value: unknown): string {
+  return createHash('sha256').update(JSON.stringify(value), 'utf8').digest('hex');
+}
+
 function addContradiction(extraction: JsonObject): string {
   const first = structuredClone(extraction.claims[0].source_spans[0]);
   const second = structuredClone(extraction.claims[1].source_spans[0]);
@@ -78,6 +83,10 @@ describe('Person A runtime orchestration', () => {
     expect(result.question_count).toBe(1);
     expect(result.generated_questions[0]?.grounding_references.length).toBeGreaterThan(0);
     expect(result.stage_statuses.every((item) => item.status === 'passed')).toBe(true);
+    expect(result.original_extraction_hash).toBe(hashJson(result.original_extraction));
+    expect(result.repaired_extraction_hash).toBe(hashJson(result.repaired_extraction));
+    expect(result.audit_summary.original_artifact_status).toBe('present_hashed');
+    expect(result.audit_summary.repaired_artifact_status).toBe('present_hashed');
   });
 
   it('preserves the original extraction byte-equivalently and does not mutate provider data', () => {
@@ -130,6 +139,9 @@ describe('Person A runtime orchestration', () => {
     expect(result.stage_statuses.find((item) => item.stage === 'assessment')?.status).toBe(
       'skipped',
     );
+    expect(result.repaired_extraction).not.toBeNull();
+    expect(result.repaired_extraction_hash).toBe(hashJson(result.repaired_extraction));
+    expect(result.audit_summary.repaired_artifact_status).toBe('present_invalid');
   });
 
   it('passes only runtime-safe inputs to the assessment provider', () => {
@@ -193,6 +205,109 @@ describe('Person A runtime orchestration', () => {
     expect(result.question_count).toBe(0);
   });
 
+  it('rejects a directly self-referential assessment without throwing', () => {
+    const candidate = assessment() as JsonObject;
+    candidate.self = candidate;
+    let result: ReturnType<typeof orchestratePersonAPlanning> | undefined;
+    expect(() => {
+      result = run([candidate]).result;
+    }).not.toThrow();
+    expect(result?.rejected_assessments[0]).toMatchObject({
+      code: 'assessment_not_json',
+      assessment: {
+        audit_type: 'rejected_non_json_assessment',
+        reason: 'Assessment contains a cyclic object or array.',
+      },
+    });
+    expect(result?.question_count).toBe(0);
+    expect(result?.audit_summary.failure_stage).toBe('assessment');
+  });
+
+  it('rejects mutually cyclic assessment objects without throwing', () => {
+    const candidate = assessment() as JsonObject;
+    const peer: JsonObject = { label: 'peer', candidate };
+    candidate.peer = peer;
+    expect(() => run([candidate])).not.toThrow();
+    const { result } = run([candidate]);
+    expect(result.rejected_assessments[0]?.code).toBe('assessment_not_json');
+    expect(result.rejected_assessments[0]?.message).toContain('cyclic');
+    expect(result.generated_questions).toEqual([]);
+  });
+
+  it('rejects a cyclic array without throwing', () => {
+    const candidate = assessment() as JsonObject;
+    const cyclic: unknown[] = [];
+    cyclic.push(cyclic);
+    candidate.resolves_object_ids = cyclic;
+    const { result } = run([candidate]);
+    expect(result.rejected_assessments[0]?.code).toBe('assessment_not_json');
+    expect(result.rejected_assessments[0]?.message).toContain('cyclic');
+    expect(result.question_count).toBe(0);
+  });
+
+  it('rejects provider data beyond the bounded JSON depth without overflowing', () => {
+    const { extraction, narrative } = fixture();
+    const candidate = assessment() as JsonObject;
+    let cursor: JsonObject = candidate;
+    for (let depth = 0; depth < 70; depth += 1) {
+      cursor.nested = {};
+      cursor = cursor.nested;
+    }
+    const result = orchestratePersonAPlanning({
+      extraction,
+      narrative,
+      assessmentProvider: { assess: () => [candidate] },
+    });
+    expect(result.rejected_assessments[0]?.code).toBe('assessment_not_json');
+    expect(result.rejected_assessments[0]?.message).toContain('maximum JSON depth of 64');
+    expect(result.question_count).toBe(0);
+  });
+
+  it('accepts ordinary nested JSON arrays in a valid assessment', () => {
+    const candidate = assessment({ resolves_object_ids: ['ev_002', 'ev_001'] });
+    const { result } = run([candidate]);
+    expect(result.audit_summary.final_status).toBe('passed');
+    expect(result.validated_assessments[0]?.resolves_object_ids).toEqual(['ev_001', 'ev_002']);
+  });
+
+  it.each([
+    ['getter', 'getter'],
+    ['unusual prototype', 'prototype'],
+    ['symbol key', 'symbol'],
+    ['function', 'function'],
+    ['bigint', 'bigint'],
+    ['undefined', 'undefined'],
+    ['NaN', 'nan'],
+    ['Infinity', 'infinity'],
+  ])('rejects non-JSON provider value: %s', (_label, variant) => {
+    const candidate = assessment() as JsonObject;
+    if (variant === 'getter') {
+      Object.defineProperty(candidate, 'unsafe', {
+        enumerable: true,
+        get: () => {
+          throw new Error('getter must not execute');
+        },
+      });
+    } else if (variant === 'prototype') {
+      Object.setPrototypeOf(candidate, { inherited: true });
+    } else if (variant === 'symbol') {
+      candidate[Symbol('unsafe') as any] = 'value';
+    } else if (variant === 'function') candidate.unsafe = () => undefined;
+    else if (variant === 'bigint') candidate.unsafe = 1n;
+    else if (variant === 'undefined') candidate.unsafe = undefined;
+    else if (variant === 'nan') candidate.unsafe = Number.NaN;
+    else candidate.unsafe = Number.POSITIVE_INFINITY;
+    const { extraction, narrative } = fixture();
+    const result = orchestratePersonAPlanning({
+      extraction,
+      narrative,
+      assessmentProvider: { assess: () => [candidate] },
+    });
+    expect(result.audit_summary.failure_stage).toBe('assessment');
+    expect(result.rejected_assessments[0]?.code).toBe('assessment_not_json');
+    expect(result.generated_questions).toEqual([]);
+  });
+
   it('fails closed when an assessment references an unknown object', () => {
     const { result } = run([assessment({ target_object_id: 'ev_missing' })]);
     expect(result.rejected_assessments[0]?.code).toBe('unknown_target_object');
@@ -201,8 +316,149 @@ describe('Person A runtime orchestration', () => {
 
   it('fails closed on an unsupported assessment field', () => {
     const { result } = run([assessment({ field: 'uploaded_at' })]);
-    expect(result.rejected_assessments[0]?.code).toBe('unsupported_assessment_field');
+    expect(result.rejected_assessments[0]?.code).toBe('incompatible_assessment_target');
     expect(result.question_count).toBe(0);
+  });
+
+  it('rejects actor attribution on an evidence object', () => {
+    const { result } = run([
+      assessment({
+        field: 'actor_party_id',
+        trigger: 'actor_attribution',
+        actor_attribution: 'unstated',
+        evidence_availability: undefined,
+      }),
+    ]);
+    expect(result.rejected_assessments[0]?.code).toBe('incompatible_assessment_target');
+    expect(result.generated_questions).toEqual([]);
+  });
+
+  it('rejects evidence availability on a claim', () => {
+    const { result } = run([
+      assessment({
+        target_object_id: 'cl_a_001',
+        target_family: 'claims',
+        resolves_object_ids: ['cl_a_001'],
+      }),
+    ]);
+    expect(result.rejected_assessments[0]?.code).toBe('incompatible_assessment_target');
+    expect(result.generated_questions).toEqual([]);
+  });
+
+  it('rejects date precision on an object without a date field', () => {
+    const { result } = run([
+      assessment({
+        field: 'date',
+        trigger: 'date_precision',
+        date_precision: 'unknown',
+        evidence_availability: undefined,
+      }),
+    ]);
+    expect(result.rejected_assessments[0]?.code).toBe('incompatible_assessment_target');
+    expect(result.generated_questions).toEqual([]);
+  });
+
+  it('rejects declared-family versus resolved-family mismatch', () => {
+    const { result } = run([assessment({ target_family: 'claims' })]);
+    expect(result.rejected_assessments[0]?.code).toBe('target_family_mismatch');
+    expect(result.generated_questions).toEqual([]);
+  });
+
+  it('accepts actor attribution on a schema-supported timeline field', () => {
+    const { result } = run([
+      assessment({
+        target_object_id: 'tl_agreement',
+        target_family: 'timeline',
+        field: 'actor_party_id',
+        trigger: 'actor_attribution',
+        actor_attribution: 'unstated',
+        evidence_availability: undefined,
+        question_context: 'the early-April agreement action',
+        resolves_object_ids: ['tl_agreement'],
+      }),
+    ]);
+    expect(result.audit_summary.final_status).toBe('passed');
+    expect(result.validated_assessments).toHaveLength(1);
+    expect(result.rejected_assessments).toEqual([]);
+  });
+
+  it('rejects a compatible field when the resolved target shape omits it', () => {
+    const { extraction, narrative } = fixture();
+    const candidate = assessment({
+      target_object_id: 'tl_agreement',
+      target_family: 'timeline',
+      field: 'actor_party_id',
+      trigger: 'actor_attribution',
+      actor_attribution: 'unstated',
+      evidence_availability: undefined,
+      question_context: 'the early-April agreement action',
+      resolves_object_ids: ['tl_agreement'],
+    });
+    const result = orchestratePersonAPlanning(
+      {
+        extraction,
+        narrative,
+        assessmentProvider: createStaticRuntimeAssessmentProvider([candidate]),
+      },
+      {
+        validate: () => ({ valid: true, schemaErrors: [], invariantErrors: [] }),
+        repair: (options) => {
+          const repaired = repairPersonAExtraction(options);
+          const event = repaired.repaired_extraction.timeline.find(
+            (item: JsonObject) => item.event_id === 'tl_agreement',
+          );
+          delete event.actor_party_id;
+          return repaired;
+        },
+        classify: vi.fn(),
+        generate: vi.fn(),
+      },
+    );
+    expect(result.rejected_assessments[0]?.code).toBe('assessment_field_missing');
+    expect(result.generated_questions).toEqual([]);
+  });
+
+  it('accepts actor attribution on a schema-supported claim field', () => {
+    const { result } = run([
+      assessment({
+        target_object_id: 'cl_a_001',
+        target_family: 'claims',
+        field: 'party_id',
+        trigger: 'actor_attribution',
+        actor_attribution: 'explicit',
+        evidence_availability: undefined,
+        question_context: 'the website agreement claim',
+        resolves_object_ids: ['cl_a_001'],
+      }),
+    ]);
+    expect(result.audit_summary.final_status).toBe('passed');
+    expect(result.validated_assessments).toHaveLength(1);
+    expect(result.suppressed_candidates[0]?.classification).toBe('already_explicit');
+  });
+
+  it('accepts evidence availability only on evidence availability_status', () => {
+    const { result } = run([assessment()]);
+    expect(result.audit_summary.final_status).toBe('passed');
+    expect(result.validated_assessments).toHaveLength(1);
+    expect(result.generated_questions).toHaveLength(1);
+  });
+
+  it('fails the entire assessment batch atomically when one candidate is invalid', () => {
+    const valid = assessment();
+    const invalid = assessment({
+      target_object_id: 'cl_a_001',
+      target_family: 'claims',
+      resolves_object_ids: ['cl_a_001'],
+    });
+    const { result } = run([valid, invalid]);
+    expect(result.audit_summary.failure_stage).toBe('assessment');
+    expect(result.validated_assessments).toHaveLength(1);
+    expect(result.rejected_assessments).toHaveLength(1);
+    expect(result.generated_questions).toEqual([]);
+    expect(result.necessity_classifications).toEqual([]);
+    expect(result.stage_statuses.find((item) => item.stage === 'necessity')?.status).toBe(
+      'skipped',
+    );
   });
 
   it('fails closed on duplicate assessments', () => {
@@ -213,24 +469,7 @@ describe('Person A runtime orchestration', () => {
   });
 
   it('suppresses an otherwise valid candidate with insufficient grounding', () => {
-    const { extraction, narrative } = fixture();
-    const target = extraction.clarification_questions[0];
-    expect(target).toBeDefined();
-    const candidate = assessment({
-      target_object_id: target.question_id,
-      target_family: 'clarification_questions',
-      field: 'identity',
-      trigger: 'merge_risk',
-      merge_risk: 'possible_merge',
-      question_context: 'possible duplicate clarification item',
-      evidence_availability: undefined,
-      resolves_object_ids: [target.question_id],
-    });
-    const result = orchestratePersonAPlanning({
-      extraction,
-      narrative,
-      assessmentProvider: createStaticRuntimeAssessmentProvider([candidate]),
-    });
+    const { result } = run([assessment({ question_context: undefined })]);
     expect(result.audit_summary.final_status).toBe('passed');
     expect(result.question_count).toBe(0);
     expect(result.suppressed_candidates[0]?.classification).toBe('insufficient_grounding');
@@ -442,6 +681,61 @@ describe('Person A runtime orchestration', () => {
     expect(repair).not.toHaveBeenCalled();
     expect(result.audit_summary.failure_stage).toBe('original_validation');
     expect(result.repaired_extraction).toBeNull();
+    expect(result.repaired_extraction_hash).toBeNull();
+    expect(result.original_extraction_hash).toBeNull();
+    expect(result.audit_summary.original_artifact_status).toBe('present_invalid');
+    expect(result.audit_summary.repaired_artifact_status).toBe('absent');
+  });
+
+  it('returns no fake repaired hash when repair throws', () => {
+    const { extraction, narrative } = fixture();
+    const result = orchestratePersonAPlanning(
+      { extraction, narrative, assessmentProvider: createStaticRuntimeAssessmentProvider([]) },
+      {
+        validate: () => ({ valid: true, schemaErrors: [], invariantErrors: [] }),
+        repair: () => {
+          throw new Error('repair failed before artifact creation');
+        },
+        classify: vi.fn(),
+        generate: vi.fn(),
+      },
+    );
+    expect(result.audit_summary.failure_stage).toBe('repair');
+    expect(result.original_extraction_hash).toBe(hashJson(result.original_extraction));
+    expect(result.repaired_extraction).toBeNull();
+    expect(result.repaired_extraction_hash).toBeNull();
+    expect(result.audit_summary.original_artifact_status).toBe('present_hashed');
+    expect(result.audit_summary.repaired_artifact_status).toBe('absent');
+  });
+
+  it('keeps result fields internally consistent across success and failure paths', () => {
+    const successful = run().result;
+    const failedAssessment = run([
+      assessment({
+        target_object_id: 'cl_a_001',
+        target_family: 'claims',
+        resolves_object_ids: ['cl_a_001'],
+      }),
+    ]).result;
+    for (const result of [successful, failedAssessment]) {
+      expect(result.question_count).toBe(result.generated_questions.length);
+      expect(
+        result.suppressed_candidates.every(
+          (candidate) => typeof candidate.reason === 'string' && candidate.reason.length > 0,
+        ),
+      ).toBe(true);
+      const failedIndex = result.stage_statuses.findIndex(
+        (item) => item.status === 'failed_closed',
+      );
+      if (failedIndex >= 0) {
+        expect(
+          result.stage_statuses.slice(failedIndex + 1).every((item) => item.status === 'skipped'),
+        ).toBe(true);
+      }
+    }
+    expect(failedAssessment.audit_summary.failure_stage).toBe('assessment');
+    expect(failedAssessment.generated_questions).toEqual([]);
+    expect(failedAssessment.necessity_classifications).toEqual([]);
   });
 
   it('does not apply answers, amendments, or mutate persistent state', () => {
