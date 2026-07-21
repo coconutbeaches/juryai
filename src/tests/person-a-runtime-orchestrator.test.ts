@@ -10,6 +10,10 @@ import {
 import type { EpistemicAssessment } from '../clarification/question-generator.js';
 import { repairPersonAExtraction } from '../repair/person-a-record-repair.js';
 import {
+  MAX_RUNTIME_ASSESSMENT_BATCH_SIZE,
+  MAX_RUNTIME_ASSESSMENT_JSON_NODES,
+  MAX_RUNTIME_ASSESSMENT_NESTED_ARRAY_LENGTH,
+  MAX_RUNTIME_ASSESSMENT_OBJECT_KEYS,
   orchestratePersonAPlanning,
   type RuntimeAssessmentContext,
   type RuntimeAssessmentProvider,
@@ -53,6 +57,15 @@ function run(assessments: unknown = [assessment()]) {
       assessmentProvider: createStaticRuntimeAssessmentProvider(assessments),
     }),
   };
+}
+
+function runProviderOutput(providerOutput: unknown) {
+  const { extraction, narrative } = fixture();
+  return orchestratePersonAPlanning({
+    extraction,
+    narrative,
+    assessmentProvider: { assess: () => providerOutput },
+  });
 }
 
 function hashJson(value: unknown): string {
@@ -268,6 +281,195 @@ describe('Person A runtime orchestration', () => {
     const { result } = run([candidate]);
     expect(result.audit_summary.final_status).toBe('passed');
     expect(result.validated_assessments[0]?.resolves_object_ids).toEqual(['ev_001', 'ev_002']);
+  });
+
+  it.each([
+    {
+      label: 'function expando',
+      build: () => {
+        const batch = [assessment()] as unknown[] & JsonObject;
+        batch.extra = () => undefined;
+        return batch;
+      },
+    },
+    {
+      label: 'primitive expando',
+      build: () => {
+        const batch = [assessment()] as unknown[] & JsonObject;
+        batch.extra = 'unexpected';
+        return batch;
+      },
+    },
+    {
+      label: 'sparse slot',
+      build: () => {
+        const batch: unknown[] = [];
+        batch.length = 2;
+        batch[1] = assessment();
+        return batch;
+      },
+    },
+    {
+      label: 'symbol key',
+      build: () => {
+        const batch = [assessment()] as unknown[] & JsonObject;
+        batch[Symbol('unsafe') as any] = 'unexpected';
+        return batch;
+      },
+    },
+    {
+      label: 'accessor property',
+      build: () => {
+        const batch = [assessment()];
+        Object.defineProperty(batch, 'unsafe', {
+          enumerable: true,
+          get: () => {
+            throw new Error('batch getter must not execute');
+          },
+        });
+        return batch;
+      },
+    },
+    {
+      label: 'unusual prototype',
+      build: () => {
+        const batch = [assessment()];
+        Object.setPrototypeOf(batch, Object.create(Array.prototype));
+        return batch;
+      },
+    },
+  ])('rejects a malformed top-level assessment batch: $label', ({ build }) => {
+    let result: ReturnType<typeof orchestratePersonAPlanning> | undefined;
+    expect(() => {
+      result = runProviderOutput(build());
+    }).not.toThrow();
+    expect(result?.audit_summary.failure_stage).toBe('assessment');
+    expect(result?.rejected_assessments[0]?.code).toBe('assessment_not_json');
+    expect(result?.question_count).toBe(0);
+    expect(result?.generated_questions).toEqual([]);
+    expect(result?.necessity_classifications).toEqual([]);
+    expect(result?.stage_statuses.find((item) => item.stage === 'necessity')?.status).toBe(
+      'skipped',
+    );
+  });
+
+  it('rejects a cyclic top-level batch without throwing', () => {
+    const batch: unknown[] = [];
+    batch.push(batch);
+    expect(() => runProviderOutput(batch)).not.toThrow();
+    const result = runProviderOutput(batch);
+    expect(result.rejected_assessments[0]).toMatchObject({
+      code: 'assessment_not_json',
+      assessment: {
+        audit_type: 'rejected_non_json_assessment',
+        reason: 'Assessment contains a cyclic object or array.',
+      },
+    });
+    expect(result.question_count).toBe(0);
+  });
+
+  it('accepts a dense plain JSON assessment batch', () => {
+    const result = runProviderOutput([assessment()]);
+    expect(result.audit_summary.final_status).toBe('passed');
+    expect(result.rejected_assessments).toEqual([]);
+    expect(result.question_count).toBe(1);
+  });
+
+  it('rejects a huge sparse batch length before proportional allocation', () => {
+    const batch: unknown[] = [];
+    batch.length = 2 ** 32 - 1;
+    const result = runProviderOutput(batch);
+    expect(result.rejected_assessments[0]?.message).toContain(
+      `supported limit of ${MAX_RUNTIME_ASSESSMENT_BATCH_SIZE}`,
+    );
+    expect(result.question_count).toBe(0);
+  });
+
+  it('rejects a huge dense-like declared batch length before key materialization', () => {
+    const batch: unknown[] = [];
+    batch[2 ** 32 - 2] = assessment();
+    const result = runProviderOutput(batch);
+    expect(result.rejected_assessments[0]?.message).toContain(
+      `supported limit of ${MAX_RUNTIME_ASSESSMENT_BATCH_SIZE}`,
+    );
+    expect(result.question_count).toBe(0);
+  });
+
+  it('accepts the maximum assessment batch size and rejects one above it', () => {
+    const maximum = Array.from({ length: MAX_RUNTIME_ASSESSMENT_BATCH_SIZE }, (_, index) =>
+      assessment({ question_context: `signed website agreement item ${index + 1}` }),
+    );
+    const accepted = runProviderOutput(maximum);
+    expect(accepted.audit_summary.final_status).toBe('passed');
+    expect(accepted.audit_summary.assessments_received).toBe(MAX_RUNTIME_ASSESSMENT_BATCH_SIZE);
+
+    const rejected = runProviderOutput([...maximum, assessment()]);
+    expect(rejected.rejected_assessments[0]?.message).toContain(
+      `supported limit of ${MAX_RUNTIME_ASSESSMENT_BATCH_SIZE}`,
+    );
+    expect(rejected.question_count).toBe(0);
+  });
+
+  it('accepts the nested array limit and rejects one above it', () => {
+    const maximum = assessment({
+      resolves_object_ids: Array.from(
+        { length: MAX_RUNTIME_ASSESSMENT_NESTED_ARRAY_LENGTH },
+        () => 'ev_001',
+      ),
+    });
+    const accepted = runProviderOutput([maximum]);
+    expect(accepted.audit_summary.final_status).toBe('passed');
+
+    const rejected = runProviderOutput([
+      assessment({
+        resolves_object_ids: Array.from(
+          { length: MAX_RUNTIME_ASSESSMENT_NESTED_ARRAY_LENGTH + 1 },
+          () => 'ev_001',
+        ),
+      }),
+    ]);
+    expect(rejected.rejected_assessments[0]?.message).toContain(
+      `supported limit of ${MAX_RUNTIME_ASSESSMENT_NESTED_ARRAY_LENGTH}`,
+    );
+    expect(rejected.question_count).toBe(0);
+  });
+
+  it('enforces the bounded object own-key limit before semantic validation', () => {
+    const candidate = assessment() as JsonObject;
+    for (let index = 0; index < MAX_RUNTIME_ASSESSMENT_OBJECT_KEYS; index += 1) {
+      candidate[`extra_${index}`] = index;
+    }
+    const result = runProviderOutput([candidate]);
+    expect(result.rejected_assessments[0]?.message).toContain(
+      `own-key limit of ${MAX_RUNTIME_ASSESSMENT_OBJECT_KEYS}`,
+    );
+    expect(
+      (result.rejected_assessments[0]?.assessment as JsonObject).own_keys.length,
+    ).toBeLessThanOrEqual(20);
+    expect(result.question_count).toBe(0);
+  });
+
+  it('enforces the total provider JSON traversal budget', () => {
+    const batch = Array.from({ length: MAX_RUNTIME_ASSESSMENT_BATCH_SIZE }, (_, index) =>
+      assessment({
+        question_context: `signed website agreement item ${index + 1}`,
+        resolves_object_ids: Array.from({ length: 100 }, () => 'ev_001'),
+      }),
+    );
+    const result = runProviderOutput(batch);
+    expect(result.rejected_assessments[0]?.message).toContain(
+      `maximum JSON traversal size of ${MAX_RUNTIME_ASSESSMENT_JSON_NODES}`,
+    );
+    expect(result.question_count).toBe(0);
+  });
+
+  it('returns byte-identical audit output for repeated oversized batches', () => {
+    const build = () => {
+      const batch: unknown[] = [];
+      batch.length = MAX_RUNTIME_ASSESSMENT_BATCH_SIZE + 1;
+      return runProviderOutput(batch);
+    };
+    expect(JSON.stringify(build())).toBe(JSON.stringify(build()));
   });
 
   it.each([

@@ -69,9 +69,16 @@ are offline test/CLI fixtures, not the final production assessment engine.
 - Reject malformed or duplicate assessments and suppress context-free or ungrounded candidates.
 - Treat an assessment-provider batch atomically: one rejected item fails the whole assessment
   stage and no item in that response can produce a question.
+- Validate the provider batch container before mapping, cloning, or serializing it. It must be a
+  plain, dense JSON array with no expando, symbol, accessor, inherited-enumerable, or unusual
+  prototype state.
 - Reject cycles, accessors, unusual prototypes, symbols, functions, bigint, `undefined`, sparse or
-  extended arrays, and non-finite numbers before JSON serialization. Traversal is cycle-aware and
-  capped at 64 levels; rejected values receive a bounded audit description.
+  extended arrays, and non-finite numbers before JSON serialization. Traversal is cycle-aware,
+  capped at 64 levels and 10,000 visited values, and returns a bounded audit description.
+- Bound provider-controlled containers to 100 assessments per batch, 1,000 values per nested
+  array, and 200 own keys per object. Array density is checked from actual own descriptors by
+  counting canonical numeric indices and comparing their count and endpoints with `length`; the
+  validator never constructs an expected-key array proportional to attacker-controlled length.
 - Enforce an explicit trigger, target-family, and field matrix with no wildcard fallback. The
   target object's resolved family and actual shape must agree with the assessment.
 - Suppress `already_explicit`, `internal_representation`, and `insufficient_grounding` candidates.
@@ -141,6 +148,9 @@ rule can turn an aggregate-split audit into a human question.
 - Invalid original or repaired records fail closed.
 - Absent artifacts have null hashes, while produced invalid repairs retain their real hashes.
 - Cyclic and over-depth provider output fails closed without recursion overflow.
+- Sparse, extended, accessor-backed, symbol-keyed, cyclic, and oversized provider batch arrays
+  fail atomically before iteration, and huge declared lengths are rejected before proportional
+  allocation.
 - Wrong-family trigger/field combinations fail the assessment batch atomically.
 - Golden/evaluation modules are absent from the runtime dependency graph.
 - Assessment order does not change serialized output.

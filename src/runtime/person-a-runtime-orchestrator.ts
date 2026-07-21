@@ -20,8 +20,13 @@ import {
 
 type JsonObject = Record<string, any>;
 
-export const PERSON_A_RUNTIME_ORCHESTRATION_VERSION = 'person-a-runtime-orchestration-v0.1.1';
+export const PERSON_A_RUNTIME_ORCHESTRATION_VERSION = 'person-a-runtime-orchestration-v0.1.2';
 export const MAX_RUNTIME_ASSESSMENT_JSON_DEPTH = 64;
+export const MAX_RUNTIME_ASSESSMENT_BATCH_SIZE = 100;
+export const MAX_RUNTIME_ASSESSMENT_NESTED_ARRAY_LENGTH = 1_000;
+export const MAX_RUNTIME_ASSESSMENT_OBJECT_KEYS = 200;
+export const MAX_RUNTIME_ASSESSMENT_JSON_NODES = 10_000;
+const MAX_RUNTIME_REJECTED_AUDIT_KEYS = 20;
 
 export type RuntimeStageStatus = 'not_started' | 'passed' | 'skipped' | 'failed_closed';
 export type RuntimeArtifactStatus = 'absent' | 'present_hashed' | 'present_invalid';
@@ -270,11 +275,58 @@ interface JsonInspection {
   reason: string | null;
 }
 
+interface JsonInspectionOptions {
+  rootArrayLengthLimit: number;
+}
+
+interface JsonInspectionContext {
+  active: WeakSet<object>;
+  nodesVisited: number;
+}
+
+const nestedJsonInspectionOptions: JsonInspectionOptions = {
+  rootArrayLengthLimit: MAX_RUNTIME_ASSESSMENT_NESTED_ARRAY_LENGTH,
+};
+
+function canonicalArrayIndex(key: string): number | null {
+  if (key === '0') return 0;
+  if (!/^[1-9]\d*$/u.test(key)) return null;
+  const index = Number(key);
+  return Number.isSafeInteger(index) && String(index) === key ? index : null;
+}
+
+function prototypeHasEnumerableProperties(prototype: object): boolean {
+  try {
+    let current: object | null = prototype;
+    while (current !== null) {
+      if (
+        Reflect.ownKeys(current).some(
+          (key) => Object.getOwnPropertyDescriptor(current, key)?.enumerable === true,
+        )
+      ) {
+        return true;
+      }
+      current = Object.getPrototypeOf(current);
+    }
+    return false;
+  } catch {
+    return true;
+  }
+}
+
 function inspectJsonValue(
   value: unknown,
+  options: JsonInspectionOptions = nestedJsonInspectionOptions,
   depth = 0,
-  active: WeakSet<object> = new WeakSet(),
+  context: JsonInspectionContext = { active: new WeakSet(), nodesVisited: 0 },
 ): JsonInspection {
+  context.nodesVisited += 1;
+  if (context.nodesVisited > MAX_RUNTIME_ASSESSMENT_JSON_NODES) {
+    return {
+      valid: false,
+      reason: `Assessment exceeds the maximum JSON traversal size of ${MAX_RUNTIME_ASSESSMENT_JSON_NODES} values.`,
+    };
+  }
   if (depth > MAX_RUNTIME_ASSESSMENT_JSON_DEPTH) {
     return {
       valid: false,
@@ -295,7 +347,7 @@ function inspectJsonValue(
       reason: `Assessment contains unsupported ${typeof value} data.`,
     };
   }
-  if (active.has(value)) {
+  if (context.active.has(value)) {
     return { valid: false, reason: 'Assessment contains a cyclic object or array.' };
   }
   let arrayValue: boolean;
@@ -306,15 +358,42 @@ function inspectJsonValue(
   } catch {
     return { valid: false, reason: 'Assessment object metadata cannot be safely inspected.' };
   }
-  if (!arrayValue) {
-    if (prototype !== Object.prototype && prototype !== null) {
-      return { valid: false, reason: 'Assessment contains an object with an unusual prototype.' };
+  if (
+    (arrayValue && prototype !== Array.prototype) ||
+    (!arrayValue && prototype !== Object.prototype && prototype !== null)
+  ) {
+    return { valid: false, reason: 'Assessment contains an object with an unusual prototype.' };
+  }
+  if (prototype !== null && prototypeHasEnumerableProperties(prototype)) {
+    return { valid: false, reason: 'Assessment contains inherited enumerable properties.' };
+  }
+  if (arrayValue) {
+    let lengthDescriptor: PropertyDescriptor | undefined;
+    try {
+      lengthDescriptor = Object.getOwnPropertyDescriptor(value, 'length');
+    } catch {
+      return { valid: false, reason: 'Assessment array length cannot be safely inspected.' };
+    }
+    if (
+      !lengthDescriptor ||
+      !('value' in lengthDescriptor) ||
+      lengthDescriptor.enumerable ||
+      !Number.isSafeInteger(lengthDescriptor.value) ||
+      lengthDescriptor.value < 0
+    ) {
+      return { valid: false, reason: 'Assessment array length cannot be safely inspected.' };
+    }
+    const arrayLengthLimit =
+      depth === 0 ? options.rootArrayLengthLimit : MAX_RUNTIME_ASSESSMENT_NESTED_ARRAY_LENGTH;
+    if (lengthDescriptor.value > arrayLengthLimit) {
+      return {
+        valid: false,
+        reason: `Assessment array length exceeds the supported limit of ${arrayLengthLimit}.`,
+      };
     }
   }
-  let descriptors: PropertyDescriptorMap;
   let keys: (string | symbol)[];
   try {
-    descriptors = Object.getOwnPropertyDescriptors(value);
     keys = Reflect.ownKeys(value);
   } catch {
     return { valid: false, reason: 'Assessment object properties cannot be safely inspected.' };
@@ -323,46 +402,70 @@ function inspectJsonValue(
     return { valid: false, reason: 'Assessment contains a symbol-keyed property.' };
   }
   const stringKeys = keys as string[];
+  if (!arrayValue && stringKeys.length > MAX_RUNTIME_ASSESSMENT_OBJECT_KEYS) {
+    return {
+      valid: false,
+      reason: `Assessment object exceeds the supported own-key limit of ${MAX_RUNTIME_ASSESSMENT_OBJECT_KEYS}.`,
+    };
+  }
   if (arrayValue) {
-    const length = descriptors.length?.value;
-    if (!Number.isSafeInteger(length) || length < 0) {
-      return { valid: false, reason: 'Assessment array length cannot be safely inspected.' };
+    const length = Object.getOwnPropertyDescriptor(value, 'length')?.value as number;
+    let indexCount = 0;
+    let minimumIndex = Number.POSITIVE_INFINITY;
+    let maximumIndex = Number.NEGATIVE_INFINITY;
+    for (const key of stringKeys) {
+      if (key === 'length') continue;
+      const index = canonicalArrayIndex(key);
+      if (index === null || index >= length) {
+        return { valid: false, reason: 'Assessment contains a sparse or extended array.' };
+      }
+      indexCount += 1;
+      minimumIndex = Math.min(minimumIndex, index);
+      maximumIndex = Math.max(maximumIndex, index);
     }
-    const expectedKeys = Array.from({ length }, (_, index) => String(index));
-    const actualKeys = stringKeys.filter((key) => key !== 'length');
     if (
-      actualKeys.length !== expectedKeys.length ||
-      actualKeys.some((key, index) => key !== expectedKeys[index])
+      indexCount !== length ||
+      (length > 0 && (minimumIndex !== 0 || maximumIndex !== length - 1))
     ) {
       return { valid: false, reason: 'Assessment contains a sparse or extended array.' };
     }
   }
-  active.add(value);
+  context.active.add(value);
   try {
     for (const key of stringKeys) {
       if (arrayValue && key === 'length') continue;
-      const descriptor = descriptors[key];
+      let descriptor: PropertyDescriptor | undefined;
+      try {
+        descriptor = Object.getOwnPropertyDescriptor(value, key);
+      } catch {
+        return { valid: false, reason: 'Assessment object properties cannot be safely inspected.' };
+      }
       if (!descriptor || !('value' in descriptor) || !descriptor.enumerable) {
         return { valid: false, reason: 'Assessment contains an accessor or hidden property.' };
       }
-      const child = inspectJsonValue(descriptor.value, depth + 1, active);
+      const child = inspectJsonValue(descriptor.value, options, depth + 1, context);
       if (!child.valid) return child;
     }
   } finally {
-    active.delete(value);
+    context.active.delete(value);
   }
   return { valid: true, reason: null };
 }
 
 function rejectedAuditValue(value: unknown, reason: string): JsonObject {
-  let valueType = value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value;
+  let valueType = value === null ? 'null' : typeof value;
   let ownKeys: string[] = [];
+  try {
+    if (Array.isArray(value)) valueType = 'array';
+  } catch {
+    valueType = 'uninspectable';
+  }
   if (value !== null && (typeof value === 'object' || typeof value === 'function')) {
     try {
       ownKeys = Reflect.ownKeys(value)
+        .slice(0, MAX_RUNTIME_REJECTED_AUDIT_KEYS)
         .map((key) => (typeof key === 'symbol' ? key.toString() : key))
-        .sort(lexicalCompare)
-        .slice(0, 20);
+        .sort(lexicalCompare);
     } catch {
       valueType = 'uninspectable';
     }
@@ -373,6 +476,14 @@ function rejectedAuditValue(value: unknown, reason: string): JsonObject {
     value_type: valueType,
     own_keys: ownKeys,
   };
+}
+
+function isSafelyArray(value: unknown): value is unknown[] {
+  try {
+    return Array.isArray(value);
+  } catch {
+    return false;
+  }
 }
 
 function extractionHash(value: unknown): string | null {
@@ -778,16 +889,18 @@ export function orchestratePersonAPlanning(
     );
     return finish();
   }
-  if (!Array.isArray(providerOutput)) {
-    const inspection = inspectJsonValue(providerOutput);
+  const providerInspection = inspectJsonValue(providerOutput, {
+    rootArrayLengthLimit: MAX_RUNTIME_ASSESSMENT_BATCH_SIZE,
+  });
+  if (!isSafelyArray(providerOutput)) {
     rejectedAssessments = [
       {
         sequence_number: null,
-        assessment: inspection.valid
+        assessment: providerInspection.valid
           ? canonicalize(safeClone(providerOutput))
           : rejectedAuditValue(
               providerOutput,
-              inspection.reason ?? 'Provider result is not valid JSON.',
+              providerInspection.reason ?? 'Provider result is not valid JSON.',
             ),
         code: 'assessment_result_not_array',
         message: 'Assessment provider must return an array.',
@@ -800,15 +913,27 @@ export function orchestratePersonAPlanning(
     );
     return finish();
   }
+  if (!providerInspection.valid) {
+    const rejectedBatch = rejectedAuditValue(
+      providerOutput,
+      providerInspection.reason ?? 'Assessment batch is not valid JSON.',
+    );
+    rawAssessments = [rejectedBatch];
+    rejectedAssessments = [
+      {
+        sequence_number: null,
+        assessment: rejectedBatch,
+        code: 'assessment_not_json',
+        message: providerInspection.reason ?? 'Assessment batch must be a plain dense JSON array.',
+      },
+    ];
+    fail('assessment', 'invalid_assessments', 'The runtime assessment batch was rejected.');
+    return finish();
+  }
   const preparedAssessments = providerOutput
     .map((value) => {
-      const inspection = inspectJsonValue(value);
       return {
-        original: value,
-        inspection,
-        audit: inspection.valid
-          ? canonicalize(safeClone(value))
-          : rejectedAuditValue(value, inspection.reason ?? 'Assessment is not valid JSON.'),
+        audit: canonicalize(safeClone(value)),
       };
     })
     .sort((left, right) => lexicalCompare(stableKey(left.audit), stableKey(right.audit)));
@@ -817,17 +942,6 @@ export function orchestratePersonAPlanning(
   const acceptedKeys = new Set<string>();
   for (const [index, prepared] of preparedAssessments.entries()) {
     const value = prepared.audit;
-    if (!prepared.inspection.valid) {
-      rejectedAssessments.push(
-        reject(
-          index + 1,
-          value,
-          'assessment_not_json',
-          prepared.inspection.reason ?? 'Assessment must contain JSON-compatible values only.',
-        ),
-      );
-      continue;
-    }
     const checked = validateAssessment(value, index + 1, objectIndex);
     if ('code' in checked) rejectedAssessments.push(checked);
     else {
