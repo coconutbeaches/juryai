@@ -934,6 +934,27 @@ describe('Person A runtime orchestration', () => {
     expect(result.generated_questions).toEqual([]);
   });
 
+  it('atomically rejects a malformed disputed causal assessment', () => {
+    const { result } = run([
+      assessment({
+        target_object_id: 'damages_001',
+        target_family: 'damages',
+        field: 'causal_theory',
+        trigger: 'causal_link',
+        causal_link_status: 'contested' as any,
+        evidence_availability: undefined,
+        question_context: 'two incompatible causal alternatives',
+        resolves_object_ids: ['damages_001'],
+      }),
+    ]);
+    expect(result.audit_summary.failure_stage).toBe('assessment');
+    expect(result.rejected_assessments).toHaveLength(1);
+    expect(result.generated_questions).toEqual([]);
+    expect(result.stage_statuses.find((stage) => stage.stage === 'necessity')?.status).toBe(
+      'skipped',
+    );
+  });
+
   it('accepts actor attribution on a schema-supported claim field', () => {
     const { result } = run([
       assessment({

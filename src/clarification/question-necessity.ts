@@ -18,7 +18,7 @@ type PersonAFamily =
   | 'extraction_issues'
   | 'clarification_questions';
 
-export const QUESTION_NECESSITY_CLASSIFIER_VERSION = 'question-necessity-v0.1.1';
+export const QUESTION_NECESSITY_CLASSIFIER_VERSION = 'question-necessity-v0.1.5';
 
 export type NecessityClassification =
   | 'ask_human'
@@ -212,6 +212,7 @@ function objectGroundingReference(
 function groundingReferences(
   assessment: EpistemicAssessment,
   item: JsonObject,
+  linkedSourceReferences: readonly SourceSpanGroundingReference[] = [],
 ): GroundingReference[] {
   const spans = sourceSpanReferences(assessment.target_object_id, item);
   const objectReference = objectGroundingReference(
@@ -219,17 +220,93 @@ function groundingReferences(
     item,
     assessment.field,
   );
-  return objectReference ? [...spans, objectReference] : spans;
+  const allSpans = [...spans, ...linkedSourceReferences];
+  return objectReference ? [...allSpans, objectReference] : allSpans;
+}
+
+function relatedClaimGrounding(
+  extraction: unknown,
+  objectIndex: ReadonlyMap<string, JsonObject>,
+): Map<string, SourceSpanGroundingReference[]> {
+  if (!isRecord(extraction)) return new Map();
+  const result = new Map<string, SourceSpanGroundingReference[]>();
+  for (const link of Array.isArray(extraction.claim_evidence_links)
+    ? extraction.claim_evidence_links
+    : []) {
+    if (
+      !isRecord(link) ||
+      typeof link.evidence_id !== 'string' ||
+      typeof link.claim_id !== 'string'
+    ) {
+      continue;
+    }
+    const claim = objectIndex.get(link.claim_id);
+    if (!claim) continue;
+    const references = sourceSpanReferences(link.claim_id, claim);
+    if (references.length === 0) continue;
+    result.set(link.evidence_id, [...(result.get(link.evidence_id) ?? []), ...references]);
+  }
+  for (const damages of familyItems(extraction, 'damages')) {
+    if (
+      !isRecord(damages) ||
+      typeof damages.damages_claim_id !== 'string' ||
+      !Array.isArray(damages.source_claim_ids)
+    ) {
+      continue;
+    }
+    for (const claimId of damages.source_claim_ids) {
+      if (typeof claimId !== 'string') continue;
+      const claim = objectIndex.get(claimId);
+      if (!claim) continue;
+      const references = sourceSpanReferences(claimId, claim);
+      result.set(damages.damages_claim_id, [
+        ...(result.get(damages.damages_claim_id) ?? []),
+        ...references,
+      ]);
+    }
+  }
+  for (const [evidenceId, references] of result) {
+    references.sort(
+      (left, right) =>
+        left.start_char - right.start_char ||
+        left.end_char - right.end_char ||
+        lexicalCompare(left.object_id, right.object_id),
+    );
+    result.set(
+      evidenceId,
+      references.filter(
+        (reference, index, all) =>
+          index === 0 || JSON.stringify(reference) !== JSON.stringify(all[index - 1]),
+      ),
+    );
+  }
+  return result;
 }
 
 function contradictionAlternatives(
   assessment: EpistemicAssessment,
   item: JsonObject,
+  linkedSourceReferences: readonly SourceSpanGroundingReference[] = [],
 ): ContradictionAlternative[] {
-  return sourceSpanReferences(assessment.target_object_id, item).map((reference) => ({
+  return [
+    ...sourceSpanReferences(assessment.target_object_id, item),
+    ...linkedSourceReferences,
+  ].map((reference) => ({
     text: reference.quote,
     grounding_references: [reference],
   }));
+}
+
+function distinctAlternativesByGroundedObject(
+  alternatives: readonly ContradictionAlternative[],
+): ContradictionAlternative[] {
+  const objectIds = new Set<string>();
+  return alternatives.filter((alternative) => {
+    const objectId = alternative.grounding_references[0]?.object_id;
+    if (!objectId || objectIds.has(objectId)) return false;
+    objectIds.add(objectId);
+    return true;
+  });
 }
 
 function hasBoundedContext(assessment: EpistemicAssessment): boolean {
@@ -261,6 +338,7 @@ function classified(
 function classifyCandidate(
   assessment: EpistemicAssessment,
   objectIndex: Map<string, JsonObject>,
+  relatedGrounding: ReadonlyMap<string, SourceSpanGroundingReference[]>,
 ): ClassifiedClarificationCandidate {
   if (assessment.trigger === 'internal_representation') {
     return classified(
@@ -279,7 +357,11 @@ function classifyCandidate(
     );
   }
 
-  const grounding = groundingReferences(assessment, item);
+  const grounding = groundingReferences(
+    assessment,
+    item,
+    relatedGrounding.get(assessment.target_object_id) ?? [],
+  );
   if (
     assessment.trigger === 'evidence_availability' &&
     (assessment.evidence_availability === 'available' ||
@@ -323,13 +405,36 @@ function classifyCandidate(
   }
 
   if (assessment.trigger === 'causal_link') {
-    if (typeof item.causal_theory === 'string' && item.causal_theory.trim().length > 0) {
+    if (assessment.causal_link_status === 'explicit') {
       return classified(
         assessment,
         'already_explicit',
         'The extracted damages object already states the submitter’s causal theory.',
         grounding,
       );
+    }
+    if (assessment.causal_link_status === 'disputed') {
+      const alternatives = distinctAlternativesByGroundedObject(
+        contradictionAlternatives(
+          assessment,
+          item,
+          relatedGrounding.get(assessment.target_object_id) ?? [],
+        ),
+      );
+      return alternatives.length >= 2
+        ? classified(
+            assessment,
+            'contradiction',
+            'The grounded record contains materially conflicting causal descriptions.',
+            grounding,
+            alternatives,
+          )
+        : classified(
+            assessment,
+            'insufficient_grounding',
+            'A disputed causal link requires two independently grounded alternatives.',
+            grounding,
+          );
     }
     return classified(
       assessment,
@@ -462,8 +567,9 @@ export function classifyQuestionNecessity(
 ): QuestionNecessityResult {
   if (!Array.isArray(assessments)) throw new TypeError('assessments must be an array');
   const objectIndex = buildObjectIndex(extraction);
+  const relatedGrounding = relatedClaimGrounding(extraction, objectIndex);
   const necessityClassification = assessments
-    .map((assessment) => classifyCandidate(assessment, objectIndex))
+    .map((assessment) => classifyCandidate(assessment, objectIndex, relatedGrounding))
     .sort((left, right) => lexicalCompare(stableKey(left), stableKey(right)));
   const questionCandidates = necessityClassification.filter(
     (candidate) =>
@@ -489,7 +595,14 @@ function naturalQuestion(candidate: ClassifiedClarificationCandidate): string {
     if (assessment.target_family === 'deliverables') {
       return 'You described a five-page website but listed four pages plus a mobile-responsive layout. Was the mobile-responsive layout the fifth item, or was another page omitted?';
     }
-    return `You gave both of these descriptions: “${alternatives[0]!.text}” and “${alternatives[1]!.text}” Which one best describes what happened?`;
+    const boundedAlternative = (text: string): string => {
+      if (text.length <= 160) return text;
+      let prefix = text.slice(0, 159);
+      const finalCodeUnit = prefix.charCodeAt(prefix.length - 1);
+      if (finalCodeUnit >= 0xd800 && finalCodeUnit <= 0xdbff) prefix = prefix.slice(0, -1);
+      return `${prefix}…`;
+    };
+    return `You gave both of these descriptions: “${boundedAlternative(alternatives[0]!.text)}” and “${boundedAlternative(alternatives[1]!.text)}” Which one best describes what happened?`;
   }
 
   switch (assessment.trigger) {
@@ -502,7 +615,7 @@ function naturalQuestion(candidate: ClassifiedClarificationCandidate): string {
         ? `Do you currently have access to ${assessment.question_context}?`
         : `Do you currently have access to the ${assessment.question_context![0]!.toLowerCase()}${assessment.question_context!.slice(1)}?`;
     case 'date_precision':
-      return 'What calendar year applies to the April, May, and June dates you described?';
+      return `What calendar year applies to this timing: “${assessment.question_context}”?`;
     case 'merge_risk':
       return 'Which later requests did you consider outside the original scope, and were any agreed as changes to the price or deadline?';
     case 'required_bucket_missing':
@@ -523,18 +636,90 @@ export function generateNecessaryClarificationQuestions(
     (candidate) =>
       candidate.classification === 'ask_human' || candidate.classification === 'contradiction',
   );
+  const materialityRank: Record<EpistemicAssessment['materiality'], number> = {
+    critical: 4,
+    high: 3,
+    medium: 2,
+    low: 1,
+  };
+  const triggerRank: Record<EpistemicAssessment['trigger'], number> = {
+    required_bucket_missing: 6,
+    actor_attribution: 5,
+    causal_link: 4,
+    merge_risk: 3,
+    evidence_availability: 2,
+    date_precision: 1,
+    internal_representation: 0,
+  };
+  const assessmentState = (assessment: EpistemicAssessment): string | null => {
+    switch (assessment.trigger) {
+      case 'actor_attribution':
+        return assessment.actor_attribution ?? null;
+      case 'causal_link':
+        return assessment.causal_link_status ?? null;
+      case 'merge_risk':
+        return assessment.merge_risk ?? null;
+      case 'evidence_availability':
+        return assessment.evidence_availability ?? null;
+      case 'date_precision':
+        return assessment.date_precision ?? null;
+      case 'required_bucket_missing':
+      case 'internal_representation':
+        return null;
+    }
+  };
+  const coverage = (assessment: EpistemicAssessment): string[] =>
+    [...new Set([assessment.target_object_id, ...(assessment.resolves_object_ids ?? [])])].sort(
+      lexicalCompare,
+    );
+  const planningKey = (candidate: ClassifiedClarificationCandidate): string => {
+    const assessment = candidate.assessment;
+    const context = (assessment.question_context ?? '')
+      .trim()
+      .replace(/\s+/gu, ' ')
+      .replace(/[.!,:;]+$/u, '');
+    return JSON.stringify([
+      assessment.target_object_id,
+      assessment.target_family,
+      assessment.field,
+      assessment.trigger,
+      assessmentState(assessment),
+      context,
+      coverage(assessment),
+    ]);
+  };
+  const compareForPlanning = (
+    left: ClassifiedClarificationCandidate,
+    right: ClassifiedClarificationCandidate,
+  ): number => {
+    const materiality =
+      materialityRank[right.assessment.materiality] - materialityRank[left.assessment.materiality];
+    if (materiality !== 0) return materiality;
+    const trigger = triggerRank[right.assessment.trigger] - triggerRank[left.assessment.trigger];
+    if (trigger !== 0) return trigger;
+    const coverageDifference = coverage(right.assessment).length - coverage(left.assessment).length;
+    if (coverageDifference !== 0) return coverageDifference;
+    return lexicalCompare(planningKey(left), planningKey(right));
+  };
   const byTargetAndField = new Map<string, ClassifiedClarificationCandidate>();
   for (const candidate of eligible) {
     const key = `${candidate.assessment.target_object_id}|${candidate.assessment.field}`;
     const current = byTargetAndField.get(key);
-    if (!current || lexicalCompare(stableKey(candidate), stableKey(current)) < 0) {
+    if (!current || compareForPlanning(candidate, current) < 0) {
       byTargetAndField.set(key, candidate);
     }
   }
-  return generateClarificationQuestions(
-    eligible.map((candidate) => candidate.assessment),
+  const selectedEligible = [...byTargetAndField.values()];
+  const generated = generateClarificationQuestions(
+    selectedEligible.map((candidate) => candidate.assessment),
     { maxQuestions: options.maxQuestions ?? 6, phase: 'pre_lock' },
-  ).map((question) => {
+  );
+  const maximum = Math.min(options.maxQuestions ?? 6, 6);
+  const eligibleGapCount = selectedEligible.length;
+  if (generated.length !== Math.min(eligibleGapCount, maximum)) {
+    throw new Error('A human-required clarification candidate was silently dropped.');
+  }
+  return generated.map((question) => {
     const candidate = byTargetAndField.get(`${question.target_object_id}|${question.field}`);
     if (!candidate) throw new Error('Generated question has no necessity classification');
     return {

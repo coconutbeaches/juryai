@@ -102,7 +102,7 @@ describe('deterministic clarification question generation', () => {
     ).toEqual([]);
   });
 
-  it('asks about inferred and unstated causation but not explicit or disputed causation', () => {
+  it('asks about inferred, disputed, and unstated causation but not explicit causation', () => {
     const causal = (
       targetObjectId: string,
       status: 'explicit' | 'inferred' | 'disputed' | 'unstated',
@@ -122,7 +122,7 @@ describe('deterministic clarification question generation', () => {
         causal('claim_003', 'explicit'),
         causal('claim_004', 'disputed'),
       ]).map((question) => question.target_object_id),
-    ).toEqual(['claim_001', 'claim_002']);
+    ).toEqual(['claim_001', 'claim_002', 'claim_004']);
   });
 
   it('never turns internal representation bookkeeping into a user question', () => {
