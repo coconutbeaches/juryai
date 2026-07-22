@@ -18,7 +18,7 @@ type PersonAFamily =
   | 'extraction_issues'
   | 'clarification_questions';
 
-export const QUESTION_NECESSITY_CLASSIFIER_VERSION = 'question-necessity-v0.1.3';
+export const QUESTION_NECESSITY_CLASSIFIER_VERSION = 'question-necessity-v0.1.4';
 
 export type NecessityClassification =
   | 'ask_human'
@@ -407,7 +407,12 @@ function classifyCandidate(
         item,
         relatedGrounding.get(assessment.target_object_id) ?? [],
       );
-      return alternatives.length >= 2
+      const independentlyGroundedObjectIds = new Set(
+        alternatives.flatMap((alternative) =>
+          alternative.grounding_references.map((reference) => reference.object_id),
+        ),
+      );
+      return independentlyGroundedObjectIds.size >= 2
         ? classified(
             assessment,
             'contradiction',

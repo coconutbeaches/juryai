@@ -8,7 +8,7 @@ import {
 
 type JsonObject = Record<string, any>;
 
-export const DETERMINISTIC_PERSON_A_ASSESSMENT_VERSION = 'deterministic-person-a-assessment-v0.1.6';
+export const DETERMINISTIC_PERSON_A_ASSESSMENT_VERSION = 'deterministic-person-a-assessment-v0.1.7';
 
 export const DETERMINISTIC_PERSON_A_RULE_IDS = [
   'runtime_actor_attribution_v1',
@@ -339,6 +339,11 @@ function familyItems(record: JsonObject, family: string): JsonObject[] {
       break;
     case 'damages':
       values = Array.isArray(record.damages_claims) ? record.damages_claims : [];
+      break;
+    case 'outcomes':
+      values = Array.isArray(record.desired_outcomes?.outcomes)
+        ? record.desired_outcomes.outcomes
+        : [];
       break;
     default:
       values = Array.isArray(record[family]) ? record[family] : [];

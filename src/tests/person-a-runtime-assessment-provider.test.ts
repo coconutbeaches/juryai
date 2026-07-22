@@ -466,6 +466,38 @@ describe('deterministic Person A runtime assessment provider', () => {
     expect(mixedQuestions[0]?.necessity_classification).toBe('contradiction');
   });
 
+  it('suppresses disputed causal alternatives backed by only one claim ID', () => {
+    const context = baseContext();
+    addDamages(context, {
+      causal_theory: 'The record identifies conflicting explanations for the schedule delay.',
+    });
+    const secondQuote =
+      'She says I disappeared for two weeks. That is exaggerated. I was slower for part of one week because of a family issue, but I still replied to messages and told her what was happening.';
+    context.repaired_extraction.claims
+      .find((claim: JsonObject) => claim.claim_id === 'claim_for_damages_test')
+      .source_spans.push(exactSpan(context.narrative, secondQuote));
+    const assessment = {
+      target_object_id: 'damages_test',
+      target_family: 'damages',
+      field: 'causal_theory',
+      trigger: 'causal_link' as const,
+      materiality: 'high' as const,
+      causal_link_status: 'disputed' as const,
+      question_context: 'Conflicting explanations for the schedule delay',
+      resolves_object_ids: ['damages_test'],
+    };
+
+    const necessity = classifyQuestionNecessity([assessment], context.repaired_extraction);
+    expect(necessity.question_candidates).toEqual([]);
+    expect(necessity.suppressed_candidates[0]?.classification).toBe('insufficient_grounding');
+    expect(
+      necessity.suppressed_candidates[0]?.grounding_references.filter(
+        (reference) => reference.kind === 'source_span',
+      ),
+    ).toHaveLength(2);
+    expect(generateNecessaryClarificationQuestions(necessity.question_candidates)).toEqual([]);
+  });
+
   it.each([
     ['causal link not stated', 'unstated'],
     ['causal relationship is unclear', 'unstated'],
@@ -840,6 +872,22 @@ describe('deterministic Person A runtime assessment provider', () => {
     for (const alternative of necessity.question_candidates[0]!.contradiction_alternatives) {
       expect(alternative.grounding_references).toHaveLength(1);
     }
+  });
+
+  it('retains nested desired outcome IDs in contradiction resolution coverage', () => {
+    const context = baseContext();
+    const outcomeId = context.repaired_extraction.desired_outcomes.outcomes[0].outcome_id;
+    addIssue(context, { affected_object_ids: [outcomeId] });
+
+    const result = run(context);
+    expect(result.assessments).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          target_object_id: 'issue_test',
+          resolves_object_ids: ['issue_test', outcomeId].sort(),
+        }),
+      ]),
+    );
   });
 
   it('does not misclassify an ordinary qualification as a contradiction', () => {
