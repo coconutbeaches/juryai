@@ -8,7 +8,7 @@ import {
 
 type JsonObject = Record<string, any>;
 
-export const DETERMINISTIC_PERSON_A_ASSESSMENT_VERSION = 'deterministic-person-a-assessment-v0.1.4';
+export const DETERMINISTIC_PERSON_A_ASSESSMENT_VERSION = 'deterministic-person-a-assessment-v0.1.5';
 
 export const DETERMINISTIC_PERSON_A_RULE_IDS = [
   'runtime_actor_attribution_v1',
@@ -200,7 +200,6 @@ function normalizedConfig(
   config: DeterministicPersonAAssessmentConfig,
 ): Required<DeterministicPersonAAssessmentConfig> {
   const maximumAssessments = config.maximumAssessments ?? MAX_RUNTIME_ASSESSMENT_BATCH_SIZE;
-  const maximumEvidenceAvailabilityAssessments = config.maximumEvidenceAvailabilityAssessments ?? 1;
   if (
     !Number.isInteger(maximumAssessments) ||
     maximumAssessments < 0 ||
@@ -210,6 +209,8 @@ function normalizedConfig(
       `maximumAssessments must be an integer from 0 through ${MAX_RUNTIME_ASSESSMENT_BATCH_SIZE}.`,
     );
   }
+  const maximumEvidenceAvailabilityAssessments =
+    config.maximumEvidenceAvailabilityAssessments ?? Math.min(1, maximumAssessments);
   if (
     !Number.isInteger(maximumEvidenceAvailabilityAssessments) ||
     maximumEvidenceAvailabilityAssessments < 0 ||
@@ -457,11 +458,9 @@ function dateIsMaterial(
   terms: readonly string[],
 ) {
   if (!['critical', 'high'].includes(materiality(item.materiality, 'low'))) return false;
-  const text = `${String(item.event_summary ?? '')} ${spans.map((span) => span.quote).join(' ')}`;
-  const containsCalendarReference =
-    /\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\b(?:\s+\d{1,2})?/iu.test(
-      text,
-    );
+  const sourceText = spans.map((span) => span.quote).join(' ');
+  const text = `${String(item.event_summary ?? '')} ${sourceText}`;
+  const containsCalendarReference = extractNormalizedDateMentions(sourceText).length > 0;
   return containsCalendarReference && containsWholeTerm(text, terms);
 }
 
@@ -488,16 +487,54 @@ function completionConflict(
 function explicitCountConflict(item: JsonObject, spans: readonly ExactSourceSpan[]): boolean {
   const description = String(item.description ?? '');
   if (!/\b(?:but|conflict|count|number|versus)\b/iu.test(description)) return false;
-  const values = new Set<string>();
-  const numberPattern = /\b(?:one|two|three|four|five|six|seven|eight|nine|ten|\d+)\b/giu;
-  for (const span of spans) {
-    for (const match of span.quote.matchAll(numberPattern)) values.add(match[0].toLowerCase());
+  const wordValues: Readonly<Record<string, number>> = {
+    one: 1,
+    two: 2,
+    three: 3,
+    four: 4,
+    five: 5,
+    six: 6,
+    seven: 7,
+    eight: 8,
+    nine: 9,
+    ten: 10,
+  };
+  const countPattern =
+    /\b(one|two|three|four|five|six|seven|eight|nine|ten|\d+)(?:\s*-\s*|\s+)(artifacts?|claims?|components?|deliverables?|documents?|events?|files?|items?|pages?|records?|revision\s+rounds?|sections?|tasks?)\b/giu;
+  const countsByScope = new Map<string, { spanIndex: number; value: number }[]>();
+  for (const [spanIndex, span] of spans.entries()) {
+    for (const match of span.quote.matchAll(countPattern)) {
+      const countToken = match[1]!.toLowerCase();
+      const value = wordValues[countToken] ?? Number(countToken);
+      if (!Number.isSafeInteger(value) || value < 0) continue;
+      const rawUnit = match[2]!.toLowerCase().replace(/\s+/gu, '_');
+      const unit = rawUnit === 'revision_rounds' ? 'revision_round' : rawUnit.replace(/s$/u, '');
+      const prefix = span.quote.slice(0, match.index ?? 0);
+      const targetMatch = prefix.match(
+        /(?:^|[.!?]\s*)([\p{L}\p{N}][\p{L}\p{N}\s'’.-]{0,80}?)\s+(?:had|has|included|includes|contained|contains|comprised|comprises)\s*$/iu,
+      );
+      const target = targetMatch?.[1]
+        ?.trim()
+        .toLowerCase()
+        .replace(/^(?:a|an|the)\s+/u, '')
+        .replace(/\s+/gu, ' ');
+      const implicitTarget = prefix.trim().length === 0;
+      if (!target && !implicitTarget) continue;
+      const scopeKey = `${target ?? 'implicit'}::${unit}`;
+      const counts = countsByScope.get(scopeKey) ?? [];
+      counts.push({ spanIndex, value });
+      countsByScope.set(scopeKey, counts);
+    }
   }
-  return values.size >= 2;
+  return [...countsByScope.values()].some((counts) =>
+    counts.some((left) =>
+      counts.some((right) => left.spanIndex !== right.spanIndex && left.value !== right.value),
+    ),
+  );
 }
 
 interface NormalizedDateMention {
-  precision: 'full_date' | 'month_day' | 'month_year';
+  precision: 'full_date' | 'month' | 'month_day' | 'month_year';
   year: number | null;
   month: number;
   day: number | null;
@@ -590,6 +627,34 @@ function extractNormalizedDateMentions(text: string): NormalizedDateMention[] {
   }
   for (const match of text.matchAll(/\b(\d{4})-(\d{2})-(\d{2})\b/gu)) {
     add(Number(match[1]), Number(match[2]), Number(match[3]));
+  }
+  const addMonth = (monthName: string): void => {
+    const month = MONTH_NUMBERS[monthName.toLowerCase()];
+    if (month === undefined) return;
+    const token = `XXXX-${String(month).padStart(2, '0')}`;
+    mentions.set(token, {
+      precision: 'month',
+      year: null,
+      month,
+      day: null,
+      token,
+    });
+  };
+  for (const match of text.matchAll(
+    new RegExp(
+      `\\b(?:in|during|by|before|after|since|until|through|around)\\s+(${MONTH_PATTERN})\\b(?!\\s*,?\\s*\\d)`,
+      'giu',
+    ),
+  )) {
+    addMonth(match[1]!);
+  }
+  for (const match of text.matchAll(
+    new RegExp(
+      `\\b(${MONTH_PATTERN})\\s+(?:completion|date|deadline|launch|payment|period|schedule|timeline)\\b`,
+      'giu',
+    ),
+  )) {
+    addMonth(match[1]!);
   }
   return [...mentions.values()].sort((left, right) => lexicalCompare(left.token, right.token));
 }

@@ -635,6 +635,86 @@ describe('deterministic Person A runtime assessment provider', () => {
     );
   });
 
+  it.each([
+    'Payment may be due after review.',
+    'The result may change after review.',
+    'May be due after review.',
+  ])('does not treat modal may as a calendar month in %j', (quote) => {
+    const context = baseContext();
+    context.narrative = `${context.narrative}\n${quote}`;
+    addTimeline(context, {
+      event_summary: quote,
+      source_spans: [exactSpan(context.narrative, quote)],
+    });
+    const result = run(context);
+    expect(result.assessments.some((assessment) => assessment.trigger === 'date_precision')).toBe(
+      false,
+    );
+    expect(result.audit.rule_results).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ reason_code: 'missing_year_not_materially_necessary' }),
+      ]),
+    );
+  });
+
+  it('recognizes an explicitly capitalized May month reference', () => {
+    const context = baseContext();
+    const quote = 'Payment was due in May.';
+    context.narrative = `${context.narrative}\n${quote}`;
+    addTimeline(context, {
+      event_summary: quote,
+      source_spans: [exactSpan(context.narrative, quote)],
+    });
+    expect(run(context).assessments).toEqual(
+      expect.arrayContaining([expect.objectContaining({ trigger: 'date_precision' })]),
+    );
+  });
+
+  it('recognizes The May deadline as a calendar-only month reference', () => {
+    const context = baseContext();
+    const quote = 'The May deadline remained material.';
+    context.narrative = `${context.narrative}\n${quote}`;
+    addTimeline(context, {
+      event_summary: quote,
+      source_spans: [exactSpan(context.narrative, quote)],
+    });
+    expect(run(context).assessments).toEqual(
+      expect.arrayContaining([expect.objectContaining({ trigger: 'date_precision' })]),
+    );
+  });
+
+  it.each(['Payment was due on May 3.', 'PAYMENT was DUE on May 3.'])(
+    'recognizes a real May month-day in mixed prose: %j',
+    (quote) => {
+      const context = baseContext();
+      context.narrative = `${context.narrative}\n${quote}`;
+      addTimeline(context, {
+        event_summary: quote,
+        source_spans: [exactSpan(context.narrative, quote)],
+      });
+      expect(run(context).assessments).toEqual(
+        expect.arrayContaining([expect.objectContaining({ trigger: 'date_precision' })]),
+      );
+    },
+  );
+
+  it('suppresses a calendar-year question for May 2024', () => {
+    const context = baseContext();
+    const quote = 'The material deadline was May 2024.';
+    context.narrative = `${context.narrative}\n${quote}`;
+    addTimeline(context, {
+      event_summary: quote,
+      source_spans: [exactSpan(context.narrative, quote)],
+    });
+    const result = run(context);
+    expect(result.assessments.some((item) => item.trigger === 'date_precision')).toBe(false);
+    expect(result.audit.rule_results).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ reason_code: 'calendar_year_explicit_in_source' }),
+      ]),
+    );
+  });
+
   it('matches material date terms as whole words', () => {
     const context = baseContext();
     const quote = 'Ruby sent files on June 3.';
@@ -823,6 +903,111 @@ describe('deterministic Person A runtime assessment provider', () => {
     );
   });
 
+  it('normalizes equivalent count words and numerals before conflict detection', () => {
+    const context = baseContext();
+    const first = 'The agreed scope included four deliverables.';
+    const second = 'The agreed scope included 4 deliverables.';
+    context.narrative = `${context.narrative}\n${first}\n${second}`;
+    addIssue(context, {
+      issue_type: 'ambiguous_scope',
+      description: 'The deliverable count is written in two equivalent forms.',
+      source_spans: [exactSpan(context.narrative, first), exactSpan(context.narrative, second)],
+    });
+    expect(run(context).assessments).toEqual([]);
+  });
+
+  it('ignores date numbers and unrelated count units in scope conflict detection', () => {
+    const context = baseContext();
+    const first = 'The deadline was June 3.';
+    const second = 'The agreed scope included five pages and two revision rounds.';
+    context.narrative = `${context.narrative}\n${first}\n${second}`;
+    addIssue(context, {
+      issue_type: 'ambiguous_scope',
+      description: 'The number references describe a date, pages, and revision rounds.',
+      source_spans: [exactSpan(context.narrative, first), exactSpan(context.narrative, second)],
+    });
+    expect(run(context).assessments).toEqual([]);
+  });
+
+  it('emits merge risk only for conflicting normalized counts of the same scope unit', () => {
+    const context = baseContext();
+    const first = 'The agreed scope included four deliverables.';
+    const second = 'The agreed scope included 5 deliverables.';
+    context.narrative = `${context.narrative}\n${first}\n${second}`;
+    addIssue(context, {
+      issue_type: 'ambiguous_scope',
+      description: 'The deliverable count conflicts: four versus five.',
+      source_spans: [exactSpan(context.narrative, first), exactSpan(context.narrative, second)],
+    });
+    const result = run(context);
+    expect(result.assessments).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ trigger: 'merge_risk', merge_risk: 'possible_split' }),
+      ]),
+    );
+    const necessity = classifyQuestionNecessity(result.assessments, context.repaired_extraction);
+    expect(
+      necessity.question_candidates[0]?.grounding_references.filter(
+        (reference) => reference.kind === 'source_span',
+      ),
+    ).toHaveLength(2);
+    expect(JSON.stringify(result)).toBe(JSON.stringify(run(structuredClone(context))));
+  });
+
+  it('does not compare equal item and page counts as the same scoped thing', () => {
+    const context = baseContext();
+    const first = 'The package included three items.';
+    const second = 'The website included three pages.';
+    context.narrative = `${context.narrative}\n${first}\n${second}`;
+    addIssue(context, {
+      issue_type: 'ambiguous_scope',
+      description: 'The item and page counts describe different scoped things.',
+      source_spans: [exactSpan(context.narrative, first), exactSpan(context.narrative, second)],
+    });
+    expect(run(context).assessments).toEqual([]);
+  });
+
+  it('detects incompatible task counts only for the same grounded task scope', () => {
+    const context = baseContext();
+    const first = 'The migration included three tasks.';
+    const second = 'The migration included five tasks.';
+    context.narrative = `${context.narrative}\n${first}\n${second}`;
+    addIssue(context, {
+      issue_type: 'ambiguous_scope',
+      description: 'The task count conflicts: three versus five.',
+      source_spans: [exactSpan(context.narrative, first), exactSpan(context.narrative, second)],
+    });
+    expect(run(context).assessments).toEqual(
+      expect.arrayContaining([expect.objectContaining({ trigger: 'merge_risk' })]),
+    );
+  });
+
+  it('does not compare task counts attached to different grounded targets', () => {
+    const context = baseContext();
+    const first = 'The design phase included three tasks.';
+    const second = 'The deployment phase included five tasks.';
+    context.narrative = `${context.narrative}\n${first}\n${second}`;
+    addIssue(context, {
+      issue_type: 'ambiguous_scope',
+      description: 'The task counts refer to different target phases.',
+      source_spans: [exactSpan(context.narrative, first), exactSpan(context.narrative, second)],
+    });
+    expect(run(context).assessments).toEqual([]);
+  });
+
+  it('ignores monetary, percentage, address, and version numbers', () => {
+    const context = baseContext();
+    const first = 'Version 3.2 was sent to 12 Main Street after a $4,000 payment at 50 percent.';
+    const second = 'The agreed scope included five deliverables.';
+    context.narrative = `${context.narrative}\n${first}\n${second}`;
+    addIssue(context, {
+      issue_type: 'ambiguous_scope',
+      description: 'The numeric references have unrelated semantic roles.',
+      source_spans: [exactSpan(context.narrative, first), exactSpan(context.narrative, second)],
+    });
+    expect(run(context).assessments).toEqual([]);
+  });
+
   it('keeps aggregate-splitting repair audit strictly internal', () => {
     const context = baseContext();
     const aggregate = {
@@ -927,6 +1112,29 @@ describe('deterministic Person A runtime assessment provider', () => {
     const result = run(context, { maximumEvidenceAvailabilityAssessments: 100 });
     expect(result.assessments.length).toBe(MAX_RUNTIME_ASSESSMENT_BATCH_SIZE);
     expect(result.audit.summary.assessments_emitted).toBe(MAX_RUNTIME_ASSESSMENT_BATCH_SIZE);
+  });
+
+  it('accepts a zero assessment cap with the default evidence limit', () => {
+    const context = baseContext();
+    addEvidence(context);
+    const result = run(context, { maximumAssessments: 0 });
+    expect(result.assessments).toEqual([]);
+    expect(result.audit.summary.assessments_emitted).toBe(0);
+  });
+
+  it('still rejects an explicit evidence limit above a zero assessment cap', () => {
+    expect(() =>
+      run(baseContext(), { maximumAssessments: 0, maximumEvidenceAvailabilityAssessments: 1 }),
+    ).toThrow(/maximumEvidenceAvailabilityAssessments/u);
+  });
+
+  it.each([-1, 0.5])('rejects invalid explicit evidence caps: %s', (value) => {
+    expect(() =>
+      run(baseContext(), {
+        maximumAssessments: 1,
+        maximumEvidenceAvailabilityAssessments: value,
+      }),
+    ).toThrow(/maximumEvidenceAvailabilityAssessments/u);
   });
 
   it('is stable across semantically irrelevant family-array ordering', () => {
