@@ -8,7 +8,7 @@ import {
 
 type JsonObject = Record<string, any>;
 
-export const DETERMINISTIC_PERSON_A_ASSESSMENT_VERSION = 'deterministic-person-a-assessment-v0.1.0';
+export const DETERMINISTIC_PERSON_A_ASSESSMENT_VERSION = 'deterministic-person-a-assessment-v0.1.1';
 
 export const DETERMINISTIC_PERSON_A_RULE_IDS = [
   'runtime_actor_attribution_v1',
@@ -439,19 +439,142 @@ function explicitCountConflict(item: JsonObject, spans: readonly ExactSourceSpan
   return values.size >= 2;
 }
 
+interface NormalizedDateMention {
+  year: number | null;
+  month: number;
+  day: number;
+  token: string;
+}
+
+const MONTH_NUMBERS: Readonly<Record<string, number>> = {
+  january: 1,
+  february: 2,
+  march: 3,
+  april: 4,
+  may: 5,
+  june: 6,
+  july: 7,
+  august: 8,
+  september: 9,
+  october: 10,
+  november: 11,
+  december: 12,
+};
+const MONTH_PATTERN =
+  'January|February|March|April|May|June|July|August|September|October|November|December';
+
+function normalizedDateMention(
+  year: number | null,
+  month: number,
+  day: number,
+): NormalizedDateMention | null {
+  if (!Number.isInteger(month) || !Number.isInteger(day) || month < 1 || month > 12 || day < 1) {
+    return null;
+  }
+  const validationYear = year ?? 2000;
+  if (!Number.isInteger(validationYear) || validationYear < 1 || validationYear > 9999) return null;
+  const date = new Date(Date.UTC(validationYear, month - 1, day));
+  if (
+    date.getUTCFullYear() !== validationYear ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    return null;
+  }
+  return {
+    year,
+    month,
+    day,
+    token: `${year === null ? 'XXXX' : String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+  };
+}
+
+function extractNormalizedDateMentions(text: string): NormalizedDateMention[] {
+  const mentions = new Map<string, NormalizedDateMention>();
+  const add = (year: number | null, month: number, day: number): void => {
+    const normalized = normalizedDateMention(year, month, day);
+    if (normalized) mentions.set(normalized.token, normalized);
+  };
+  for (const match of text.matchAll(
+    new RegExp(`\\b(${MONTH_PATTERN})\\s+(\\d{1,2})(?:\\s*,?\\s*(\\d{4}))?\\b`, 'giu'),
+  )) {
+    add(
+      match[3] === undefined ? null : Number(match[3]),
+      MONTH_NUMBERS[match[1]!.toLowerCase()]!,
+      Number(match[2]),
+    );
+  }
+  for (const match of text.matchAll(
+    new RegExp(`\\b(\\d{1,2})\\s+(${MONTH_PATTERN})(?:\\s+(\\d{4}))?\\b`, 'giu'),
+  )) {
+    add(
+      match[3] === undefined ? null : Number(match[3]),
+      MONTH_NUMBERS[match[2]!.toLowerCase()]!,
+      Number(match[1]),
+    );
+  }
+  for (const match of text.matchAll(/\b(\d{4})-(\d{2})-(\d{2})\b/gu)) {
+    add(Number(match[1]), Number(match[2]), Number(match[3]));
+  }
+  return [...mentions.values()].sort((left, right) => lexicalCompare(left.token, right.token));
+}
+
 function explicitDateConflict(item: JsonObject, spans: readonly ExactSourceSpan[]): boolean {
-  if (!/\b(?:conflict|different|inconsistent)\b/iu.test(String(item.description ?? ''))) {
+  if (
+    !/\b(?:conflict|different|inconsisten(?:t|tly|cy))\b/iu.test(String(item.description ?? ''))
+  ) {
     return false;
   }
-  const dates = new Set<string>();
-  for (const span of spans) {
-    for (const match of span.quote.matchAll(
-      /\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}\b/giu,
-    )) {
-      dates.add(match[0].toLowerCase());
-    }
+  const datesBySpan = spans.map((span) => extractNormalizedDateMentions(span.quote));
+  if (datesBySpan.length < 2 || datesBySpan.some((dates) => dates.length !== 1)) return false;
+  const dates = datesBySpan.map((values) => values[0]!);
+  const monthDays = new Set(dates.map((date) => `${date.month}-${date.day}`));
+  if (monthDays.size > 1) return true;
+  if (dates.some((date) => date.year === null)) return false;
+  return new Set(dates.map((date) => date.year)).size > 1;
+}
+
+type CausalTheoryStatus = 'explicit' | 'inferred' | 'disputed' | 'unstated' | 'ambiguous';
+
+function classifyCausalTheory(theory: string): CausalTheoryStatus {
+  const normalized = theory
+    .trim()
+    .replace(/[.!,:;]+$/u, '')
+    .toLowerCase();
+  const disputed =
+    /\b(?:conflicting|contradictory|disputed|inconsistent)\s+(?:causal\s+)?(?:causes?|explanations?|theories?|accounts?)\b/u.test(
+      normalized,
+    ) ||
+    /\b(?:causal\s+)?(?:causes?|explanations?|theories?|accounts?)\s+(?:are|remain)\s+(?:conflicting|contradictory|disputed|inconsistent)\b/u.test(
+      normalized,
+    );
+  if (disputed) return 'disputed';
+
+  const exactAbsence = /^(?:unknown|unstated|unclear|not stated|not established)$/u.test(
+    normalized,
+  );
+  const causalAbsence =
+    /\b(?:causal\s+(?:link|relationship|connection|explanation|theory)|cause)\s+(?:is\s+|was\s+)?(?:not\s+stated|unstated|unclear|unknown|not\s+established|not\s+provided)\b/u.test(
+      normalized,
+    ) ||
+    /\bno\s+causal\s+(?:link|relationship|connection|explanation|theory)\s+(?:is\s+|was\s+)?(?:stated|provided|established)\b/u.test(
+      normalized,
+    );
+  if (exactAbsence || causalAbsence) return 'unstated';
+
+  const inferred =
+    /\b(?:may|might|could|possibly)\s+(?:have\s+)?(?:directly\s+)?(?:cause|caused|contribute|contributed|lead|led|result|resulted)\b/u.test(
+      normalized,
+    ) ||
+    /\b(?:appears|believe|believes|believed|suggests)\b[^.]{0,120}\b(?:cause|caused|causal|contribute|contributed|lead|led|result|resulted)\b/u.test(
+      normalized,
+    );
+  if (inferred) return 'inferred';
+
+  if (/\b(?:unclear|unknown|unstated|not\s+stated|not\s+established)\b/u.test(normalized)) {
+    return 'ambiguous';
   }
-  return dates.size >= 2;
+  return 'explicit';
 }
 
 function detachedPlainJson<T>(value: T): T {
@@ -642,6 +765,35 @@ export function assessDeterministicPersonAEpistemicGaps(
         'date',
         null,
         [],
+      );
+      continue;
+    }
+    const explicitSourceDates = spans.spans.flatMap((span) =>
+      extractNormalizedDateMentions(span.quote),
+    );
+    if (explicitSourceDates.length > 0 && explicitSourceDates.every((date) => date.year !== null)) {
+      record(
+        'runtime_material_date_precision_v1',
+        'suppressed',
+        'calendar_year_explicit_in_source',
+        'timeline',
+        objectId,
+        'date',
+        null,
+        sourceGrounding(objectId, spans.spans),
+      );
+      continue;
+    }
+    if (explicitSourceDates.some((date) => date.year !== null)) {
+      record(
+        'runtime_material_date_precision_v1',
+        'rejected',
+        'mixed_year_precision_in_source',
+        'timeline',
+        objectId,
+        'date',
+        null,
+        sourceGrounding(objectId, spans.spans),
       );
       continue;
     }
@@ -893,8 +1045,20 @@ export function assessDeterministicPersonAEpistemicGaps(
       );
       continue;
     }
-    const causalLinkDisputed =
-      /\b(?:conflict|conflicting|contradictory|disputed|inconsistent)\b/iu.test(theory);
+    const causalStatus = classifyCausalTheory(theory);
+    if (causalStatus === 'ambiguous') {
+      record(
+        'runtime_causal_link_v1',
+        'rejected',
+        'causal_status_ambiguous',
+        'damages',
+        objectId,
+        'causal_theory',
+        theory,
+        grounding,
+      );
+      continue;
+    }
     const groundedClaimCount = new Set(
       sourceReferences
         .filter(
@@ -905,7 +1069,7 @@ export function assessDeterministicPersonAEpistemicGaps(
         )
         .map((reference) => reference.object_id),
     ).size;
-    if (causalLinkDisputed && groundedClaimCount < 2) {
+    if (causalStatus === 'disputed' && groundedClaimCount < 2) {
       record(
         'runtime_causal_link_v1',
         'rejected',
@@ -918,10 +1082,7 @@ export function assessDeterministicPersonAEpistemicGaps(
       );
       continue;
     }
-    if (
-      !causalLinkDisputed &&
-      !/\b(?:appears|believe|could|inferred|may|might|possibly|suggests)\b/iu.test(theory)
-    ) {
+    if (causalStatus === 'explicit') {
       record(
         'runtime_causal_link_v1',
         'suppressed',
@@ -942,11 +1103,15 @@ export function assessDeterministicPersonAEpistemicGaps(
         field: 'causal_theory',
         trigger: 'causal_link',
         materiality: materiality(item.materiality, 'high'),
-        causal_link_status: causalLinkDisputed ? 'disputed' : 'inferred',
+        causal_link_status: causalStatus,
         question_context: theory,
         resolves_object_ids: [objectId],
       },
-      causalLinkDisputed ? 'causal_link_disputed' : 'causal_link_inferred',
+      causalStatus === 'disputed'
+        ? 'causal_link_disputed'
+        : causalStatus === 'unstated'
+          ? 'causal_link_unstated'
+          : 'causal_link_inferred',
       grounding,
     );
   }

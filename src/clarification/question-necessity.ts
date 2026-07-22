@@ -18,7 +18,7 @@ type PersonAFamily =
   | 'extraction_issues'
   | 'clarification_questions';
 
-export const QUESTION_NECESSITY_CLASSIFIER_VERSION = 'question-necessity-v0.1.2';
+export const QUESTION_NECESSITY_CLASSIFIER_VERSION = 'question-necessity-v0.1.3';
 
 export type NecessityClassification =
   | 'ask_human'
@@ -581,7 +581,14 @@ function naturalQuestion(candidate: ClassifiedClarificationCandidate): string {
     if (assessment.target_family === 'deliverables') {
       return 'You described a five-page website but listed four pages plus a mobile-responsive layout. Was the mobile-responsive layout the fifth item, or was another page omitted?';
     }
-    return `You gave both of these descriptions: “${alternatives[0]!.text}” and “${alternatives[1]!.text}” Which one best describes what happened?`;
+    const boundedAlternative = (text: string): string => {
+      if (text.length <= 160) return text;
+      let prefix = text.slice(0, 159);
+      const finalCodeUnit = prefix.charCodeAt(prefix.length - 1);
+      if (finalCodeUnit >= 0xd800 && finalCodeUnit <= 0xdbff) prefix = prefix.slice(0, -1);
+      return `${prefix}…`;
+    };
+    return `You gave both of these descriptions: “${boundedAlternative(alternatives[0]!.text)}” and “${boundedAlternative(alternatives[1]!.text)}” Which one best describes what happened?`;
   }
 
   switch (assessment.trigger) {
@@ -615,18 +622,90 @@ export function generateNecessaryClarificationQuestions(
     (candidate) =>
       candidate.classification === 'ask_human' || candidate.classification === 'contradiction',
   );
+  const materialityRank: Record<EpistemicAssessment['materiality'], number> = {
+    critical: 4,
+    high: 3,
+    medium: 2,
+    low: 1,
+  };
+  const triggerRank: Record<EpistemicAssessment['trigger'], number> = {
+    required_bucket_missing: 6,
+    actor_attribution: 5,
+    causal_link: 4,
+    merge_risk: 3,
+    evidence_availability: 2,
+    date_precision: 1,
+    internal_representation: 0,
+  };
+  const assessmentState = (assessment: EpistemicAssessment): string | null => {
+    switch (assessment.trigger) {
+      case 'actor_attribution':
+        return assessment.actor_attribution ?? null;
+      case 'causal_link':
+        return assessment.causal_link_status ?? null;
+      case 'merge_risk':
+        return assessment.merge_risk ?? null;
+      case 'evidence_availability':
+        return assessment.evidence_availability ?? null;
+      case 'date_precision':
+        return assessment.date_precision ?? null;
+      case 'required_bucket_missing':
+      case 'internal_representation':
+        return null;
+    }
+  };
+  const coverage = (assessment: EpistemicAssessment): string[] =>
+    [...new Set([assessment.target_object_id, ...(assessment.resolves_object_ids ?? [])])].sort(
+      lexicalCompare,
+    );
+  const planningKey = (candidate: ClassifiedClarificationCandidate): string => {
+    const assessment = candidate.assessment;
+    const context = (assessment.question_context ?? '')
+      .trim()
+      .replace(/\s+/gu, ' ')
+      .replace(/[.!,:;]+$/u, '');
+    return JSON.stringify([
+      assessment.target_object_id,
+      assessment.target_family,
+      assessment.field,
+      assessment.trigger,
+      assessmentState(assessment),
+      context,
+      coverage(assessment),
+    ]);
+  };
+  const compareForPlanning = (
+    left: ClassifiedClarificationCandidate,
+    right: ClassifiedClarificationCandidate,
+  ): number => {
+    const materiality =
+      materialityRank[right.assessment.materiality] - materialityRank[left.assessment.materiality];
+    if (materiality !== 0) return materiality;
+    const trigger = triggerRank[right.assessment.trigger] - triggerRank[left.assessment.trigger];
+    if (trigger !== 0) return trigger;
+    const coverageDifference = coverage(right.assessment).length - coverage(left.assessment).length;
+    if (coverageDifference !== 0) return coverageDifference;
+    return lexicalCompare(planningKey(left), planningKey(right));
+  };
   const byTargetAndField = new Map<string, ClassifiedClarificationCandidate>();
   for (const candidate of eligible) {
     const key = `${candidate.assessment.target_object_id}|${candidate.assessment.field}`;
     const current = byTargetAndField.get(key);
-    if (!current || lexicalCompare(stableKey(candidate), stableKey(current)) < 0) {
+    if (!current || compareForPlanning(candidate, current) < 0) {
       byTargetAndField.set(key, candidate);
     }
   }
-  return generateClarificationQuestions(
-    eligible.map((candidate) => candidate.assessment),
+  const selectedEligible = [...byTargetAndField.values()];
+  const generated = generateClarificationQuestions(
+    selectedEligible.map((candidate) => candidate.assessment),
     { maxQuestions: options.maxQuestions ?? 6, phase: 'pre_lock' },
-  ).map((question) => {
+  );
+  const maximum = Math.min(options.maxQuestions ?? 6, 6);
+  const eligibleGapCount = selectedEligible.length;
+  if (generated.length !== Math.min(eligibleGapCount, maximum)) {
+    throw new Error('A human-required clarification candidate was silently dropped.');
+  }
+  return generated.map((question) => {
     const candidate = byTargetAndField.get(`${question.target_object_id}|${question.field}`);
     if (!candidate) throw new Error('Generated question has no necessity classification');
     return {

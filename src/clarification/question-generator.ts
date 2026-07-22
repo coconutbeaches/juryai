@@ -7,7 +7,7 @@ export type Materiality = 'critical' | 'high' | 'medium' | 'low';
 export type ClarificationQuestionPhase = 'pre_lock' | 'post_lock';
 export type ClarificationAmendmentPhase = 'post_lock_amendment';
 
-export const CLARIFICATION_GENERATOR_VERSION = 'clarification-v0.1.0';
+export const CLARIFICATION_GENERATOR_VERSION = 'clarification-v0.1.1';
 
 export type ClarificationTriggerKind =
   | 'actor_attribution'
@@ -229,7 +229,9 @@ function needsHumanClarification(assessment: EpistemicAssessment): boolean {
       return assessment.actor_attribution !== 'explicit';
     case 'causal_link':
       return (
-        assessment.causal_link_status === 'inferred' || assessment.causal_link_status === 'unstated'
+        assessment.causal_link_status === 'inferred' ||
+        assessment.causal_link_status === 'disputed' ||
+        assessment.causal_link_status === 'unstated'
       );
     case 'merge_risk':
       return assessment.merge_risk !== 'none';

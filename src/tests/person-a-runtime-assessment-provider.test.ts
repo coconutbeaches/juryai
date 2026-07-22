@@ -177,6 +177,24 @@ function addIssue(
   return item;
 }
 
+function addDateIssue(
+  context: RuntimeAssessmentContext,
+  first: string,
+  second: string,
+): JsonObject {
+  context.narrative = `${context.narrative}\n${first}\n${second}`;
+  const item = {
+    issue_id: 'issue_date_test',
+    issue_type: 'internal_tension',
+    severity: 'major',
+    description: 'Two statements inconsistently identify the same material event date.',
+    affected_object_ids: [],
+    source_spans: [exactSpan(context.narrative, first), exactSpan(context.narrative, second)],
+  };
+  context.repaired_extraction.extraction_issues.push(item);
+  return item;
+}
+
 function run(context: RuntimeAssessmentContext, config: DeterministicPersonAAssessmentConfig = {}) {
   return assessDeterministicPersonAEpistemicGaps(context, config);
 }
@@ -399,6 +417,68 @@ describe('deterministic Person A runtime assessment provider', () => {
     const necessity = classifyQuestionNecessity(result.assessments, context.repaired_extraction);
     expect(necessity.question_candidates[0]?.classification).toBe('contradiction');
     expect(necessity.question_candidates[0]?.contradiction_alternatives).toHaveLength(2);
+    const questions = generateNecessaryClarificationQuestions(necessity.question_candidates);
+    expect(questions).toHaveLength(1);
+    expect(questions[0]).toMatchObject({
+      target_object_id: 'damages_test',
+      trigger: 'causal_link',
+      necessity_classification: 'contradiction',
+    });
+    expect(questions[0]?.contradiction_alternatives).toHaveLength(2);
+    for (const alternative of questions[0]!.contradiction_alternatives) {
+      expect(questions[0]!.question).toContain(alternative.text.slice(0, 80));
+      expect(alternative.grounding_references).toHaveLength(1);
+    }
+    expect(
+      generateNecessaryClarificationQuestions([
+        ...necessity.question_candidates,
+        ...necessity.question_candidates,
+      ]),
+    ).toHaveLength(1);
+    const mixedNecessity = classifyQuestionNecessity(
+      [...result.assessments, { ...result.assessments[0]!, causal_link_status: 'inferred' }],
+      context.repaired_extraction,
+    );
+    const mixedQuestions = generateNecessaryClarificationQuestions(
+      mixedNecessity.question_candidates,
+    );
+    expect(mixedQuestions).toHaveLength(1);
+    expect(mixedQuestions[0]?.necessity_classification).toBe('contradiction');
+  });
+
+  it.each([
+    ['causal link not stated', 'unstated'],
+    ['causal relationship is unclear', 'unstated'],
+    ['cause unknown', 'unstated'],
+    ['no causal explanation provided', 'unstated'],
+    ['the delay may have caused the loss', 'inferred'],
+  ] as const)('classifies grounded causal theory %j as %s', (causalTheory, expectedStatus) => {
+    const context = baseContext();
+    addDamages(context, { causal_theory: causalTheory });
+    const result = run(context);
+    expect(result.assessments).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          trigger: 'causal_link',
+          causal_link_status: expectedStatus,
+        }),
+      ]),
+    );
+    const necessity = classifyQuestionNecessity(result.assessments, context.repaired_extraction);
+    expect(necessity.question_candidates).toHaveLength(1);
+    expect(generateNecessaryClarificationQuestions(necessity.question_candidates)).toHaveLength(1);
+  });
+
+  it('fails closed on generic uncertainty unrelated to causation', () => {
+    const context = baseContext();
+    addDamages(context, { causal_theory: 'The schedule is unclear.' });
+    const result = run(context);
+    expect(result.assessments).toEqual([]);
+    expect(result.audit.rule_results).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ status: 'rejected', reason_code: 'causal_status_ambiguous' }),
+      ]),
+    );
   });
 
   it('suppresses an explicit causal link', () => {
@@ -407,6 +487,64 @@ describe('deterministic Person A runtime assessment provider', () => {
     const result = run(context);
     expect(result.assessments.some((item) => item.trigger === 'causal_link')).toBe(false);
     expect(result.audit.rule_results[0]?.reason_code).toBe('causal_link_explicit');
+  });
+
+  it.each([
+    ['June 3, 2024', 'June 3, 2025', true],
+    ['June 3, 2024', 'June 4, 2024', true],
+    ['June 3, 2024', 'June 3, 2024', false],
+    ['June 3', 'June 3, 2025', false],
+    ['3 June 2024', 'June 3, 2024', false],
+    ['2024-06-03', '2025-06-03', true],
+    ['03/06/2024', '06/03/2024', false],
+  ] as const)(
+    'normalizes material dates %j and %j without guessing',
+    (firstDate, secondDate, expectedContradiction) => {
+      const context = baseContext();
+      addDateIssue(
+        context,
+        `The same event occurred on ${firstDate}.`,
+        `The same event occurred on ${secondDate}.`,
+      );
+      const result = run(context);
+      const contradictions = result.assessments.filter(
+        (assessment) =>
+          assessment.trigger === 'required_bucket_missing' &&
+          assessment.target_object_id === 'issue_date_test',
+      );
+      expect(contradictions).toHaveLength(expectedContradiction ? 1 : 0);
+      if (expectedContradiction) {
+        const necessity = classifyQuestionNecessity(contradictions, context.repaired_extraction);
+        const questions = generateNecessaryClarificationQuestions(necessity.question_candidates);
+        expect(questions).toHaveLength(1);
+        expect(questions[0]?.question).toContain(firstDate);
+        expect(questions[0]?.question).toContain(secondDate);
+        expect(questions[0]?.contradiction_alternatives).toHaveLength(2);
+      }
+    },
+  );
+
+  it('suppresses year clarification when the exact source already supplies a year', () => {
+    const context = baseContext();
+    const quote = 'The material deadline was June 3, 2024.';
+    context.narrative = `${context.narrative}\n${quote}`;
+    addTimeline(context, {
+      event_summary: 'The material deadline was June 3, 2024.',
+      source_spans: [exactSpan(context.narrative, quote)],
+    });
+    const result = run(context);
+    expect(result.assessments.some((assessment) => assessment.trigger === 'date_precision')).toBe(
+      false,
+    );
+    expect(result.audit.rule_results).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          rule_id: 'runtime_material_date_precision_v1',
+          status: 'suppressed',
+          reason_code: 'calendar_year_explicit_in_source',
+        }),
+      ]),
+    );
   });
 
   it('detects a source-grounded nullable interpretation gap', () => {
