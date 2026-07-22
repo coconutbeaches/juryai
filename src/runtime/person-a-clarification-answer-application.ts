@@ -15,7 +15,7 @@ export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue
 type JsonObject = { [key: string]: JsonValue };
 
 export const PERSON_A_CLARIFICATION_ANSWER_APPLICATION_VERSION =
-  'person-a-clarification-answer-application-v0.1.0';
+  'person-a-clarification-answer-application-v0.1.1';
 export const PERSON_A_CLARIFICATION_ANSWER_BATCH_VERSION =
   'person-a-clarification-answer-batch-v0.1.0';
 export const MAX_PERSON_A_CLARIFICATION_ANSWERS = 6;
@@ -50,6 +50,7 @@ export interface SubmittedPersonAClarificationAnswer {
 }
 
 export interface ValidatedPersonAClarificationAnswer extends SubmittedPersonAClarificationAnswer {
+  normalized_applied_field: string;
   normalized_applied_value: JsonValue;
 }
 
@@ -816,10 +817,14 @@ function normalizeAnswer(
         return boundedError('invalid_actor_reference', 'Actor answers must be stable IDs.', answer);
       }
       if (answer.field === 'actor_party_id') {
-        if (!['party_a', 'party_b'].includes(answer.submitted_answer)) {
+        const thirdParty = objectIndex.get(answer.submitted_answer);
+        if (
+          !['party_a', 'party_b'].includes(answer.submitted_answer) &&
+          (!thirdParty || thirdParty.family !== 'third_parties')
+        ) {
           return boundedError(
             'invalid_actor_reference',
-            'actor_party_id must resolve to party_a or party_b.',
+            'Actor answers must resolve to party_a, party_b, or an existing third party.',
             answer,
           );
         }
@@ -1127,7 +1132,7 @@ export function applyPersonAClarificationAnswers(
     answerCounts.set(answer.answer_id, (answerCounts.get(answer.answer_id) ?? 0) + 1);
     questionCounts.set(answer.question_id, (questionCounts.get(answer.question_id) ?? 0) + 1);
   }
-  const normalized = new Map<string, JsonValue>();
+  const normalized = new Map<string, { field: string; value: JsonValue }>();
   for (const answer of parsed) {
     let duplicate = false;
     if ((answerCounts.get(answer.answer_id) ?? 0) > 1) {
@@ -1215,13 +1220,39 @@ export function applyPersonAClarificationAnswers(
       errors.push(normalizedValue);
       continue;
     }
+    const normalizedField =
+      question.trigger === 'actor_attribution' &&
+      answer.field === 'actor_party_id' &&
+      typeof normalizedValue === 'string' &&
+      !['party_a', 'party_b'].includes(normalizedValue)
+        ? 'actor_third_party_id'
+        : answer.field;
+    if (!Object.prototype.hasOwnProperty.call(target.item, normalizedField)) {
+      errors.push(
+        boundedError(
+          'unsupported_field',
+          'Normalized answer field is absent on its target.',
+          answer,
+        ),
+      );
+      continue;
+    }
+    if (!isDeepStrictEqual(target.item[normalizedField], answer.prior_value)) {
+      errors.push(
+        boundedError('stale_prior_value', 'Normalized answer prior value is stale.', answer),
+      );
+      continue;
+    }
     if (isDeepStrictEqual(answer.prior_value, normalizedValue)) {
       errors.push(
         boundedError('no_value_change', 'Answer would not change the target field.', answer),
       );
       continue;
     }
-    normalized.set(answer.answer_id, normalizedValue as JsonValue);
+    normalized.set(answer.answer_id, {
+      field: normalizedField,
+      value: normalizedValue as JsonValue,
+    });
   }
 
   if (errors.length > 0) {
@@ -1260,10 +1291,14 @@ export function applyPersonAClarificationAnswers(
 
   const questionOrder = new Map(questions.map((question, index) => [question.question_id, index]));
   const validatedAnswers = parsed
-    .map((answer) => ({
-      ...answer,
-      normalized_applied_value: normalized.get(answer.answer_id)!,
-    }))
+    .map((answer) => {
+      const applied = normalized.get(answer.answer_id)!;
+      return {
+        ...answer,
+        normalized_applied_field: applied.field,
+        normalized_applied_value: applied.value,
+      };
+    })
     .sort(
       (left, right) =>
         (questionOrder.get(left.question_id) ?? Number.MAX_SAFE_INTEGER) -
@@ -1304,7 +1339,7 @@ export function applyPersonAClarificationAnswers(
         stableJson([
           answer.question_id,
           answer.target_object_id,
-          answer.field,
+          answer.normalized_applied_field,
           answer.normalized_applied_value,
         ]),
         'utf8',
@@ -1317,14 +1352,16 @@ export function applyPersonAClarificationAnswers(
       question_id: answer.question_id,
       target_object_id: answer.target_object_id,
       target_family: answer.target_family,
-      field: answer.field,
-      prior_value: answer.prior_value,
+      field: answer.normalized_applied_field,
+      prior_value: projectedIndex.get(answer.target_object_id)!.item[
+        answer.normalized_applied_field
+      ]!,
       submitted_answer: answer.submitted_answer,
       normalized_applied_value: answer.normalized_applied_value,
       source_type: 'person_a_clarification',
       created_at: options.createdAt ?? null,
     };
-    projectedIndex.get(answer.target_object_id)!.item[answer.field] =
+    projectedIndex.get(answer.target_object_id)!.item[answer.normalized_applied_field] =
       answer.normalized_applied_value;
     amendments.push(amendment);
   }

@@ -364,6 +364,41 @@ describe('deterministic Person A runtime assessment provider', () => {
     );
   });
 
+  it.each([
+    'On June 3, Invoice sent the final files.',
+    'After payment, final files were transferred.',
+  ])('detects an actor-bearing action after a leading event preface: %s', (quote) => {
+    const context = baseContext();
+    context.narrative = `${context.narrative}\n${quote}`;
+    addTimeline(context, {
+      event_summary: quote,
+      source_spans: [exactSpan(context.narrative, quote)],
+    });
+    expect(run(context).assessments).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          target_object_id: 'event_test',
+          trigger: 'actor_attribution',
+          actor_attribution: 'unstated',
+        }),
+      ]),
+    );
+  });
+
+  it('recognizes a registered actor after a leading temporal preface', () => {
+    const context = baseContext();
+    const quote = 'On June 3, Alice sent the final files.';
+    context.narrative = `${context.narrative}\n${quote}`;
+    context.repaired_extraction.party.display_name = 'Alice';
+    addTimeline(context, {
+      event_summary: quote,
+      source_spans: [exactSpan(context.narrative, quote)],
+    });
+    expect(run(context).assessments.some((item) => item.trigger === 'actor_attribution')).toBe(
+      false,
+    );
+  });
+
   it('does not borrow an unrelated actor-bearing clause from a broader source span', () => {
     const context = baseContext();
     const quote =

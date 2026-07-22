@@ -8,7 +8,7 @@ import {
 
 type JsonObject = Record<string, any>;
 
-export const DETERMINISTIC_PERSON_A_ASSESSMENT_VERSION = 'deterministic-person-a-assessment-v0.1.8';
+export const DETERMINISTIC_PERSON_A_ASSESSMENT_VERSION = 'deterministic-person-a-assessment-v0.1.9';
 
 export const DETERMINISTIC_PERSON_A_RULE_IDS = [
   'runtime_actor_attribution_v1',
@@ -438,6 +438,18 @@ function explicitActorInSource(quote: string, extraction: JsonObject): boolean {
   return false;
 }
 
+function hasActorBearingEventClause(eventSummary: unknown): boolean {
+  if (typeof eventSummary !== 'string') return false;
+  return eventSummary
+    .split(/[,;–—]/u)
+    .map((clause) => clause.trim())
+    .filter(
+      (clause) =>
+        clause.length > 0 && !/^(?:with|without)\s+(?:no\s+)?(?:calendar\s+)?year\b/iu.test(clause),
+    )
+    .some((clause) => new RegExp(`\\b(?:${ACTIVE_ACTOR_VERB_PATTERN})\\b`, 'iu').test(clause));
+}
+
 function referencedClaimGrounding(
   claimIds: readonly string[],
   narrative: string,
@@ -833,11 +845,7 @@ export function assessDeterministicPersonAEpistemicGaps(
       continue;
     }
     const quote = spans.spans.map((span) => span.quote).join(' ');
-    const primaryEventClause = String(item.event_summary ?? '').split(/[,;–—]/u, 1)[0] ?? '';
-    const actorBearingAction =
-      /\b(?:accepted|asked|came|changed|communicated|coming|delivered|fixed|made|paid|published|replied|requested|sent|supplied|transferred|used)\b/iu.test(
-        primaryEventClause,
-      );
+    const actorBearingAction = hasActorBearingEventClause(item.event_summary);
     if (
       !actorBearingAction ||
       !['critical', 'high'].includes(materiality(item.materiality, 'low'))

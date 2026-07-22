@@ -22,8 +22,10 @@ applyPersonAClarificationAnswers({
 The original extraction embedded in the runtime plan and the repaired baseline are inspected into
 detached plain JSON snapshots and never mutated. A successful answer produces an amendment and a
 separate amended projection. Every amendment records the issued question, exact target family,
-object and field, prior value, submitted answer, normalized applied value, source type, stable
-sequence, and an optional caller-injected timestamp.
+object and canonical applied field, prior value, submitted answer, normalized applied value, source
+type, stable sequence, and an optional caller-injected timestamp. Validated answers preserve the
+issued field and also record `normalized_applied_field` when canonical application uses a paired
+schema field.
 
 The answer batch is atomic and capped at six. Any malformed, stale, unsupported, duplicate,
 expired, unknown, or already-applied answer rejects the entire batch. No partial projection or
@@ -33,8 +35,10 @@ treated as absent.
 
 ## Supported answer types
 
-- actor attribution resolves only to `party_a`, `party_b`, or an existing third party in the
-  matching actor field;
+- actor attribution resolves only to `party_a`, `party_b`, or an existing third party. A question
+  issued for the actor slot as `actor_party_id` is deterministically routed to
+  `actor_third_party_id` when the answer is an existing third-party ID; the two actor fields remain
+  mutually exclusive;
 - date precision preserves exact grounded month/day components and may add only the submitted
   calendar year;
 - evidence availability remains categorical and cannot imply upload, inspection, authenticity, or

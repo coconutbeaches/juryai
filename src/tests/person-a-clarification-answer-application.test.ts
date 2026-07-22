@@ -283,6 +283,36 @@ describe('Person A clarification answer application', () => {
     });
   });
 
+  it('routes an issued actor-party question to the canonical third-party actor field', () => {
+    const { record, target, issued } = actorCase();
+    record.third_parties.push({
+      third_party_id: 'third_party_acme',
+      name_or_label: 'Acme Corp',
+      role: 'invoice sender',
+      relationship_to_party_id: null,
+      contacted_for_case: false,
+      notes: null,
+    });
+    const thirdPartyId = record.third_parties[0].third_party_id;
+    const result = apply(record, [issued], [answer(issued, record, thirdPartyId)]);
+    const amended = findObject(result.amended_record!, target.event_id);
+    expect(result.audit.final_status).toBe('passed');
+    expect(amended.actor_party_id).toBeNull();
+    expect(amended.actor_third_party_id).toBe(thirdPartyId);
+    expect(result.validated_answers[0]).toMatchObject({
+      field: 'actor_party_id',
+      normalized_applied_field: 'actor_third_party_id',
+      normalized_applied_value: thirdPartyId,
+    });
+    expect(result.amendments[0]).toMatchObject({
+      question_id: issued.question_id,
+      field: 'actor_third_party_id',
+      prior_value: null,
+      submitted_answer: thirdPartyId,
+      normalized_applied_value: thirdPartyId,
+    });
+  });
+
   it('applies a valid date answer without inventing grounded month/day components', () => {
     const { record, target, issued } = dateCase();
     const submitted = {
