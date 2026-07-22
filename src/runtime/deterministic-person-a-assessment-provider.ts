@@ -8,7 +8,7 @@ import {
 
 type JsonObject = Record<string, any>;
 
-export const DETERMINISTIC_PERSON_A_ASSESSMENT_VERSION = 'deterministic-person-a-assessment-v0.1.3';
+export const DETERMINISTIC_PERSON_A_ASSESSMENT_VERSION = 'deterministic-person-a-assessment-v0.1.4';
 
 export const DETERMINISTIC_PERSON_A_RULE_IDS = [
   'runtime_actor_attribution_v1',
@@ -353,13 +353,17 @@ function buildObjectIndex(record: JsonObject): Map<string, { family: string; ite
   return result;
 }
 
-function containsAny(text: string, terms: readonly string[]): boolean {
-  const normalized = text.toLocaleLowerCase('en-US');
-  return terms.some((term) => normalized.includes(term.toLocaleLowerCase('en-US')));
-}
-
 function escapeRegularExpression(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+}
+
+function containsWholeTerm(text: string, terms: readonly string[]): boolean {
+  return terms.some((term) =>
+    new RegExp(
+      `(?<![\\p{L}\\p{N}_])${escapeRegularExpression(term)}(?![\\p{L}\\p{N}_])`,
+      'iu',
+    ).test(text),
+  );
 }
 
 function hasAffirmativeTerm(text: string, terms: readonly string[]): boolean {
@@ -458,7 +462,7 @@ function dateIsMaterial(
     /\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\b(?:\s+\d{1,2})?/iu.test(
       text,
     );
-  return containsCalendarReference && containsAny(text, terms);
+  return containsCalendarReference && containsWholeTerm(text, terms);
 }
 
 function completionConflict(
@@ -493,9 +497,10 @@ function explicitCountConflict(item: JsonObject, spans: readonly ExactSourceSpan
 }
 
 interface NormalizedDateMention {
+  precision: 'full_date' | 'month_day' | 'month_year';
   year: number | null;
   month: number;
-  day: number;
+  day: number | null;
   token: string;
 }
 
@@ -519,13 +524,24 @@ const MONTH_PATTERN =
 function normalizedDateMention(
   year: number | null,
   month: number,
-  day: number,
+  day: number | null,
 ): NormalizedDateMention | null {
-  if (!Number.isInteger(month) || !Number.isInteger(day) || month < 1 || month > 12 || day < 1) {
+  if (!Number.isInteger(month) || month < 1 || month > 12) {
     return null;
   }
+  if (year !== null && (!Number.isInteger(year) || year < 1 || year > 9999)) return null;
+  if (day === null) {
+    if (year === null) return null;
+    return {
+      precision: 'month_year',
+      year,
+      month,
+      day,
+      token: `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}`,
+    };
+  }
+  if (!Number.isInteger(day) || day < 1) return null;
   const validationYear = year ?? 2000;
-  if (!Number.isInteger(validationYear) || validationYear < 1 || validationYear > 9999) return null;
   const date = new Date(Date.UTC(validationYear, month - 1, day));
   if (
     date.getUTCFullYear() !== validationYear ||
@@ -535,6 +551,7 @@ function normalizedDateMention(
     return null;
   }
   return {
+    precision: year === null ? 'month_day' : 'full_date',
     year,
     month,
     day,
@@ -544,7 +561,7 @@ function normalizedDateMention(
 
 function extractNormalizedDateMentions(text: string): NormalizedDateMention[] {
   const mentions = new Map<string, NormalizedDateMention>();
-  const add = (year: number | null, month: number, day: number): void => {
+  const add = (year: number | null, month: number, day: number | null): void => {
     const normalized = normalizedDateMention(year, month, day);
     if (normalized) mentions.set(normalized.token, normalized);
   };
@@ -566,6 +583,11 @@ function extractNormalizedDateMentions(text: string): NormalizedDateMention[] {
       Number(match[1]),
     );
   }
+  for (const match of text.matchAll(
+    new RegExp(`\\b(${MONTH_PATTERN})\\s*,?\\s+(\\d{4})\\b`, 'giu'),
+  )) {
+    add(Number(match[2]), MONTH_NUMBERS[match[1]!.toLowerCase()]!, null);
+  }
   for (const match of text.matchAll(/\b(\d{4})-(\d{2})-(\d{2})\b/gu)) {
     add(Number(match[1]), Number(match[2]), Number(match[3]));
   }
@@ -581,9 +603,10 @@ function explicitDateConflict(item: JsonObject, spans: readonly ExactSourceSpan[
   const datesBySpan = spans.map((span) => extractNormalizedDateMentions(span.quote));
   if (datesBySpan.length < 2 || datesBySpan.some((dates) => dates.length !== 1)) return false;
   const dates = datesBySpan.map((values) => values[0]!);
+  if (new Set(dates.map((date) => date.precision)).size !== 1) return false;
   const monthDays = new Set(dates.map((date) => `${date.month}-${date.day}`));
   if (monthDays.size > 1) return true;
-  if (dates.some((date) => date.year === null)) return false;
+  if (dates[0]!.precision === 'month_day') return false;
   return new Set(dates.map((date) => date.year)).size > 1;
 }
 

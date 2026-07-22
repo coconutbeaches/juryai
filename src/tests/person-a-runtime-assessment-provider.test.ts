@@ -514,6 +514,8 @@ describe('deterministic Person A runtime assessment provider', () => {
     ['June 3, 2024', 'June 4, 2024', true],
     ['June 3, 2024', 'June 3, 2024', false],
     ['June 3', 'June 3, 2025', false],
+    ['June 2024', 'June 2025', true],
+    ['June 2024', 'June 3, 2024', false],
     ['3 June 2024', 'June 3, 2024', false],
     ['2024-06-03', '2025-06-03', true],
     ['03/06/2024', '06/03/2024', false],
@@ -565,6 +567,144 @@ describe('deterministic Person A runtime assessment provider', () => {
         }),
       ]),
     );
+  });
+
+  it('suppresses year clarification when the exact source supplies a month and year', () => {
+    const context = baseContext();
+    const quote = 'The material deadline was June 2024.';
+    context.narrative = `${context.narrative}\n${quote}`;
+    addTimeline(context, {
+      event_summary: 'The material deadline was June 2024.',
+      source_spans: [exactSpan(context.narrative, quote)],
+    });
+    const result = run(context);
+    expect(result.assessments.some((assessment) => assessment.trigger === 'date_precision')).toBe(
+      false,
+    );
+    const audit = result.audit.rule_results.find(
+      (item) => item.reason_code === 'calendar_year_explicit_in_source',
+    );
+    expect(audit).toMatchObject({
+      rule_id: 'runtime_material_date_precision_v1',
+      status: 'suppressed',
+      grounding_references: [
+        expect.objectContaining({
+          kind: 'source_span',
+          object_id: 'event_test',
+          quote_preview: quote,
+        }),
+      ],
+    });
+  });
+
+  it('recognizes a comma-separated month and year without inventing a day', () => {
+    const context = baseContext();
+    const quote = 'The material deadline was June, 2024.';
+    context.narrative = `${context.narrative}\n${quote}`;
+    addTimeline(context, {
+      event_summary: 'The material deadline was June, 2024.',
+      source_spans: [exactSpan(context.narrative, quote)],
+    });
+    const result = run(context);
+    expect(result.assessments.some((assessment) => assessment.trigger === 'date_precision')).toBe(
+      false,
+    );
+    expect(result.audit.rule_results).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ reason_code: 'calendar_year_explicit_in_source' }),
+      ]),
+    );
+  });
+
+  it('still asks for a materially necessary year when only the month is grounded', () => {
+    const context = baseContext();
+    const quote = 'The material deadline was in June.';
+    context.narrative = `${context.narrative}\n${quote}`;
+    addTimeline(context, {
+      event_summary: 'The material deadline was in June.',
+      source_spans: [exactSpan(context.narrative, quote)],
+    });
+    expect(run(context).assessments).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          target_object_id: 'event_test',
+          trigger: 'date_precision',
+          date_precision: 'unknown',
+        }),
+      ]),
+    );
+  });
+
+  it('matches material date terms as whole words', () => {
+    const context = baseContext();
+    const quote = 'Ruby sent files on June 3.';
+    context.narrative = `${context.narrative}\n${quote}`;
+    addTimeline(context, {
+      event_summary: 'Ruby sent files on June 3.',
+      source_spans: [exactSpan(context.narrative, quote)],
+    });
+    const result = run(context);
+    expect(result.assessments.some((assessment) => assessment.trigger === 'date_precision')).toBe(
+      false,
+    );
+    expect(result.audit.rule_results).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          rule_id: 'runtime_material_date_precision_v1',
+          status: 'suppressed',
+          reason_code: 'missing_year_not_materially_necessary',
+        }),
+      ]),
+    );
+  });
+
+  it.each([
+    ['The work is due June 3.', true],
+    ['Payment was due on June 3.', true],
+    ['Submit by June 3.', true],
+    ['Standby until June 3.', false],
+    ['The invoice was overdue since June 3.', false],
+    ['Payment was due: June 3.', true],
+    ['Payment was DUE June 3.', true],
+    ['Ruby and Buddy exchanged files on June 3.', false],
+  ] as const)('applies whole-token materiality to %j', (quote, expectedAssessment) => {
+    const context = baseContext();
+    context.narrative = `${context.narrative}\n${quote}`;
+    addTimeline(context, {
+      event_summary: quote,
+      source_spans: [exactSpan(context.narrative, quote)],
+    });
+    expect(run(context).assessments.some((item) => item.trigger === 'date_precision')).toBe(
+      expectedAssessment,
+    );
+  });
+
+  it('matches configured multiword material terms only as complete phrases', () => {
+    const matching = baseContext();
+    const matchingQuote = 'The balance due date was June 3.';
+    matching.narrative = `${matching.narrative}\n${matchingQuote}`;
+    addTimeline(matching, {
+      event_summary: matchingQuote,
+      source_spans: [exactSpan(matching.narrative, matchingQuote)],
+    });
+    expect(
+      run(matching, { materialDateTerms: ['balance due'] }).assessments.some(
+        (item) => item.trigger === 'date_precision',
+      ),
+    ).toBe(true);
+
+    const nonmatching = baseContext();
+    const nonmatchingQuote = 'The balance was overdue on June 3.';
+    nonmatching.narrative = `${nonmatching.narrative}\n${nonmatchingQuote}`;
+    addTimeline(nonmatching, {
+      event_summary: nonmatchingQuote,
+      source_spans: [exactSpan(nonmatching.narrative, nonmatchingQuote)],
+    });
+    expect(
+      run(nonmatching, { materialDateTerms: ['balance due'] }).assessments.some(
+        (item) => item.trigger === 'date_precision',
+      ),
+    ).toBe(false);
   });
 
   it('detects a source-grounded nullable interpretation gap', () => {
