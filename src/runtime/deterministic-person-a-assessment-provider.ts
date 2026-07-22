@@ -8,7 +8,7 @@ import {
 
 type JsonObject = Record<string, any>;
 
-export const DETERMINISTIC_PERSON_A_ASSESSMENT_VERSION = 'deterministic-person-a-assessment-v0.1.1';
+export const DETERMINISTIC_PERSON_A_ASSESSMENT_VERSION = 'deterministic-person-a-assessment-v0.1.2';
 
 export const DETERMINISTIC_PERSON_A_RULE_IDS = [
   'runtime_actor_attribution_v1',
@@ -422,9 +422,36 @@ function completionConflict(
   completionTerms: readonly string[],
   unfinishedTerms: readonly string[],
 ): boolean {
-  return (
-    spans.some((span) => containsAny(span.quote, completionTerms)) &&
-    spans.some((span) => containsAny(span.quote, unfinishedTerms))
+  const affirmativeCompletion = (text: string): boolean => {
+    if (containsAny(text, unfinishedTerms)) return false;
+    for (const term of completionTerms) {
+      const escaped = term.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+      const pattern = new RegExp(`(?<![\\p{L}\\p{N}_])${escaped}(?![\\p{L}\\p{N}_])`, 'giu');
+      for (const match of text.matchAll(pattern)) {
+        const prefix = text
+          .slice(Math.max(0, (match.index ?? 0) - 48), match.index)
+          .toLocaleLowerCase('en-US')
+          .replace(/[-–—]/gu, ' ');
+        if (
+          /(?:\bnot|\bnever|\bno|\bwithout|\bneither|\bwasn't|\bwasn’t|\bisn't|\bisn’t|\baren't|\baren’t|\bwas not|\bis not|\bare not|\bdid not|\bhas not|\bhave not|\bhad not|\bfar from|\bless than)\s+(?:[\p{L}\p{N}_]+\s+){0,5}$/iu.test(
+            prefix,
+          )
+        ) {
+          continue;
+        }
+        return true;
+      }
+    }
+    return false;
+  };
+  const completedSpanIndexes = spans.flatMap((span, index) =>
+    affirmativeCompletion(span.quote) ? [index] : [],
+  );
+  const unfinishedSpanIndexes = spans.flatMap((span, index) =>
+    containsAny(span.quote, unfinishedTerms) ? [index] : [],
+  );
+  return completedSpanIndexes.some((completedIndex) =>
+    unfinishedSpanIndexes.some((unfinishedIndex) => unfinishedIndex !== completedIndex),
   );
 }
 

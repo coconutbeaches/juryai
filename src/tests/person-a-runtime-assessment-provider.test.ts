@@ -601,6 +601,47 @@ describe('deterministic Person A runtime assessment provider', () => {
     );
   });
 
+  it('does not treat negative-only completion wording as a contradiction', () => {
+    const context = baseContext();
+    const first = 'The website was not even close to complete.';
+    const second = 'The mobile layout remained incomplete.';
+    context.narrative = `${context.narrative}\n${first}\n${second}`;
+    addIssue(context, {
+      description: 'Both statements describe unfinished work.',
+      source_spans: [exactSpan(context.narrative, first), exactSpan(context.narrative, second)],
+    });
+    const result = run(context);
+    expect(result.assessments).toEqual([]);
+    expect(result.audit.rule_results).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          status: 'suppressed',
+          reason_code: 'no_deterministic_material_contradiction',
+        }),
+      ]),
+    );
+  });
+
+  it('requires a separately grounded affirmative completion statement', () => {
+    const context = baseContext();
+    const first = 'The website was complete.';
+    const second = 'The mobile layout remained unfinished.';
+    context.narrative = `${context.narrative}\n${first}\n${second}`;
+    addIssue(context, {
+      description: 'The statements conflict about whether the work was complete.',
+      source_spans: [exactSpan(context.narrative, first), exactSpan(context.narrative, second)],
+    });
+    const result = run(context);
+    expect(result.assessments).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          target_object_id: 'issue_test',
+          trigger: 'required_bucket_missing',
+        }),
+      ]),
+    );
+  });
+
   it('keeps aggregate-splitting repair audit strictly internal', () => {
     const context = baseContext();
     const aggregate = {
