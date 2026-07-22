@@ -104,7 +104,6 @@ export async function runPlanPersonARuntimeCommand(
     'repaired-extraction.json': result.repaired_extraction,
     'repair-audit.json': result.repair_result,
     'assessments.json': {
-      raw_assessments: result.raw_assessments,
       validated_assessments: result.validated_assessments,
       rejected_assessments: result.rejected_assessments,
     },

@@ -20,14 +20,19 @@ import {
 
 type JsonObject = Record<string, any>;
 
-export const PERSON_A_RUNTIME_ORCHESTRATION_VERSION = 'person-a-runtime-orchestration-v0.1.5';
+export const PERSON_A_RUNTIME_ORCHESTRATION_VERSION = 'person-a-runtime-orchestration-v0.1.6';
 export const MAX_RUNTIME_ASSESSMENT_JSON_DEPTH = 64;
 export const MAX_RUNTIME_ASSESSMENT_BATCH_SIZE = 100;
 export const MAX_RUNTIME_ASSESSMENT_NESTED_ARRAY_LENGTH = 1_000;
 export const MAX_RUNTIME_ASSESSMENT_OBJECT_KEYS = 200;
 export const MAX_RUNTIME_ASSESSMENT_JSON_NODES = 10_000;
-const MAX_RUNTIME_REJECTED_AUDIT_KEYS = 20;
+export const MAX_RUNTIME_REJECTED_AUDIT_KEYS = 20;
 export const MAX_RUNTIME_REJECTED_AUDIT_KEY_LENGTH = 160;
+export const MAX_RUNTIME_REJECTED_PREVIEW_LENGTH = 160;
+export const MAX_RUNTIME_REJECTED_SUMMARY_DEPTH = 2;
+export const MAX_RUNTIME_REJECTED_SUMMARY_ARRAY_ITEMS = 10;
+export const MAX_RUNTIME_REJECTED_SUMMARY_SERIALIZED_SIZE = 8 * 1_024;
+export const MAX_RUNTIME_ERROR_MESSAGE_LENGTH = 512;
 
 export type RuntimeStageStatus = 'not_started' | 'passed' | 'skipped' | 'failed_closed';
 export type RuntimeArtifactStatus = 'absent' | 'present_hashed' | 'present_invalid';
@@ -64,9 +69,26 @@ export interface RuntimePlanningError {
 
 export interface RejectedRuntimeAssessment {
   sequence_number: number | null;
-  assessment: unknown;
+  summary: BoundedRejectedAssessmentSummary;
   code: string;
   message: string;
+}
+
+export interface BoundedRejectedAssessmentSummary {
+  audit_type: 'bounded_rejected_assessment';
+  reason_code: string;
+  value_type: string;
+  trigger?: string;
+  target_object_id?: string;
+  target_family?: string;
+  field?: string;
+  materiality?: string;
+  question_context_preview?: string;
+  value_preview?: JsonValue;
+  original_string_length?: number;
+  own_key_labels: string[];
+  serialized_size_estimate: number | null;
+  truncated: boolean;
 }
 
 export interface PersonARuntimePlanningInput {
@@ -83,7 +105,6 @@ export interface PersonARuntimePlanningResult {
   original_extraction_hash: string | null;
   repaired_extraction_hash: string | null;
   repair_result: PersonARepairResult | null;
-  raw_assessments: unknown[];
   validated_assessments: EpistemicAssessment[];
   rejected_assessments: RejectedRuntimeAssessment[];
   necessity_classifications: ClassifiedClarificationCandidate[];
@@ -269,7 +290,8 @@ function safeClone(value: unknown): unknown {
   }
 }
 
-type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
+export type JsonValue =
+  null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 
 interface SafeAuditDescription extends JsonObject {
   audit_type: 'rejected_non_json_assessment';
@@ -361,6 +383,160 @@ function renderAuditKey(key: string | symbol): string {
 
 function boundedAuditKeys(keys: readonly (string | symbol)[]): string[] {
   return keys.slice(0, MAX_RUNTIME_REJECTED_AUDIT_KEYS).map(renderAuditKey).sort(lexicalCompare);
+}
+
+function jsonValueType(value: JsonValue): string {
+  if (value === null) return 'null';
+  if (Array.isArray(value)) return 'array';
+  return typeof value;
+}
+
+function estimatedJsonSize(value: JsonValue): number {
+  if (value === null) return 4;
+  if (typeof value === 'boolean') return value ? 4 : 5;
+  if (typeof value === 'number') return String(value).length;
+  if (typeof value === 'string') return value.length + 2;
+  if (Array.isArray(value)) {
+    let total = 1;
+    for (const item of value) total += estimatedJsonSize(item) + 1;
+    return total;
+  }
+  let total = 1;
+  for (const [key, item] of Object.entries(value)) {
+    total += key.length + estimatedJsonSize(item) + 4;
+  }
+  return total;
+}
+
+interface BoundedPreview {
+  value: JsonValue;
+  truncated: boolean;
+}
+
+function boundedValuePreview(value: JsonValue, depth = 0): BoundedPreview {
+  if (typeof value === 'string') {
+    const preview = truncateAuditText(value, MAX_RUNTIME_REJECTED_PREVIEW_LENGTH);
+    return { value: preview, truncated: preview !== value };
+  }
+  if (value === null || typeof value === 'boolean' || typeof value === 'number') {
+    return { value, truncated: false };
+  }
+  if (depth >= MAX_RUNTIME_REJECTED_SUMMARY_DEPTH) {
+    return {
+      value: Array.isArray(value) ? '[array preview omitted]' : '[object preview omitted]',
+      truncated: true,
+    };
+  }
+  if (Array.isArray(value)) {
+    let truncated = value.length > MAX_RUNTIME_REJECTED_SUMMARY_ARRAY_ITEMS;
+    const preview = value.slice(0, MAX_RUNTIME_REJECTED_SUMMARY_ARRAY_ITEMS).map((item) => {
+      const child = boundedValuePreview(item, depth + 1);
+      truncated ||= child.truncated;
+      return child.value;
+    });
+    return { value: preview, truncated };
+  }
+  const keys = Object.keys(value).sort(lexicalCompare);
+  let truncated = keys.length > MAX_RUNTIME_REJECTED_AUDIT_KEYS;
+  const preview: { [key: string]: JsonValue } = {};
+  for (const key of keys.slice(0, MAX_RUNTIME_REJECTED_AUDIT_KEYS)) {
+    const child = boundedValuePreview(value[key]!, depth + 1);
+    truncated ||= child.truncated;
+    preview[truncateAuditText(key, MAX_RUNTIME_REJECTED_AUDIT_KEY_LENGTH)] = child.value;
+  }
+  return { value: preview, truncated };
+}
+
+function boundedIdentifier(value: JsonValue | undefined): { value?: string; truncated: boolean } {
+  if (typeof value !== 'string') return { truncated: false };
+  const bounded = truncateAuditText(value, MAX_RUNTIME_REJECTED_PREVIEW_LENGTH);
+  return { value: bounded, truncated: bounded !== value };
+}
+
+function boundedRejectedSummary(
+  value: JsonValue,
+  reasonCode: string,
+): BoundedRejectedAssessmentSummary {
+  const summary: BoundedRejectedAssessmentSummary = {
+    audit_type: 'bounded_rejected_assessment',
+    reason_code: reasonCode,
+    value_type: jsonValueType(value),
+    own_key_labels: [],
+    serialized_size_estimate: estimatedJsonSize(value),
+    truncated: false,
+  };
+  if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+    const keys = Object.keys(value);
+    summary.own_key_labels = boundedAuditKeys(keys);
+    summary.truncated = true;
+    const trigger = boundedIdentifier(value.trigger);
+    const targetObjectId = boundedIdentifier(value.target_object_id);
+    const targetFamily = boundedIdentifier(value.target_family);
+    const field = boundedIdentifier(value.field);
+    const materiality = boundedIdentifier(value.materiality);
+    if (trigger.value !== undefined) summary.trigger = trigger.value;
+    if (targetObjectId.value !== undefined) summary.target_object_id = targetObjectId.value;
+    if (targetFamily.value !== undefined) summary.target_family = targetFamily.value;
+    if (field.value !== undefined) summary.field = field.value;
+    if (materiality.value !== undefined) summary.materiality = materiality.value;
+    summary.truncated ||=
+      trigger.truncated ||
+      targetObjectId.truncated ||
+      targetFamily.truncated ||
+      field.truncated ||
+      materiality.truncated;
+    const context = boundedIdentifier(value.question_context);
+    if (context.value !== undefined) summary.question_context_preview = context.value;
+    summary.truncated ||= context.truncated;
+  } else {
+    const preview = boundedValuePreview(value);
+    summary.value_preview = preview.value;
+    summary.truncated = preview.truncated;
+    if (typeof value === 'string') summary.original_string_length = value.length;
+  }
+  if (JSON.stringify(summary).length > MAX_RUNTIME_REJECTED_SUMMARY_SERIALIZED_SIZE) {
+    delete summary.value_preview;
+    summary.truncated = true;
+  }
+  if (JSON.stringify(summary).length > MAX_RUNTIME_REJECTED_SUMMARY_SERIALIZED_SIZE) {
+    return {
+      audit_type: 'bounded_rejected_assessment',
+      reason_code: truncateAuditText(reasonCode, MAX_RUNTIME_REJECTED_PREVIEW_LENGTH),
+      value_type: summary.value_type,
+      own_key_labels: [],
+      serialized_size_estimate: summary.serialized_size_estimate,
+      truncated: true,
+    };
+  }
+  return summary;
+}
+
+function boundedSnapshotSummary(
+  audit: SafeAuditDescription,
+  reasonCode: string,
+): BoundedRejectedAssessmentSummary {
+  return {
+    audit_type: 'bounded_rejected_assessment',
+    reason_code: reasonCode,
+    value_type: audit.value_type,
+    own_key_labels: audit.own_keys,
+    serialized_size_estimate: null,
+    truncated: true,
+  };
+}
+
+function safeRuntimeErrorMessage(error: unknown): string {
+  try {
+    if (error instanceof Error && typeof error.message === 'string') {
+      return truncateAuditText(error.message, MAX_RUNTIME_ERROR_MESSAGE_LENGTH);
+    }
+    if (typeof error === 'string') {
+      return truncateAuditText(error, MAX_RUNTIME_ERROR_MESSAGE_LENGTH);
+    }
+  } catch {
+    return 'Runtime error details could not be safely inspected.';
+  }
+  return 'Runtime operation failed without a safe error message.';
 }
 
 function snapshotFailure(
@@ -707,24 +883,24 @@ function validationErrors(result: PersonAValidationResult): string[] {
 
 function reject(
   sequence: number,
-  assessment: unknown,
+  assessment: JsonValue,
   code: string,
   message: string,
 ): RejectedRuntimeAssessment {
   return {
     sequence_number: sequence,
-    assessment: canonicalize(safeClone(assessment)),
+    summary: boundedRejectedSummary(assessment, code),
     code,
-    message,
+    message: truncateAuditText(message, MAX_RUNTIME_ERROR_MESSAGE_LENGTH),
   };
 }
 
 function validateAssessment(
-  value: unknown,
+  value: JsonValue,
   sequence: number,
   objectIndex: Map<string, IndexedRuntimeObject>,
 ): EpistemicAssessment | RejectedRuntimeAssessment {
-  if (!isRecord(value))
+  if (Array.isArray(value) || !isRecord(value))
     return reject(sequence, value, 'assessment_not_object', 'Assessment must be an object.');
   const unknownKey = Object.keys(value).find((key) => !assessmentKeys.has(key));
   if (unknownKey) {
@@ -732,7 +908,7 @@ function validateAssessment(
       sequence,
       value,
       'unsupported_assessment_property',
-      `Unsupported assessment property: ${unknownKey}.`,
+      `Unsupported assessment property: ${renderAuditKey(unknownKey)}.`,
     );
   }
   for (const field of ['target_object_id', 'target_family', 'field', 'trigger', 'materiality']) {
@@ -749,7 +925,11 @@ function validateAssessment(
       );
     }
   }
-  if (!/^[A-Za-z0-9][A-Za-z0-9._:-]*$/u.test(value.target_object_id)) {
+  const targetObjectId = value.target_object_id as string;
+  const targetFamily = value.target_family as string;
+  const assessmentField = value.field as string;
+  const assessmentMateriality = value.materiality as string;
+  if (!/^[A-Za-z0-9][A-Za-z0-9._:-]*$/u.test(targetObjectId)) {
     return reject(
       sequence,
       value,
@@ -757,7 +937,7 @@ function validateAssessment(
       'target_object_id has an unsafe format.',
     );
   }
-  if (!families.includes(value.target_family as RuntimeFamily)) {
+  if (!families.includes(targetFamily as RuntimeFamily)) {
     return reject(
       sequence,
       value,
@@ -768,10 +948,10 @@ function validateAssessment(
   if (!triggers.has(value.trigger as ClarificationTriggerKind)) {
     return reject(sequence, value, 'unsupported_trigger', 'trigger is not supported.');
   }
-  if (!materialities.has(value.materiality)) {
+  if (!materialities.has(assessmentMateriality)) {
     return reject(sequence, value, 'invalid_materiality', 'materiality must be categorical.');
   }
-  const target = objectIndex.get(value.target_object_id);
+  const target = objectIndex.get(targetObjectId);
   if (!target) {
     return reject(
       sequence,
@@ -780,7 +960,7 @@ function validateAssessment(
       'Assessment target does not exist in the repaired extraction.',
     );
   }
-  if (target.family !== value.target_family) {
+  if (target.family !== targetFamily) {
     return reject(
       sequence,
       value,
@@ -790,22 +970,22 @@ function validateAssessment(
   }
   const trigger = value.trigger as ClarificationTriggerKind;
   const compatibility = assessmentCompatibility[trigger].find(
-    (rule) => rule.family === target.family && rule.field === value.field,
+    (rule) => rule.family === target.family && rule.field === assessmentField,
   );
   if (!compatibility) {
     return reject(
       sequence,
       value,
       'incompatible_assessment_target',
-      `${trigger} cannot assess ${target.family}.${value.field}.`,
+      `${trigger} cannot assess ${target.family}.${assessmentField}.`,
     );
   }
-  if (!Object.hasOwn(target.item, value.field) && !compatibility.allow_missing_field) {
+  if (!Object.hasOwn(target.item, assessmentField) && !compatibility.allow_missing_field) {
     return reject(
       sequence,
       value,
       'assessment_field_missing',
-      `Target object ${value.target_object_id} does not contain ${value.field}.`,
+      `Target object ${targetObjectId} does not contain ${assessmentField}.`,
     );
   }
   const expectedState = triggerStates[trigger];
@@ -898,7 +1078,7 @@ export function orchestratePersonAPlanning(
   const originalSerialized = JSON.stringify(originalSnapshot);
   let repaired: JsonObject | null = null;
   let repairResult: PersonARepairResult | null = null;
-  let rawAssessments: unknown[] = [];
+  let assessmentsReceived = 0;
   let validatedAssessments: EpistemicAssessment[] = [];
   let rejectedAssessments: RejectedRuntimeAssessment[] = [];
   let classifications: ClassifiedClarificationCandidate[] = [];
@@ -914,7 +1094,11 @@ export function orchestratePersonAPlanning(
   const fail = (name: RuntimeStageName, code: string, message: string): void => {
     const current = stage(name);
     current.status = 'failed_closed';
-    current.errors.push({ stage: name, code, message });
+    current.errors.push({
+      stage: name,
+      code,
+      message: truncateAuditText(message, MAX_RUNTIME_ERROR_MESSAGE_LENGTH),
+    });
     let skip = false;
     for (const item of stages) {
       if (item.stage === name) skip = true;
@@ -945,7 +1129,6 @@ export function orchestratePersonAPlanning(
       original_extraction_hash: originalHash,
       repaired_extraction_hash: repairedHash,
       repair_result: repairResult,
-      raw_assessments: rawAssessments,
       validated_assessments: validatedAssessments,
       rejected_assessments: rejectedAssessments,
       necessity_classifications: classifications,
@@ -962,7 +1145,7 @@ export function orchestratePersonAPlanning(
         original_unchanged: originalUnchanged,
         original_artifact_status: originalArtifactStatus,
         repaired_artifact_status: repairedArtifactStatus,
-        assessments_received: rawAssessments.length,
+        assessments_received: assessmentsReceived,
         assessments_validated: validatedAssessments.length,
         assessments_rejected: rejectedAssessments.length,
         questions_generated: generatedQuestions.length,
@@ -979,11 +1162,7 @@ export function orchestratePersonAPlanning(
   try {
     originalValidation = dependencies.validate(input.extraction, input.narrative);
   } catch (error) {
-    fail(
-      'original_validation',
-      'original_validation_failed',
-      error instanceof Error ? error.message : String(error),
-    );
+    fail('original_validation', 'original_validation_failed', safeRuntimeErrorMessage(error));
     return finish();
   }
   if (!originalValidation.valid) {
@@ -1007,7 +1186,7 @@ export function orchestratePersonAPlanning(
     repairResult = null;
     repaired = null;
     originalUnchanged = JSON.stringify(input.extraction) === originalSerialized;
-    fail('repair', 'repair_failed', error instanceof Error ? error.message : String(error));
+    fail('repair', 'repair_failed', safeRuntimeErrorMessage(error));
     return finish();
   }
   originalUnchanged = JSON.stringify(input.extraction) === originalSerialized;
@@ -1021,11 +1200,7 @@ export function orchestratePersonAPlanning(
   try {
     repairedValidation = dependencies.validate(repaired, input.narrative);
   } catch (error) {
-    fail(
-      'repaired_validation',
-      'repaired_validation_failed',
-      error instanceof Error ? error.message : String(error),
-    );
+    fail('repaired_validation', 'repaired_validation_failed', safeRuntimeErrorMessage(error));
     return finish();
   }
   if (!repairedValidation.valid) {
@@ -1048,24 +1223,19 @@ export function orchestratePersonAPlanning(
       repair_audit: structuredClone(repairResult),
     });
   } catch (error) {
-    fail(
-      'assessment',
-      'assessment_provider_failed',
-      error instanceof Error ? error.message : String(error),
-    );
+    fail('assessment', 'assessment_provider_failed', safeRuntimeErrorMessage(error));
     return finish();
   }
   const providerSnapshot = inspectAndCloneJsonValue(providerOutput, {
     rootArrayLengthLimit: MAX_RUNTIME_ASSESSMENT_BATCH_SIZE,
   });
   if (!providerSnapshot.valid) {
-    rawAssessments = [providerSnapshot.auditDescription];
     rejectedAssessments = [
       {
         sequence_number: null,
-        assessment: providerSnapshot.auditDescription,
+        summary: boundedSnapshotSummary(providerSnapshot.auditDescription, 'assessment_not_json'),
         code: 'assessment_not_json',
-        message: providerSnapshot.reason,
+        message: truncateAuditText(providerSnapshot.reason, MAX_RUNTIME_ERROR_MESSAGE_LENGTH),
       },
     ];
     fail('assessment', 'invalid_assessments', 'The runtime assessment batch was rejected.');
@@ -1076,7 +1246,7 @@ export function orchestratePersonAPlanning(
     rejectedAssessments = [
       {
         sequence_number: null,
-        assessment: canonicalize(detachedProviderOutput),
+        summary: boundedRejectedSummary(detachedProviderOutput, 'assessment_result_not_array'),
         code: 'assessment_result_not_array',
         message: 'Assessment provider must return an array.',
       },
@@ -1088,18 +1258,10 @@ export function orchestratePersonAPlanning(
     );
     return finish();
   }
-  const preparedAssessments = detachedProviderOutput
-    .map((value) => {
-      return {
-        audit: canonicalize(value),
-      };
-    })
-    .sort((left, right) => lexicalCompare(stableKey(left.audit), stableKey(right.audit)));
-  rawAssessments = preparedAssessments.map((item) => item.audit);
+  assessmentsReceived = detachedProviderOutput.length;
   const objectIndex = buildObjectIndex(repaired);
   const acceptedKeys = new Set<string>();
-  for (const [index, prepared] of preparedAssessments.entries()) {
-    const value = prepared.audit;
+  for (const [index, value] of detachedProviderOutput.entries()) {
     const checked = validateAssessment(value, index + 1, objectIndex);
     if ('code' in checked) rejectedAssessments.push(checked);
     else {
@@ -1149,11 +1311,7 @@ export function orchestratePersonAPlanning(
     classifications = [];
     suppressedCandidates = [];
     unresolvedMaterialGaps = [];
-    fail(
-      'necessity',
-      'necessity_classification_failed',
-      error instanceof Error ? error.message : String(error),
-    );
+    fail('necessity', 'necessity_classification_failed', safeRuntimeErrorMessage(error));
     return finish();
   }
   stage('necessity').status = 'passed';
@@ -1189,11 +1347,7 @@ export function orchestratePersonAPlanning(
     }
   } catch (error) {
     generatedQuestions = [];
-    fail(
-      'clarification',
-      'clarification_generation_failed',
-      error instanceof Error ? error.message : String(error),
-    );
+    fail('clarification', 'clarification_generation_failed', safeRuntimeErrorMessage(error));
     return finish();
   }
   stage('clarification').status = 'passed';

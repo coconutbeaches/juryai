@@ -45,7 +45,7 @@ orchestratePersonAPlanning({
 
 `RuntimeAssessmentProvider.assess()` receives only the original extraction, repaired extraction,
 narrative, and deterministic repair audit. The returned result includes both records and hashes,
-the complete repair result, raw/validated/rejected assessments, necessity classifications,
+the complete repair result, validated assessments, bounded rejected-assessment summaries, necessity classifications,
 questions, suppressed candidates, unresolved material gaps, and stage-by-stage audit data.
 
 Artifact hashes never stand in for absent artifacts. An absent repaired extraction has a `null`
@@ -86,6 +86,15 @@ are offline test/CLI fixtures, not the final production assessment engine.
 - Bound rejected audit output to 20 rendered key labels of at most 160 UTF-16 code units each.
   String keys and symbol descriptions are truncated before audit serialization, with no dangling
   high surrogate at the truncation boundary.
+- Never retain raw provider assessments in the public runtime result or default CLI artifacts.
+  Accepted data is retained only after semantic validation in `validated_assessments`. Snapshot and
+  semantic failures use `BoundedRejectedAssessmentSummary`, which preserves bounded trigger,
+  target, family, field, materiality, context-preview, type, key-label, size-estimate, truncation,
+  and reason-code metadata without embedding the rejected value.
+- Bound rejection previews to 160 UTF-16 code units, 20 own-key labels, two preview levels, and ten
+  previewed array items. Each serialized rejection summary is capped at 8 KiB; stage error messages
+  are capped at 512 UTF-16 code units. Truncation is deterministic and never leaves a dangling high
+  surrogate.
 - Enforce an explicit trigger, target-family, and field matrix with no wildcard fallback. The
   target object's resolved family and actual shape must agree with the assessment.
 - Suppress `already_explicit`, `internal_representation`, and `insufficient_grounding` candidates.

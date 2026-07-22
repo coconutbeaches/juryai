@@ -15,6 +15,8 @@ import {
   MAX_RUNTIME_ASSESSMENT_NESTED_ARRAY_LENGTH,
   MAX_RUNTIME_ASSESSMENT_OBJECT_KEYS,
   MAX_RUNTIME_REJECTED_AUDIT_KEY_LENGTH,
+  MAX_RUNTIME_REJECTED_PREVIEW_LENGTH,
+  MAX_RUNTIME_REJECTED_SUMMARY_SERIALIZED_SIZE,
   orchestratePersonAPlanning,
   type RuntimeAssessmentContext,
   type RuntimeAssessmentProvider,
@@ -191,6 +193,24 @@ describe('Person A runtime orchestration', () => {
     );
   });
 
+  it('bounds provider error messages without invoking unsafe thrown-value coercion', () => {
+    const { extraction, narrative } = fixture();
+    const tailMarker = 'UNBOUNDED_PROVIDER_ERROR_TAIL';
+    const result = orchestratePersonAPlanning({
+      extraction,
+      narrative,
+      assessmentProvider: {
+        assess: () => {
+          throw new Error(`${'e'.repeat(2 * 1_024 * 1_024)}${tailMarker}`);
+        },
+      },
+    });
+    const error = result.stage_statuses.find((item) => item.stage === 'assessment')?.errors[0];
+    expect(error?.message.length).toBeLessThanOrEqual(512);
+    expect(JSON.stringify(result)).not.toContain(tailMarker);
+    expect(result.question_count).toBe(0);
+  });
+
   it.each([
     {
       label: 'non-array',
@@ -228,11 +248,12 @@ describe('Person A runtime orchestration', () => {
     }).not.toThrow();
     expect(result?.rejected_assessments[0]).toMatchObject({
       code: 'assessment_not_json',
-      assessment: {
-        audit_type: 'rejected_non_json_assessment',
-        reason: 'Assessment contains a cyclic object or array.',
+      summary: {
+        audit_type: 'bounded_rejected_assessment',
+        reason_code: 'assessment_not_json',
       },
     });
+    expect(result?.rejected_assessments[0]?.message).toContain('cyclic');
     expect(result?.question_count).toBe(0);
     expect(result?.audit_summary.failure_stage).toBe('assessment');
   });
@@ -361,11 +382,12 @@ describe('Person A runtime orchestration', () => {
     const result = runProviderOutput(batch);
     expect(result.rejected_assessments[0]).toMatchObject({
       code: 'assessment_not_json',
-      assessment: {
-        audit_type: 'rejected_non_json_assessment',
-        reason: 'Assessment contains a cyclic object or array.',
+      summary: {
+        audit_type: 'bounded_rejected_assessment',
+        reason_code: 'assessment_not_json',
       },
     });
+    expect(result.rejected_assessments[0]?.message).toContain('cyclic');
     expect(result.question_count).toBe(0);
   });
 
@@ -469,10 +491,10 @@ describe('Person A runtime orchestration', () => {
     }).not.toThrow();
     expect(result?.rejected_assessments[0]).toMatchObject({
       code: 'assessment_not_json',
-      assessment: {
-        audit_type: 'rejected_non_json_assessment',
+      summary: {
+        audit_type: 'bounded_rejected_assessment',
         value_type: 'uninspectable',
-        own_keys: [],
+        own_key_labels: [],
       },
     });
     expect(result?.question_count).toBe(0);
@@ -494,11 +516,8 @@ describe('Person A runtime orchestration', () => {
     });
     const result = runProviderOutput(batch);
     expect(result.audit_summary.final_status).toBe('passed');
-    expect(result.raw_assessments[0] === proxiedCandidate).toBe(false);
-    expect((result.raw_assessments[0] as JsonObject).resolves_object_ids).not.toBe(
-      resolvesObjectIds,
-    );
     expect(result.validated_assessments[0]).not.toBe(candidate);
+    expect(result.validated_assessments[0]?.resolves_object_ids).not.toBe(resolvesObjectIds);
 
     const resultBytes = JSON.stringify(result);
     candidate.question_context = 'mutated after orchestration';
@@ -598,9 +617,7 @@ describe('Person A runtime orchestration', () => {
     expect(result.rejected_assessments[0]?.message).toContain(
       `own-key limit of ${MAX_RUNTIME_ASSESSMENT_OBJECT_KEYS}`,
     );
-    expect(
-      (result.rejected_assessments[0]?.assessment as JsonObject).own_keys.length,
-    ).toBeLessThanOrEqual(20);
+    expect(result.rejected_assessments[0]?.summary.own_key_labels.length).toBeLessThanOrEqual(20);
     expect(result.question_count).toBe(0);
   });
 
@@ -613,18 +630,13 @@ describe('Person A runtime orchestration', () => {
       configurable: true,
     });
     const result = runProviderOutput(batch);
-    const audit = result.rejected_assessments[0]?.assessment as JsonObject;
-    const rendered = (audit.own_keys as string[]).find((key) => key.startsWith('a'))!;
+    const audit = result.rejected_assessments[0]?.summary;
+    const rendered = audit?.own_key_labels.find((key) => key.startsWith('a'))!;
     const finalPrefixCodeUnit = rendered.charCodeAt(rendered.length - 2);
     expect(rendered.length).toBeLessThanOrEqual(MAX_RUNTIME_REJECTED_AUDIT_KEY_LENGTH);
     expect(rendered.endsWith('…')).toBe(true);
     expect(finalPrefixCodeUnit < 0xd800 || finalPrefixCodeUnit > 0xdbff).toBe(true);
-    expect(
-      JSON.stringify({
-        raw_assessments: result.raw_assessments,
-        rejected_assessments: result.rejected_assessments,
-      }).length,
-    ).toBeLessThan(5_000);
+    expect(JSON.stringify(result.rejected_assessments).length).toBeLessThan(5_000);
     expect(result.question_count).toBe(0);
   });
 
@@ -633,16 +645,11 @@ describe('Person A runtime orchestration', () => {
     const batch = [assessment()] as unknown[] & JsonObject;
     batch[Symbol(hugeDescription) as any] = 'untrusted';
     const result = runProviderOutput(batch);
-    const audit = result.rejected_assessments[0]?.assessment as JsonObject;
-    const rendered = (audit.own_keys as string[]).find((key) => key.startsWith('Symbol('))!;
+    const audit = result.rejected_assessments[0]?.summary;
+    const rendered = audit?.own_key_labels.find((key) => key.startsWith('Symbol('))!;
     expect(rendered.length).toBeLessThanOrEqual(MAX_RUNTIME_REJECTED_AUDIT_KEY_LENGTH);
     expect(rendered.endsWith('…)')).toBe(true);
-    expect(
-      JSON.stringify({
-        raw_assessments: result.raw_assessments,
-        rejected_assessments: result.rejected_assessments,
-      }).length,
-    ).toBeLessThan(5_000);
+    expect(JSON.stringify(result.rejected_assessments).length).toBeLessThan(5_000);
     expect(result.question_count).toBe(0);
   });
 
@@ -653,6 +660,107 @@ describe('Person A runtime orchestration', () => {
       return runProviderOutput(batch);
     };
     expect(JSON.stringify(execute())).toBe(JSON.stringify(execute()));
+  });
+
+  it('rejects a multi-megabyte primitive without echoing it in runtime output', () => {
+    const tailMarker = 'UNBOUNDED_PRIMITIVE_TAIL_MARKER';
+    const huge = `${'x'.repeat(2 * 1_024 * 1_024)}${tailMarker}`;
+    const result = runProviderOutput([huge]);
+    const rejection = result.rejected_assessments[0]!;
+    expect(rejection).toMatchObject({
+      code: 'assessment_not_object',
+      summary: {
+        audit_type: 'bounded_rejected_assessment',
+        reason_code: 'assessment_not_object',
+        value_type: 'string',
+        original_string_length: huge.length,
+        truncated: true,
+      },
+    });
+    expect((rejection.summary.value_preview as string).length).toBeLessThanOrEqual(
+      MAX_RUNTIME_REJECTED_PREVIEW_LENGTH,
+    );
+    expect(JSON.stringify(rejection.summary).length).toBeLessThanOrEqual(
+      MAX_RUNTIME_REJECTED_SUMMARY_SERIALIZED_SIZE,
+    );
+    expect(JSON.stringify(result)).not.toContain(tailMarker);
+    expect(result.question_count).toBe(0);
+    expect(result.necessity_classifications).toEqual([]);
+  });
+
+  it('bounds an overlong semantic question-context rejection and preserves identifiers', () => {
+    const tailMarker = 'UNBOUNDED_CONTEXT_TAIL_MARKER';
+    const questionContext = `${'q'.repeat(2 * 1_024 * 1_024)}${tailMarker}`;
+    const result = runProviderOutput([assessment({ question_context: questionContext })]);
+    const summary = result.rejected_assessments[0]!.summary;
+    expect(result.rejected_assessments[0]?.code).toBe('invalid_question_context');
+    expect(summary).toMatchObject({
+      trigger: 'evidence_availability',
+      target_object_id: 'ev_001',
+      target_family: 'evidence',
+      field: 'availability_status',
+      materiality: 'high',
+      truncated: true,
+    });
+    expect(summary.question_context_preview?.length).toBeLessThanOrEqual(
+      MAX_RUNTIME_REJECTED_PREVIEW_LENGTH,
+    );
+    expect(JSON.stringify(summary).length).toBeLessThanOrEqual(
+      MAX_RUNTIME_REJECTED_SUMMARY_SERIALIZED_SIZE,
+    );
+    const serialized = JSON.stringify(result);
+    expect(serialized).not.toContain(tailMarker);
+    expect(serialized).not.toContain('raw_assessments');
+    expect(result.generated_questions).toEqual([]);
+    expect(result.suppressed_candidates).toEqual([]);
+  });
+
+  it('summarizes a large nested semantic rejection without retaining nested payloads', () => {
+    const tailMarker = 'UNBOUNDED_NESTED_TAIL_MARKER';
+    const candidate = assessment() as JsonObject;
+    candidate.unsupported_nested = {
+      items: [{ payload: `${'n'.repeat(2 * 1_024 * 1_024)}${tailMarker}` }],
+    };
+    const first = runProviderOutput([candidate]);
+    const second = runProviderOutput([candidate]);
+    const summary = first.rejected_assessments[0]!.summary;
+    expect(first.rejected_assessments[0]?.code).toBe('unsupported_assessment_property');
+    expect(summary.own_key_labels).toContain('unsupported_nested');
+    expect(summary.serialized_size_estimate).toBeGreaterThan(2 * 1_024 * 1_024);
+    expect(JSON.stringify(summary).length).toBeLessThanOrEqual(
+      MAX_RUNTIME_REJECTED_SUMMARY_SERIALIZED_SIZE,
+    );
+    expect(JSON.stringify(first)).not.toContain(tailMarker);
+    expect(JSON.stringify(first)).toBe(JSON.stringify(second));
+  });
+
+  it('truncates semantic rejection previews without leaving a dangling high surrogate', () => {
+    const questionContext = `${'a'.repeat(158)}${'😀'.repeat(1_048_576)}`;
+    const result = runProviderOutput([assessment({ question_context: questionContext })]);
+    const preview = result.rejected_assessments[0]!.summary.question_context_preview!;
+    const finalPrefixCodeUnit = preview.charCodeAt(preview.length - 2);
+    expect(preview.endsWith('…')).toBe(true);
+    expect(preview.length).toBeLessThanOrEqual(MAX_RUNTIME_REJECTED_PREVIEW_LENGTH);
+    expect(finalPrefixCodeUnit < 0xd800 || finalPrefixCodeUnit > 0xdbff).toBe(true);
+  });
+
+  it('uses the same bounded summary shape for snapshot and semantic failures', () => {
+    const snapshotFailure = runProviderOutput([assessment({ question_context: undefined })]);
+    const cyclic = assessment() as JsonObject;
+    cyclic.self = cyclic;
+    const rejectedSnapshot = runProviderOutput([cyclic]);
+    const semanticFailure = runProviderOutput([42]);
+    expect(snapshotFailure.audit_summary.final_status).toBe('passed');
+    for (const rejection of [
+      rejectedSnapshot.rejected_assessments[0]!,
+      semanticFailure.rejected_assessments[0]!,
+    ]) {
+      expect(rejection.summary.audit_type).toBe('bounded_rejected_assessment');
+      expect(rejection.summary.reason_code).toBe(rejection.code);
+      expect(JSON.stringify(rejection.summary).length).toBeLessThanOrEqual(
+        MAX_RUNTIME_REJECTED_SUMMARY_SERIALIZED_SIZE,
+      );
+    }
   });
 
   it('enforces the total provider JSON traversal budget', () => {
@@ -1311,6 +1419,41 @@ describe('offline runtime planning CLI', () => {
         'suppressed-candidates.json',
         'orchestration-audit.json',
       ]),
+    );
+  });
+
+  it('writes only bounded semantic rejection data to every CLI artifact', async () => {
+    const { extraction, narrative } = fixture();
+    const tailMarker = 'CLI_UNBOUNDED_REJECTION_TAIL';
+    const rejected = assessment({
+      question_context: `${'c'.repeat(2 * 1_024 * 1_024)}${tailMarker}`,
+    });
+    const writes = new Map<string, string>();
+    const result = await runPlanPersonARuntimeCommand(validArgs, {
+      readText: async (path) => {
+        if (path.endsWith('input.txt')) return narrative;
+        if (path.endsWith('extraction.json')) return JSON.stringify(extraction);
+        if (path.endsWith('assessments.json')) return JSON.stringify([rejected]);
+        throw new Error(`Unexpected read: ${path}`);
+      },
+      writeText: async (path, value) => {
+        writes.set(path, value);
+      },
+      makeDirectory: async () => undefined,
+      orchestrate: orchestratePersonAPlanning,
+    });
+    expect(result.audit_summary.failure_stage).toBe('assessment');
+    expect(result.question_count).toBe(0);
+    for (const contents of writes.values()) {
+      expect(contents).not.toContain(tailMarker);
+      expect(contents).not.toContain('raw_assessments');
+    }
+    const assessmentsArtifact = [...writes.entries()].find(([path]) =>
+      path.endsWith('/assessments.json'),
+    )?.[1];
+    expect(assessmentsArtifact).toContain('bounded_rejected_assessment');
+    expect(assessmentsArtifact!.length).toBeLessThan(
+      MAX_RUNTIME_REJECTED_SUMMARY_SERIALIZED_SIZE + 2_000,
     );
   });
 });
