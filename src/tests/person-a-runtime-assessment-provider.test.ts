@@ -419,6 +419,12 @@ describe('deterministic Person A runtime assessment provider', () => {
     const damages = addDamages(context, {
       causal_theory: 'The record identifies conflicting explanations for the schedule delay.',
     });
+    const firstClaim = context.repaired_extraction.claims.find(
+      (claim: JsonObject) => claim.claim_id === 'claim_for_damages_test',
+    );
+    firstClaim.source_spans.push(
+      exactSpan(context.narrative, 'with the balance due when the project was completed.'),
+    );
     const secondClaimId = 'claim_for_damages_alternative';
     const secondQuote =
       'She says I disappeared for two weeks. That is exaggerated. I was slower for part of one week because of a family issue, but I still replied to messages and told her what was happening.';
@@ -437,6 +443,11 @@ describe('deterministic Person A runtime assessment provider', () => {
     const necessity = classifyQuestionNecessity(result.assessments, context.repaired_extraction);
     expect(necessity.question_candidates[0]?.classification).toBe('contradiction');
     expect(necessity.question_candidates[0]?.contradiction_alternatives).toHaveLength(2);
+    expect(
+      necessity.question_candidates[0]?.contradiction_alternatives.map(
+        (alternative) => alternative.grounding_references[0]?.object_id,
+      ),
+    ).toEqual(['claim_for_damages_test', secondClaimId]);
     const questions = generateNecessaryClarificationQuestions(necessity.question_candidates);
     expect(questions).toHaveLength(1);
     expect(questions[0]).toMatchObject({

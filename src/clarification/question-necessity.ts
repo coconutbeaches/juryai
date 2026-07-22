@@ -18,7 +18,7 @@ type PersonAFamily =
   | 'extraction_issues'
   | 'clarification_questions';
 
-export const QUESTION_NECESSITY_CLASSIFIER_VERSION = 'question-necessity-v0.1.4';
+export const QUESTION_NECESSITY_CLASSIFIER_VERSION = 'question-necessity-v0.1.5';
 
 export type NecessityClassification =
   | 'ask_human'
@@ -297,6 +297,18 @@ function contradictionAlternatives(
   }));
 }
 
+function distinctAlternativesByGroundedObject(
+  alternatives: readonly ContradictionAlternative[],
+): ContradictionAlternative[] {
+  const objectIds = new Set<string>();
+  return alternatives.filter((alternative) => {
+    const objectId = alternative.grounding_references[0]?.object_id;
+    if (!objectId || objectIds.has(objectId)) return false;
+    objectIds.add(objectId);
+    return true;
+  });
+}
+
 function hasBoundedContext(assessment: EpistemicAssessment): boolean {
   const context = assessment.question_context;
   return (
@@ -402,17 +414,14 @@ function classifyCandidate(
       );
     }
     if (assessment.causal_link_status === 'disputed') {
-      const alternatives = contradictionAlternatives(
-        assessment,
-        item,
-        relatedGrounding.get(assessment.target_object_id) ?? [],
-      );
-      const independentlyGroundedObjectIds = new Set(
-        alternatives.flatMap((alternative) =>
-          alternative.grounding_references.map((reference) => reference.object_id),
+      const alternatives = distinctAlternativesByGroundedObject(
+        contradictionAlternatives(
+          assessment,
+          item,
+          relatedGrounding.get(assessment.target_object_id) ?? [],
         ),
       );
-      return independentlyGroundedObjectIds.size >= 2
+      return alternatives.length >= 2
         ? classified(
             assessment,
             'contradiction',
