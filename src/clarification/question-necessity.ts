@@ -3,11 +3,22 @@ import {
   type EpistemicAssessment,
   type GeneratedClarificationQuestion,
 } from './question-generator.js';
-import { familyItems, type PersonAFamily } from '../alignment/person-a-alignment-corrected.js';
 
 type JsonObject = Record<string, any>;
 
-export const QUESTION_NECESSITY_CLASSIFIER_VERSION = 'question-necessity-v0.1.0';
+type PersonAFamily =
+  | 'agreement_terms'
+  | 'deliverables'
+  | 'timeline'
+  | 'claims'
+  | 'evidence'
+  | 'damages'
+  | 'outcomes'
+  | 'third_parties'
+  | 'extraction_issues'
+  | 'clarification_questions';
+
+export const QUESTION_NECESSITY_CLASSIFIER_VERSION = 'question-necessity-v0.1.1';
 
 export type NecessityClassification =
   | 'ask_human'
@@ -71,6 +82,29 @@ const familyIdFields: Record<PersonAFamily, string> = {
   extraction_issues: 'issue_id',
   clarification_questions: 'question_id',
 };
+
+function familyItems(record: JsonObject, family: PersonAFamily): unknown[] {
+  switch (family) {
+    case 'agreement_terms':
+      return Array.isArray(record.agreement?.terms) ? record.agreement.terms : [];
+    case 'deliverables':
+      return Array.isArray(record.deliverable_assessments) ? record.deliverable_assessments : [];
+    case 'timeline':
+    case 'claims':
+    case 'evidence':
+    case 'extraction_issues':
+    case 'clarification_questions':
+      return Array.isArray(record[family]) ? record[family] : [];
+    case 'damages':
+      return Array.isArray(record.damages_claims) ? record.damages_claims : [];
+    case 'outcomes':
+      return Array.isArray(record.desired_outcomes?.outcomes)
+        ? record.desired_outcomes.outcomes
+        : [];
+    case 'third_parties':
+      return Array.isArray(record.third_parties) ? record.third_parties : [];
+  }
+}
 
 function isRecord(value: unknown): value is JsonObject {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -268,7 +302,11 @@ function classifyCandidate(
   }
 
   if (assessment.trigger === 'actor_attribution') {
-    if (typeof item.actor_party_id === 'string' || typeof item.actor_third_party_id === 'string') {
+    if (
+      typeof item.party_id === 'string' ||
+      typeof item.actor_party_id === 'string' ||
+      typeof item.actor_third_party_id === 'string'
+    ) {
       return classified(
         assessment,
         'already_explicit',
@@ -358,6 +396,29 @@ function classifyCandidate(
   }
 
   if (assessment.trigger === 'required_bucket_missing') {
+    if (
+      assessment.target_family === 'agreement_terms' &&
+      assessment.field === 'person_a_interpretation'
+    ) {
+      if (
+        item.person_a_interpretation === null ||
+        (typeof item.person_a_interpretation === 'string' &&
+          item.person_a_interpretation.trim().length === 0)
+      ) {
+        return classified(
+          assessment,
+          'ask_human',
+          'The agreement term is grounded, but Person A’s interpretation is genuinely absent.',
+          grounding,
+        );
+      }
+      return classified(
+        assessment,
+        'already_explicit',
+        'The agreement term already states Person A’s interpretation.',
+        grounding,
+      );
+    }
     const alternatives = contradictionAlternatives(assessment, item);
     if (item.issue_type === 'internal_tension' && alternatives.length >= 2) {
       return classified(

@@ -1,0 +1,42 @@
+{
+  "version": "person-a-static-runtime-assessments-v0.1.0",
+  "assessments": [
+    {
+      "target_object_id": "issue_completion_01",
+      "target_family": "extraction_issues",
+      "field": "required_information",
+      "trigger": "required_bucket_missing",
+      "materiality": "critical",
+      "question_context": "what remained unfinished after the June 3 staging version",
+      "resolves_object_ids": ["issue_completion_01"]
+    },
+    {
+      "target_object_id": "ev_change_list_01",
+      "target_family": "evidence",
+      "field": "availability_status",
+      "trigger": "evidence_availability",
+      "materiality": "high",
+      "evidence_availability": "described_only",
+      "question_context": "post-staging list of requested changes",
+      "resolves_object_ids": ["ev_change_list_01"]
+    },
+    {
+      "target_object_id": "event_agreement_01",
+      "target_family": "timeline",
+      "field": "date",
+      "trigger": "date_precision",
+      "materiality": "high",
+      "date_precision": "unknown",
+      "question_context": "the calendar year for the April, May, and June dates",
+      "resolves_object_ids": ["event_agreement_01", "issue_year_01"]
+    },
+    {
+      "target_object_id": "issue_scope_count_01",
+      "target_family": "extraction_issues",
+      "field": "description",
+      "trigger": "internal_representation",
+      "materiality": "medium",
+      "resolves_object_ids": ["issue_scope_count_01"]
+    }
+  ]
+}
