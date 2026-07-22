@@ -489,6 +489,23 @@ describe('deterministic Person A runtime assessment provider', () => {
     expect(generateNecessaryClarificationQuestions(necessity.question_candidates)).toHaveLength(1);
   });
 
+  it.each([
+    'The lost bookings may have been caused by the delayed launch.',
+    'The lost bookings could be caused by the delay.',
+    'The loss might have resulted from the delayed launch.',
+  ])('classifies passive-modal causal theory as inferred: %j', (causalTheory) => {
+    const context = baseContext();
+    addDamages(context, { causal_theory: causalTheory });
+    const result = run(context);
+    expect(result.assessments).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ trigger: 'causal_link', causal_link_status: 'inferred' }),
+      ]),
+    );
+    const necessity = classifyQuestionNecessity(result.assessments, context.repaired_extraction);
+    expect(generateNecessaryClarificationQuestions(necessity.question_candidates)).toHaveLength(1);
+  });
+
   it('fails closed on generic uncertainty unrelated to causation', () => {
     const context = baseContext();
     addDamages(context, { causal_theory: 'The schedule is unclear.' });
@@ -1112,6 +1129,52 @@ describe('deterministic Person A runtime assessment provider', () => {
     const result = run(context, { maximumEvidenceAvailabilityAssessments: 100 });
     expect(result.assessments.length).toBe(MAX_RUNTIME_ASSESSMENT_BATCH_SIZE);
     expect(result.audit.summary.assessments_emitted).toBe(MAX_RUNTIME_ASSESSMENT_BATCH_SIZE);
+  });
+
+  it('prioritizes critical materiality before applying the assessment cap', () => {
+    const context = baseContext();
+    addEvidence(context, { evidence_id: 'a_evidence_gap' });
+    const first = 'The website was complete.';
+    const second = 'The website remained unfinished.';
+    context.narrative = `${context.narrative}\n${first}\n${second}`;
+    addIssue(context, {
+      issue_id: 'z_critical_gap',
+      severity: 'critical',
+      description: 'The completion descriptions conflict.',
+      source_spans: [exactSpan(context.narrative, first), exactSpan(context.narrative, second)],
+    });
+    const result = run(context, { maximumAssessments: 1 });
+    expect(result.assessments).toEqual([
+      expect.objectContaining({ target_object_id: 'z_critical_gap', materiality: 'critical' }),
+    ]);
+    expect(result.audit.rule_results).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          target_object_id: 'a_evidence_gap',
+          status: 'suppressed',
+          reason_code: 'maximum_assessment_limit_reached',
+        }),
+      ]),
+    );
+  });
+
+  it('uses trigger priority after materiality before applying the cap', () => {
+    const context = baseContext();
+    const actorQuote = 'some small text changes kept coming after that.';
+    addTimeline(context, {
+      event_id: 'a_actor_gap',
+      event_summary: 'Small text changes kept coming after the last major content batch.',
+      source_spans: [exactSpan(context.narrative, actorQuote)],
+    });
+    addTerm(context, { term_id: 'z_interpretation_gap' });
+    const result = run(context, { maximumAssessments: 1 });
+    expect(result.assessments).toEqual([
+      expect.objectContaining({
+        target_object_id: 'z_interpretation_gap',
+        trigger: 'required_bucket_missing',
+        materiality: 'high',
+      }),
+    ]);
   });
 
   it('accepts a zero assessment cap with the default evidence limit', () => {

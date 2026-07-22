@@ -8,7 +8,7 @@ import {
 
 type JsonObject = Record<string, any>;
 
-export const DETERMINISTIC_PERSON_A_ASSESSMENT_VERSION = 'deterministic-person-a-assessment-v0.1.5';
+export const DETERMINISTIC_PERSON_A_ASSESSMENT_VERSION = 'deterministic-person-a-assessment-v0.1.6';
 
 export const DETERMINISTIC_PERSON_A_RULE_IDS = [
   'runtime_actor_attribution_v1',
@@ -123,6 +123,21 @@ const DEFAULT_UNFINISHED_TERMS = [
 ] as const;
 const MAX_CONTEXT_LENGTH = 160;
 const MAX_AUDIT_PREVIEW_LENGTH = 160;
+const RUNTIME_MATERIALITY_RANK: Readonly<Record<Materiality, number>> = {
+  critical: 4,
+  high: 3,
+  medium: 2,
+  low: 1,
+};
+const RUNTIME_TRIGGER_RANK: Readonly<Record<EpistemicAssessment['trigger'], number>> = {
+  required_bucket_missing: 6,
+  actor_attribution: 5,
+  causal_link: 4,
+  merge_risk: 3,
+  evidence_availability: 2,
+  date_precision: 1,
+  internal_representation: 0,
+};
 const ACTIVE_ACTOR_VERB_PATTERN =
   'accepted|accepting|asked|asking|came|coming|changed|changing|communicated|communicating|delivered|delivering|fixed|fixing|gave|giving|made|making|paid|paying|published|publishing|replied|replying|requested|requesting|said|saying|sent|sending|supplied|supplying|transferred|transferring|used|using';
 const ACTIVE_ACTOR_MODIFIER_PATTERN =
@@ -705,6 +720,9 @@ function classifyCausalTheory(theory: string): CausalTheoryStatus {
 
   const inferred =
     /\b(?:may|might|could|possibly)\s+(?:have\s+)?(?:directly\s+)?(?:cause|caused|contribute|contributed|lead|led|result|resulted)\b/u.test(
+      normalized,
+    ) ||
+    /\b(?:may|might|could)\s+(?:(?:have\s+)?been|be)\s+(?:directly\s+)?(?:caused|contributed\s+to|led\s+to|resulted\s+from)\b/u.test(
       normalized,
     ) ||
     /\b(?:appears|believe|believes|believed|suggests)\b[^.]{0,120}\b(?:cause|caused|causal|contribute|contributed|lead|led|result|resulted)\b/u.test(
@@ -1480,9 +1498,24 @@ export function assessDeterministicPersonAEpistemicGaps(
     );
   }
 
-  const sortedCandidates = candidates.sort((left, right) =>
-    lexicalCompare(stableAssessmentKey(left.assessment), stableAssessmentKey(right.assessment)),
-  );
+  const sortedCandidates = candidates.sort((left, right) => {
+    const materialityDifference =
+      RUNTIME_MATERIALITY_RANK[right.assessment.materiality] -
+      RUNTIME_MATERIALITY_RANK[left.assessment.materiality];
+    if (materialityDifference !== 0) return materialityDifference;
+    const triggerDifference =
+      RUNTIME_TRIGGER_RANK[right.assessment.trigger] -
+      RUNTIME_TRIGGER_RANK[left.assessment.trigger];
+    if (triggerDifference !== 0) return triggerDifference;
+    const coverage = (assessment: EpistemicAssessment): number =>
+      new Set([assessment.target_object_id, ...(assessment.resolves_object_ids ?? [])]).size;
+    const coverageDifference = coverage(right.assessment) - coverage(left.assessment);
+    if (coverageDifference !== 0) return coverageDifference;
+    return lexicalCompare(
+      stableAssessmentKey(left.assessment),
+      stableAssessmentKey(right.assessment),
+    );
+  });
   const uniqueCandidates = sortedCandidates.filter(
     (candidate, index, all) =>
       index === 0 ||
