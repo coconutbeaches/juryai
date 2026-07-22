@@ -15,6 +15,7 @@
     "repair:person-a": "tsx src/commands/repair-person-a-extraction.ts",
     "plan:person-a-runtime": "tsx src/commands/plan-person-a-runtime.ts",
     "assess:person-a-runtime": "tsx src/commands/assess-person-a-runtime.ts",
+    "apply:person-a-clarifications": "tsx src/commands/apply-person-a-clarification-answers.ts",
     "format:check": "prettier --check ."
   },
   "devDependencies": {

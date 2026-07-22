@@ -1,0 +1,15 @@
+{
+  "version": "person-a-clarification-answer-batch-v0.1.0",
+  "answers": [
+    {
+      "answer_id": "answer_evidence_change_list_01",
+      "question_id": "clarification_02",
+      "target_object_id": "ev_change_list_01",
+      "target_family": "evidence",
+      "field": "availability_status",
+      "prior_value": "described_only",
+      "submitted_answer": "unavailable"
+    }
+  ],
+  "options": {}
+}
