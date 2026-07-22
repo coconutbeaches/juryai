@@ -20,7 +20,7 @@ import {
 
 type JsonObject = Record<string, any>;
 
-export const PERSON_A_RUNTIME_ORCHESTRATION_VERSION = 'person-a-runtime-orchestration-v0.1.4';
+export const PERSON_A_RUNTIME_ORCHESTRATION_VERSION = 'person-a-runtime-orchestration-v0.1.5';
 export const MAX_RUNTIME_ASSESSMENT_JSON_DEPTH = 64;
 export const MAX_RUNTIME_ASSESSMENT_BATCH_SIZE = 100;
 export const MAX_RUNTIME_ASSESSMENT_NESTED_ARRAY_LENGTH = 1_000;
@@ -215,9 +215,7 @@ const assessmentCompatibility: Record<
   evidence_availability: [{ family: 'evidence', field: 'availability_status' }],
   date_precision: [{ family: 'timeline', field: 'date' }],
   required_bucket_missing: [
-    { family: 'agreement_terms', field: 'wording' },
     { family: 'agreement_terms', field: 'person_a_interpretation' },
-    { family: 'claims', field: 'claim_text' },
     { family: 'extraction_issues', field: 'description' },
     {
       family: 'extraction_issues',

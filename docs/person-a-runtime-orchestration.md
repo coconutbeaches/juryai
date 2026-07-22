@@ -141,7 +141,9 @@ The first milestone intentionally supports only reviewed schema v0.1.2 combinati
 - date precision: timeline `date`;
 - causal link: damages `causal_theory`;
 - merge risk: grounded extraction-issue `description` only;
-- required missing information: selected agreement, claim, and extraction-issue fields;
+- required missing information: nullable agreement-term `person_a_interpretation` and selected
+  extraction-issue fields. Schema-required agreement wording and claim text are not accepted as
+  missing-bucket targets because valid records already contain them;
 - internal representation: an explicit list of existing label/content fields across supported
   families.
 

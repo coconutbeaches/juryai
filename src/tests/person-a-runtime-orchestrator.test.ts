@@ -851,6 +851,66 @@ describe('Person A runtime orchestration', () => {
     expect(result.generated_questions).toHaveLength(1);
   });
 
+  it.each([
+    {
+      target_object_id: 'term_price',
+      target_family: 'agreement_terms',
+      field: 'wording',
+      question_context: 'the agreed total price',
+    },
+    {
+      target_object_id: 'cl_a_001',
+      target_family: 'claims',
+      field: 'claim_text',
+      question_context: 'the website agreement claim',
+    },
+  ])('rejects required-bucket gaps for schema-required $target_family.$field', (candidate) => {
+    const { result } = run([
+      assessment({
+        ...candidate,
+        trigger: 'required_bucket_missing',
+        evidence_availability: undefined,
+        resolves_object_ids: [candidate.target_object_id],
+      }),
+    ]);
+    expect(result.rejected_assessments[0]?.code).toBe('incompatible_assessment_target');
+    expect(result.generated_questions).toEqual([]);
+  });
+
+  it('asks for a genuinely missing agreement-term interpretation', () => {
+    const { result } = run([
+      assessment({
+        target_object_id: 'term_price',
+        target_family: 'agreement_terms',
+        field: 'person_a_interpretation',
+        trigger: 'required_bucket_missing',
+        evidence_availability: undefined,
+        question_context: 'how Person A understood the agreed total price',
+        resolves_object_ids: ['term_price'],
+      }),
+    ]);
+    expect(result.audit_summary.final_status).toBe('passed');
+    expect(result.necessity_classifications[0]?.classification).toBe('ask_human');
+    expect(result.generated_questions).toHaveLength(1);
+  });
+
+  it('suppresses a required-bucket candidate when the agreement interpretation exists', () => {
+    const { result } = run([
+      assessment({
+        target_object_id: 'term_scope',
+        target_family: 'agreement_terms',
+        field: 'person_a_interpretation',
+        trigger: 'required_bucket_missing',
+        evidence_availability: undefined,
+        question_context: 'how Person A understood the agreed website scope',
+        resolves_object_ids: ['term_scope'],
+      }),
+    ]);
+    expect(result.audit_summary.final_status).toBe('passed');
+    expect(result.suppressed_candidates[0]?.classification).toBe('already_explicit');
+    expect(result.generated_questions).toEqual([]);
+  });
+
   it('fails the entire assessment batch atomically when one candidate is invalid', () => {
     const valid = assessment();
     const invalid = assessment({

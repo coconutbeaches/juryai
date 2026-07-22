@@ -18,7 +18,7 @@ type PersonAFamily =
   | 'extraction_issues'
   | 'clarification_questions';
 
-export const QUESTION_NECESSITY_CLASSIFIER_VERSION = 'question-necessity-v0.1.0';
+export const QUESTION_NECESSITY_CLASSIFIER_VERSION = 'question-necessity-v0.1.1';
 
 export type NecessityClassification =
   | 'ask_human'
@@ -396,6 +396,29 @@ function classifyCandidate(
   }
 
   if (assessment.trigger === 'required_bucket_missing') {
+    if (
+      assessment.target_family === 'agreement_terms' &&
+      assessment.field === 'person_a_interpretation'
+    ) {
+      if (
+        item.person_a_interpretation === null ||
+        (typeof item.person_a_interpretation === 'string' &&
+          item.person_a_interpretation.trim().length === 0)
+      ) {
+        return classified(
+          assessment,
+          'ask_human',
+          'The agreement term is grounded, but Person A’s interpretation is genuinely absent.',
+          grounding,
+        );
+      }
+      return classified(
+        assessment,
+        'already_explicit',
+        'The agreement term already states Person A’s interpretation.',
+        grounding,
+      );
+    }
     const alternatives = contradictionAlternatives(assessment, item);
     if (item.issue_type === 'internal_tension' && alternatives.length >= 2) {
       return classified(
