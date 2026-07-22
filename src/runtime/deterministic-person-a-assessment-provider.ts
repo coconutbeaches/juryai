@@ -8,7 +8,7 @@ import {
 
 type JsonObject = Record<string, any>;
 
-export const DETERMINISTIC_PERSON_A_ASSESSMENT_VERSION = 'deterministic-person-a-assessment-v0.1.7';
+export const DETERMINISTIC_PERSON_A_ASSESSMENT_VERSION = 'deterministic-person-a-assessment-v0.1.8';
 
 export const DETERMINISTIC_PERSON_A_RULE_IDS = [
   'runtime_actor_attribution_v1',
@@ -435,10 +435,7 @@ function explicitActorInSource(quote: string, extraction: JsonObject): boolean {
   ) {
     return true;
   }
-  return new RegExp(
-    `\\b[\\p{Lu}][\\p{L}'’.-]+(?:\\s+[\\p{Lu}][\\p{L}'’.-]+)?\\s+${ACTIVE_ACTOR_MODIFIER_PATTERN}(?:${ACTIVE_ACTOR_VERB_PATTERN})\\b`,
-    'u',
-  ).test(quote);
+  return false;
 }
 
 function referencedClaimGrounding(
@@ -836,9 +833,10 @@ export function assessDeterministicPersonAEpistemicGaps(
       continue;
     }
     const quote = spans.spans.map((span) => span.quote).join(' ');
+    const primaryEventClause = String(item.event_summary ?? '').split(/[,;–—]/u, 1)[0] ?? '';
     const actorBearingAction =
       /\b(?:accepted|asked|came|changed|communicated|coming|delivered|fixed|made|paid|published|replied|requested|sent|supplied|transferred|used)\b/iu.test(
-        `${String(item.event_summary ?? '')} ${quote}`,
+        primaryEventClause,
       );
     if (
       !actorBearingAction ||
@@ -1000,9 +998,8 @@ export function assessDeterministicPersonAEpistemicGaps(
       lexicalCompare(identifier(left.item.event_id), identifier(right.item.event_id))
     );
   });
-  const selectedDate = materialDateCandidates[0];
-  if (selectedDate) {
-    const objectId = identifier(selectedDate.item.event_id);
+  for (const candidate of materialDateCandidates) {
+    const objectId = identifier(candidate.item.event_id);
     emit(
       'runtime_material_date_precision_v1',
       {
@@ -1010,30 +1007,14 @@ export function assessDeterministicPersonAEpistemicGaps(
         target_family: 'timeline',
         field: 'date',
         trigger: 'date_precision',
-        materiality: materiality(selectedDate.item.materiality),
+        materiality: materiality(candidate.item.materiality),
         date_precision: 'unknown',
-        question_context: selectedDate.context,
-        resolves_object_ids: materialDateCandidates
-          .map(({ item }) => identifier(item.event_id))
-          .filter(Boolean)
-          .sort(lexicalCompare),
+        question_context: candidate.context,
+        resolves_object_ids: [objectId],
       },
       'material_calendar_year_absent',
-      sourceGrounding(objectId, selectedDate.spans),
+      sourceGrounding(objectId, candidate.spans),
     );
-    for (const candidate of materialDateCandidates.slice(1)) {
-      const candidateId = identifier(candidate.item.event_id);
-      record(
-        'runtime_material_date_precision_v1',
-        'suppressed',
-        'covered_by_grouped_material_date_assessment',
-        'timeline',
-        candidateId,
-        'date',
-        candidate.context,
-        sourceGrounding(candidateId, candidate.spans),
-      );
-    }
   }
 
   const evidenceCandidates: {

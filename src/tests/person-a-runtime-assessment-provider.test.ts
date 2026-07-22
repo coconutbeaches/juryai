@@ -302,20 +302,145 @@ describe('deterministic Person A runtime assessment provider', () => {
     );
   });
 
-  it('detects one grouped materially unknown calendar year', () => {
+  it.each([
+    'Invoice sent on June 3.',
+    'Contract transferred on June 3.',
+    'Website published on June 3.',
+    'Meeting changed on June 3.',
+    'Status changed on June 3.',
+    'Project delivered on June 3.',
+  ])('does not treat a capitalized non-actor subject as an explicit actor: %s', (quote) => {
+    const context = baseContext();
+    context.narrative = `${context.narrative}\n${quote}`;
+    addTimeline(context, {
+      event_summary: quote,
+      source_spans: [exactSpan(context.narrative, quote)],
+    });
+    const result = run(context);
+    expect(result.assessments).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          target_object_id: 'event_test',
+          trigger: 'actor_attribution',
+          actor_attribution: 'unstated',
+          resolves_object_ids: ['event_test'],
+        }),
+      ]),
+    );
+  });
+
+  it('recognizes a registered grounded person performing the action', () => {
+    const context = baseContext();
+    const quote = 'Alice sent the invoice.';
+    context.narrative = `${context.narrative}\n${quote}`;
+    context.repaired_extraction.party.display_name = 'Alice';
+    addTimeline(context, {
+      event_summary: quote,
+      source_spans: [exactSpan(context.narrative, quote)],
+    });
+    expect(run(context).assessments.some((item) => item.trigger === 'actor_attribution')).toBe(
+      false,
+    );
+  });
+
+  it('recognizes a registered grounded organization performing the action', () => {
+    const context = baseContext();
+    const quote = 'Acme Corp sent the invoice.';
+    context.narrative = `${context.narrative}\n${quote}`;
+    context.repaired_extraction.third_parties.push({
+      third_party_id: 'third_party_acme',
+      name_or_label: 'Acme Corp',
+      role: 'invoice sender',
+      relationship_to_party_id: null,
+      contacted_for_case: false,
+      notes: null,
+    });
+    addTimeline(context, {
+      event_summary: quote,
+      source_spans: [exactSpan(context.narrative, quote)],
+    });
+    expect(run(context).assessments.some((item) => item.trigger === 'actor_attribution')).toBe(
+      false,
+    );
+  });
+
+  it('does not borrow an unrelated actor-bearing clause from a broader source span', () => {
+    const context = baseContext();
+    const quote =
+      'The intended launch was around May 20, although the timeline depended on Alice supplying final copy.';
+    context.narrative = `${context.narrative}\n${quote}`;
+    context.repaired_extraction.party.display_name = 'Alice';
+    addTimeline(context, {
+      event_summary: 'The intended launch was around May 20.',
+      source_spans: [exactSpan(context.narrative, quote)],
+    });
+    const result = run(context);
+    expect(result.assessments.some((item) => item.trigger === 'actor_attribution')).toBe(false);
+    expect(result.audit.rule_results).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          target_object_id: 'event_test',
+          reason_code: 'no_material_actor_bearing_action',
+        }),
+      ]),
+    );
+  });
+
+  it('emits one independently scoped assessment and question per missing-year event', () => {
+    const context = baseContext();
+    const firstQuote = 'The launch was due on June 3.';
+    const secondQuote = 'The balance was due on July 4.';
+    context.narrative = `${context.narrative}\n${firstQuote}\n${secondQuote}`;
+    addTimeline(context, {
+      event_id: 'event_deadline_a',
+      event_summary: firstQuote,
+      source_spans: [exactSpan(context.narrative, firstQuote)],
+    });
+    addTimeline(context, {
+      event_id: 'event_deadline_b',
+      event_summary: secondQuote,
+      source_spans: [exactSpan(context.narrative, secondQuote)],
+    });
+    const result = run(context);
+    const dates = result.assessments.filter((item) => item.trigger === 'date_precision');
+    expect(dates).toHaveLength(2);
+    expect(dates.map((item) => item.target_object_id)).toEqual([
+      'event_deadline_a',
+      'event_deadline_b',
+    ]);
+    for (const date of dates) {
+      expect(date.date_precision).toBe('unknown');
+      expect(date.resolves_object_ids).toEqual([date.target_object_id]);
+      expect(date.question_context).toBe(
+        date.target_object_id === 'event_deadline_a' ? firstQuote : secondQuote,
+      );
+    }
+    const necessity = classifyQuestionNecessity(result.assessments, context.repaired_extraction);
+    const questions = generateNecessaryClarificationQuestions(necessity.question_candidates).filter(
+      (item) => item.trigger === 'date_precision',
+    );
+    expect(questions).toHaveLength(2);
+    expect(questions.map((item) => item.resolves_object_ids)).toEqual([
+      ['event_deadline_a'],
+      ['event_deadline_b'],
+    ]);
+    const reversed = structuredClone(context);
+    reversed.repaired_extraction.timeline.reverse();
+    expect(JSON.stringify(run(reversed))).toBe(JSON.stringify(result));
+  });
+
+  it('keeps a single missing-year event scoped to itself', () => {
     const context = baseContext();
     addTimeline(context, {
       event_summary: 'The contractual deadline was June 3, with no calendar year supplied.',
     });
-    addTimeline(context, {
-      event_id: 'event_test_2',
-      event_summary: 'The balance was due after completion in June, with no year supplied.',
-    });
-    const result = run(context);
-    const dates = result.assessments.filter((item) => item.trigger === 'date_precision');
-    expect(dates).toHaveLength(1);
-    expect(dates[0]?.date_precision).toBe('unknown');
-    expect(dates[0]?.resolves_object_ids).toEqual(['event_test', 'event_test_2']);
+    const dates = run(context).assessments.filter((item) => item.trigger === 'date_precision');
+    expect(dates).toEqual([
+      expect.objectContaining({
+        target_object_id: 'event_test',
+        resolves_object_ids: ['event_test'],
+      }),
+    ]);
   });
 
   it('suppresses a missing year that is not materially necessary', () => {
@@ -1299,7 +1424,9 @@ describe('deterministic Person A runtime assessment provider', () => {
     });
     expect(result.audit_summary.final_status).toBe('passed');
     expect(result.validated_assessments.length).toBeGreaterThanOrEqual(2);
-    expect(result.validated_assessments.length).toBeLessThanOrEqual(6);
+    expect(result.validated_assessments.length).toBeLessThanOrEqual(
+      MAX_RUNTIME_ASSESSMENT_BATCH_SIZE,
+    );
     expect(result.question_count).toBe(result.generated_questions.length);
     expect(result.question_count).toBeLessThanOrEqual(6);
     expect(result.validated_assessments).toEqual(

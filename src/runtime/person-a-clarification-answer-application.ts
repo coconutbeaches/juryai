@@ -224,7 +224,7 @@ const supportedFields: Readonly<
     { family: 'agreement_terms', field: 'person_a_interpretation' },
     { family: 'extraction_issues', field: 'description' },
   ],
-  merge_risk: [],
+  merge_risk: [{ family: 'extraction_issues', field: 'description' }],
 };
 
 const monthNumbers: Readonly<Record<string, number>> = {
@@ -780,6 +780,13 @@ function normalizeAnswer(
   question: NecessaryClarificationQuestion,
   objectIndex: ReadonlyMap<string, IndexedObject>,
 ): JsonValue | PersonAAnswerApplicationError {
+  if (question.trigger === 'merge_risk') {
+    return boundedError(
+      'unsupported_field',
+      'Aggregate splitting remains unsupported in schema v0.1.2.',
+      answer,
+    );
+  }
   if (question.necessity_classification === 'contradiction') {
     if (typeof answer.submitted_answer !== 'string') {
       return boundedError(
@@ -869,12 +876,6 @@ function normalizeAnswer(
         );
       }
       return answer.submitted_answer.trim().replace(/\s+/gu, ' ');
-    case 'merge_risk':
-      return boundedError(
-        'unsupported_field',
-        'Aggregate splitting remains unsupported in schema v0.1.2.',
-        answer,
-      );
   }
 }
 
@@ -998,15 +999,6 @@ export function applyPersonAClarificationAnswers(
   const answerValues = snapshot.answers;
   const optionsValue = snapshot.options ?? {};
   const options: PersonAClarificationAnswerApplicationOptions = {};
-  if (isJsonObject(optionsValue)) {
-    if (typeof optionsValue.createdAt === 'string') options.createdAt = optionsValue.createdAt;
-    if (Array.isArray(optionsValue.expiredQuestionIds)) {
-      options.expiredQuestionIds = optionsValue.expiredQuestionIds as string[];
-    }
-    if (Array.isArray(optionsValue.alreadyAppliedQuestionIds)) {
-      options.alreadyAppliedQuestionIds = optionsValue.alreadyAppliedQuestionIds as string[];
-    }
-  }
   const submittedAnswers = Array.isArray(answerValues) ? answerValues : [];
   let baselineObject: JsonObject | null = isJsonObject(baseline) ? baseline : null;
   let runtimePlanObject: JsonObject | null = isJsonObject(runtimePlan) ? runtimePlan : null;
@@ -1033,6 +1025,24 @@ export function applyPersonAClarificationAnswers(
     }
     if (Object.keys(optionsValue).some((key) => !optionKeys.has(key))) {
       throw new TypeError('options contains an unsupported field.');
+    }
+    if (Object.prototype.hasOwnProperty.call(optionsValue, 'createdAt')) {
+      if (typeof optionsValue.createdAt !== 'string') {
+        throw new TypeError('options.createdAt must be a string when provided.');
+      }
+      options.createdAt = optionsValue.createdAt;
+    }
+    if (Object.prototype.hasOwnProperty.call(optionsValue, 'expiredQuestionIds')) {
+      if (!Array.isArray(optionsValue.expiredQuestionIds)) {
+        throw new TypeError('options.expiredQuestionIds must be an array when provided.');
+      }
+      options.expiredQuestionIds = optionsValue.expiredQuestionIds as string[];
+    }
+    if (Object.prototype.hasOwnProperty.call(optionsValue, 'alreadyAppliedQuestionIds')) {
+      if (!Array.isArray(optionsValue.alreadyAppliedQuestionIds)) {
+        throw new TypeError('options.alreadyAppliedQuestionIds must be an array when provided.');
+      }
+      options.alreadyAppliedQuestionIds = optionsValue.alreadyAppliedQuestionIds as string[];
     }
     if (options.createdAt !== undefined && !isRfc3339Utc(options.createdAt)) {
       throw new TypeError('options.createdAt must be a real RFC 3339 UTC timestamp.');

@@ -437,6 +437,60 @@ describe('Person A clarification answer application', () => {
     expect(result.rejected_answers[0]?.code).toBe('invalid_runtime_plan');
   });
 
+  it.each([
+    ['createdAt', null],
+    ['expiredQuestionIds', 'clarification_01'],
+    ['alreadyAppliedQuestionIds', 'clarification_01'],
+  ])('rejects a malformed known application option: %s', (key, value) => {
+    const { record, issued } = actorCase();
+    const result = apply(record, [issued], [answer(issued, record, 'party_a')], {
+      [key]: value,
+    } as PersonAClarificationAnswerApplicationInput['options']);
+    expect(result.audit.failure_stage).toBe('runtime_plan_validation');
+    expect(result.rejected_answers[0]?.code).toBe('invalid_runtime_plan');
+    expect(result.amendments).toEqual([]);
+  });
+
+  it('accepts an issued merge-risk question in the plan without enabling its application', () => {
+    const { record, target: actorTarget, issued: actorQuestion } = actorCase();
+    const issue = record.extraction_issues[0];
+    const secondSpan = structuredClone(record.timeline[1].source_spans[0]);
+    issue.source_spans.push(secondSpan);
+    const alternatives = issue.source_spans.slice(0, 2).map((span: JsonObject) => ({
+      text: span.quote,
+      grounding_references: [sourceReference(issue.issue_id, span)],
+    }));
+    const mergeQuestion = question({
+      question_id: 'clarification_02',
+      target_object_id: issue.issue_id,
+      target_family: 'extraction_issues',
+      field: 'description',
+      trigger: 'merge_risk',
+      necessity_classification: 'contradiction',
+      grounding_references: alternatives.flatMap(
+        (alternative: JsonObject) => alternative.grounding_references,
+      ),
+      contradiction_alternatives: alternatives,
+    });
+    const supported = apply(
+      record,
+      [actorQuestion, mergeQuestion],
+      [answer(actorQuestion, record, 'party_a')],
+    );
+    expect(supported.audit.final_status).toBe('passed');
+    expect(findObject(supported.amended_record!, actorTarget.event_id).actor_party_id).toBe(
+      'party_a',
+    );
+    const unsupported = apply(
+      record,
+      [actorQuestion, mergeQuestion],
+      [answer(mergeQuestion, record, alternatives[0]!.text)],
+    );
+    expect(unsupported.audit.failure_stage).toBe('answer_validation');
+    expect(unsupported.rejected_answers[0]?.code).toBe('unsupported_field');
+    expect(unsupported.amendments).toEqual([]);
+  });
+
   it('fails closed on hostile top-level accessors without invoking them', () => {
     const getter = vi.fn(() => {
       throw new Error('must not run');

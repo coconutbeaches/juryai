@@ -28,7 +28,8 @@ sequence, and an optional caller-injected timestamp.
 The answer batch is atomic and capped at six. Any malformed, stale, unsupported, duplicate,
 expired, unknown, or already-applied answer rejects the entire batch. No partial projection or
 partial amendment list is returned. Rejection audit strings are bounded, and output ordering is
-deterministic.
+deterministic. Known option keys with malformed value types also fail closed instead of being
+treated as absent.
 
 ## Supported answer types
 
@@ -44,7 +45,9 @@ deterministic.
   in the question.
 
 Aggregate deliverable and evidence splitting remains unsupported in schema v0.1.2. The answer
-boundary cannot create objects or apply merge-risk questions.
+boundary cannot create objects or apply merge-risk questions. A valid issued merge-risk question
+may coexist in the runtime plan so that unrelated supported answers can still be applied; an answer
+submitted for the merge-risk question itself is rejected.
 
 ## Offline command
 
