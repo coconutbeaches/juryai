@@ -313,6 +313,38 @@ describe('Person A clarification answer application', () => {
     });
   });
 
+  it('rejects paired actor-field questions for one timeline actor slot', () => {
+    const { record, target, issued } = actorCase();
+    record.third_parties.push({
+      third_party_id: 'third_party_acme',
+      name_or_label: 'Acme Corp',
+      role: 'invoice sender',
+      relationship_to_party_id: null,
+      contacted_for_case: false,
+      notes: null,
+    });
+    const thirdPartyQuestion = question({
+      ...issued,
+      question_id: 'clarification_02',
+      field: 'actor_third_party_id',
+    });
+    const before = JSON.stringify(record);
+    const result = apply(
+      record,
+      [issued, thirdPartyQuestion],
+      [
+        answer(issued, record, 'party_a'),
+        answer(thirdPartyQuestion, record, 'third_party_acme', { answer_id: 'answer_02' }),
+      ],
+    );
+    expect(result.audit.failure_stage).toBe('runtime_plan_validation');
+    expect(result.rejected_answers[0]?.code).toBe('invalid_runtime_plan');
+    expect(result.amendments).toEqual([]);
+    expect(JSON.stringify(result.amended_record)).toBe(before);
+    expect(target.actor_party_id).toBeNull();
+    expect(target.actor_third_party_id).toBeNull();
+  });
+
   it('applies a valid date answer without inventing grounded month/day components', () => {
     const { record, target, issued } = dateCase();
     const submitted = {

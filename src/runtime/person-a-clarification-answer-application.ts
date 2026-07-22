@@ -15,7 +15,7 @@ export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue
 type JsonObject = { [key: string]: JsonValue };
 
 export const PERSON_A_CLARIFICATION_ANSWER_APPLICATION_VERSION =
-  'person-a-clarification-answer-application-v0.1.1';
+  'person-a-clarification-answer-application-v0.1.2';
 export const PERSON_A_CLARIFICATION_ANSWER_BATCH_VERSION =
   'person-a-clarification-answer-batch-v0.1.0';
 export const MAX_PERSON_A_CLARIFICATION_ANSWERS = 6;
@@ -551,6 +551,18 @@ function exactSourceGrounding(
   );
 }
 
+function canonicalQuestionTargetField(
+  targetFamily: string,
+  trigger: string,
+  field: string,
+): string {
+  return targetFamily === 'timeline' &&
+    trigger === 'actor_attribution' &&
+    ['actor_party_id', 'actor_third_party_id'].includes(field)
+    ? 'actor_slot'
+    : field;
+}
+
 function validateQuestions(
   runtimePlan: JsonObject,
   objectIndex: ReadonlyMap<string, IndexedObject>,
@@ -592,7 +604,11 @@ function validateQuestions(
     if (ids.has(value.question_id))
       throw new TypeError(`Duplicate question ID ${value.question_id}.`);
     ids.add(value.question_id);
-    const targetFieldKey = `${value.target_object_id}|${value.field}`;
+    const targetFieldKey = `${value.target_object_id}|${canonicalQuestionTargetField(
+      value.target_family,
+      value.trigger,
+      value.field,
+    )}`;
     if (targetFields.has(targetFieldKey)) {
       throw new TypeError(`Runtime plan repeats target field ${targetFieldKey}.`);
     }
@@ -1133,6 +1149,7 @@ export function applyPersonAClarificationAnswers(
     questionCounts.set(answer.question_id, (questionCounts.get(answer.question_id) ?? 0) + 1);
   }
   const normalized = new Map<string, { field: string; value: JsonValue }>();
+  const normalizedTargetSlots = new Set<string>();
   for (const answer of parsed) {
     let duplicate = false;
     if ((answerCounts.get(answer.answer_id) ?? 0) > 1) {
@@ -1249,6 +1266,22 @@ export function applyPersonAClarificationAnswers(
       );
       continue;
     }
+    const normalizedTargetSlot = `${answer.target_object_id}|${canonicalQuestionTargetField(
+      answer.target_family,
+      question.trigger,
+      normalizedField,
+    )}`;
+    if (normalizedTargetSlots.has(normalizedTargetSlot)) {
+      errors.push(
+        boundedError(
+          'duplicate_question_answer',
+          'Clarification answers repeat one canonical target slot.',
+          answer,
+        ),
+      );
+      continue;
+    }
+    normalizedTargetSlots.add(normalizedTargetSlot);
     normalized.set(answer.answer_id, {
       field: normalizedField,
       value: normalizedValue as JsonValue,

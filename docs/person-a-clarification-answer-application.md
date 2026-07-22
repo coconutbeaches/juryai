@@ -38,7 +38,8 @@ treated as absent.
 - actor attribution resolves only to `party_a`, `party_b`, or an existing third party. A question
   issued for the actor slot as `actor_party_id` is deterministically routed to
   `actor_third_party_id` when the answer is an existing third-party ID; the two actor fields remain
-  mutually exclusive;
+  mutually exclusive. A runtime plan cannot issue separate questions for both fields on the same
+  timeline event because they are validated as one canonical actor slot;
 - date precision preserves exact grounded month/day components and may add only the submitted
   calendar year;
 - evidence availability remains categorical and cannot imply upload, inspection, authenticity, or
