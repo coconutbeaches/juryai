@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
@@ -171,6 +172,35 @@ function dateCase() {
         target.source_spans.find((span: JsonObject) => /April 25/u.test(span.quote)),
       ),
     ],
+  });
+  return { record, target, issued };
+}
+
+function monthDateCase() {
+  const record = validPersonAExtraction();
+  const quote = 'The payment was due by June.';
+  const narrative = `${record.submission.raw_text}\n${quote}`;
+  const contentHash = createHash('sha256').update(narrative, 'utf8').digest('hex');
+  record.submission.raw_text = narrative;
+  record.submission.content_hash = contentHash;
+  record.metadata.input_hash = contentHash;
+  const target = record.timeline[0];
+  target.event_summary = quote;
+  target.date = { start: null, end: null, precision: 'unknown', approximate: false };
+  target.source_spans = [
+    {
+      submission_id: record.submission.submission_id,
+      quote,
+      start_char: narrative.length - quote.length,
+      end_char: narrative.length,
+    },
+  ];
+  const issued = question({
+    target_object_id: target.event_id,
+    target_family: 'timeline',
+    field: 'date',
+    trigger: 'date_precision',
+    grounding_references: [sourceReference(target.event_id, target.source_spans[0])],
   });
   return { record, target, issued };
 }
@@ -356,6 +386,46 @@ describe('Person A clarification answer application', () => {
     const result = apply(record, [issued], [answer(issued, record, submitted)]);
     expect(result.audit.final_status).toBe('passed');
     expect(findObject(result.amended_record!, target.event_id).date).toEqual(submitted);
+  });
+
+  it('applies a month-only date answer by adding only the supplied year', () => {
+    const { record, target, issued } = monthDateCase();
+    const submitted = {
+      start: '2026-06-01',
+      end: '2026-06-30',
+      precision: 'month',
+      approximate: true,
+    };
+    const result = apply(record, [issued], [answer(issued, record, submitted)]);
+    expect(result.audit.final_status).toBe('passed');
+    expect(findObject(result.amended_record!, target.event_id).date).toEqual(submitted);
+  });
+
+  it.each([
+    {
+      start: '2026-07-01',
+      end: '2026-07-31',
+      precision: 'month',
+      approximate: true,
+    },
+    {
+      start: '2026-06-02',
+      end: '2026-06-30',
+      precision: 'month',
+      approximate: true,
+    },
+    {
+      start: '2026-06-01',
+      end: '2026-06-30',
+      precision: 'month',
+      approximate: false,
+    },
+  ])('rejects a month answer that changes grounded month semantics: %j', (submitted) => {
+    const { record, issued } = monthDateCase();
+    const result = apply(record, [issued], [answer(issued, record, submitted)]);
+    expect(result.audit.failure_stage).toBe('answer_validation');
+    expect(result.rejected_answers[0]?.code).toBe('invalid_date_precision');
+    expect(result.amendments).toEqual([]);
   });
 
   it('applies a valid categorical evidence-availability answer without implying inspection', () => {

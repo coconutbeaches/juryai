@@ -15,7 +15,7 @@ export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue
 type JsonObject = { [key: string]: JsonValue };
 
 export const PERSON_A_CLARIFICATION_ANSWER_APPLICATION_VERSION =
-  'person-a-clarification-answer-application-v0.1.2';
+  'person-a-clarification-answer-application-v0.1.3';
 export const PERSON_A_CLARIFICATION_ANSWER_BATCH_VERSION =
   'person-a-clarification-answer-batch-v0.1.0';
 export const MAX_PERSON_A_CLARIFICATION_ANSWERS = 6;
@@ -684,12 +684,23 @@ function sourceTexts(question: NecessaryClarificationQuestion): string[] {
 interface DateMention {
   year: number | null;
   month: number;
-  day: number;
+  day: number | null;
 }
 
 function dateMentions(question: NecessaryClarificationQuestion): DateMention[] {
   const result: DateMention[] = [];
-  const add = (year: number | null, month: number, day: number): void => {
+  const add = (year: number | null, month: number, day: number | null): void => {
+    if (day === null) {
+      if (
+        Number.isInteger(month) &&
+        month >= 1 &&
+        month <= 12 &&
+        (year === null || (Number.isInteger(year) && year >= 1 && year <= 9999))
+      ) {
+        result.push({ year, month, day });
+      }
+      return;
+    }
     const validationYear = year ?? 2000;
     const date = new Date(Date.UTC(validationYear, month - 1, day));
     if (
@@ -719,6 +730,22 @@ function dateMentions(question: NecessaryClarificationQuestion): DateMention[] {
         Number(match[1]),
       );
     }
+    for (const match of text.matchAll(
+      new RegExp(
+        `\\b(?:in|during|by|before|after|since|until|through|around)\\s+(${monthPattern})\\b(?!\\s*,?\\s*\\d)`,
+        'giu',
+      ),
+    )) {
+      add(null, monthNumbers[match[1]!.toLowerCase()]!, null);
+    }
+    for (const match of text.matchAll(
+      new RegExp(
+        `\\b(${monthPattern})\\s+(?:completion|date|deadline|launch|payment|period|schedule|timeline)\\b`,
+        'giu',
+      ),
+    )) {
+      add(null, monthNumbers[match[1]!.toLowerCase()]!, null);
+    }
   }
   return result;
 }
@@ -747,11 +774,11 @@ function normalizeDateAnswer(
     Object.keys(submitted).sort(lexicalCompare).join('|') !==
       ['approximate', 'end', 'precision', 'start'].sort(lexicalCompare).join('|') ||
     typeof submitted.approximate !== 'boolean' ||
-    !['day', 'range'].includes(String(submitted.precision))
+    !['day', 'month', 'range'].includes(String(submitted.precision))
   ) {
     return boundedError(
       'invalid_date_precision',
-      'Date answers must provide an exact day or source-grounded range without extra fields.',
+      'Date answers must provide a source-grounded day, month, or range without extra fields.',
     );
   }
   const start = parseIsoDate(submitted.start);
@@ -761,6 +788,7 @@ function normalizeDateAnswer(
   }
   const mentions = dateMentions(question);
   const matches = (date: { year: number; month: number; day: number }, mention: DateMention) =>
+    mention.day !== null &&
     date.month === mention.month &&
     date.day === mention.day &&
     (mention.year === null || date.year === mention.year);
@@ -773,6 +801,33 @@ function normalizeDateAnswer(
       return boundedError(
         'invalid_date_precision',
         'A day answer must preserve the exact grounded month and day and may add only the supplied year.',
+      );
+    }
+  } else if (submitted.precision === 'month') {
+    const groundedMonths = [
+      ...new Map(
+        mentions
+          .filter((mention) => mention.day === null)
+          .map((mention) => [`${mention.year ?? 'XXXX'}-${mention.month}`, mention]),
+      ).values(),
+    ];
+    const groundedMonth = groundedMonths[0];
+    const lastDay = new Date(Date.UTC(start.year, start.month, 0)).getUTCDate();
+    if (
+      end === null ||
+      submitted.approximate !== true ||
+      groundedMonths.length !== 1 ||
+      groundedMonth === undefined ||
+      start.month !== groundedMonth.month ||
+      start.day !== 1 ||
+      end.year !== start.year ||
+      end.month !== start.month ||
+      end.day !== lastDay ||
+      (groundedMonth.year !== null && start.year !== groundedMonth.year)
+    ) {
+      return boundedError(
+        'invalid_date_precision',
+        'A month answer must preserve one grounded month as its exact first-to-last-day interval and may add only the supplied year.',
       );
     }
   } else if (

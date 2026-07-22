@@ -41,7 +41,9 @@ treated as absent.
   mutually exclusive. A runtime plan cannot issue separate questions for both fields on the same
   timeline event because they are validated as one canonical actor slot;
 - date precision preserves exact grounded month/day components and may add only the submitted
-  calendar year;
+  calendar year. A uniquely grounded bare month is represented as the exact first-to-last-day
+  interval for that month with `precision: month`; mismatched months, invented days, and ambiguous
+  month grounding fail closed;
 - evidence availability remains categorical and cannot imply upload, inspection, authenticity, or
   verification;
 - causal answers are stored explicitly as Person A's asserted theory, not an adjudicated fact;
