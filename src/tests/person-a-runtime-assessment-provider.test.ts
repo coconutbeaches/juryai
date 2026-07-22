@@ -282,6 +282,26 @@ describe('deterministic Person A runtime assessment provider', () => {
     );
   });
 
+  it('does not treat a passive first-person recipient as the action actor', () => {
+    const context = baseContext();
+    const quote = 'I was sent the invoice.';
+    context.narrative = `${context.narrative}\n${quote}`;
+    addTimeline(context, {
+      event_summary: 'The invoice was sent to the submitter.',
+      source_spans: [exactSpan(context.narrative, quote)],
+    });
+    const result = run(context);
+    expect(result.assessments).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          target_object_id: 'event_test',
+          trigger: 'actor_attribution',
+          actor_attribution: 'unstated',
+        }),
+      ]),
+    );
+  });
+
   it('detects one grouped materially unknown calendar year', () => {
     const context = baseContext();
     addTimeline(context, {
@@ -637,6 +657,27 @@ describe('deterministic Person A runtime assessment provider', () => {
         expect.objectContaining({
           target_object_id: 'issue_test',
           trigger: 'required_bucket_missing',
+        }),
+      ]),
+    );
+  });
+
+  it('does not treat negated unfinished wording as a completion contradiction', () => {
+    const context = baseContext();
+    const first = 'The website was complete.';
+    const second = 'No issues remained.';
+    context.narrative = `${context.narrative}\n${first}\n${second}`;
+    addIssue(context, {
+      description: 'Both statements describe completed work without remaining issues.',
+      source_spans: [exactSpan(context.narrative, first), exactSpan(context.narrative, second)],
+    });
+    const result = run(context);
+    expect(result.assessments).toEqual([]);
+    expect(result.audit.rule_results).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          status: 'suppressed',
+          reason_code: 'no_deterministic_material_contradiction',
         }),
       ]),
     );

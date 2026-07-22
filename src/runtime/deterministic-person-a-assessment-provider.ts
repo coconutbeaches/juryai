@@ -8,7 +8,7 @@ import {
 
 type JsonObject = Record<string, any>;
 
-export const DETERMINISTIC_PERSON_A_ASSESSMENT_VERSION = 'deterministic-person-a-assessment-v0.1.2';
+export const DETERMINISTIC_PERSON_A_ASSESSMENT_VERSION = 'deterministic-person-a-assessment-v0.1.3';
 
 export const DETERMINISTIC_PERSON_A_RULE_IDS = [
   'runtime_actor_attribution_v1',
@@ -123,6 +123,10 @@ const DEFAULT_UNFINISHED_TERMS = [
 ] as const;
 const MAX_CONTEXT_LENGTH = 160;
 const MAX_AUDIT_PREVIEW_LENGTH = 160;
+const ACTIVE_ACTOR_VERB_PATTERN =
+  'accepted|accepting|asked|asking|came|coming|changed|changing|communicated|communicating|delivered|delivering|fixed|fixing|gave|giving|made|making|paid|paying|published|publishing|replied|replying|requested|requesting|said|saying|sent|sending|supplied|supplying|transferred|transferring|used|using';
+const ACTIVE_ACTOR_MODIFIER_PATTERN =
+  '(?:(?:also|eventually|later|personally|still|then)\\s+){0,3}(?:(?:had|has|have)\\s+)?';
 
 function isRecord(value: unknown): value is JsonObject {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -354,22 +358,62 @@ function containsAny(text: string, terms: readonly string[]): boolean {
   return terms.some((term) => normalized.includes(term.toLocaleLowerCase('en-US')));
 }
 
+function escapeRegularExpression(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+}
+
+function hasAffirmativeTerm(text: string, terms: readonly string[]): boolean {
+  for (const term of terms) {
+    const pattern = new RegExp(
+      `(?<![\\p{L}\\p{N}_])${escapeRegularExpression(term)}(?![\\p{L}\\p{N}_])`,
+      'giu',
+    );
+    for (const match of text.matchAll(pattern)) {
+      const prefix = text
+        .slice(Math.max(0, (match.index ?? 0) - 48), match.index)
+        .toLocaleLowerCase('en-US')
+        .replace(/[-–—]/gu, ' ');
+      if (
+        /(?:\bnot|\bnever|\bno|\bwithout|\bneither|\bnothing|\bnone|\bwasn't|\bwasn’t|\bisn't|\bisn’t|\baren't|\baren’t|\bwas not|\bis not|\bare not|\bdid not|\bhas not|\bhave not|\bhad not|\bfar from|\bless than)\s+(?:[\p{L}\p{N}_]+\s+){0,5}$/iu.test(
+          prefix,
+        )
+      ) {
+        continue;
+      }
+      return true;
+    }
+  }
+  return false;
+}
+
 function explicitActorInSource(quote: string, extraction: JsonObject): boolean {
-  if (/\bI\b/u.test(quote)) return true;
+  if (
+    new RegExp(
+      `\\bI\\s+${ACTIVE_ACTOR_MODIFIER_PATTERN}(?:${ACTIVE_ACTOR_VERB_PATTERN})\\b`,
+      'iu',
+    ).test(quote)
+  ) {
+    return true;
+  }
   const registeredNames = [
     extraction.party?.display_name,
     ...familyItems(extraction, 'third_parties').map((item) => item.name_or_label),
   ].filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
   if (
-    registeredNames.some((name) =>
-      quote.toLocaleLowerCase('en-US').includes(name.toLocaleLowerCase('en-US')),
-    )
+    registeredNames.some((name) => {
+      const actor = escapeRegularExpression(name.trim());
+      return new RegExp(
+        `(?<![\\p{L}\\p{N}_])${actor}\\s+${ACTIVE_ACTOR_MODIFIER_PATTERN}(?:${ACTIVE_ACTOR_VERB_PATTERN})\\b`,
+        'iu',
+      ).test(quote);
+    })
   ) {
     return true;
   }
-  return /\b[\p{Lu}][\p{L}'’.-]+(?:\s+[\p{Lu}][\p{L}'’.-]+)?\s+(?:accepted|accepting|asked|asking|gave|giving|made|making|paid|paying|replied|replying|requested|requesting|said|saying|sent|sending|supplied|supplying|used|using)\b/u.test(
-    quote,
-  );
+  return new RegExp(
+    `\\b[\\p{Lu}][\\p{L}'’.-]+(?:\\s+[\\p{Lu}][\\p{L}'’.-]+)?\\s+${ACTIVE_ACTOR_MODIFIER_PATTERN}(?:${ACTIVE_ACTOR_VERB_PATTERN})\\b`,
+    'u',
+  ).test(quote);
 }
 
 function referencedClaimGrounding(
@@ -423,32 +467,14 @@ function completionConflict(
   unfinishedTerms: readonly string[],
 ): boolean {
   const affirmativeCompletion = (text: string): boolean => {
-    if (containsAny(text, unfinishedTerms)) return false;
-    for (const term of completionTerms) {
-      const escaped = term.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
-      const pattern = new RegExp(`(?<![\\p{L}\\p{N}_])${escaped}(?![\\p{L}\\p{N}_])`, 'giu');
-      for (const match of text.matchAll(pattern)) {
-        const prefix = text
-          .slice(Math.max(0, (match.index ?? 0) - 48), match.index)
-          .toLocaleLowerCase('en-US')
-          .replace(/[-–—]/gu, ' ');
-        if (
-          /(?:\bnot|\bnever|\bno|\bwithout|\bneither|\bwasn't|\bwasn’t|\bisn't|\bisn’t|\baren't|\baren’t|\bwas not|\bis not|\bare not|\bdid not|\bhas not|\bhave not|\bhad not|\bfar from|\bless than)\s+(?:[\p{L}\p{N}_]+\s+){0,5}$/iu.test(
-            prefix,
-          )
-        ) {
-          continue;
-        }
-        return true;
-      }
-    }
-    return false;
+    if (hasAffirmativeTerm(text, unfinishedTerms)) return false;
+    return hasAffirmativeTerm(text, completionTerms);
   };
   const completedSpanIndexes = spans.flatMap((span, index) =>
     affirmativeCompletion(span.quote) ? [index] : [],
   );
   const unfinishedSpanIndexes = spans.flatMap((span, index) =>
-    containsAny(span.quote, unfinishedTerms) ? [index] : [],
+    hasAffirmativeTerm(span.quote, unfinishedTerms) ? [index] : [],
   );
   return completedSpanIndexes.some((completedIndex) =>
     unfinishedSpanIndexes.some((unfinishedIndex) => unfinishedIndex !== completedIndex),
