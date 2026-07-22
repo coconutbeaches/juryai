@@ -14,6 +14,7 @@ import {
   MAX_RUNTIME_ASSESSMENT_JSON_NODES,
   MAX_RUNTIME_ASSESSMENT_NESTED_ARRAY_LENGTH,
   MAX_RUNTIME_ASSESSMENT_OBJECT_KEYS,
+  MAX_RUNTIME_REJECTED_AUDIT_KEY_LENGTH,
   orchestratePersonAPlanning,
   type RuntimeAssessmentContext,
   type RuntimeAssessmentProvider,
@@ -601,6 +602,57 @@ describe('Person A runtime orchestration', () => {
       (result.rejected_assessments[0]?.assessment as JsonObject).own_keys.length,
     ).toBeLessThanOrEqual(20);
     expect(result.question_count).toBe(0);
+  });
+
+  it('bounds a multi-megabyte rendered string key without splitting a surrogate pair', () => {
+    const hugeKey = `${'a'.repeat(158)}${'😀'.repeat(1_048_576)}`;
+    const batch = [assessment()] as unknown[] & JsonObject;
+    Object.defineProperty(batch, hugeKey, {
+      value: 'untrusted',
+      enumerable: true,
+      configurable: true,
+    });
+    const result = runProviderOutput(batch);
+    const audit = result.rejected_assessments[0]?.assessment as JsonObject;
+    const rendered = (audit.own_keys as string[]).find((key) => key.startsWith('a'))!;
+    const finalPrefixCodeUnit = rendered.charCodeAt(rendered.length - 2);
+    expect(rendered.length).toBeLessThanOrEqual(MAX_RUNTIME_REJECTED_AUDIT_KEY_LENGTH);
+    expect(rendered.endsWith('…')).toBe(true);
+    expect(finalPrefixCodeUnit < 0xd800 || finalPrefixCodeUnit > 0xdbff).toBe(true);
+    expect(
+      JSON.stringify({
+        raw_assessments: result.raw_assessments,
+        rejected_assessments: result.rejected_assessments,
+      }).length,
+    ).toBeLessThan(5_000);
+    expect(result.question_count).toBe(0);
+  });
+
+  it('bounds a multi-megabyte symbol description in rejected audit output', () => {
+    const hugeDescription = 's'.repeat(2 * 1_024 * 1_024);
+    const batch = [assessment()] as unknown[] & JsonObject;
+    batch[Symbol(hugeDescription) as any] = 'untrusted';
+    const result = runProviderOutput(batch);
+    const audit = result.rejected_assessments[0]?.assessment as JsonObject;
+    const rendered = (audit.own_keys as string[]).find((key) => key.startsWith('Symbol('))!;
+    expect(rendered.length).toBeLessThanOrEqual(MAX_RUNTIME_REJECTED_AUDIT_KEY_LENGTH);
+    expect(rendered.endsWith('…)')).toBe(true);
+    expect(
+      JSON.stringify({
+        raw_assessments: result.raw_assessments,
+        rejected_assessments: result.rejected_assessments,
+      }).length,
+    ).toBeLessThan(5_000);
+    expect(result.question_count).toBe(0);
+  });
+
+  it('renders oversized rejected audit keys deterministically', () => {
+    const execute = () => {
+      const batch = [assessment()] as unknown[] & JsonObject;
+      batch[`key_${'x'.repeat(2 * 1_024 * 1_024)}`] = 'untrusted';
+      return runProviderOutput(batch);
+    };
+    expect(JSON.stringify(execute())).toBe(JSON.stringify(execute()));
   });
 
   it('enforces the total provider JSON traversal budget', () => {

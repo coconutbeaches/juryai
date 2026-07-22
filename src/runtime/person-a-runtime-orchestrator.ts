@@ -20,13 +20,14 @@ import {
 
 type JsonObject = Record<string, any>;
 
-export const PERSON_A_RUNTIME_ORCHESTRATION_VERSION = 'person-a-runtime-orchestration-v0.1.3';
+export const PERSON_A_RUNTIME_ORCHESTRATION_VERSION = 'person-a-runtime-orchestration-v0.1.4';
 export const MAX_RUNTIME_ASSESSMENT_JSON_DEPTH = 64;
 export const MAX_RUNTIME_ASSESSMENT_BATCH_SIZE = 100;
 export const MAX_RUNTIME_ASSESSMENT_NESTED_ARRAY_LENGTH = 1_000;
 export const MAX_RUNTIME_ASSESSMENT_OBJECT_KEYS = 200;
 export const MAX_RUNTIME_ASSESSMENT_JSON_NODES = 10_000;
 const MAX_RUNTIME_REJECTED_AUDIT_KEYS = 20;
+export const MAX_RUNTIME_REJECTED_AUDIT_KEY_LENGTH = 160;
 
 export type RuntimeStageStatus = 'not_started' | 'passed' | 'skipped' | 'failed_closed';
 export type RuntimeArtifactStatus = 'absent' | 'present_hashed' | 'present_invalid';
@@ -332,11 +333,36 @@ function prototypeHasEnumerableProperties(prototype: object): boolean {
   }
 }
 
+function truncateAuditText(value: string, maximumLength: number): string {
+  if (value.length <= maximumLength) return value;
+  const ellipsis = '…';
+  let prefix = value.slice(0, maximumLength - ellipsis.length);
+  const lastCodeUnit = prefix.charCodeAt(prefix.length - 1);
+  if (lastCodeUnit >= 0xd800 && lastCodeUnit <= 0xdbff) prefix = prefix.slice(0, -1);
+  return `${prefix}${ellipsis}`;
+}
+
+function renderAuditKey(key: string | symbol): string {
+  if (typeof key === 'string') {
+    return truncateAuditText(key, MAX_RUNTIME_REJECTED_AUDIT_KEY_LENGTH);
+  }
+  let description: string | undefined;
+  try {
+    description = key.description;
+  } catch {
+    return 'Symbol(uninspectable)';
+  }
+  if (description === undefined) return 'Symbol()';
+  const wrapperLength = 'Symbol()'.length;
+  const boundedDescription = truncateAuditText(
+    description,
+    MAX_RUNTIME_REJECTED_AUDIT_KEY_LENGTH - wrapperLength,
+  );
+  return `Symbol(${boundedDescription})`;
+}
+
 function boundedAuditKeys(keys: readonly (string | symbol)[]): string[] {
-  return keys
-    .slice(0, MAX_RUNTIME_REJECTED_AUDIT_KEYS)
-    .map((key) => (typeof key === 'symbol' ? key.toString() : key))
-    .sort(lexicalCompare);
+  return keys.slice(0, MAX_RUNTIME_REJECTED_AUDIT_KEYS).map(renderAuditKey).sort(lexicalCompare);
 }
 
 function snapshotFailure(

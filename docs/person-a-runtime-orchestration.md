@@ -83,6 +83,9 @@ are offline test/CLI fixtures, not the final production assessment engine.
   array, and 200 own keys per object. Array density is checked from actual own descriptors by
   counting canonical numeric indices and comparing their count and endpoints with `length`; the
   validator never constructs an expected-key array proportional to attacker-controlled length.
+- Bound rejected audit output to 20 rendered key labels of at most 160 UTF-16 code units each.
+  String keys and symbol descriptions are truncated before audit serialization, with no dangling
+  high surrogate at the truncation boundary.
 - Enforce an explicit trigger, target-family, and field matrix with no wildcard fallback. The
   target object's resolved family and actual shape must agree with the assessment.
 - Suppress `already_explicit`, `internal_representation`, and `insufficient_grounding` candidates.
