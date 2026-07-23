@@ -15,7 +15,7 @@ export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue
 type JsonObject = { [key: string]: JsonValue };
 
 export const PERSON_A_CLARIFICATION_ANSWER_APPLICATION_VERSION =
-  'person-a-clarification-answer-application-v0.1.4';
+  'person-a-clarification-answer-application-v0.1.5';
 export const PERSON_A_CLARIFICATION_ANSWER_BATCH_VERSION =
   'person-a-clarification-answer-batch-v0.1.0';
 export const MAX_PERSON_A_CLARIFICATION_ANSWERS = 6;
@@ -797,6 +797,7 @@ function normalizeDateAnswer(
   submitted: JsonValue,
   question: NecessaryClarificationQuestion,
   target: JsonObject,
+  answer: SubmittedPersonAClarificationAnswer,
 ): JsonValue | PersonAAnswerApplicationError {
   if (
     !isJsonObject(submitted) ||
@@ -808,12 +809,17 @@ function normalizeDateAnswer(
     return boundedError(
       'invalid_date_precision',
       'Date answers must provide a source-grounded day, month, or range without extra fields.',
+      answer,
     );
   }
   const start = parseIsoDate(submitted.start);
   const end = submitted.end === null ? null : parseIsoDate(submitted.end);
   if (!start || (submitted.end !== null && !end)) {
-    return boundedError('invalid_date_precision', 'Date answers must use real ISO calendar dates.');
+    return boundedError(
+      'invalid_date_precision',
+      'Date answers must use real ISO calendar dates.',
+      answer,
+    );
   }
   const mentions = targetDateMentions(question, target);
   const matches = (date: { year: number; month: number; day: number }, mention: DateMention) =>
@@ -832,6 +838,7 @@ function normalizeDateAnswer(
       return boundedError(
         'invalid_date_precision',
         'A day answer must preserve the exact grounded month and day and may add only the supplied year.',
+        answer,
       );
     }
   } else if (submitted.precision === 'month') {
@@ -859,6 +866,7 @@ function normalizeDateAnswer(
       return boundedError(
         'invalid_date_precision',
         'A month answer must preserve one grounded month as its exact first-to-last-day interval and may add only the supplied year.',
+        answer,
       );
     }
   } else if (
@@ -873,6 +881,7 @@ function normalizeDateAnswer(
     return boundedError(
       'invalid_date_precision',
       'A range answer must preserve two grounded endpoints in one supplied year.',
+      answer,
     );
   }
   return submitted;
@@ -945,7 +954,7 @@ function normalizeAnswer(
     case 'date_precision': {
       const target = objectIndex.get(answer.target_object_id);
       return target
-        ? normalizeDateAnswer(answer.submitted_answer, question, target.item)
+        ? normalizeDateAnswer(answer.submitted_answer, question, target.item, answer)
         : boundedError(
             'unsupported_target_family',
             'Date clarification target is unavailable.',

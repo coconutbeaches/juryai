@@ -31,7 +31,9 @@ The answer batch is atomic and capped at six. Any malformed, stale, unsupported,
 expired, unknown, or already-applied answer rejects the entire batch. No partial projection or
 partial amendment list is returned. Rejection audit strings are bounded, and output ordering is
 deterministic. Known option keys with malformed value types also fail closed instead of being
-treated as absent.
+treated as absent. Every field-specific rejection, including date-shape and date-grounding errors,
+retains the exact answer and question IDs so atomic-batch audit results distinguish the offending
+answer from otherwise valid answers rejected with the batch.
 
 ## Supported answer types
 

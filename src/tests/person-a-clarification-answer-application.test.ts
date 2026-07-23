@@ -704,6 +704,60 @@ describe('Person A clarification answer application', () => {
     ).toBe('invalid_date_precision');
   });
 
+  it('attributes an invalid date to its exact answer in an atomic mixed batch', () => {
+    const actor = actorCase();
+    const date = dateCase();
+    const record = actor.record;
+    const dateTarget = record.timeline.find(
+      (item: JsonObject) => item.event_id === date.target.event_id,
+    );
+    dateTarget.date = { start: null, end: null, precision: 'unknown', approximate: false };
+    const dateQuestion = question({
+      ...date.issued,
+      question_id: 'clarification_02',
+      grounding_references: [
+        sourceReference(
+          dateTarget.event_id,
+          dateTarget.source_spans.find((span: JsonObject) => /April 25/u.test(span.quote)),
+        ),
+      ],
+    });
+    const validActor = answer(actor.issued, record, 'party_a');
+    const invalidDate = answer(
+      dateQuestion,
+      record,
+      {
+        start: '2026-04-26',
+        end: null,
+        precision: 'day',
+        approximate: false,
+      },
+      { answer_id: 'answer_02' },
+    );
+    const result = apply(record, [actor.issued, dateQuestion], [validActor, invalidDate]);
+    expect(result.audit.failure_stage).toBe('answer_validation');
+    expect(result.amendments).toEqual([]);
+    expect(result.rejected_answers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          answer_id: 'answer_01',
+          question_id: actor.issued.question_id,
+          code: 'atomic_batch_rejected',
+        }),
+        expect.objectContaining({
+          answer_id: 'answer_02',
+          question_id: dateQuestion.question_id,
+          code: 'invalid_date_precision',
+        }),
+      ]),
+    );
+    expect(result.rejected_answers).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ answer_id: 'answer_02', code: 'atomic_batch_rejected' }),
+      ]),
+    );
+  });
+
   it('rejects an invalid actor reference', () => {
     const { record, issued } = actorCase();
     expect(
