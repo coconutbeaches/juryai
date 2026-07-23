@@ -15,7 +15,7 @@ export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue
 type JsonObject = { [key: string]: JsonValue };
 
 export const PERSON_A_CLARIFICATION_ANSWER_APPLICATION_VERSION =
-  'person-a-clarification-answer-application-v0.1.3';
+  'person-a-clarification-answer-application-v0.1.4';
 export const PERSON_A_CLARIFICATION_ANSWER_BATCH_VERSION =
   'person-a-clarification-answer-batch-v0.1.0';
 export const MAX_PERSON_A_CLARIFICATION_ANSWERS = 6;
@@ -687,7 +687,7 @@ interface DateMention {
   day: number | null;
 }
 
-function dateMentions(question: NecessaryClarificationQuestion): DateMention[] {
+function dateMentionsFromTexts(texts: readonly string[]): DateMention[] {
   const result: DateMention[] = [];
   const add = (year: number | null, month: number, day: number | null): void => {
     if (day === null) {
@@ -711,7 +711,7 @@ function dateMentions(question: NecessaryClarificationQuestion): DateMention[] {
       result.push({ year, month, day });
     }
   };
-  for (const text of sourceTexts(question)) {
+  for (const text of texts) {
     for (const match of text.matchAll(
       new RegExp(`\\b(${monthPattern})\\s+(\\d{1,2})(?:\\s*,?\\s*(\\d{4}))?\\b`, 'giu'),
     )) {
@@ -747,7 +747,35 @@ function dateMentions(question: NecessaryClarificationQuestion): DateMention[] {
       add(null, monthNumbers[match[1]!.toLowerCase()]!, null);
     }
   }
-  return result;
+  return [
+    ...new Map(
+      result.map((mention) => [
+        `${mention.year ?? 'XXXX'}-${mention.month}-${mention.day ?? 'XX'}`,
+        mention,
+      ]),
+    ).values(),
+  ];
+}
+
+function targetDateMentions(
+  question: NecessaryClarificationQuestion,
+  target: JsonObject,
+): DateMention[] {
+  const sourceMentions = dateMentionsFromTexts(sourceTexts(question));
+  const eventSummary = target.event_summary;
+  const contextMentions =
+    typeof eventSummary === 'string' ? dateMentionsFromTexts([eventSummary]) : [];
+  if (contextMentions.length === 0) return sourceMentions;
+  return sourceMentions.filter((sourceMention) =>
+    contextMentions.some(
+      (contextMention) =>
+        contextMention.month === sourceMention.month &&
+        contextMention.day === sourceMention.day &&
+        (contextMention.year === null ||
+          sourceMention.year === null ||
+          contextMention.year === sourceMention.year),
+    ),
+  );
 }
 
 function parseIsoDate(value: unknown): { year: number; month: number; day: number } | null {
@@ -768,6 +796,7 @@ function parseIsoDate(value: unknown): { year: number; month: number; day: numbe
 function normalizeDateAnswer(
   submitted: JsonValue,
   question: NecessaryClarificationQuestion,
+  target: JsonObject,
 ): JsonValue | PersonAAnswerApplicationError {
   if (
     !isJsonObject(submitted) ||
@@ -786,17 +815,19 @@ function normalizeDateAnswer(
   if (!start || (submitted.end !== null && !end)) {
     return boundedError('invalid_date_precision', 'Date answers must use real ISO calendar dates.');
   }
-  const mentions = dateMentions(question);
+  const mentions = targetDateMentions(question, target);
   const matches = (date: { year: number; month: number; day: number }, mention: DateMention) =>
     mention.day !== null &&
     date.month === mention.month &&
     date.day === mention.day &&
     (mention.year === null || date.year === mention.year);
   if (submitted.precision === 'day') {
+    const groundedDays = mentions.filter((mention) => mention.day !== null);
     if (
       end !== null ||
       submitted.approximate !== false ||
-      !mentions.some((mention) => matches(start, mention))
+      groundedDays.length !== 1 ||
+      !groundedDays.some((mention) => matches(start, mention))
     ) {
       return boundedError(
         'invalid_date_precision',
@@ -833,7 +864,7 @@ function normalizeDateAnswer(
   } else if (
     end === null ||
     submitted.approximate !== true ||
-    mentions.length < 2 ||
+    mentions.filter((mention) => mention.day !== null).length !== 2 ||
     !mentions.some((mention) => matches(start, mention)) ||
     !mentions.some((mention) => matches(end, mention)) ||
     start.year !== end.year ||
@@ -911,8 +942,16 @@ function normalizeAnswer(
       }
       return answer.submitted_answer;
     }
-    case 'date_precision':
-      return normalizeDateAnswer(answer.submitted_answer, question);
+    case 'date_precision': {
+      const target = objectIndex.get(answer.target_object_id);
+      return target
+        ? normalizeDateAnswer(answer.submitted_answer, question, target.item)
+        : boundedError(
+            'unsupported_target_family',
+            'Date clarification target is unavailable.',
+            answer,
+          );
+    }
     case 'evidence_availability':
       return ['described_only', 'unavailable'].includes(String(answer.submitted_answer))
         ? answer.submitted_answer

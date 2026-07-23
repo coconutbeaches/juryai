@@ -43,7 +43,9 @@ treated as absent.
 - date precision preserves exact grounded month/day components and may add only the submitted
   calendar year. A uniquely grounded bare month is represented as the exact first-to-last-day
   interval for that month with `precision: month`; mismatched months, invented days, and ambiguous
-  month grounding fail closed;
+  month grounding fail closed. When one exact source span contains multiple dates, only date
+  mentions also present in the target event summary are eligible; unrelated dates in the same span
+  cannot be applied to the event;
 - evidence availability remains categorical and cannot imply upload, inspection, authenticity, or
   verification;
 - causal answers are stored explicitly as Person A's asserted theory, not an adjudicated fact;

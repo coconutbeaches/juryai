@@ -205,6 +205,35 @@ function monthDateCase() {
   return { record, target, issued };
 }
 
+function multiMentionDateCase() {
+  const record = validPersonAExtraction();
+  const quote = 'The launch was due on May 20, while final copy was due by April 25.';
+  const narrative = `${record.submission.raw_text}\n${quote}`;
+  const contentHash = createHash('sha256').update(narrative, 'utf8').digest('hex');
+  record.submission.raw_text = narrative;
+  record.submission.content_hash = contentHash;
+  record.metadata.input_hash = contentHash;
+  const target = record.timeline[0];
+  target.event_summary = 'The launch was due on May 20.';
+  target.date = { start: null, end: null, precision: 'unknown', approximate: false };
+  target.source_spans = [
+    {
+      submission_id: record.submission.submission_id,
+      quote,
+      start_char: narrative.length - quote.length,
+      end_char: narrative.length,
+    },
+  ];
+  const issued = question({
+    target_object_id: target.event_id,
+    target_family: 'timeline',
+    field: 'date',
+    trigger: 'date_precision',
+    grounding_references: [sourceReference(target.event_id, target.source_spans[0])],
+  });
+  return { record, target, issued };
+}
+
 function evidenceCase() {
   const record = validPersonAExtraction();
   const target = record.evidence.find(
@@ -386,6 +415,33 @@ describe('Person A clarification answer application', () => {
     const result = apply(record, [issued], [answer(issued, record, submitted)]);
     expect(result.audit.final_status).toBe('passed');
     expect(findObject(result.amended_record!, target.event_id).date).toEqual(submitted);
+  });
+
+  it('accepts only the date mention tied to the target event summary', () => {
+    const { record, target, issued } = multiMentionDateCase();
+    const correct = {
+      start: '2026-05-20',
+      end: null,
+      precision: 'day',
+      approximate: false,
+    };
+    const result = apply(record, [issued], [answer(issued, record, correct)]);
+    expect(result.audit.final_status).toBe('passed');
+    expect(findObject(result.amended_record!, target.event_id).date).toEqual(correct);
+  });
+
+  it('rejects an unrelated date mention from the same grounded span', () => {
+    const { record, issued } = multiMentionDateCase();
+    const unrelated = {
+      start: '2026-04-25',
+      end: null,
+      precision: 'day',
+      approximate: false,
+    };
+    const result = apply(record, [issued], [answer(issued, record, unrelated)]);
+    expect(result.audit.failure_stage).toBe('answer_validation');
+    expect(result.rejected_answers[0]?.code).toBe('invalid_date_precision');
+    expect(result.amendments).toEqual([]);
   });
 
   it('applies a month-only date answer by adding only the supplied year', () => {
