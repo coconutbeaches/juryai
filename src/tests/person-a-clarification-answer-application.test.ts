@@ -238,6 +238,34 @@ function multiMentionDateCase() {
   return { record, target, issued };
 }
 
+function dateContextCase(eventSummary: string, quote: string) {
+  const record = validPersonAExtraction();
+  const narrative = `${record.submission.raw_text}\n${quote}`;
+  const contentHash = createHash('sha256').update(narrative, 'utf8').digest('hex');
+  record.submission.raw_text = narrative;
+  record.submission.content_hash = contentHash;
+  record.metadata.input_hash = contentHash;
+  const target = record.timeline[0];
+  target.event_summary = eventSummary;
+  target.date = { start: null, end: null, precision: 'unknown', approximate: false };
+  target.source_spans = [
+    {
+      submission_id: record.submission.submission_id,
+      quote,
+      start_char: narrative.length - quote.length,
+      end_char: narrative.length,
+    },
+  ];
+  const issued = question({
+    target_object_id: target.event_id,
+    target_family: 'timeline',
+    field: 'date',
+    trigger: 'date_precision',
+    grounding_references: [sourceReference(target.event_id, target.source_spans[0])],
+  });
+  return { record, target, issued };
+}
+
 function evidenceCase() {
   const record = validPersonAExtraction();
   const target = record.evidence.find(
@@ -475,6 +503,139 @@ describe('Person A clarification answer application', () => {
     expect(result.amendments).toEqual([]);
   });
 
+  it('allows month-only event context to select an exact grounded day', () => {
+    const { record, target, issued } = dateContextCase(
+      'The June deadline.',
+      'The deadline was June 3.',
+    );
+    const submitted = {
+      start: '2026-06-03',
+      end: null,
+      precision: 'day',
+      approximate: false,
+    };
+    const result = apply(record, [issued], [answer(issued, record, submitted)]);
+    expect(result.audit.final_status).toBe('passed');
+    expect(findObject(result.amended_record!, target.event_id).date).toEqual(submitted);
+  });
+
+  it('allows year-month event context to select the same exact grounded date', () => {
+    const { record, target, issued } = dateContextCase(
+      'The June 2026 deadline.',
+      'The deadline was June 3, 2026.',
+    );
+    const submitted = {
+      start: '2026-06-03',
+      end: null,
+      precision: 'day',
+      approximate: false,
+    };
+    const result = apply(record, [issued], [answer(issued, record, submitted)]);
+    expect(result.audit.final_status).toBe('passed');
+    expect(findObject(result.amended_record!, target.event_id).date).toEqual(submitted);
+  });
+
+  it('uses year-month context to constrain a grounded day with no source year', () => {
+    const { record, target, issued } = dateContextCase(
+      'The June 2026 deadline.',
+      'The deadline was June 3.',
+    );
+    const valid = {
+      start: '2026-06-03',
+      end: null,
+      precision: 'day',
+      approximate: false,
+    };
+    const accepted = apply(record, [issued], [answer(issued, record, valid)]);
+    const rejected = apply(
+      record,
+      [issued],
+      [answer(issued, record, { ...valid, start: '2025-06-03' })],
+    );
+    expect(findObject(accepted.amended_record!, target.event_id).date).toEqual(valid);
+    expect(rejected.rejected_answers[0]).toMatchObject({
+      answer_id: 'answer_01',
+      question_id: issued.question_id,
+      code: 'invalid_date_precision',
+    });
+    expect(rejected.amendments).toEqual([]);
+  });
+
+  it.each([
+    ['The July deadline.', 'The deadline was June 3.'],
+    ['The June 4 deadline.', 'The deadline was June 3.'],
+    ['The June 2025 deadline.', 'The deadline was June 3, 2026.'],
+  ])('rejects context that conflicts with its grounded source date: %s', (eventSummary, quote) => {
+    const { record, issued } = dateContextCase(eventSummary, quote);
+    const before = JSON.stringify(record);
+    const result = apply(
+      record,
+      [issued],
+      [
+        answer(issued, record, {
+          start: '2026-06-03',
+          end: null,
+          precision: 'day',
+          approximate: false,
+        }),
+      ],
+    );
+    expect(result.audit.failure_stage).toBe('answer_validation');
+    expect(result.rejected_answers).toEqual([
+      expect.objectContaining({
+        answer_id: 'answer_01',
+        question_id: issued.question_id,
+        code: 'invalid_date_precision',
+      }),
+    ]);
+    expect(result.amendments).toEqual([]);
+    expect(JSON.stringify(result.amended_record)).toBe(before);
+  });
+
+  it('uses coarser context to exclude an unrelated date in the same source span', () => {
+    const { record, target, issued } = dateContextCase(
+      'The June deadline.',
+      'The deadline was June 3, while the earlier copy date was April 25.',
+    );
+    const submitted = {
+      start: '2026-06-03',
+      end: null,
+      precision: 'day',
+      approximate: false,
+    };
+    const result = apply(record, [issued], [answer(issued, record, submitted)]);
+    expect(result.audit.final_status).toBe('passed');
+    expect(findObject(result.amended_record!, target.event_id).date).toEqual(submitted);
+  });
+
+  it('fails closed when month-only context leaves two grounded days possible', () => {
+    const { record, issued } = dateContextCase(
+      'The June deadlines.',
+      'The first deadline was June 3 and the final deadline was June 7.',
+    );
+    const before = JSON.stringify(record);
+    const result = apply(
+      record,
+      [issued],
+      [
+        answer(issued, record, {
+          start: '2026-06-03',
+          end: null,
+          precision: 'day',
+          approximate: false,
+        }),
+      ],
+    );
+    expect(result.audit.failure_stage).toBe('answer_validation');
+    expect(result.rejected_answers[0]).toMatchObject({
+      answer_id: 'answer_01',
+      question_id: issued.question_id,
+      code: 'invalid_date_precision',
+    });
+    expect(result.amendments).toEqual([]);
+    expect(JSON.stringify(result.amended_record)).toBe(before);
+  });
+
   it('applies a month-only date answer by adding only the supplied year', () => {
     const { record, target, issued } = monthDateCase();
     const submitted = {
@@ -534,9 +695,29 @@ describe('Person A clarification answer application', () => {
       [answer(issued, record, 'The delayed launch caused the claimed lost bookings')],
     );
     expect(findObject(result.amended_record!, target.damages_claim_id).causal_theory).toBe(
-      'Person A states that the delayed launch caused the claimed lost bookings.',
+      'Person A states: The delayed launch caused the claimed lost bookings.',
     );
   });
+
+  it.each([
+    ['NASA delayed the launch', 'Person A states: NASA delayed the launch.'],
+    ['Acme Corp withheld payment', 'Person A states: Acme Corp withheld payment.'],
+    ['the delay caused lost bookings', 'Person A states: the delay caused lost bookings.'],
+    ['  NASA   delayed   the launch...  ', 'Person A states: NASA delayed the launch.'],
+    ['Acme Corp withheld payment?!', 'Person A states: Acme Corp withheld payment.'],
+  ])(
+    'preserves causal capitalization and normalizes safe formatting: %s',
+    (submitted, expected) => {
+      const { record, target, issued } = causalCase();
+      const first = apply(record, [issued], [answer(issued, record, submitted)]);
+      const second = apply(record, [issued], [answer(issued, record, submitted)]);
+      expect(first.audit.final_status).toBe('passed');
+      expect(findObject(first.amended_record!, target.damages_claim_id).causal_theory).toBe(
+        expected,
+      );
+      expect(JSON.stringify(second)).toBe(JSON.stringify(first));
+    },
+  );
 
   it('populates only the supported nullable Person A interpretation', () => {
     const { record, target, issued } = interpretationCase();

@@ -15,7 +15,7 @@ export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue
 type JsonObject = { [key: string]: JsonValue };
 
 export const PERSON_A_CLARIFICATION_ANSWER_APPLICATION_VERSION =
-  'person-a-clarification-answer-application-v0.1.6';
+  'person-a-clarification-answer-application-v0.1.7';
 export const PERSON_A_CLARIFICATION_ANSWER_BATCH_VERSION =
   'person-a-clarification-answer-batch-v0.1.0';
 export const MAX_PERSON_A_CLARIFICATION_ANSWERS = 6;
@@ -731,6 +731,9 @@ function dateMentionsFromTexts(texts: readonly string[]): DateMention[] {
         Number(match[1]),
       );
     }
+    for (const match of text.matchAll(new RegExp(`\\b(${monthPattern})\\s+(\\d{4})\\b`, 'giu'))) {
+      add(Number(match[2]), monthNumbers[match[1]!.toLowerCase()]!, null);
+    }
     for (const match of text.matchAll(
       new RegExp(
         `\\b(?:in|during|by|before|after|since|until|through|around)\\s+(${monthPattern})\\b(?!\\s*,?\\s*\\d)`,
@@ -758,6 +761,20 @@ function dateMentionsFromTexts(texts: readonly string[]): DateMention[] {
   ];
 }
 
+function contextDateMentionMatchesSource(
+  contextMention: DateMention,
+  sourceMention: DateMention,
+): boolean {
+  return (
+    contextMention.month === sourceMention.month &&
+    (contextMention.day === null ||
+      (sourceMention.day !== null && contextMention.day === sourceMention.day)) &&
+    (contextMention.year === null ||
+      sourceMention.year === null ||
+      contextMention.year === sourceMention.year)
+  );
+}
+
 function targetDateMentions(
   question: NecessaryClarificationQuestion,
   target: JsonObject,
@@ -767,16 +784,21 @@ function targetDateMentions(
   const contextMentions =
     typeof eventSummary === 'string' ? dateMentionsFromTexts([eventSummary]) : [];
   if (contextMentions.length === 0) return sourceMentions;
-  return sourceMentions.filter((sourceMention) =>
-    contextMentions.some(
-      (contextMention) =>
-        contextMention.month === sourceMention.month &&
-        contextMention.day === sourceMention.day &&
-        (contextMention.year === null ||
-          sourceMention.year === null ||
-          contextMention.year === sourceMention.year),
+  const compatible = sourceMentions.flatMap((sourceMention) =>
+    contextMentions.flatMap((contextMention) =>
+      contextDateMentionMatchesSource(contextMention, sourceMention)
+        ? [{ ...sourceMention, year: sourceMention.year ?? contextMention.year }]
+        : [],
     ),
   );
+  return [
+    ...new Map(
+      compatible.map((mention) => [
+        `${mention.year ?? 'XXXX'}-${mention.month}-${mention.day ?? 'XX'}`,
+        mention,
+      ]),
+    ).values(),
+  ];
 }
 
 function parseIsoDate(value: unknown): { year: number; month: number; day: number } | null {
@@ -983,8 +1005,19 @@ function normalizeAnswer(
           answer,
         );
       }
-      const text = answer.submitted_answer.trim().replace(/\s+/gu, ' ').replace(/[.]+$/u, '');
-      return `Person A states that ${text[0]!.toLowerCase()}${text.slice(1)}.`;
+      const text = answer.submitted_answer
+        .trim()
+        .replace(/\s+/gu, ' ')
+        .replace(/[.!?]+$/u, '')
+        .trim();
+      if (text.length === 0) {
+        return boundedError(
+          'invalid_causal_theory',
+          'Causal answers must contain a bounded Person A assertion.',
+          answer,
+        );
+      }
+      return `Person A states: ${text}.`;
     }
     case 'required_bucket_missing':
       if (

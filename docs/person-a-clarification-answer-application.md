@@ -46,11 +46,15 @@ answer from otherwise valid answers rejected with the batch.
   calendar year. A uniquely grounded bare month is represented as the exact first-to-last-day
   interval for that month with `precision: month`; mismatched months, invented days, and ambiguous
   month grounding fail closed. When one exact source span contains multiple dates, only date
-  mentions also present in the target event summary are eligible; unrelated dates in the same span
-  cannot be applied to the event;
+  mentions compatible with the target event summary are eligible. A coarser summary such as
+  `June deadline` can select an exact grounded `June 3`, while conflicting months, days, or explicit
+  years and ambiguous compatible source dates fail closed. Unrelated dates in the same span cannot
+  be applied to the event;
 - evidence availability remains categorical and cannot imply upload, inspection, authenticity, or
   verification;
-- causal answers are stored explicitly as Person A's asserted theory, not an adjudicated fact;
+- causal answers are stored explicitly as Person A's asserted theory, not an adjudicated fact.
+  Their capitalization is preserved under the `Person A states:` prefix while surrounding
+  whitespace and terminal punctuation are normalized deterministically;
 - nullable agreement interpretation may populate only `person_a_interpretation`;
 - contradiction resolution must select or exactly restate one source-grounded alternative issued
   in the question.
