@@ -737,6 +737,12 @@ describe('Person A clarification answer application', () => {
     const result = apply(record, [actor.issued, dateQuestion], [validActor, invalidDate]);
     expect(result.audit.failure_stage).toBe('answer_validation');
     expect(result.amendments).toEqual([]);
+    expect(result.rejected_answers).toHaveLength(2);
+    expect(
+      result.rejected_answers.every(
+        (rejection) => rejection.answer_id !== null && rejection.question_id !== null,
+      ),
+    ).toBe(true);
     expect(result.rejected_answers).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
