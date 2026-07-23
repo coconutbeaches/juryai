@@ -58,7 +58,10 @@ answer from otherwise valid answers rejected with the batch.
 Aggregate deliverable and evidence splitting remains unsupported in schema v0.1.2. The answer
 boundary cannot create objects or apply merge-risk questions. A valid issued merge-risk question
 may coexist in the runtime plan so that unrelated supported answers can still be applied; an answer
-submitted for the merge-risk question itself is rejected.
+submitted for the merge-risk question itself is rejected. The same plan/application distinction
+applies to `extraction_issues.required_information`: it is a valid runtime-plan question target,
+but schema v0.1.2 has no corresponding extraction-issue field to amend, so submitting an answer for
+it fails closed as unsupported while unanswered questions do not block unrelated supported answers.
 
 ## Offline command
 

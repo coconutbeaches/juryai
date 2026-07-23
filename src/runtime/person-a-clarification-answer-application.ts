@@ -15,7 +15,7 @@ export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue
 type JsonObject = { [key: string]: JsonValue };
 
 export const PERSON_A_CLARIFICATION_ANSWER_APPLICATION_VERSION =
-  'person-a-clarification-answer-application-v0.1.5';
+  'person-a-clarification-answer-application-v0.1.6';
 export const PERSON_A_CLARIFICATION_ANSWER_BATCH_VERSION =
   'person-a-clarification-answer-batch-v0.1.0';
 export const MAX_PERSON_A_CLARIFICATION_ANSWERS = 6;
@@ -224,6 +224,7 @@ const supportedFields: Readonly<
   required_bucket_missing: [
     { family: 'agreement_terms', field: 'person_a_interpretation' },
     { family: 'extraction_issues', field: 'description' },
+    { family: 'extraction_issues', field: 'required_information' },
   ],
   merge_risk: [{ family: 'extraction_issues', field: 'description' }],
 };

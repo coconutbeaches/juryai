@@ -16,7 +16,11 @@ import {
   type PersonAClarificationAnswerApplicationInput,
   type SubmittedPersonAClarificationAnswer,
 } from '../runtime/person-a-clarification-answer-application.js';
-import { PERSON_A_RUNTIME_ORCHESTRATION_VERSION } from '../runtime/person-a-runtime-orchestrator.js';
+import {
+  orchestratePersonAPlanning,
+  PERSON_A_RUNTIME_ORCHESTRATION_VERSION,
+} from '../runtime/person-a-runtime-orchestrator.js';
+import { createStaticRuntimeAssessmentProvider } from '../runtime/static-assessment-provider.js';
 import { validPersonAExtraction } from './person-a-test-helpers.js';
 
 type JsonObject = Record<string, any>;
@@ -303,6 +307,33 @@ function contradictionCase() {
     contradiction_alternatives: alternatives,
   });
   return { record, target, issued, alternatives };
+}
+
+function requiredInformationQuestion(record: JsonObject, questionId = 'clarification_02') {
+  const target = record.extraction_issues[0];
+  return question({
+    question_id: questionId,
+    target_object_id: target.issue_id,
+    target_family: 'extraction_issues',
+    field: 'required_information',
+    trigger: 'required_bucket_missing',
+    grounding_references: [sourceReference(target.issue_id, target.source_spans[0])],
+  });
+}
+
+function requiredInformationAnswer(
+  issued: NecessaryClarificationQuestion,
+  answerId = 'answer_02',
+): SubmittedPersonAClarificationAnswer {
+  return {
+    answer_id: answerId,
+    question_id: issued.question_id,
+    target_object_id: issued.target_object_id,
+    target_family: 'extraction_issues',
+    field: 'required_information',
+    prior_value: null,
+    submitted_answer: 'The submitter supplied additional details.',
+  };
 }
 
 describe('Person A clarification answer application', () => {
@@ -677,6 +708,147 @@ describe('Person A clarification answer application', () => {
     expect(unsupported.audit.failure_stage).toBe('answer_validation');
     expect(unsupported.rejected_answers[0]?.code).toBe('unsupported_field');
     expect(unsupported.amendments).toEqual([]);
+  });
+
+  it('accepts an unanswered required-information question in a valid runtime plan', () => {
+    const record = validPersonAExtraction();
+    const requiredInformation = requiredInformationQuestion(record);
+    const result = apply(record, [requiredInformation], []);
+    expect(result.audit.final_status).toBe('passed');
+    expect(
+      result.stage_statuses.find((stage) => stage.stage === 'runtime_plan_validation'),
+    ).toEqual(expect.objectContaining({ status: 'passed', errors: [] }));
+    expect(result.amendments).toEqual([]);
+  });
+
+  it('applies a date answer when the same plan contains an unanswered required-information question', () => {
+    const { record, target, issued } = dateCase();
+    const requiredInformation = requiredInformationQuestion(record, 'clarification_02');
+    const submitted = {
+      start: '2026-04-25',
+      end: null,
+      precision: 'day',
+      approximate: false,
+    };
+    const result = apply(
+      record,
+      [issued, requiredInformation],
+      [answer(issued, record, submitted)],
+    );
+    expect(result.audit.final_status).toBe('passed');
+    expect(findObject(result.amended_record!, target.event_id).date).toEqual(submitted);
+  });
+
+  it('applies an evidence answer when the same plan contains an unanswered required-information question', () => {
+    const { record, target, issued } = evidenceCase();
+    const requiredInformation = requiredInformationQuestion(record, 'clarification_02');
+    const result = apply(
+      record,
+      [issued, requiredInformation],
+      [answer(issued, record, 'unavailable')],
+    );
+    expect(result.audit.final_status).toBe('passed');
+    expect(findObject(result.amended_record!, target.evidence_id).availability_status).toBe(
+      'unavailable',
+    );
+  });
+
+  it('rejects only a submitted required-information answer as unsupported', () => {
+    const record = validPersonAExtraction();
+    const requiredInformation = requiredInformationQuestion(record);
+    const before = JSON.stringify(record);
+    const result = apply(
+      record,
+      [requiredInformation],
+      [requiredInformationAnswer(requiredInformation)],
+    );
+    expect(result.audit.failure_stage).toBe('answer_validation');
+    expect(result.rejected_answers).toEqual([
+      expect.objectContaining({
+        answer_id: 'answer_02',
+        question_id: requiredInformation.question_id,
+        code: 'unsupported_field',
+      }),
+    ]);
+    expect(result.amendments).toEqual([]);
+    expect(JSON.stringify(result.amended_record)).toBe(before);
+  });
+
+  it('rejects a mixed batch atomically when a required-information answer is submitted', () => {
+    const { record, issued } = evidenceCase();
+    const requiredInformation = requiredInformationQuestion(record, 'clarification_02');
+    const validEvidence = answer(issued, record, 'unavailable');
+    const unsupported = requiredInformationAnswer(requiredInformation);
+    const before = JSON.stringify(record);
+    const result = apply(record, [issued, requiredInformation], [validEvidence, unsupported]);
+    const repeated = apply(record, [issued, requiredInformation], [validEvidence, unsupported]);
+    expect(result.audit.failure_stage).toBe('answer_validation');
+    expect(result.rejected_answers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          answer_id: validEvidence.answer_id,
+          code: 'atomic_batch_rejected',
+        }),
+        expect.objectContaining({
+          answer_id: unsupported.answer_id,
+          code: 'unsupported_field',
+        }),
+      ]),
+    );
+    expect(result.amendments).toEqual([]);
+    expect(JSON.stringify(result.amended_record)).toBe(before);
+    expect(JSON.stringify(repeated)).toBe(JSON.stringify(result));
+  });
+
+  it('still rejects genuinely incompatible required-information questions', () => {
+    const { record, target, issued } = evidenceCase();
+    const incompatible = question({
+      question_id: 'clarification_02',
+      target_object_id: target.evidence_id,
+      target_family: 'evidence',
+      field: 'required_information',
+      trigger: 'required_bucket_missing',
+      grounding_references: issued.grounding_references,
+    });
+    const result = apply(record, [incompatible], []);
+    expect(result.audit.failure_stage).toBe('runtime_plan_validation');
+    expect(result.rejected_answers[0]?.code).toBe('invalid_runtime_plan');
+  });
+
+  it('accepts the dry-run static-assessment fixture plan', () => {
+    const extraction = JSON.parse(
+      readFileSync(
+        resolve(process.cwd(), 'src/fixtures/dry_run_001.person_a.saved_v3.extraction.json'),
+        'utf8',
+      ),
+    );
+    const assessmentFixture = JSON.parse(
+      readFileSync(
+        resolve(process.cwd(), 'src/fixtures/dry_run_001.person_a.runtime_assessments.json'),
+        'utf8',
+      ),
+    );
+    const plan = orchestratePersonAPlanning({
+      extraction,
+      narrative: extraction.submission.raw_text,
+      assessmentProvider: createStaticRuntimeAssessmentProvider(assessmentFixture.assessments),
+    });
+    expect(
+      plan.generated_questions.some(
+        (candidate) =>
+          candidate.target_family === 'extraction_issues' &&
+          candidate.field === 'required_information',
+      ),
+    ).toBe(true);
+    const result = applyPersonAClarificationAnswers({
+      baseline: plan.repaired_extraction,
+      runtimePlan: plan,
+      answers: [],
+    });
+    expect(result.audit.final_status).toBe('passed');
+    expect(
+      result.stage_statuses.find((stage) => stage.stage === 'runtime_plan_validation'),
+    ).toEqual(expect.objectContaining({ status: 'passed', errors: [] }));
   });
 
   it('fails closed on hostile top-level accessors without invoking them', () => {
