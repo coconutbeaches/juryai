@@ -37,7 +37,7 @@
       },
       "golden": {
         "path": "dry_run_002.person_a.golden.extraction.json",
-        "sha256": "3ffa68b9b28b2fd0fc0481357a1a011bb6f164afa2d199c1ec870f581e277bdf"
+        "sha256": "67c85bc005b377a064d1bd18c59570dff50cdc10ae9ac9480331da41a934165c"
       },
       "semantic_calibration": {
         "identities": ["jordan", "priya"],
@@ -61,7 +61,7 @@
       },
       "golden": {
         "path": "dry_run_003.person_a.golden.extraction.json",
-        "sha256": "8b800c4a4fef485270965c5e4f8a7bb411ecfdb56a80bd2ea72391040c94f261"
+        "sha256": "12b3113cc6be3edeebdeee84852802133ee60b0cf883fd3ed806bc757dcb2584"
       },
       "semantic_calibration": {
         "identities": ["devon", "samir"],
@@ -125,7 +125,7 @@
       "origin": "hand_authored_control",
       "extraction": {
         "path": "dry_run_002.person_a.golden.extraction.json",
-        "sha256": "3ffa68b9b28b2fd0fc0481357a1a011bb6f164afa2d199c1ec870f581e277bdf"
+        "sha256": "67c85bc005b377a064d1bd18c59570dff50cdc10ae9ac9480331da41a934165c"
       },
       "expected_status": "accepted"
     },
@@ -135,7 +135,7 @@
       "origin": "hand_authored_control",
       "extraction": {
         "path": "dry_run_003.person_a.golden.extraction.json",
-        "sha256": "8b800c4a4fef485270965c5e4f8a7bb411ecfdb56a80bd2ea72391040c94f261"
+        "sha256": "12b3113cc6be3edeebdeee84852802133ee60b0cf883fd3ed806bc757dcb2584"
       },
       "expected_status": "accepted"
     }

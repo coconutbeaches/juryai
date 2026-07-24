@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { readFile, realpath } from 'node:fs/promises';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import {
   alignPersonAForCase,
@@ -145,8 +145,28 @@ function isObject(value: unknown): value is JsonObject {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function fail(message: string): never {
-  throw new Error(`Invalid Person A extraction acceptance manifest: ${message}`);
+type ManifestFailureCode =
+  | 'manifest_invalid'
+  | 'manifest_file_unreadable'
+  | 'fixture_path_unsafe'
+  | 'fixture_path_escape'
+  | 'fixture_file_unreadable'
+  | 'fixture_hash_mismatch'
+  | 'fixture_invalid_utf8'
+  | 'fixture_invalid_json';
+
+class PersonAExtractionAcceptanceManifestError extends Error {
+  readonly code: ManifestFailureCode;
+
+  constructor(code: ManifestFailureCode, message: string) {
+    super(`Invalid Person A extraction acceptance manifest: ${message}`);
+    this.name = 'PersonAExtractionAcceptanceManifestError';
+    this.code = code;
+  }
+}
+
+function fail(message: string, code: ManifestFailureCode = 'manifest_invalid'): never {
+  throw new PersonAExtractionAcceptanceManifestError(code, message);
 }
 
 export function sha256Bytes(value: string | Uint8Array): string {
@@ -456,6 +476,11 @@ function validateAliases(
   );
 }
 
+function isWithinDirectory(root: string, target: string): boolean {
+  const fromRoot = relative(root, target);
+  return fromRoot !== '..' && !fromRoot.startsWith(`..${sep}`) && !isAbsolute(fromRoot);
+}
+
 function safeFixturePath(root: string, filePath: string, context: string): string {
   if (
     isAbsolute(filePath) ||
@@ -463,12 +488,12 @@ function safeFixturePath(root: string, filePath: string, context: string): strin
     filePath.split('/').some((segment) => segment === '' || segment === '.' || segment === '..') ||
     !/^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(filePath)
   ) {
-    fail(`${context}.path is malformed or unsafe`);
+    fail(`${context}.path is malformed or unsafe`, 'fixture_path_unsafe');
   }
   const absolute = resolve(root, filePath);
   const fromRoot = relative(root, absolute);
   if (fromRoot === '..' || fromRoot.startsWith(`..${sep}`) || isAbsolute(fromRoot)) {
-    fail(`${context}.path escapes the manifest directory`);
+    fail(`${context}.path escapes the manifest directory`, 'fixture_path_escape');
   }
   return absolute;
 }
@@ -477,37 +502,63 @@ async function readFixture(
   root: string,
   reference: ManifestFileReference,
   context: string,
-): Promise<string> {
-  const path = safeFixturePath(root, reference.path, context);
-  let bytes: string;
+): Promise<Uint8Array> {
+  const lexicalPath = safeFixturePath(root, reference.path, context);
+  let canonicalPath: string;
   try {
-    bytes = await readFile(path, 'utf8');
+    canonicalPath = await realpath(lexicalPath);
   } catch {
-    fail(`${context}.path is missing or unreadable`);
+    fail(`${context}.path is missing or unreadable`, 'fixture_file_unreadable');
   }
-  if (sha256Bytes(bytes) !== reference.sha256) fail(`${context} hash mismatch`);
+  if (!isWithinDirectory(root, canonicalPath)) {
+    fail(`${context}.path escapes the manifest directory`, 'fixture_path_escape');
+  }
+  let bytes: Uint8Array;
+  try {
+    bytes = await readFile(canonicalPath);
+  } catch {
+    fail(`${context}.path is missing or unreadable`, 'fixture_file_unreadable');
+  }
+  if (sha256Bytes(bytes) !== reference.sha256) {
+    fail(`${context} hash mismatch`, 'fixture_hash_mismatch');
+  }
   return bytes;
 }
 
-function parseJsonFixture(bytes: string, context: string): unknown {
+function decodeUtf8(bytes: Uint8Array, context: string): string {
   try {
-    return JSON.parse(bytes) as unknown;
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
   } catch {
-    return fail(`${context} contains invalid JSON`);
+    return fail(`${context} is not valid UTF-8`, 'fixture_invalid_utf8');
+  }
+}
+
+function parseJsonFixture(bytes: string | Uint8Array, context: string): unknown {
+  const text = typeof bytes === 'string' ? bytes : decodeUtf8(bytes, context);
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return fail(`${context} contains invalid JSON`, 'fixture_invalid_json');
   }
 }
 
 export async function loadPersonAExtractionAcceptanceManifest(
   manifestPath: string,
 ): Promise<PersonAExtractionAcceptanceCase[]> {
-  let rawManifest: string;
+  let canonicalManifestPath: string;
   try {
-    rawManifest = await readFile(manifestPath, 'utf8');
+    canonicalManifestPath = await realpath(manifestPath);
   } catch {
-    fail('manifest file is missing or unreadable');
+    fail('manifest file is missing or unreadable', 'manifest_file_unreadable');
+  }
+  let rawManifest: Uint8Array;
+  try {
+    rawManifest = await readFile(canonicalManifestPath);
+  } catch {
+    fail('manifest file is missing or unreadable', 'manifest_file_unreadable');
   }
   const manifest = parseManifest(parseJsonFixture(rawManifest, 'manifest'));
-  const manifestDirectory = dirname(resolve(manifestPath));
+  const manifestDirectory = dirname(canonicalManifestPath);
   const caseIds = new Set<string>();
   for (const manifestCase of manifest.cases) {
     if (caseIds.has(manifestCase.case_id)) fail(`duplicate case ID '${manifestCase.case_id}'`);
@@ -536,7 +587,7 @@ export async function loadPersonAExtractionAcceptanceManifest(
           manifestCase.semantic_calibration,
           `case '${manifestCase.case_id}' semantic calibration`,
         );
-        const [narrative, goldenBytes] = await Promise.all([
+        const [narrativeBytes, goldenBytes] = await Promise.all([
           readFixture(
             manifestDirectory,
             manifestCase.narrative,
@@ -548,6 +599,7 @@ export async function loadPersonAExtractionAcceptanceManifest(
             `case '${manifestCase.case_id}' golden`,
           ),
         ]);
+        const narrative = decodeUtf8(narrativeBytes, `case '${manifestCase.case_id}' narrative`);
         const candidates = await Promise.all(
           manifest.candidates
             .filter((candidate) => candidate.case_id === manifestCase.case_id)

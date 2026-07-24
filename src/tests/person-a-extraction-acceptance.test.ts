@@ -1,7 +1,22 @@
-import { readFileSync } from 'node:fs';
-import { mkdtemp, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
+import {
+  isCallExpression,
+  isElementAccessExpression,
+  isExportDeclaration,
+  isExternalModuleReference,
+  isIdentifier,
+  isImportDeclaration,
+  isImportEqualsDeclaration,
+  isPropertyAccessExpression,
+  isNoSubstitutionTemplateLiteral,
+  isStringLiteral,
+  SyntaxKind,
+  type Node,
+  type SourceFile,
+} from 'typescript/unstable/ast';
+import { API, type Project } from 'typescript/unstable/sync';
 import { describe, expect, it } from 'vitest';
 import {
   DRY_RUN_001_COMPATIBILITY_ALIASES,
@@ -71,6 +86,42 @@ describe('Person A extraction acceptance corpus', () => {
     expect(suite.historical_model_acceptance).toEqual({ accepted: 0, total: 3 });
   });
 
+  it('keeps synthetic controls internally consistent and preserves quoted authorship', async () => {
+    const cases = await corpus();
+    const dryRun2 = cases.find((entry) => entry.caseId === 'dry_run_002')!;
+    const dryRun3 = cases.find((entry) => entry.caseId === 'dry_run_003')!;
+    const dryRun2Golden = dryRun2.golden as Record<string, any>;
+    const dryRun3Golden = dryRun3.golden as Record<string, any>;
+
+    expect(dryRun2Golden.timeline[1].person_a_interpretation).toContain(
+      'retained two chairs to finish',
+    );
+    expect(dryRun2Golden.evidence[0].extracts[0]).toMatchObject({
+      text: 'They look ready for the hotel lobby',
+      author_party_id: 'party_b',
+      author_status: 'asserted_by_submitter',
+    });
+    expect(dryRun3Golden.timeline[1].person_a_interpretation).toContain(
+      'did not observe who unplugged the controller',
+    );
+    expect(dryRun3Golden.damages_claims[0]).toMatchObject({
+      loss_type: 'refund',
+      amount_min: 600,
+      amount_max: 600,
+    });
+    expect(dryRun3Golden.desired_outcomes.outcomes[0].transfers[0]).toEqual({
+      from_party_id: 'party_b',
+      to_party_id: 'party_a',
+      amount: 600,
+      currency: 'USD',
+    });
+    expect(dryRun3Golden.evidence[0].extracts[0]).toMatchObject({
+      text: 'I will bring backup batteries.',
+      author_party_id: 'party_b',
+      author_status: 'asserted_by_submitter',
+    });
+  });
+
   it('replays all three historical saved outputs as rejected with stable broad failures', async () => {
     const suite = evaluatePersonAExtractionAcceptanceSuite(await corpus());
     const historical = suite.results.filter(
@@ -128,6 +179,16 @@ describe('Person A extraction acceptance corpus', () => {
     });
     expect(result.critical_count).toBeGreaterThan(0);
     expect(result.failure_code_histogram).toHaveProperty('actor_reversed');
+    expect(result.status).toBe('rejected');
+  });
+
+  it('rejects reversed attribution of a quoted synthetic evidence extract', async () => {
+    const acceptanceCase = (await corpus())[2]!;
+    const result = candidateResult(acceptanceCase, (candidate) => {
+      candidate.evidence[0].extracts[0].author_party_id = 'party_a';
+    });
+    expect(result.failure_code_histogram).toHaveProperty('extract_author_reversed');
+    expect(result.critical_count).toBeGreaterThan(0);
     expect(result.status).toBe('rejected');
   });
 
@@ -299,6 +360,10 @@ async function temporaryManifest(
 }
 
 describe('Person A extraction acceptance manifest safety', () => {
+  it('loads ordinary contained corpus fixtures', async () => {
+    await expect(corpus()).resolves.toHaveLength(3);
+  });
+
   it('rejects duplicate case IDs', async () => {
     const path = await temporaryManifest((manifest) => {
       manifest.cases.push(clone(manifest.cases[0]!));
@@ -343,6 +408,72 @@ describe('Person A extraction acceptance manifest safety', () => {
     await expect(loadPersonAExtractionAcceptanceManifest(unsafe)).rejects.toThrow(
       'malformed or unsafe',
     );
+    await expect(loadPersonAExtractionAcceptanceManifest(unsafe)).rejects.toMatchObject({
+      code: 'fixture_path_unsafe',
+    });
+  });
+
+  it('rejects final-component and intermediate-directory symlink escapes', async () => {
+    const finalEscape = await temporaryManifest((manifest) => {
+      manifest.candidates[0]!.extraction.path = 'candidate-link.json';
+    });
+    const finalRoot = dirname(finalEscape);
+    const finalOutside = await mkdtemp(resolve(tmpdir(), 'juryai-person-a-outside-'));
+    const finalOutsideFile = resolve(finalOutside, 'candidate.json');
+    await writeFile(finalOutsideFile, '{}\n');
+    await symlink(finalOutsideFile, resolve(finalRoot, 'candidate-link.json'));
+    await expect(loadPersonAExtractionAcceptanceManifest(finalEscape)).rejects.toMatchObject({
+      code: 'fixture_path_escape',
+    });
+
+    const intermediateEscape = await temporaryManifest((manifest) => {
+      manifest.candidates[0]!.extraction.path = 'linked/candidate.json';
+    });
+    const intermediateRoot = dirname(intermediateEscape);
+    const intermediateOutside = await mkdtemp(resolve(tmpdir(), 'juryai-person-a-outside-'));
+    await writeFile(resolve(intermediateOutside, 'candidate.json'), '{}\n');
+    await symlink(intermediateOutside, resolve(intermediateRoot, 'linked'));
+    await expect(loadPersonAExtractionAcceptanceManifest(intermediateEscape)).rejects.toMatchObject(
+      {
+        code: 'fixture_path_escape',
+      },
+    );
+  });
+
+  it('allows a symlink whose canonical target remains inside the manifest directory', async () => {
+    const narrative = await readFile(
+      resolve(process.cwd(), 'src/fixtures/dry_run_002.person_a.txt'),
+    );
+    const golden = await readFile(
+      resolve(process.cwd(), 'src/fixtures/dry_run_002.person_a.golden.extraction.json'),
+    );
+    const contained = await temporaryManifest(
+      (manifest) => {
+        manifest.candidates[0]!.extraction.path = 'candidate-link.json';
+        manifest.candidates[0]!.expected_status = 'accepted';
+      },
+      {
+        narrative: narrative.toString('utf8'),
+        golden: golden.toString('utf8'),
+        candidate: golden.toString('utf8'),
+      },
+    );
+    await symlink('candidate.json', resolve(dirname(contained), 'candidate-link.json'));
+    await expect(loadPersonAExtractionAcceptanceManifest(contained)).resolves.toHaveLength(1);
+  });
+
+  it('rejects a symlink target in a sibling directory with a shared path prefix', async () => {
+    const manifest = await temporaryManifest((value) => {
+      value.candidates[0]!.extraction.path = 'prefix-link.json';
+    });
+    const root = dirname(manifest);
+    const sibling = `${root}-outside`;
+    await mkdir(sibling);
+    await writeFile(resolve(sibling, 'candidate.json'), '{}\n');
+    await symlink(resolve(sibling, 'candidate.json'), resolve(root, 'prefix-link.json'));
+    await expect(loadPersonAExtractionAcceptanceManifest(manifest)).rejects.toMatchObject({
+      code: 'fixture_path_escape',
+    });
   });
 
   it('rejects malformed, unknown, and ambiguous aliases', async () => {
@@ -482,13 +613,111 @@ describe('Person A extraction acceptance CLI', () => {
   });
 });
 
-function localImports(path: string): string[] {
-  const source = readFileSync(path, 'utf8');
-  const imports: string[] = [];
-  const declaration =
-    /\b(?:import|export)\s+(?:type\s+)?(?:[\s\S]*?\s+from\s+)?['"]([^'"]+)['"];?/g;
-  for (const match of source.matchAll(declaration)) imports.push(match[1]!);
-  return imports;
+type DependencyAnalysis = {
+  moduleSpecifiers: string[];
+  forbiddenConstructs: string[];
+};
+
+function identifierText(node: Node): string | null {
+  return isIdentifier(node) ? String(node.text) : null;
+}
+
+function propertyName(node: Node): string | null {
+  if (isPropertyAccessExpression(node)) return String(node.name.text);
+  if (isElementAccessExpression(node) && node.argumentExpression) {
+    return stringLiteralText(node.argumentExpression);
+  }
+  return null;
+}
+
+function stringLiteralText(node: Node): string | null {
+  return isStringLiteral(node) || isNoSubstitutionTemplateLiteral(node) ? node.text : null;
+}
+
+function staticModuleSpecifier(node: Node): string | null {
+  if ((isImportDeclaration(node) || isExportDeclaration(node)) && node.moduleSpecifier) {
+    return stringLiteralText(node.moduleSpecifier);
+  }
+  if (
+    isImportEqualsDeclaration(node) &&
+    isExternalModuleReference(node.moduleReference) &&
+    node.moduleReference.expression &&
+    stringLiteralText(node.moduleReference.expression) !== null
+  ) {
+    return stringLiteralText(node.moduleReference.expression);
+  }
+  return null;
+}
+
+function analyzeDependencies(sourceFile: SourceFile): DependencyAnalysis {
+  const moduleSpecifiers = new Set<string>();
+  const forbiddenConstructs = new Set<string>();
+  const visit = (node: Node): void => {
+    const staticSpecifier = staticModuleSpecifier(node);
+    if (staticSpecifier) moduleSpecifiers.add(staticSpecifier);
+
+    if (isCallExpression(node)) {
+      const argument = node.arguments[0];
+      const calledIdentifier = identifierText(node.expression);
+      const calledProperty = propertyName(node.expression);
+      if (node.expression.kind === SyntaxKind.ImportKeyword) {
+        forbiddenConstructs.add('dynamic_import');
+        if (argument && stringLiteralText(argument) !== null) {
+          moduleSpecifiers.add(stringLiteralText(argument)!);
+        }
+      }
+      if (calledIdentifier === 'require') {
+        forbiddenConstructs.add('require');
+        if (argument && stringLiteralText(argument) !== null) {
+          moduleSpecifiers.add(stringLiteralText(argument)!);
+        }
+      }
+      if (calledIdentifier === 'createRequire' || calledProperty === 'createRequire') {
+        forbiddenConstructs.add('create_require');
+      }
+      if (calledIdentifier === 'fetch' || calledProperty === 'fetch') {
+        forbiddenConstructs.add('network_fetch');
+      }
+    }
+
+    if (
+      (isPropertyAccessExpression(node) || isElementAccessExpression(node)) &&
+      identifierText(node.expression) === 'process' &&
+      propertyName(node) === 'env'
+    ) {
+      forbiddenConstructs.add('process_env');
+    }
+    node.forEachChild(visit);
+  };
+  visit(sourceFile);
+  return {
+    moduleSpecifiers: [...moduleSpecifiers].sort(),
+    forbiddenConstructs: [...forbiddenConstructs].sort(),
+  };
+}
+
+function withProject<T>(configPath: string, inspect: (project: Project) => T): T {
+  const api = new API({ cwd: dirname(configPath) });
+  try {
+    const snapshot = api.updateSnapshot({ openProjects: [configPath] });
+    const project = snapshot.getProject(configPath);
+    if (!project) throw new Error(`TypeScript did not load dependency-audit project ${configPath}`);
+    return inspect(project);
+  } finally {
+    api.close();
+  }
+}
+
+function sourceFile(project: Project, path: string): SourceFile {
+  const source = project.program.getSourceFile(path);
+  if (!source) throw new Error(`TypeScript did not parse dependency-audit source ${path}`);
+  return source;
+}
+
+function isForbiddenDependencyPath(path: string): boolean {
+  return /person-b|openai-responses|person-a-extractor|provider|runtime|supabase|persistence|environment-key|network-client/i.test(
+    path,
+  );
 }
 
 describe('Person A acceptance dependency isolation', () => {
@@ -499,19 +728,24 @@ describe('Person A acceptance dependency isolation', () => {
     ];
     const visited = new Set<string>();
     const external = new Set<string>();
-    const visit = (path: string): void => {
-      if (visited.has(path)) return;
-      visited.add(path);
-      for (const specifier of localImports(path)) {
-        if (!specifier.startsWith('.')) {
-          external.add(specifier);
-          continue;
+    const forbiddenConstructs = new Set<string>();
+    withProject(resolve(process.cwd(), 'tsconfig.json'), (project) => {
+      const visit = (path: string): void => {
+        if (visited.has(path)) return;
+        visited.add(path);
+        const analysis = analyzeDependencies(sourceFile(project, path));
+        analysis.forbiddenConstructs.forEach((finding) => forbiddenConstructs.add(finding));
+        for (const specifier of analysis.moduleSpecifiers) {
+          if (!specifier.startsWith('.')) {
+            external.add(specifier);
+            continue;
+          }
+          const resolved = resolve(dirname(path), specifier.replace(/\.js$/, '.ts'));
+          visit(resolved);
         }
-        const resolved = resolve(dirname(path), specifier.replace(/\.js$/, '.ts'));
-        visit(resolved);
-      }
-    };
-    roots.forEach(visit);
+      };
+      roots.forEach(visit);
+    });
 
     expect([...external].sort()).toEqual([
       'ajv',
@@ -522,10 +756,55 @@ describe('Person A acceptance dependency isolation', () => {
       'node:path',
       'node:url',
     ]);
+    expect([...forbiddenConstructs]).toEqual([]);
     for (const path of visited) {
-      expect(path).not.toMatch(
-        /person-b|openai-responses|person-a-extractor|\/runtime\/|supabase|persistence/i,
-      );
+      expect(isForbiddenDependencyPath(path)).toBe(false);
     }
+  });
+
+  it('detects representative hidden dependency and side-effect constructs through the AST', async () => {
+    const directory = await mkdtemp(resolve(tmpdir(), 'juryai-person-a-dependency-audit-'));
+    const probes = {
+      'dynamic.ts': "void import('openai');\n",
+      'require.ts': "const client = require('openai');\nvoid client;\n",
+      'create-require.ts':
+        "import { createRequire } from 'node:module';\nconst load = createRequire(import.meta.url);\nvoid load;\n",
+      'environment.ts': 'void process.env.OPENAI_API_KEY;\n',
+      'network.ts': "void fetch('https://example.invalid');\n",
+      'export-from.ts': "export { reconcile } from './person-b.js';\n",
+    };
+    await Promise.all(
+      Object.entries(probes).map(([name, source]) => writeFile(resolve(directory, name), source)),
+    );
+    const configPath = resolve(directory, 'tsconfig.json');
+    await writeFile(
+      configPath,
+      `${JSON.stringify({ compilerOptions: { target: 'ES2022', module: 'ESNext' }, files: Object.keys(probes) }, null, 2)}\n`,
+    );
+
+    const analyses = withProject(configPath, (project) =>
+      Object.fromEntries(
+        Object.keys(probes).map((name) => [
+          name,
+          analyzeDependencies(sourceFile(project, resolve(directory, name))),
+        ]),
+      ),
+    );
+    expect(analyses['dynamic.ts']).toMatchObject({
+      moduleSpecifiers: ['openai'],
+      forbiddenConstructs: ['dynamic_import'],
+    });
+    expect(analyses['require.ts']).toMatchObject({
+      moduleSpecifiers: ['openai'],
+      forbiddenConstructs: ['require'],
+    });
+    expect(analyses['create-require.ts']).toMatchObject({
+      moduleSpecifiers: ['node:module'],
+      forbiddenConstructs: ['create_require'],
+    });
+    expect(analyses['environment.ts']!.forbiddenConstructs).toEqual(['process_env']);
+    expect(analyses['network.ts']!.forbiddenConstructs).toEqual(['network_fetch']);
+    expect(analyses['export-from.ts']!.moduleSpecifiers).toEqual(['./person-b.js']);
+    expect(isForbiddenDependencyPath(analyses['export-from.ts']!.moduleSpecifiers[0]!)).toBe(true);
   });
 });

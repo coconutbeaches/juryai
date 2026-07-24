@@ -95,7 +95,7 @@
       "asserted_by_party_ids": ["party_a"],
       "occurrence_status": "supported_unanswered",
       "interpretation_status": "unclear",
-      "person_a_interpretation": "A material dependency for the launch schedule.",
+      "person_a_interpretation": "The main lights failed, but Samir did not observe who unplugged the controller.",
       "person_b_interpretation": null,
       "source_evidence_ids": ["ev_dry_run_003"],
       "source_spans": [
@@ -210,7 +210,16 @@
         "metadata_present": [],
         "metadata_missing": ["file not supplied for inspection"]
       },
-      "extracts": [],
+      "extracts": [
+        {
+          "extract_id": "ext_dry_run_003_devon_email",
+          "text": "I will bring backup batteries.",
+          "author_party_id": "party_b",
+          "author_third_party_id": null,
+          "author_status": "asserted_by_submitter",
+          "location_in_evidence": "submitter-described quoted email"
+        }
+      ],
       "limitations": ["Described by submitter but not uploaded or inspected"]
     }
   ],
@@ -219,12 +228,12 @@
     {
       "damages_claim_id": "dam_dry_run_003",
       "party_id": "party_a",
-      "loss_type": "unpaid_balance",
+      "loss_type": "refund",
       "amount_min": 600,
       "amount_max": 600,
       "currency": "USD",
-      "causal_theory": "The project was completed or substantially completed, triggering the remaining balance.",
-      "calculation_basis": "Person A requests 600 USD.",
+      "causal_theory": "Samir seeks return of the deposit after the alleged event-lighting failure.",
+      "calculation_basis": "The requested refund is the 600 USD deposit paid to Devon.",
       "calculation_status": "partially_documented",
       "support_level": "not_assessed",
       "source_claim_ids": ["cl_003_remedy"],

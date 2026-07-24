@@ -95,7 +95,7 @@
       "asserted_by_party_ids": ["party_a"],
       "occurrence_status": "supported_unanswered",
       "interpretation_status": "unclear",
-      "person_a_interpretation": "A material dependency for the launch schedule.",
+      "person_a_interpretation": "Priya collected four restored chairs while Jordan retained two chairs to finish.",
       "person_b_interpretation": null,
       "source_evidence_ids": ["ev_dry_run_002"],
       "source_spans": [
@@ -210,7 +210,16 @@
         "metadata_present": [],
         "metadata_missing": ["file not supplied for inspection"]
       },
-      "extracts": [],
+      "extracts": [
+        {
+          "extract_id": "ext_dry_run_002_priya_message",
+          "text": "They look ready for the hotel lobby",
+          "author_party_id": "party_b",
+          "author_third_party_id": null,
+          "author_status": "asserted_by_submitter",
+          "location_in_evidence": "submitter-described quoted message"
+        }
+      ],
       "limitations": ["Described by submitter but not uploaded or inspected"]
     }
   ],

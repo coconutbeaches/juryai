@@ -75,8 +75,16 @@ tracked sanitized extraction fixture.
   file, and expected `accepted` or `rejected` status.
 
 Every file reference has `path` and `sha256`. Paths are relative to the manifest directory and
-must be simple, normalized, non-absolute paths without traversal. SHA-256 is calculated over the
-exact file bytes, including the final newline.
+must be simple, normalized, non-absolute paths without traversal. The loader resolves both the
+manifest and every fixture through the filesystem, then requires each fixture's canonical path
+to remain inside the canonical manifest directory. Symlinks whose targets remain inside that
+directory are allowed; final-component and intermediate-directory symlinks that escape it are
+rejected with the stable `fixture_path_escape` error code. Boundary checks use path components,
+so a sibling directory that merely shares the manifest directory's string prefix is not inside.
+Lexically unsafe paths fail with `fixture_path_unsafe`.
+
+SHA-256 is calculated over the exact raw file bytes, including the final newline, before UTF-8
+decoding or JSON parsing. Narrative and JSON fixtures must then decode as valid UTF-8.
 
 The loader fails closed on duplicate IDs, unknown cases, unsupported origins or statuses, missing
 files, malformed or unsafe paths, malformed JSON, hash mismatches, malformed aliases, aliases
@@ -163,7 +171,13 @@ corpus input exit `1`.
 
 The CLI validates every argument before corpus file I/O. It imports no OpenAI client, provider
 invocation, environment-key reader, network client, persistence, Supabase, runtime orchestration,
-or Person B code.
+or Person B code. The dependency-isolation test parses the evaluator and CLI's complete local
+import graph with the repository's TypeScript compiler AST. It covers static imports,
+`export ... from`, dynamic `import()`, CommonJS `require()`, `createRequire()`, `process.env`, and
+`fetch()`. The graph must contain only the documented Node/Ajv dependencies and no forbidden
+provider, runtime, persistence, Supabase, or Person B path. This is a static source-dependency and
+forbidden-global check, not a universal runtime sandbox or a claim to detect deliberately
+obfuscated code.
 
 ## Adding a synthetic case
 
