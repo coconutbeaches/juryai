@@ -35,6 +35,12 @@ treated as absent. Every field-specific rejection, including date-shape and date
 retains the exact answer and question IDs so atomic-batch audit results distinguish the offending
 answer from otherwise valid answers rejected with the batch.
 
+Runtime-plan grounding accepts only exact `source_span` and `extracted_object` shapes. Unknown,
+missing, mixed, or malformed grounding kinds reject the plan before answer validation. Actor,
+date, causal, merge-risk, contradiction, and extraction-issue missing-bucket questions require at
+least one exact source span. Evidence availability and nullable agreement interpretation may remain
+object-grounded when their current extracted value is the relevant fact.
+
 ## Supported answer types
 
 - actor attribution resolves only to `party_a`, `party_b`, or an existing third party. A question

@@ -286,12 +286,14 @@ function evidenceCase() {
 function causalCase() {
   const record = validPersonAExtraction();
   const target = record.damages_claims[0];
+  const sourceClaim = findObject(record, target.source_claim_ids[0]);
   const issued = question({
     target_object_id: target.damages_claim_id,
     target_family: 'damages',
     field: 'causal_theory',
     trigger: 'causal_link',
     grounding_references: [
+      sourceReference(sourceClaim.claim_id, sourceClaim.source_spans[0]),
       extractedReference(target.damages_claim_id, 'causal_theory', target.causal_theory),
     ],
   });
@@ -1061,6 +1063,197 @@ describe('Person A clarification answer application', () => {
     );
     expect(result.audit.failure_stage).toBe('runtime_plan_validation');
     expect(result.rejected_answers[0]?.code).toBe('invalid_runtime_plan');
+  });
+
+  it.each([
+    {
+      label: 'unknown',
+      grounding: {
+        kind: 'bogus',
+        object_id: 'event_placeholder',
+        field: 'actor_party_id',
+        value: null,
+      },
+    },
+    {
+      label: 'missing',
+      grounding: {
+        object_id: 'event_placeholder',
+        field: 'actor_party_id',
+        value: null,
+      },
+    },
+    {
+      label: 'null',
+      grounding: {
+        kind: null,
+        object_id: 'event_placeholder',
+        field: 'actor_party_id',
+        value: null,
+      },
+    },
+    {
+      label: 'non-string',
+      grounding: {
+        kind: 7,
+        object_id: 'event_placeholder',
+        field: 'actor_party_id',
+        value: null,
+      },
+    },
+  ])('rejects a $label grounding kind even when object fields look valid', ({ grounding }) => {
+    const { record, target, issued } = actorCase();
+    const malformed = structuredClone(issued) as JsonObject;
+    malformed.grounding_references = [
+      {
+        ...grounding,
+        object_id: target.event_id,
+      },
+    ];
+    const before = JSON.stringify(record);
+    const first = apply(
+      record,
+      [malformed as NecessaryClarificationQuestion],
+      [answer(issued, record, 'party_a')],
+    );
+    const second = apply(
+      record,
+      [malformed as NecessaryClarificationQuestion],
+      [answer(issued, record, 'party_a')],
+    );
+
+    expect(first.audit.failure_stage).toBe('runtime_plan_validation');
+    expect(first.rejected_answers).toEqual([
+      expect.objectContaining({ code: 'invalid_runtime_plan' }),
+    ]);
+    expect(first.amendments).toEqual([]);
+    expect(JSON.stringify(first.amended_record)).toBe(before);
+    expect(JSON.stringify(first)).toBe(JSON.stringify(second));
+  });
+
+  it('rejects a declared source span with mixed extracted-object fields', () => {
+    const { record, issued } = actorCase();
+    const malformed = structuredClone(issued) as JsonObject;
+    malformed.grounding_references = [
+      {
+        ...structuredClone(issued.grounding_references[0]),
+        field: 'actor_party_id',
+        value: null,
+      },
+    ];
+    const result = apply(record, [malformed as NecessaryClarificationQuestion], []);
+
+    expect(result.audit.failure_stage).toBe('runtime_plan_validation');
+    expect(result.rejected_answers[0]?.code).toBe('invalid_runtime_plan');
+    expect(result.amendments).toEqual([]);
+  });
+
+  it('rejects the whole plan when malformed grounding is mixed with valid grounding', () => {
+    const { record, target, issued } = actorCase();
+    const malformed = structuredClone(issued) as JsonObject;
+    malformed.grounding_references = [
+      ...structuredClone(issued.grounding_references),
+      {
+        kind: 'bogus',
+        object_id: target.event_id,
+        field: 'actor_party_id',
+        value: null,
+      },
+    ];
+    const before = JSON.stringify(record);
+    const result = apply(
+      record,
+      [malformed as NecessaryClarificationQuestion],
+      [answer(issued, record, 'party_a')],
+    );
+
+    expect(result.audit.failure_stage).toBe('runtime_plan_validation');
+    expect(result.amendments).toEqual([]);
+    expect(JSON.stringify(result.amended_record)).toBe(before);
+  });
+
+  it('requires source-span grounding for actor attribution', () => {
+    const { record, target, issued } = actorCase();
+    const objectOnly = question({
+      ...issued,
+      grounding_references: [
+        extractedReference(target.event_id, 'actor_party_id', target.actor_party_id),
+      ],
+    });
+    const rejected = apply(record, [objectOnly], [answer(objectOnly, record, 'party_a')]);
+    const sourceAndObject = question({
+      ...issued,
+      grounding_references: [
+        ...issued.grounding_references,
+        extractedReference(target.event_id, 'actor_party_id', target.actor_party_id),
+      ],
+    });
+    const accepted = apply(record, [sourceAndObject], [answer(sourceAndObject, record, 'party_a')]);
+
+    expect(rejected.audit.failure_stage).toBe('runtime_plan_validation');
+    expect(rejected.amendments).toEqual([]);
+    expect(accepted.audit.final_status).toBe('passed');
+    expect(accepted.amendments).toHaveLength(1);
+  });
+
+  it('requires source-span grounding for date precision', () => {
+    const { record, target, issued } = dateCase();
+    const objectOnly = question({
+      ...issued,
+      grounding_references: [
+        extractedReference(target.event_id, 'event_summary', target.event_summary),
+      ],
+    });
+    const before = JSON.stringify(record);
+    const result = apply(record, [objectOnly], []);
+
+    expect(result.audit.failure_stage).toBe('runtime_plan_validation');
+    expect(result.amendments).toEqual([]);
+    expect(JSON.stringify(result.amended_record)).toBe(before);
+  });
+
+  it('requires source-span grounding for causal and contradiction questions', () => {
+    const causal = causalCase();
+    const causalObjectOnly = question({
+      ...causal.issued,
+      grounding_references: [
+        extractedReference(
+          causal.target.damages_claim_id,
+          'causal_theory',
+          causal.target.causal_theory,
+        ),
+      ],
+    });
+    const causalResult = apply(causal.record, [causalObjectOnly], []);
+
+    const contradiction = contradictionCase();
+    const contradictionObjectOnly = question({
+      ...contradiction.issued,
+      grounding_references: [
+        extractedReference(
+          contradiction.target.issue_id,
+          'description',
+          contradiction.target.description,
+        ),
+      ],
+    });
+    const contradictionResult = apply(contradiction.record, [contradictionObjectOnly], []);
+
+    expect(causalResult.audit.failure_stage).toBe('runtime_plan_validation');
+    expect(causalResult.amendments).toEqual([]);
+    expect(contradictionResult.audit.failure_stage).toBe('runtime_plan_validation');
+    expect(contradictionResult.amendments).toEqual([]);
+  });
+
+  it('continues to accept legitimately object-only evidence grounding', () => {
+    const { record, target, issued } = evidenceCase();
+    const result = apply(record, [issued], [answer(issued, record, 'unavailable')]);
+
+    expect(result.audit.final_status).toBe('passed');
+    expect(result.amendments).toHaveLength(1);
+    expect(findObject(result.amended_record!, target.evidence_id).availability_status).toBe(
+      'unavailable',
+    );
   });
 
   it('rejects undocumented application options', () => {

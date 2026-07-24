@@ -15,7 +15,7 @@ export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue
 type JsonObject = { [key: string]: JsonValue };
 
 export const PERSON_A_CLARIFICATION_ANSWER_APPLICATION_VERSION =
-  'person-a-clarification-answer-application-v0.1.9';
+  'person-a-clarification-answer-application-v0.1.10';
 export const PERSON_A_CLARIFICATION_ANSWER_BATCH_VERSION =
   'person-a-clarification-answer-batch-v0.1.0';
 export const MAX_PERSON_A_CLARIFICATION_ANSWERS = 6;
@@ -518,12 +518,51 @@ function parseIdSet(value: unknown, label: string): Set<string> {
   return result;
 }
 
-function exactSourceGrounding(
-  reference: GroundingReference,
+function hasExactKeys(value: JsonObject, expected: readonly string[]): boolean {
+  const actual = Object.keys(value).sort(lexicalCompare);
+  const sortedExpected = [...expected].sort(lexicalCompare);
+  return (
+    actual.length === sortedExpected.length &&
+    actual.every((key, index) => key === sortedExpected[index])
+  );
+}
+
+function isGroundingPrimitive(value: unknown): value is JsonPrimitive {
+  return (
+    value === null ||
+    typeof value === 'string' ||
+    typeof value === 'boolean' ||
+    (typeof value === 'number' && Number.isFinite(value))
+  );
+}
+
+function validExactGrounding(
+  reference: unknown,
   objectIndex: ReadonlyMap<string, IndexedObject>,
   narrative: string,
-): boolean {
+): reference is GroundingReference {
+  if (!isJsonObject(reference)) return false;
   if (reference.kind === 'source_span') {
+    if (
+      !hasExactKeys(reference, [
+        'kind',
+        'object_id',
+        'submission_id',
+        'quote',
+        'start_char',
+        'end_char',
+      ]) ||
+      !isIdentifier(reference.object_id) ||
+      !isIdentifier(reference.submission_id) ||
+      typeof reference.quote !== 'string' ||
+      reference.quote.length === 0 ||
+      !Number.isInteger(reference.start_char) ||
+      !Number.isInteger(reference.end_char)
+    ) {
+      return false;
+    }
+    const startChar = reference.start_char as number;
+    const endChar = reference.end_char as number;
     const indexed = objectIndex.get(reference.object_id);
     const ownedSpans = indexed?.item.source_spans;
     return (
@@ -534,21 +573,42 @@ function exactSourceGrounding(
           isJsonObject(span) &&
           span.submission_id === reference.submission_id &&
           span.quote === reference.quote &&
-          span.start_char === reference.start_char &&
-          span.end_char === reference.end_char,
+          span.start_char === startChar &&
+          span.end_char === endChar,
       ) &&
-      Number.isInteger(reference.start_char) &&
-      Number.isInteger(reference.end_char) &&
-      reference.start_char >= 0 &&
-      reference.end_char - reference.start_char === reference.quote.length &&
-      narrative.slice(reference.start_char, reference.end_char) === reference.quote
+      startChar >= 0 &&
+      endChar - startChar === reference.quote.length &&
+      narrative.slice(startChar, endChar) === reference.quote
     );
+  }
+  if (reference.kind !== 'extracted_object') return false;
+  if (
+    !hasExactKeys(reference, ['kind', 'object_id', 'field', 'value']) ||
+    !isIdentifier(reference.object_id) ||
+    !isIdentifier(reference.field) ||
+    !isGroundingPrimitive(reference.value)
+  ) {
+    return false;
   }
   const indexed = objectIndex.get(reference.object_id);
   return (
     indexed !== undefined &&
     Object.prototype.hasOwnProperty.call(indexed.item, reference.field) &&
     isDeepStrictEqual(indexed.item[reference.field], reference.value)
+  );
+}
+
+function questionRequiresSourceGrounding(question: JsonObject): boolean {
+  if (question.necessity_classification === 'contradiction') return true;
+  if (
+    ['actor_attribution', 'date_precision', 'causal_link', 'merge_risk'].includes(
+      String(question.trigger),
+    )
+  ) {
+    return true;
+  }
+  return (
+    question.trigger === 'required_bucket_missing' && question.target_family === 'extraction_issues'
   );
 }
 
@@ -649,9 +709,15 @@ function validateQuestions(
     if (!rule.some((entry) => entry.family === indexed.family && entry.field === value.field)) {
       throw new TypeError(`Runtime question ${value.question_id} targets an unsupported field.`);
     }
-    const grounding = value.grounding_references as unknown as GroundingReference[];
-    if (!grounding.every((reference) => exactSourceGrounding(reference, objectIndex, narrative))) {
+    const grounding = value.grounding_references as unknown[];
+    if (!grounding.every((reference) => validExactGrounding(reference, objectIndex, narrative))) {
       throw new TypeError(`Runtime question ${value.question_id} has invalid grounding.`);
+    }
+    if (
+      questionRequiresSourceGrounding(value) &&
+      !grounding.some((reference) => isJsonObject(reference) && reference.kind === 'source_span')
+    ) {
+      throw new TypeError(`Runtime question ${value.question_id} requires source-span grounding.`);
     }
     if (value.necessity_classification === 'contradiction') {
       const alternatives = value.contradiction_alternatives as unknown[];
@@ -671,7 +737,7 @@ function validateQuestions(
             (reference) =>
               reference.kind === 'source_span' &&
               reference.quote === alternativeObject.text &&
-              exactSourceGrounding(reference, objectIndex, narrative),
+              validExactGrounding(reference, objectIndex, narrative),
           )
         ) {
           throw new TypeError(
