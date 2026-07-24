@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { extractResponseText, OpenAIResponsesClient } from '../extraction/openai-responses.js';
 import { buildOpenAIResponseSchema } from '../extraction/person-a-schema.js';
+import {
+  PERSON_A_PROMPT_VERSION,
+  PERSON_A_EXTRACTION_INSTRUCTIONS,
+} from '../extraction/person-a-prompt.js';
 
 type SchemaNode = Record<string, unknown>;
 
@@ -137,6 +141,58 @@ describe('OpenAI Responses parsing', () => {
     expect(issues).toEqual([]);
   });
 
+  it('advertises the v0.1.4 provider-facing prompt version', () => {
+    expect(PERSON_A_PROMPT_VERSION).toBe('person-a-v0.1.4');
+  });
+
+  it('documents the judgment-field and epistemic contract in the instructions', () => {
+    // person_a_interpretation semantics
+    expect(PERSON_A_EXTRACTION_INSTRUCTIONS).toContain('person_a_interpretation');
+    expect(PERSON_A_EXTRACTION_INSTRUCTIONS).toContain('not a neutral paraphrase');
+    // completion / scope precision
+    expect(PERSON_A_EXTRACTION_INSTRUCTIONS).toContain(
+      'never upgrade partially_complete or substantially_complete to complete',
+    );
+    expect(PERSON_A_EXTRACTION_INSTRUCTIONS).toContain('not an objective adjudication');
+    // material term-to-claim duplication
+    expect(PERSON_A_EXTRACTION_INSTRUCTIONS).toContain(
+      'both as the agreement term and as a party_a claim',
+    );
+    // belief is not evidence
+    expect(PERSON_A_EXTRACTION_INSTRUCTIONS).toContain(
+      'Do not create an evidence object from a belief',
+    );
+    expect(PERSON_A_EXTRACTION_INSTRUCTIONS).toContain('empty source_spans');
+  });
+
+  it('keeps the production instructions free of case-specific identities', () => {
+    expect(PERSON_A_EXTRACTION_INSTRUCTIONS).not.toMatch(/\bmaya\b|\balex\b|dry[\s_-]?run/i);
+  });
+
+  it('carries provider-facing judgment-field schema descriptions', () => {
+    const schema = buildOpenAIResponseSchema();
+    expect(schema.$defs.agreementTerm.properties.person_a_interpretation.description).toMatch(
+      /asserted interpretation/i,
+    );
+    expect(schema.$defs.agreementTerm.properties.person_a_interpretation.description).toMatch(
+      /null/i,
+    );
+    expect(
+      schema.$defs.deliverableAssessment.properties.completion_status_person_a.description,
+    ).toMatch(/never upgrade/i);
+    expect(schema.$defs.deliverableAssessment.properties.scope_status.description).toMatch(
+      /disputed/i,
+    );
+    // additive descriptions must not weaken strict-mode enum/type constraints
+    expect(schema.$defs.deliverableAssessment.properties.completion_status_person_a.enum).toContain(
+      'substantially_complete',
+    );
+    expect(schema.$defs.agreementTerm.properties.person_a_interpretation.type).toEqual([
+      'string',
+      'null',
+    ]);
+  });
+
   it('reads structured output text from a message item', () => {
     const text = extractResponseText({
       output: [
@@ -188,6 +244,13 @@ describe('OpenAI Responses parsing', () => {
       expect(body.instructions).toContain('end_char = start_char + quote.length');
       expect(body.instructions).toContain('wording_status not_inspected');
       expect(body.instructions).toContain('interpretation_status unclear or not_applicable');
+      // v0.1.4 judgment-field and epistemic rules are transmitted to the provider
+      expect(body.instructions).toContain('not a neutral paraphrase');
+      expect(body.instructions).toContain(
+        'never upgrade partially_complete or substantially_complete to complete',
+      );
+      expect(body.instructions).toContain('both as the agreement term and as a party_a claim');
+      expect(body.instructions).toContain('Do not create an evidence object from a belief');
       expect(body.text.format.type).toBe('json_schema');
       expect(body.text.format.strict).toBe(true);
       return {
