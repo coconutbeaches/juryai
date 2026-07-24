@@ -33,6 +33,7 @@ jobs:
           - src/tests/person-a-clarification-answer-application.test.ts
           - src/tests/person-a-record-confirmation.test.ts
           - src/tests/person-a-challenge-resolution.test.ts
+          - src/tests/person-a-extraction-acceptance.test.ts
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -63,6 +64,8 @@ jobs:
         run: npm run typecheck
       - name: Validate golden fixture
         run: npm run validate:golden
+      - name: Gate Person A extraction acceptance corpus
+        run: npm run gate:person-a-acceptance
       - name: Check formatting
         run: npm run format:check
       - name: Audit dependencies

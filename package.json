@@ -10,6 +10,8 @@
     "validate:golden": "tsx src/validation/validate-case-record.ts src/fixtures/dry_run_001.golden.json",
     "extract:person-a": "tsx src/commands/extract-person-a.ts",
     "evaluate:person-a": "tsx src/commands/extract-person-a.ts --extraction artifacts/person-a/latest/extraction.json",
+    "evaluate:person-a-acceptance": "tsx src/commands/evaluate-person-a-extraction-acceptance.ts",
+    "gate:person-a-acceptance": "tsx src/commands/evaluate-person-a-extraction-acceptance.ts --gate --format human",
     "clarify:person-a": "tsx src/commands/generate-person-a-clarifications.ts",
     "simulate:clarification": "tsx src/commands/simulate-person-a-clarification-round.ts",
     "repair:person-a": "tsx src/commands/repair-person-a-extraction.ts",

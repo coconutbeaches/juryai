@@ -1,0 +1,306 @@
+{
+  "schema_version": "0.1.2",
+  "extractor_version": "person-a-v0.1.3",
+  "party": {
+    "party_id": "party_a",
+    "role": "person_a",
+    "display_name": "Jordan Lee",
+    "email": null,
+    "country": null,
+    "language": "en",
+    "identity_status": "unverified",
+    "consented_at": "2026-01-01T00:00:00Z",
+    "submission_complete": true,
+    "record_confirmed_at": null
+  },
+  "submission": {
+    "submission_id": "sub_dry_run_002",
+    "party_id": "party_a",
+    "submission_type": "initial_position",
+    "raw_text": "My name is Jordan Lee, and this is a synthetic test case. On about March 12, 2026, I agreed with Priya Nair to restore six dining chairs for $1,800, with $900 paid upfront and $900 due after delivery. Priya messaged, “They look ready for the hotel lobby,” but said one cushion still needed stitching. Around April 2, 2026, Priya collected four chairs while I kept two to finish. Priya later alleged that I scratched all six chairs, but I only observed a mark on one chair and I have not inspected her photographs. I am asking Priya to pay the remaining $900 after I deliver the last two chairs; I am not asking to refund her.\n",
+    "submitted_at": "2026-01-01T00:00:00Z",
+    "supersedes_submission_id": null,
+    "is_locked": true,
+    "content_hash": "0508bdb60323a32beafaa0b7e7e7ac734cd64a002830fc8eb1ca52e5feda0f86"
+  },
+  "third_parties": [],
+  "agreement": {
+    "agreement_exists": true,
+    "agreement_form": "oral",
+    "agreement_summary": "Jordan Lee describes an agreement with Priya Nair.",
+    "source_evidence_ids": ["ev_dry_run_002"],
+    "terms": [
+      {
+        "term_id": "term_dry_run_002",
+        "term_type": "scope",
+        "wording": "On about March 12, 2026, I agreed with Priya Nair to restore six dining chairs for $1,800, with $900 paid upfront and $900 due after delivery.",
+        "wording_status": "not_inspected",
+        "interpretation_status": "unclear",
+        "person_a_interpretation": "On about March 12, 2026, I agreed with Priya Nair to restore six dining chairs for $1,800, with $900 paid upfront and $900 due after delivery.",
+        "person_b_interpretation": null,
+        "source_evidence_ids": ["ev_dry_run_002"],
+        "materiality": "high",
+        "source_spans": [
+          {
+            "submission_id": "sub_dry_run_002",
+            "quote": "On about March 12, 2026, I agreed with Priya Nair to restore six dining chairs for $1,800, with $900 paid upfront and $900 due after delivery.",
+            "start_char": 58,
+            "end_char": 200
+          }
+        ]
+      }
+    ],
+    "open_issues": ["Only Person A narrative and described evidence are available."]
+  },
+  "deliverable_assessments": [],
+  "timeline": [
+    {
+      "event_id": "tl_002_agreement",
+      "date": {
+        "start": "2026-03-12",
+        "end": "2026-03-12",
+        "precision": "day",
+        "approximate": true
+      },
+      "event_summary": "On about March 12, 2026, I agreed with Priya Nair to restore six dining chairs for $1,800, with $900 paid upfront and $900 due after delivery.",
+      "actor_party_id": "party_a",
+      "actor_third_party_id": null,
+      "asserted_by_party_ids": ["party_a"],
+      "occurrence_status": "supported_unanswered",
+      "interpretation_status": "not_applicable",
+      "person_a_interpretation": null,
+      "person_b_interpretation": null,
+      "source_evidence_ids": ["ev_dry_run_002"],
+      "source_spans": [
+        {
+          "submission_id": "sub_dry_run_002",
+          "quote": "On about March 12, 2026, I agreed with Priya Nair to restore six dining chairs for $1,800, with $900 paid upfront and $900 due after delivery.",
+          "start_char": 58,
+          "end_char": 200
+        }
+      ],
+      "materiality": "high"
+    },
+    {
+      "event_id": "tl_002_collection",
+      "date": {
+        "start": "2026-04-02",
+        "end": "2026-04-02",
+        "precision": "day",
+        "approximate": true
+      },
+      "event_summary": "Around April 2, 2026, Priya collected four chairs while I kept two to finish.",
+      "actor_party_id": "party_b",
+      "actor_third_party_id": null,
+      "asserted_by_party_ids": ["party_a"],
+      "occurrence_status": "supported_unanswered",
+      "interpretation_status": "unclear",
+      "person_a_interpretation": "Priya collected four restored chairs while Jordan retained two chairs to finish.",
+      "person_b_interpretation": null,
+      "source_evidence_ids": ["ev_dry_run_002"],
+      "source_spans": [
+        {
+          "submission_id": "sub_dry_run_002",
+          "quote": "Around April 2, 2026, Priya collected four chairs while I kept two to finish.",
+          "start_char": 301,
+          "end_char": 378
+        }
+      ],
+      "materiality": "high"
+    }
+  ],
+  "claims": [
+    {
+      "claim_id": "cl_002_quote",
+      "party_id": "party_a",
+      "claim_text": "Priya messaged, “They look ready for the hotel lobby,” but said one cushion still needed stitching.",
+      "claim_type": "acceptance",
+      "response_status": "unanswered",
+      "materiality": "high",
+      "support_level": "not_assessed",
+      "supporting_evidence_ids": ["ev_dry_run_002"],
+      "contradicting_evidence_ids": [],
+      "counterclaim_ids": [],
+      "requires_clarification": true,
+      "against_asserting_party_interest": false,
+      "source_spans": [
+        {
+          "submission_id": "sub_dry_run_002",
+          "quote": "Priya messaged, “They look ready for the hotel lobby,” but said one cushion still needed stitching.",
+          "start_char": 201,
+          "end_char": 300
+        }
+      ]
+    },
+    {
+      "claim_id": "cl_002_allegation",
+      "party_id": "party_a",
+      "claim_text": "Priya later alleged that I scratched all six chairs, but I only observed a mark on one chair and I have not inspected her photographs.",
+      "claim_type": "defect",
+      "response_status": "unanswered",
+      "materiality": "high",
+      "support_level": "not_assessed",
+      "supporting_evidence_ids": ["ev_dry_run_002"],
+      "contradicting_evidence_ids": [],
+      "counterclaim_ids": [],
+      "requires_clarification": true,
+      "against_asserting_party_interest": false,
+      "source_spans": [
+        {
+          "submission_id": "sub_dry_run_002",
+          "quote": "Priya later alleged that I scratched all six chairs, but I only observed a mark on one chair and I have not inspected her photographs.",
+          "start_char": 379,
+          "end_char": 513
+        }
+      ]
+    },
+    {
+      "claim_id": "cl_002_remedy",
+      "party_id": "party_a",
+      "claim_text": "I am asking Priya to pay the remaining $900 after I deliver the last two chairs; I am not asking to refund her.",
+      "claim_type": "payment",
+      "response_status": "unanswered",
+      "materiality": "high",
+      "support_level": "not_assessed",
+      "supporting_evidence_ids": ["ev_dry_run_002"],
+      "contradicting_evidence_ids": [],
+      "counterclaim_ids": [],
+      "requires_clarification": true,
+      "against_asserting_party_interest": false,
+      "source_spans": [
+        {
+          "submission_id": "sub_dry_run_002",
+          "quote": "I am asking Priya to pay the remaining $900 after I deliver the last two chairs; I am not asking to refund her.",
+          "start_char": 514,
+          "end_char": 625
+        }
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "ev_dry_run_002",
+      "submitted_by_party_id": "party_a",
+      "evidence_type": "message_export",
+      "title": "Described message and photographs",
+      "availability_status": "described_only",
+      "file_reference": null,
+      "original_filename": null,
+      "file_hash": null,
+      "created_date": {
+        "start": null,
+        "end": null,
+        "precision": "unknown",
+        "approximate": false
+      },
+      "uploaded_at": null,
+      "inspected_at": null,
+      "description_from_submitter": "Jordan describes a message from Priya and photographs that Jordan has not inspected.",
+      "model_summary": null,
+      "authenticity_status": "not_verified",
+      "completeness_status": "appears_complete",
+      "visibility": "shared_with_both_parties",
+      "contains_sensitive_data": false,
+      "relevance": "high",
+      "claimed_to_have_existed_by_party_ids": ["party_a"],
+      "unavailability_explanation": null,
+      "provenance": {
+        "source_system": "described communications",
+        "export_method": null,
+        "metadata_present": [],
+        "metadata_missing": ["file not supplied for inspection"]
+      },
+      "extracts": [
+        {
+          "extract_id": "ext_dry_run_002_priya_message",
+          "text": "They look ready for the hotel lobby",
+          "author_party_id": "party_b",
+          "author_third_party_id": null,
+          "author_status": "asserted_by_submitter",
+          "location_in_evidence": "submitter-described quoted message"
+        }
+      ],
+      "limitations": ["Described by submitter but not uploaded or inspected"]
+    }
+  ],
+  "claim_evidence_links": [],
+  "damages_claims": [
+    {
+      "damages_claim_id": "dam_dry_run_002",
+      "party_id": "party_a",
+      "loss_type": "unpaid_balance",
+      "amount_min": 900,
+      "amount_max": 900,
+      "currency": "USD",
+      "causal_theory": "The project was completed or substantially completed, triggering the remaining balance.",
+      "calculation_basis": "Person A requests 900 USD.",
+      "calculation_status": "partially_documented",
+      "support_level": "not_assessed",
+      "source_claim_ids": ["cl_002_remedy"],
+      "source_evidence_ids": ["ev_dry_run_002"],
+      "requires_clarification": true
+    }
+  ],
+  "desired_outcomes": {
+    "party_id": "party_a",
+    "outcomes": [
+      {
+        "outcome_id": "out_dry_run_002",
+        "priority": 1,
+        "outcome_type": "payment",
+        "transfers": [
+          {
+            "from_party_id": "party_b",
+            "to_party_id": "party_a",
+            "amount": 900,
+            "currency": "USD"
+          }
+        ],
+        "required_actions": ["Jordan delivers the final two chairs after payment."],
+        "rationale": "Jordan requests the unpaid balance and does not request a refund."
+      }
+    ]
+  },
+  "extraction_issues": [],
+  "clarification_questions": [
+    {
+      "question_id": "q_dry_run_002_1",
+      "target_party_id": "party_a",
+      "question": "Synthetic clarification 1 for dry_run_002.",
+      "reason": "The synthetic acceptance fixture preserves an explicit unresolved detail.",
+      "linked_object_ids": ["cl_002_quote"],
+      "priority": "required",
+      "answer": null,
+      "answer_evidence_ids": [],
+      "status": "pending"
+    },
+    {
+      "question_id": "q_dry_run_002_2",
+      "target_party_id": "party_a",
+      "question": "Synthetic clarification 2 for dry_run_002.",
+      "reason": "The synthetic acceptance fixture preserves an explicit unresolved detail.",
+      "linked_object_ids": ["cl_002_allegation"],
+      "priority": "required",
+      "answer": null,
+      "answer_evidence_ids": [],
+      "status": "pending"
+    },
+    {
+      "question_id": "q_dry_run_002_3",
+      "target_party_id": "party_a",
+      "question": "Synthetic clarification 3 for dry_run_002.",
+      "reason": "The synthetic acceptance fixture preserves an explicit unresolved detail.",
+      "linked_object_ids": ["cl_002_remedy"],
+      "priority": "required",
+      "answer": null,
+      "answer_evidence_ids": [],
+      "status": "pending"
+    }
+  ],
+  "metadata": {
+    "model": "hand-authored-control",
+    "prompt_version": "person-a-v0.1.3",
+    "input_hash": "0508bdb60323a32beafaa0b7e7e7ac734cd64a002830fc8eb1ca52e5feda0f86",
+    "generated_at": "2026-01-01T00:00:00Z"
+  }
+}

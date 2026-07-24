@@ -1,14 +1,17 @@
 import {
-  evaluatePersonA as evaluateBase,
+  evaluatePersonAForCase as evaluateBase,
   reportMarkdown,
   type PersonAEvaluationReport,
 } from './person-a-diff.js';
 import {
+  DRY_RUN_001_COMPATIBILITY_ALIASES,
   familyItems,
   semanticSimilarity,
   sourceSpanOverlap,
+  type PersonAAlignmentOptions,
   type PersonAAlignment,
   type PersonAFamily,
+  type PersonASemanticAliases,
 } from '../alignment/person-a-alignment-corrected.js';
 
 type JsonObject = Record<string, any>;
@@ -33,6 +36,7 @@ function isMatchedGranularitySplit(
   extractedItem: JsonObject,
   goldenItems: JsonObject[],
   alignment: PersonAAlignment['families'][PersonAFamily],
+  aliases: PersonASemanticAliases,
 ): boolean {
   if (!['agreement_terms', 'timeline', 'claims', 'extraction_issues'].includes(family)) {
     return false;
@@ -45,20 +49,29 @@ function isMatchedGranularitySplit(
     }
     return (
       sourceSpanOverlap(extractedItem, goldenItem) >= 0.8 &&
-      semanticSimilarity(familyMeaning(family, extractedItem), familyMeaning(family, goldenItem)) >=
-        0.45
+      semanticSimilarity(
+        familyMeaning(family, extractedItem),
+        familyMeaning(family, goldenItem),
+        aliases,
+      ) >= 0.45
     );
   });
 }
 
-function hasQuotedMeaning(family: PersonAFamily, item: JsonObject): boolean {
+function hasQuotedMeaning(
+  family: PersonAFamily,
+  item: JsonObject,
+  aliases: PersonASemanticAliases,
+): boolean {
   const quotes = Array.isArray(item.source_spans)
     ? item.source_spans
         .map((span: JsonObject) => span?.quote)
         .filter((quote: unknown): quote is string => typeof quote === 'string' && quote.length > 0)
         .join(' ')
     : '';
-  return quotes.length > 0 && semanticSimilarity(familyMeaning(family, item), quotes) >= 0.4;
+  return (
+    quotes.length > 0 && semanticSimilarity(familyMeaning(family, item), quotes, aliases) >= 0.4
+  );
 }
 
 function meaningTokens(value: unknown): string[] {
@@ -91,9 +104,11 @@ function isSourceGroundedExtra(
   item: JsonObject,
   extracted: JsonObject,
   alignment: PersonAAlignment,
+  aliases: PersonASemanticAliases,
 ): boolean {
-  if (family === 'claims') return item.party_id === 'party_a' && hasQuotedMeaning(family, item);
-  if (family === 'timeline') return hasQuotedMeaning(family, item);
+  if (family === 'claims')
+    return item.party_id === 'party_a' && hasQuotedMeaning(family, item, aliases);
+  if (family === 'timeline') return hasQuotedMeaning(family, item, aliases);
   if (family === 'deliverables') {
     const claimIds = Array.isArray(item.source_claim_ids) ? item.source_claim_ids : [];
     if (claimIds.length === 0) return false;
@@ -106,7 +121,7 @@ function isSourceGroundedExtra(
       return (
         claim !== undefined &&
         matchedExtractedClaimIds.has(claimId) &&
-        hasQuotedMeaning('claims', claim) &&
+        hasQuotedMeaning('claims', claim, aliases) &&
         claimSupportsDeliverableName(item, claim)
       );
     });
@@ -124,7 +139,7 @@ function isSourceGroundedExtra(
     (claim) =>
       Array.isArray(claim.supporting_evidence_ids) &&
       claim.supporting_evidence_ids.includes(item.evidence_id) &&
-      hasQuotedMeaning('claims', claim),
+      hasQuotedMeaning('claims', claim, aliases),
   );
 }
 
@@ -133,6 +148,7 @@ function compareEvidenceExtractAuthors(
   golden: JsonObject,
   alignment: PersonAAlignment,
   report: PersonAEvaluationReport,
+  aliases: PersonASemanticAliases,
 ): void {
   const extractedItems = familyItems(extracted, 'evidence');
   const goldenItems = familyItems(golden, 'evidence');
@@ -150,7 +166,7 @@ function compareEvidenceExtractAuthors(
       let best: JsonObject | null = null;
       let bestScore = 0;
       for (const extractedExtract of extractedExtracts) {
-        const score = semanticSimilarity(extractedExtract.text, goldenExtract.text);
+        const score = semanticSimilarity(extractedExtract.text, goldenExtract.text, aliases);
         if (score > bestScore) {
           bestScore = score;
           best = extractedExtract;
@@ -180,13 +196,15 @@ function compareEvidenceExtractAuthors(
   }
 }
 
-export function evaluatePersonA(
+export function evaluatePersonAForCase(
   extracted: JsonObject,
   golden: JsonObject,
   alignment: PersonAAlignment,
+  options: PersonAAlignmentOptions = {},
 ): PersonAEvaluationReport {
-  const report = evaluateBase(extracted, golden, alignment);
-  compareEvidenceExtractAuthors(extracted, golden, alignment, report);
+  const aliases = options.aliases ?? {};
+  const report = evaluateBase(extracted, golden, alignment, options);
+  compareEvidenceExtractAuthors(extracted, golden, alignment, report, aliases);
 
   const editedObjects = new Set<string>();
   let goldenTotal = 0;
@@ -230,13 +248,21 @@ export function evaluatePersonA(
 
       if (
         unmatched &&
-        isMatchedGranularitySplit(error.family, extractedItem, goldenItems, familyAlignment)
+        isMatchedGranularitySplit(
+          error.family,
+          extractedItem,
+          goldenItems,
+          familyAlignment,
+          aliases,
+        )
       ) {
         error.severity = 'major';
         error.code = 'granularity_split';
         error.message =
           'Extracted object splits a source-grounded golden object and requires consolidation.';
-      } else if (isSourceGroundedExtra(error.family, extractedItem, extracted, alignment)) {
+      } else if (
+        isSourceGroundedExtra(error.family, extractedItem, extracted, alignment, aliases)
+      ) {
         error.severity = 'major';
         error.code = 'source_grounded_extra_object';
         error.message =
@@ -262,6 +288,16 @@ export function evaluatePersonA(
     report.summary.critical + report.summary.major * 0.5 + report.summary.minor * 0.1;
   report.summary.weighted_error_rate = goldenTotal === 0 ? 0 : weighted / goldenTotal;
   return report;
+}
+
+export function evaluatePersonA(
+  extracted: JsonObject,
+  golden: JsonObject,
+  alignment: PersonAAlignment,
+): PersonAEvaluationReport {
+  return evaluatePersonAForCase(extracted, golden, alignment, {
+    aliases: DRY_RUN_001_COMPATIBILITY_ALIASES,
+  });
 }
 
 export { reportMarkdown };

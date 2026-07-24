@@ -1,0 +1,306 @@
+{
+  "schema_version": "0.1.2",
+  "extractor_version": "person-a-v0.1.3",
+  "party": {
+    "party_id": "party_a",
+    "role": "person_a",
+    "display_name": "Samir Patel",
+    "email": null,
+    "country": null,
+    "language": "en",
+    "identity_status": "unverified",
+    "consented_at": "2026-01-01T00:00:00Z",
+    "submission_complete": true,
+    "record_confirmed_at": null
+  },
+  "submission": {
+    "submission_id": "sub_dry_run_003",
+    "party_id": "party_a",
+    "submission_type": "initial_position",
+    "raw_text": "My name is Samir Patel, and this is a synthetic test case. On July 6, 2026, I hired Devon Cho to provide event lighting for $1,200. Devon wrote, “I will bring backup batteries.” On the evening of August 18, 2026, the venue manager told me the main lights failed, but I did not see who unplugged the controller. I have the email thread, but I have not uploaded it for inspection. Devon alleges that I changed the room layout late; I dispute that allegation. I am asking Devon to return the $600 deposit to me, not for me to pay Devon $600.\n",
+    "submitted_at": "2026-01-01T00:00:00Z",
+    "supersedes_submission_id": null,
+    "is_locked": true,
+    "content_hash": "802ec18cbceb7884d992c1be2b4562c3a685603ec16447e937707aaa5d5ccaee"
+  },
+  "third_parties": [],
+  "agreement": {
+    "agreement_exists": true,
+    "agreement_form": "oral",
+    "agreement_summary": "Samir Patel describes an agreement with Devon Cho.",
+    "source_evidence_ids": ["ev_dry_run_003"],
+    "terms": [
+      {
+        "term_id": "term_dry_run_003",
+        "term_type": "scope",
+        "wording": "On July 6, 2026, I hired Devon Cho to provide event lighting for $1,200.",
+        "wording_status": "not_inspected",
+        "interpretation_status": "unclear",
+        "person_a_interpretation": "On July 6, 2026, I hired Devon Cho to provide event lighting for $1,200.",
+        "person_b_interpretation": null,
+        "source_evidence_ids": ["ev_dry_run_003"],
+        "materiality": "high",
+        "source_spans": [
+          {
+            "submission_id": "sub_dry_run_003",
+            "quote": "On July 6, 2026, I hired Devon Cho to provide event lighting for $1,200.",
+            "start_char": 59,
+            "end_char": 131
+          }
+        ]
+      }
+    ],
+    "open_issues": ["Only Person A narrative and described evidence are available."]
+  },
+  "deliverable_assessments": [],
+  "timeline": [
+    {
+      "event_id": "tl_003_agreement",
+      "date": {
+        "start": "2026-07-06",
+        "end": "2026-07-06",
+        "precision": "day",
+        "approximate": false
+      },
+      "event_summary": "On July 6, 2026, I hired Devon Cho to provide event lighting for $1,200.",
+      "actor_party_id": "party_a",
+      "actor_third_party_id": null,
+      "asserted_by_party_ids": ["party_a"],
+      "occurrence_status": "supported_unanswered",
+      "interpretation_status": "not_applicable",
+      "person_a_interpretation": null,
+      "person_b_interpretation": null,
+      "source_evidence_ids": ["ev_dry_run_003"],
+      "source_spans": [
+        {
+          "submission_id": "sub_dry_run_003",
+          "quote": "On July 6, 2026, I hired Devon Cho to provide event lighting for $1,200.",
+          "start_char": 59,
+          "end_char": 131
+        }
+      ],
+      "materiality": "high"
+    },
+    {
+      "event_id": "tl_003_failure",
+      "date": {
+        "start": "2026-08-18",
+        "end": "2026-08-18",
+        "precision": "day",
+        "approximate": false
+      },
+      "event_summary": "On the evening of August 18, 2026, the venue manager told me the main lights failed, but I did not see who unplugged the controller.",
+      "actor_party_id": null,
+      "actor_third_party_id": null,
+      "asserted_by_party_ids": ["party_a"],
+      "occurrence_status": "supported_unanswered",
+      "interpretation_status": "unclear",
+      "person_a_interpretation": "The main lights failed, but Samir did not observe who unplugged the controller.",
+      "person_b_interpretation": null,
+      "source_evidence_ids": ["ev_dry_run_003"],
+      "source_spans": [
+        {
+          "submission_id": "sub_dry_run_003",
+          "quote": "On the evening of August 18, 2026, the venue manager told me the main lights failed, but I did not see who unplugged the controller.",
+          "start_char": 178,
+          "end_char": 310
+        }
+      ],
+      "materiality": "high"
+    }
+  ],
+  "claims": [
+    {
+      "claim_id": "cl_003_quote",
+      "party_id": "party_a",
+      "claim_text": "Devon wrote, “I will bring backup batteries.”",
+      "claim_type": "agreement_term",
+      "response_status": "unanswered",
+      "materiality": "high",
+      "support_level": "not_assessed",
+      "supporting_evidence_ids": ["ev_dry_run_003"],
+      "contradicting_evidence_ids": [],
+      "counterclaim_ids": [],
+      "requires_clarification": true,
+      "against_asserting_party_interest": false,
+      "source_spans": [
+        {
+          "submission_id": "sub_dry_run_003",
+          "quote": "Devon wrote, “I will bring backup batteries.”",
+          "start_char": 132,
+          "end_char": 177
+        }
+      ]
+    },
+    {
+      "claim_id": "cl_003_allegation",
+      "party_id": "party_a",
+      "claim_text": "Devon alleges that I changed the room layout late; I dispute that allegation.",
+      "claim_type": "delay",
+      "response_status": "unanswered",
+      "materiality": "high",
+      "support_level": "not_assessed",
+      "supporting_evidence_ids": ["ev_dry_run_003"],
+      "contradicting_evidence_ids": [],
+      "counterclaim_ids": [],
+      "requires_clarification": true,
+      "against_asserting_party_interest": false,
+      "source_spans": [
+        {
+          "submission_id": "sub_dry_run_003",
+          "quote": "Devon alleges that I changed the room layout late; I dispute that allegation.",
+          "start_char": 379,
+          "end_char": 456
+        }
+      ]
+    },
+    {
+      "claim_id": "cl_003_remedy",
+      "party_id": "party_a",
+      "claim_text": "I am asking Devon to return the $600 deposit to me, not for me to pay Devon $600.",
+      "claim_type": "payment",
+      "response_status": "unanswered",
+      "materiality": "high",
+      "support_level": "not_assessed",
+      "supporting_evidence_ids": ["ev_dry_run_003"],
+      "contradicting_evidence_ids": [],
+      "counterclaim_ids": [],
+      "requires_clarification": true,
+      "against_asserting_party_interest": false,
+      "source_spans": [
+        {
+          "submission_id": "sub_dry_run_003",
+          "quote": "I am asking Devon to return the $600 deposit to me, not for me to pay Devon $600.",
+          "start_char": 457,
+          "end_char": 538
+        }
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "ev_dry_run_003",
+      "submitted_by_party_id": "party_a",
+      "evidence_type": "email_thread",
+      "title": "Uninspected email thread",
+      "availability_status": "described_only",
+      "file_reference": null,
+      "original_filename": null,
+      "file_hash": null,
+      "created_date": {
+        "start": null,
+        "end": null,
+        "precision": "unknown",
+        "approximate": false
+      },
+      "uploaded_at": null,
+      "inspected_at": null,
+      "description_from_submitter": "Samir describes an email thread containing Devon’s backup-battery statement.",
+      "model_summary": null,
+      "authenticity_status": "not_verified",
+      "completeness_status": "appears_complete",
+      "visibility": "shared_with_both_parties",
+      "contains_sensitive_data": false,
+      "relevance": "high",
+      "claimed_to_have_existed_by_party_ids": ["party_a"],
+      "unavailability_explanation": null,
+      "provenance": {
+        "source_system": "described communications",
+        "export_method": null,
+        "metadata_present": [],
+        "metadata_missing": ["file not supplied for inspection"]
+      },
+      "extracts": [
+        {
+          "extract_id": "ext_dry_run_003_devon_email",
+          "text": "I will bring backup batteries.",
+          "author_party_id": "party_b",
+          "author_third_party_id": null,
+          "author_status": "asserted_by_submitter",
+          "location_in_evidence": "submitter-described quoted email"
+        }
+      ],
+      "limitations": ["Described by submitter but not uploaded or inspected"]
+    }
+  ],
+  "claim_evidence_links": [],
+  "damages_claims": [
+    {
+      "damages_claim_id": "dam_dry_run_003",
+      "party_id": "party_a",
+      "loss_type": "refund",
+      "amount_min": 600,
+      "amount_max": 600,
+      "currency": "USD",
+      "causal_theory": "Samir seeks return of the deposit after the alleged event-lighting failure.",
+      "calculation_basis": "The requested refund is the 600 USD deposit paid to Devon.",
+      "calculation_status": "partially_documented",
+      "support_level": "not_assessed",
+      "source_claim_ids": ["cl_003_remedy"],
+      "source_evidence_ids": ["ev_dry_run_003"],
+      "requires_clarification": true
+    }
+  ],
+  "desired_outcomes": {
+    "party_id": "party_a",
+    "outcomes": [
+      {
+        "outcome_id": "out_dry_run_003",
+        "priority": 1,
+        "outcome_type": "refund",
+        "transfers": [
+          {
+            "from_party_id": "party_b",
+            "to_party_id": "party_a",
+            "amount": 600,
+            "currency": "USD"
+          }
+        ],
+        "required_actions": ["Devon returns the deposit to Samir."],
+        "rationale": "Samir requests return of the deposit after the alleged lighting failure."
+      }
+    ]
+  },
+  "extraction_issues": [],
+  "clarification_questions": [
+    {
+      "question_id": "q_dry_run_003_1",
+      "target_party_id": "party_a",
+      "question": "Synthetic clarification 1 for dry_run_003.",
+      "reason": "The synthetic acceptance fixture preserves an explicit unresolved detail.",
+      "linked_object_ids": ["cl_003_quote"],
+      "priority": "required",
+      "answer": null,
+      "answer_evidence_ids": [],
+      "status": "pending"
+    },
+    {
+      "question_id": "q_dry_run_003_2",
+      "target_party_id": "party_a",
+      "question": "Synthetic clarification 2 for dry_run_003.",
+      "reason": "The synthetic acceptance fixture preserves an explicit unresolved detail.",
+      "linked_object_ids": ["cl_003_allegation"],
+      "priority": "required",
+      "answer": null,
+      "answer_evidence_ids": [],
+      "status": "pending"
+    },
+    {
+      "question_id": "q_dry_run_003_3",
+      "target_party_id": "party_a",
+      "question": "Synthetic clarification 3 for dry_run_003.",
+      "reason": "The synthetic acceptance fixture preserves an explicit unresolved detail.",
+      "linked_object_ids": ["cl_003_remedy"],
+      "priority": "required",
+      "answer": null,
+      "answer_evidence_ids": [],
+      "status": "pending"
+    }
+  ],
+  "metadata": {
+    "model": "hand-authored-control",
+    "prompt_version": "person-a-v0.1.3",
+    "input_hash": "802ec18cbceb7884d992c1be2b4562c3a685603ec16447e937707aaa5d5ccaee",
+    "generated_at": "2026-01-01T00:00:00Z"
+  }
+}

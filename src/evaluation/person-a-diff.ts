@@ -1,8 +1,11 @@
 import {
+  DRY_RUN_001_COMPATIBILITY_ALIASES,
   familyItems,
   semanticSimilarity,
+  type PersonAAlignmentOptions,
   type PersonAAlignment,
   type PersonAFamily,
+  type PersonASemanticAliases,
 } from '../alignment/person-a-alignment.js';
 
 type JsonObject = Record<string, any>;
@@ -81,12 +84,15 @@ function comparePair(
   extractedId: string,
   goldenId: string,
   errors: EvaluationError[],
+  aliases: PersonASemanticAliases,
 ): void {
+  const similarity = (left: unknown, right: unknown): number =>
+    semanticSimilarity(left, right, aliases);
   switch (family) {
     case 'claims':
       if (extracted.claim_type !== golden.claim_type)
         add(errors, 'major', family, 'claim_type', 'Claim type differs.', extractedId, goldenId);
-      if (semanticSimilarity(extracted.claim_text, golden.claim_text) < 0.55)
+      if (similarity(extracted.claim_text, golden.claim_text) < 0.55)
         add(
           errors,
           'major',
@@ -178,7 +184,7 @@ function comparePair(
             goldenId,
           );
       }
-      if (semanticSimilarity(extracted.event_summary, golden.event_summary) < 0.5)
+      if (similarity(extracted.event_summary, golden.event_summary) < 0.5)
         add(
           errors,
           'major',
@@ -221,7 +227,7 @@ function comparePair(
           extractedId,
           goldenId,
         );
-      if (semanticSimilarity(extracted.title, golden.title) < 0.45)
+      if (similarity(extracted.title, golden.title) < 0.45)
         add(
           errors,
           'major',
@@ -233,7 +239,7 @@ function comparePair(
         );
       break;
     case 'agreement_terms':
-      if (semanticSimilarity(extracted.wording, golden.wording) < 0.5)
+      if (similarity(extracted.wording, golden.wording) < 0.5)
         add(
           errors,
           'major',
@@ -243,9 +249,7 @@ function comparePair(
           extractedId,
           goldenId,
         );
-      if (
-        semanticSimilarity(extracted.person_a_interpretation, golden.person_a_interpretation) < 0.45
-      )
+      if (similarity(extracted.person_a_interpretation, golden.person_a_interpretation) < 0.45)
         add(
           errors,
           'major',
@@ -277,7 +281,7 @@ function comparePair(
           extractedId,
           goldenId,
         );
-      if (semanticSimilarity(extracted.name, golden.name) < 0.45)
+      if (similarity(extracted.name, golden.name) < 0.45)
         add(
           errors,
           'major',
@@ -299,7 +303,7 @@ function comparePair(
           extractedId,
           goldenId,
         );
-      if (semanticSimilarity(extracted.causal_theory, golden.causal_theory) < 0.45)
+      if (similarity(extracted.causal_theory, golden.causal_theory) < 0.45)
         add(
           errors,
           'major',
@@ -343,7 +347,7 @@ function comparePair(
         );
       break;
     case 'third_parties':
-      if (semanticSimilarity(extracted.role, golden.role) < 0.4)
+      if (similarity(extracted.role, golden.role) < 0.4)
         add(
           errors,
           'major',
@@ -377,7 +381,7 @@ function comparePair(
         );
       break;
     case 'clarification_questions':
-      if (semanticSimilarity(extracted.question, golden.question) < 0.45)
+      if (similarity(extracted.question, golden.question) < 0.45)
         add(
           errors,
           'major',
@@ -406,10 +410,11 @@ function extraSeverity(family: PersonAFamily, item: JsonObject): ErrorSeverity {
   return 'minor';
 }
 
-export function evaluatePersonA(
+export function evaluatePersonAForCase(
   extracted: JsonObject,
   golden: JsonObject,
   alignment: PersonAAlignment,
+  options: PersonAAlignmentOptions = {},
 ): PersonAEvaluationReport {
   const errors: EvaluationError[] = [];
   const metrics = {} as Record<PersonAFamily, FamilyMetrics>;
@@ -444,6 +449,7 @@ export function evaluatePersonA(
         pair.extracted_id,
         pair.golden_id,
         errors,
+        options.aliases ?? {},
       );
       if (errors.slice(before).some((error) => error.severity !== 'minor')) {
         editedGoldenObjects.add(`${family}:${pair.golden_id}`);
@@ -504,6 +510,16 @@ export function evaluatePersonA(
     metrics,
     errors,
   };
+}
+
+export function evaluatePersonA(
+  extracted: JsonObject,
+  golden: JsonObject,
+  alignment: PersonAAlignment,
+): PersonAEvaluationReport {
+  return evaluatePersonAForCase(extracted, golden, alignment, {
+    aliases: DRY_RUN_001_COMPATIBILITY_ALIASES,
+  });
 }
 
 export function reportMarkdown(report: PersonAEvaluationReport): string {
