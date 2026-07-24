@@ -1,5 +1,17 @@
 type JsonObject = Record<string, any>;
 
+export type PersonASemanticAliases = Readonly<Record<string, string>>;
+
+export type PersonAAlignmentOptions = {
+  aliases?: PersonASemanticAliases;
+};
+
+export const DRY_RUN_001_COMPATIBILITY_ALIASES: PersonASemanticAliases = {
+  client: 'maya',
+  designer: 'alex',
+  freelancer: 'alex',
+};
+
 export type PersonAFamily =
   | 'agreement_terms'
   | 'deliverables'
@@ -53,7 +65,7 @@ const familyOrder: PersonAFamily[] = [
   'clarification_questions',
 ];
 
-const synonyms: Record<string, string> = {
+const genericSynonyms: Record<string, string> = {
   website: 'site',
   webpage: 'site',
   responsive: 'mobile',
@@ -71,14 +83,11 @@ const synonyms: Record<string, string> = {
   source: 'files',
   balance: 'payment',
   owed: 'payment',
-  client: 'maya',
-  freelancer: 'alex',
-  designer: 'alex',
   unusable: 'broken',
   defective: 'broken',
 };
 
-export function normalizeMeaning(value: unknown): string {
+export function normalizeMeaning(value: unknown, aliases: PersonASemanticAliases = {}): string {
   const text = typeof value === 'string' ? value : '';
   return text
     .normalize('NFKC')
@@ -88,7 +97,7 @@ export function normalizeMeaning(value: unknown): string {
     .trim()
     .split(/\s+/)
     .filter(Boolean)
-    .map((token) => synonyms[token] ?? token)
+    .map((token) => aliases[token] ?? genericSynonyms[token] ?? token)
     .join(' ');
 }
 
@@ -126,9 +135,13 @@ function trigramDice(a: string, b: string): number {
   return (2 * overlap) / (leftTotal + rightTotal);
 }
 
-export function semanticSimilarity(a: unknown, b: unknown): number {
-  const left = normalizeMeaning(a);
-  const right = normalizeMeaning(b);
+export function semanticSimilarity(
+  a: unknown,
+  b: unknown,
+  aliases: PersonASemanticAliases = {},
+): number {
+  const left = normalizeMeaning(a, aliases);
+  const right = normalizeMeaning(b, aliases);
   return 0.65 * tokenDice(left, right) + 0.35 * trigramDice(left, right);
 }
 
@@ -207,21 +220,22 @@ function candidateScore(
   family: PersonAFamily,
   extracted: JsonObject,
   golden: JsonObject,
+  aliases: PersonASemanticAliases,
 ): number | null {
+  const similarity = (left: unknown, right: unknown): number =>
+    semanticSimilarity(left, right, aliases);
   switch (family) {
     case 'claims':
       if (extracted.party_id !== golden.party_id || extracted.claim_type !== golden.claim_type)
         return null;
-      return semanticSimilarity(extracted.claim_text, golden.claim_text);
+      return similarity(extracted.claim_text, golden.claim_text);
     case 'timeline': {
       const actorMatch =
         extracted.actor_party_id === golden.actor_party_id &&
         extracted.actor_third_party_id === golden.actor_third_party_id;
       const dates = dateScore(extracted.date, golden.date);
       if (!actorMatch || dates === 0) return null;
-      return (
-        0.72 * semanticSimilarity(extracted.event_summary, golden.event_summary) + 0.28 * dates
-      );
+      return 0.72 * similarity(extracted.event_summary, golden.event_summary) + 0.28 * dates;
     }
     case 'evidence':
       if (
@@ -230,35 +244,30 @@ function candidateScore(
       )
         return null;
       return (
-        0.48 * semanticSimilarity(extracted.title, golden.title) +
-        0.37 *
-          semanticSimilarity(
-            extracted.description_from_submitter,
-            golden.description_from_submitter,
-          ) +
+        0.48 * similarity(extracted.title, golden.title) +
+        0.37 * similarity(extracted.description_from_submitter, golden.description_from_submitter) +
         0.1 * dateScore(extracted.created_date, golden.created_date) +
-        0.05 *
-          semanticSimilarity(extracted.provenance?.source_system, golden.provenance?.source_system)
+        0.05 * similarity(extracted.provenance?.source_system, golden.provenance?.source_system)
       );
     case 'agreement_terms':
       if (extracted.term_type !== golden.term_type) return null;
       return (
-        0.62 * semanticSimilarity(extracted.wording, golden.wording) +
-        0.38 * semanticSimilarity(extracted.person_a_interpretation, golden.person_a_interpretation)
+        0.62 * similarity(extracted.wording, golden.wording) +
+        0.38 * similarity(extracted.person_a_interpretation, golden.person_a_interpretation)
       );
     case 'deliverables':
       return (
-        0.65 * semanticSimilarity(extracted.name, golden.name) +
-        0.2 * semanticSimilarity(join(extracted.alleged_defects), join(golden.alleged_defects)) +
-        0.15 * semanticSimilarity(join(extracted.repair_attempts), join(golden.repair_attempts))
+        0.65 * similarity(extracted.name, golden.name) +
+        0.2 * similarity(join(extracted.alleged_defects), join(golden.alleged_defects)) +
+        0.15 * similarity(join(extracted.repair_attempts), join(golden.repair_attempts))
       );
     case 'damages':
       if (extracted.party_id !== golden.party_id || extracted.loss_type !== golden.loss_type)
         return null;
       return (
-        0.5 * semanticSimilarity(extracted.causal_theory, golden.causal_theory) +
+        0.5 * similarity(extracted.causal_theory, golden.causal_theory) +
         0.35 * amountScore(extracted, golden) +
-        0.15 * semanticSimilarity(extracted.calculation_basis, golden.calculation_basis)
+        0.15 * similarity(extracted.calculation_basis, golden.calculation_basis)
       );
     case 'outcomes':
       if (
@@ -268,23 +277,23 @@ function candidateScore(
         return null;
       return (
         0.35 * amountScore(extracted, golden) +
-        0.4 * semanticSimilarity(join(extracted.required_actions), join(golden.required_actions)) +
-        0.25 * semanticSimilarity(extracted.rationale, golden.rationale)
+        0.4 * similarity(join(extracted.required_actions), join(golden.required_actions)) +
+        0.25 * similarity(extracted.rationale, golden.rationale)
       );
     case 'third_parties':
       if (extracted.relationship_to_party_id !== golden.relationship_to_party_id) return null;
       return (
-        0.65 * semanticSimilarity(extracted.name_or_label, golden.name_or_label) +
-        0.35 * semanticSimilarity(extracted.role, golden.role)
+        0.65 * similarity(extracted.name_or_label, golden.name_or_label) +
+        0.35 * similarity(extracted.role, golden.role)
       );
     case 'extraction_issues':
       if (extracted.issue_type !== golden.issue_type) return null;
-      return semanticSimilarity(extracted.description, golden.description);
+      return similarity(extracted.description, golden.description);
     case 'clarification_questions':
       if (extracted.target_party_id !== golden.target_party_id) return null;
       return (
-        0.72 * semanticSimilarity(extracted.question, golden.question) +
-        0.28 * semanticSimilarity(extracted.reason, golden.reason)
+        0.72 * similarity(extracted.question, golden.question) +
+        0.28 * similarity(extracted.reason, golden.reason)
       );
   }
 }
@@ -369,9 +378,10 @@ function alignFamily(
   family: PersonAFamily,
   extractedItems: JsonObject[],
   goldenItems: JsonObject[],
+  aliases: PersonASemanticAliases,
 ): FamilyAlignment {
   const scores = extractedItems.map((extracted) =>
-    goldenItems.map((golden) => candidateScore(family, extracted, golden)),
+    goldenItems.map((golden) => candidateScore(family, extracted, golden, aliases)),
   );
   const assignment = maximumWeightAssignment(scores);
   const pairs: AlignmentPair[] = [];
@@ -435,14 +445,25 @@ function alignFamily(
   };
 }
 
-export function alignPersonA(extracted: JsonObject, golden: JsonObject): PersonAAlignment {
+export function alignPersonAForCase(
+  extracted: JsonObject,
+  golden: JsonObject,
+  options: PersonAAlignmentOptions = {},
+): PersonAAlignment {
   const families = {} as Record<PersonAFamily, FamilyAlignment>;
   for (const family of familyOrder) {
     families[family] = alignFamily(
       family,
       familyItems(extracted, family),
       familyItems(golden, family),
+      options.aliases ?? {},
     );
   }
   return { version: 'person-a-alignment-v0.1.0', families };
+}
+
+export function alignPersonA(extracted: JsonObject, golden: JsonObject): PersonAAlignment {
+  return alignPersonAForCase(extracted, golden, {
+    aliases: DRY_RUN_001_COMPATIBILITY_ALIASES,
+  });
 }

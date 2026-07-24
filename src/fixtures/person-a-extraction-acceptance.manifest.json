@@ -1,0 +1,143 @@
+{
+  "version": "person-a-extraction-acceptance-manifest-v1",
+  "cases": [
+    {
+      "case_id": "dry_run_001",
+      "narrative": {
+        "path": "dry_run_001.person_a.txt",
+        "sha256": "2cdb00b4b2b28c1813a979be5cf22f1ac51a30282abea9e144df491549c4fcc7"
+      },
+      "golden": {
+        "path": "dry_run_001.person_a.golden.extraction.json",
+        "sha256": "a6aea6cce9a3047c86f34bb5b7d36ccee1315f8f041e775793aeb1e75e3055f8"
+      },
+      "semantic_calibration": {
+        "identities": ["alex", "maya"],
+        "aliases": [
+          {
+            "alias": "client",
+            "canonical": "maya"
+          },
+          {
+            "alias": "designer",
+            "canonical": "alex"
+          },
+          {
+            "alias": "freelancer",
+            "canonical": "alex"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "dry_run_002",
+      "narrative": {
+        "path": "dry_run_002.person_a.txt",
+        "sha256": "0508bdb60323a32beafaa0b7e7e7ac734cd64a002830fc8eb1ca52e5feda0f86"
+      },
+      "golden": {
+        "path": "dry_run_002.person_a.golden.extraction.json",
+        "sha256": "3ffa68b9b28b2fd0fc0481357a1a011bb6f164afa2d199c1ec870f581e277bdf"
+      },
+      "semantic_calibration": {
+        "identities": ["jordan", "priya"],
+        "aliases": [
+          {
+            "alias": "client",
+            "canonical": "priya"
+          },
+          {
+            "alias": "restorer",
+            "canonical": "jordan"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "dry_run_003",
+      "narrative": {
+        "path": "dry_run_003.person_a.txt",
+        "sha256": "802ec18cbceb7884d992c1be2b4562c3a685603ec16447e937707aaa5d5ccaee"
+      },
+      "golden": {
+        "path": "dry_run_003.person_a.golden.extraction.json",
+        "sha256": "8b800c4a4fef485270965c5e4f8a7bb411ecfdb56a80bd2ea72391040c94f261"
+      },
+      "semantic_calibration": {
+        "identities": ["devon", "samir"],
+        "aliases": [
+          {
+            "alias": "client",
+            "canonical": "devon"
+          },
+          {
+            "alias": "organizer",
+            "canonical": "samir"
+          }
+        ]
+      }
+    }
+  ],
+  "candidates": [
+    {
+      "case_id": "dry_run_001",
+      "candidate_id": "golden_control",
+      "origin": "hand_authored_control",
+      "extraction": {
+        "path": "dry_run_001.person_a.golden.extraction.json",
+        "sha256": "a6aea6cce9a3047c86f34bb5b7d36ccee1315f8f041e775793aeb1e75e3055f8"
+      },
+      "expected_status": "accepted"
+    },
+    {
+      "case_id": "dry_run_001",
+      "candidate_id": "historical_saved_v1",
+      "origin": "historical_saved_output",
+      "extraction": {
+        "path": "dry_run_001.person_a.saved_v1.extraction.json",
+        "sha256": "68bad0e4125da83c84dfd6e7bbcd5eff2a39430722de7cbb5ce403c943ae5de7"
+      },
+      "expected_status": "rejected"
+    },
+    {
+      "case_id": "dry_run_001",
+      "candidate_id": "historical_saved_v2",
+      "origin": "historical_saved_output",
+      "extraction": {
+        "path": "dry_run_001.person_a.saved_v2.extraction.json",
+        "sha256": "460c932cdd7d142f64579f35334ae8436507d0cccd887345e6cd2f19e58c4f69"
+      },
+      "expected_status": "rejected"
+    },
+    {
+      "case_id": "dry_run_001",
+      "candidate_id": "historical_saved_v3",
+      "origin": "historical_saved_output",
+      "extraction": {
+        "path": "dry_run_001.person_a.saved_v3.extraction.json",
+        "sha256": "ed8b3ebd5606205dc54485ff67b4f2e9191c49aeb5a031ce37182b9159574f7b"
+      },
+      "expected_status": "rejected"
+    },
+    {
+      "case_id": "dry_run_002",
+      "candidate_id": "golden_control",
+      "origin": "hand_authored_control",
+      "extraction": {
+        "path": "dry_run_002.person_a.golden.extraction.json",
+        "sha256": "3ffa68b9b28b2fd0fc0481357a1a011bb6f164afa2d199c1ec870f581e277bdf"
+      },
+      "expected_status": "accepted"
+    },
+    {
+      "case_id": "dry_run_003",
+      "candidate_id": "golden_control",
+      "origin": "hand_authored_control",
+      "extraction": {
+        "path": "dry_run_003.person_a.golden.extraction.json",
+        "sha256": "8b800c4a4fef485270965c5e4f8a7bb411ecfdb56a80bd2ea72391040c94f261"
+      },
+      "expected_status": "accepted"
+    }
+  ]
+}

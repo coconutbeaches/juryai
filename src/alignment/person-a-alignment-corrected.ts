@@ -1,9 +1,12 @@
 import {
-  alignPersonA as alignBase,
+  alignPersonAForCase as alignBase,
+  DRY_RUN_001_COMPATIBILITY_ALIASES,
   familyItems,
   semanticSimilarity,
   type AlignmentPair,
+  type PersonAAlignmentOptions,
   type PersonAAlignment,
+  type PersonASemanticAliases,
 } from './person-a-alignment.js';
 
 type JsonObject = Record<string, any>;
@@ -149,6 +152,7 @@ function recoverSourceTracePairs(
   extracted: JsonObject,
   golden: JsonObject,
   alignment: PersonAAlignment,
+  aliases: PersonASemanticAliases,
 ): void {
   const configurations: Array<{
     family: 'agreement_terms' | 'timeline' | 'claims' | 'extraction_issues';
@@ -203,6 +207,7 @@ function recoverSourceTracePairs(
         const semanticScore = semanticSimilarity(
           configuration.text(left),
           configuration.text(right),
+          aliases,
         );
         if (semanticScore < configuration.minimumSemanticScore) continue;
         candidates.push({
@@ -277,6 +282,7 @@ function recoverUniqueClaimFacts(
   extracted: JsonObject,
   golden: JsonObject,
   alignment: PersonAAlignment,
+  aliases: PersonASemanticAliases,
 ): void {
   const family = alignment.families.claims;
   const extractedItems = familyItems(extracted, 'claims');
@@ -293,7 +299,7 @@ function recoverUniqueClaimFacts(
         left.party_id === right.party_id &&
         left.claim_type === right.claim_type &&
         [...leftNumbers].some((value) => rightNumbers.has(value)) &&
-        semanticSimilarity(left.claim_text, right.claim_text) >= 0.38
+        semanticSimilarity(left.claim_text, right.claim_text, aliases) >= 0.38
       );
     });
     const compatibleExtracted = family.unmatched_extracted.filter((other) => {
@@ -310,7 +316,7 @@ function recoverUniqueClaimFacts(
     candidates.push({
       extractedIndex: extra.index,
       goldenIndex: missing.index,
-      score: semanticSimilarity(left.claim_text, goldenItems[missing.index]?.claim_text),
+      score: semanticSimilarity(left.claim_text, goldenItems[missing.index]?.claim_text, aliases),
     });
   }
 
@@ -321,6 +327,7 @@ function recoverAdjacentTimelineDates(
   extracted: JsonObject,
   golden: JsonObject,
   alignment: PersonAAlignment,
+  aliases: PersonASemanticAliases,
 ): void {
   const family = alignment.families.timeline;
   const extractedItems = familyItems(extracted, 'timeline');
@@ -344,7 +351,7 @@ function recoverAdjacentTimelineDates(
       candidates.push({
         extractedIndex: extra.index,
         goldenIndex: missing.index,
-        score: 0.75 + 0.25 * semanticSimilarity(left.event_summary, right.event_summary),
+        score: 0.75 + 0.25 * semanticSimilarity(left.event_summary, right.event_summary, aliases),
       });
     }
   }
@@ -399,6 +406,7 @@ function recoverActorReversals(
   extracted: JsonObject,
   golden: JsonObject,
   alignment: PersonAAlignment,
+  aliases: PersonASemanticAliases,
 ): void {
   const family = alignment.families.timeline;
   const extractedItems = familyItems(extracted, 'timeline');
@@ -413,7 +421,7 @@ function recoverActorReversals(
         left.actor_party_id !== right.actor_party_id ||
         left.actor_third_party_id !== right.actor_third_party_id;
       if (!actorsDiffer || dateOverlap(left.date, right.date) === 0) continue;
-      const score = semanticSimilarity(left.event_summary, right.event_summary);
+      const score = semanticSimilarity(left.event_summary, right.event_summary, aliases);
       if (score >= 0.65) {
         candidates.push({ extractedIndex: extra.index, goldenIndex: missing.index, score });
       }
@@ -427,6 +435,7 @@ function recoverOutcomeTransferReversals(
   extracted: JsonObject,
   golden: JsonObject,
   alignment: PersonAAlignment,
+  aliases: PersonASemanticAliases,
 ): void {
   const family = alignment.families.outcomes;
   const extractedItems = familyItems(extracted, 'outcomes');
@@ -441,10 +450,11 @@ function recoverOutcomeTransferReversals(
       if (transferDirection(left) === transferDirection(right)) continue;
       if (transferAmount(left) !== transferAmount(right)) continue;
 
-      const rationaleScore = semanticSimilarity(left.rationale, right.rationale);
+      const rationaleScore = semanticSimilarity(left.rationale, right.rationale, aliases);
       const actionsScore = semanticSimilarity(
         joinStrings(left.required_actions),
         joinStrings(right.required_actions),
+        aliases,
       );
       const score = 0.65 * rationaleScore + 0.35 * actionsScore;
       if (score >= 0.55) {
@@ -456,24 +466,41 @@ function recoverOutcomeTransferReversals(
   applyRecoveredPairs(family, extractedItems, goldenItems, candidates, 'outcome_id', 'outcome');
 }
 
-export function alignPersonA(extracted: JsonObject, golden: JsonObject): PersonAAlignment {
-  const alignment = alignBase(extracted, golden);
+export function alignPersonAForCase(
+  extracted: JsonObject,
+  golden: JsonObject,
+  options: PersonAAlignmentOptions = {},
+): PersonAAlignment {
+  const aliases = options.aliases ?? {};
+  const alignment = alignBase(extracted, golden, options);
   removeAmbiguousDuplicates(alignment);
-  recoverSourceTracePairs(extracted, golden, alignment);
+  recoverSourceTracePairs(extracted, golden, alignment, aliases);
   recoverContainedDeliverableNames(extracted, golden, alignment);
-  recoverUniqueClaimFacts(extracted, golden, alignment);
-  recoverAdjacentTimelineDates(extracted, golden, alignment);
+  recoverUniqueClaimFacts(extracted, golden, alignment, aliases);
+  recoverAdjacentTimelineDates(extracted, golden, alignment, aliases);
   recoverUniqueEvidenceBlocks(extracted, golden, alignment);
-  recoverActorReversals(extracted, golden, alignment);
-  recoverOutcomeTransferReversals(extracted, golden, alignment);
+  recoverActorReversals(extracted, golden, alignment, aliases);
+  recoverOutcomeTransferReversals(extracted, golden, alignment, aliases);
   return alignment;
 }
 
-export { familyItems, semanticSimilarity } from './person-a-alignment.js';
+export function alignPersonA(extracted: JsonObject, golden: JsonObject): PersonAAlignment {
+  return alignPersonAForCase(extracted, golden, {
+    aliases: DRY_RUN_001_COMPATIBILITY_ALIASES,
+  });
+}
+
+export {
+  DRY_RUN_001_COMPATIBILITY_ALIASES,
+  familyItems,
+  semanticSimilarity,
+} from './person-a-alignment.js';
 export type {
   AlignmentPair,
   AmbiguousAlignment,
   FamilyAlignment,
+  PersonAAlignmentOptions,
   PersonAFamily,
   PersonAAlignment,
+  PersonASemanticAliases,
 } from './person-a-alignment.js';
