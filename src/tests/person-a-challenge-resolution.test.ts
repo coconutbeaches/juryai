@@ -918,3 +918,211 @@ describe('Person A challenge resolution CLI', () => {
     }
   });
 });
+
+function extractedObjectProposal(
+  value: ResolutionContext,
+  challengeValue: PersonARecordChallenge,
+  replacementValue: JsonValue,
+  groundingOverride: Record<string, unknown> = {},
+): PersonAChallengeResolutionProposal {
+  const field = challengeValue.target_path.slice(challengeValue.target_path.lastIndexOf('/') + 1);
+  const grounding = {
+    kind: 'extracted_object' as const,
+    object_id: challengeValue.target_object_id,
+    field,
+    value: structuredClone(challengeValue.expected_prior_value),
+    ...groundingOverride,
+  };
+  const body = {
+    challenge_id: challengeValue.challenge_id,
+    outcome: 'accepted' as const,
+    target_object_id: challengeValue.target_object_id,
+    target_path: challengeValue.target_path,
+    expected_prior_value: structuredClone(challengeValue.expected_prior_value),
+    replacement_value: structuredClone(replacementValue),
+    grounding_reference: grounding as any,
+  };
+  return {
+    resolution_id: derivePersonAChallengeResolutionId(body as any),
+    ...body,
+  } as PersonAChallengeResolutionProposal;
+}
+
+function dateContext(value: ResolutionContext): ResolutionContext {
+  const dateChallenge = challenge(
+    value.record,
+    value.record.timeline[0].event_id,
+    '/timeline/0/date',
+    'incorrect_value',
+    'The challenged date object must be represented differently.',
+    value.record.timeline[0].date,
+  );
+  return contextWithSingleChallenge(value, dateChallenge);
+}
+
+describe('Person A challenge resolution extracted_object grounding', () => {
+  it('accepts a primitive field correction grounded by an exact extracted_object reference', () => {
+    const value = context();
+    const summaryChallenge = value.challenges[0]!;
+    const proposal = extractedObjectProposal(
+      value,
+      summaryChallenge,
+      `${value.record.timeline[0].event_summary} (corrected via extracted_object grounding)`,
+    );
+    const before = JSON.stringify(value);
+    const result = resolvePersonAChallenges(input(value, [proposal]));
+    expect(result.status).toBe('resolved');
+    expect(result.audit).toMatchObject({ resolutions_accepted: 1, amendments_created: 1 });
+    expect(result.correction_amendments[0]!.grounding_reference).toMatchObject({
+      kind: 'extracted_object',
+      object_id: summaryChallenge.target_object_id,
+      field: 'event_summary',
+      value: value.record.timeline[0].event_summary,
+    });
+    expect(JSON.stringify(value)).toBe(before);
+  });
+
+  it('fails closed when extracted_object grounding carries a non-primitive value', () => {
+    const value = context();
+    const dateValue = dateContext(value);
+    const dateChallenge = dateValue.challenges[0]!;
+    // The date field is object-valued, so the mutation shape is permitted, but an
+    // extracted_object grounding is only valid over primitive values.
+    const proposal = extractedObjectProposal(dateValue, dateChallenge, {
+      start: null,
+      end: null,
+      precision: 'unknown',
+      approximate: true,
+    });
+    const result = resolvePersonAChallenges(input(dateValue, [proposal]));
+    expect(result.status).toBe('invalid');
+    expect(result.diagnostics.map((entry) => entry.code)).toContain('invalid_grounding');
+    expect(result.diagnostics.map((entry) => entry.code)).toContain('atomic_batch_rejected');
+    expect(result.revised_record).toBeNull();
+    expect(result.correction_amendments).toEqual([]);
+  });
+
+  it.each([
+    ['object identity mismatch', { object_id: 'event_other' }],
+    ['grounded value mismatch', { value: 'a different prior value' }],
+    ['grounded field mismatch', { field: 'occurrence_status' }],
+  ])('fails closed on extracted_object %s', (_label, override) => {
+    const value = context();
+    const summaryChallenge = value.challenges[0]!;
+    const proposal = extractedObjectProposal(
+      value,
+      summaryChallenge,
+      `${value.record.timeline[0].event_summary} (corrected)`,
+      override,
+    );
+    const result = resolvePersonAChallenges(input(value, [proposal]));
+    expect(result.status).toBe('invalid');
+    expect(result.diagnostics.map((entry) => entry.code)).toContain('invalid_grounding');
+    expect(result.revised_record).toBeNull();
+    expect(result.correction_amendments).toEqual([]);
+  });
+});
+
+describe('Person A challenge resolution whole object-valued field replacement', () => {
+  it('applies a schema-valid replacement of the canonical date object and preserves unrelated content', () => {
+    const value = context();
+    const dateValue = dateContext(value);
+    const dateChallenge = dateValue.challenges[0]!;
+    const priorDate = structuredClone(dateChallenge.expected_prior_value) as Record<
+      string,
+      unknown
+    >;
+    const replacement = { ...priorDate, approximate: !priorDate.approximate };
+    const proposal = acceptedProposal(dateValue, dateChallenge, replacement as JsonValue);
+    const result = resolvePersonAChallenges(input(dateValue, [proposal]));
+    expect(result.status).toBe('resolved');
+    expect((result.revised_record as JsonObject).timeline[0].date).toEqual(replacement);
+    expect(result.correction_amendments).toHaveLength(1);
+    expect(result.version_transition).toMatchObject({
+      prior_record_version: 1,
+      resulting_record_version: 2,
+    });
+    const revised = result.revised_record as JsonObject;
+    const original = dateValue.record;
+    expect(JSON.stringify(revised.claims)).toBe(JSON.stringify(original.claims));
+    expect(JSON.stringify(revised.evidence)).toBe(JSON.stringify(original.evidence));
+    expect(JSON.stringify(revised.agreement)).toBe(JSON.stringify(original.agreement));
+    expect(JSON.stringify(revised.damages_claims)).toBe(JSON.stringify(original.damages_claims));
+    expect(JSON.stringify(revised.party)).toBe(JSON.stringify(original.party));
+    expect(revised.timeline[0].event_summary).toBe(original.timeline[0].event_summary);
+  });
+
+  it('returns invalid_revised_record when the replacement object violates canonical invariants', () => {
+    const value = context();
+    const dateValue = dateContext(value);
+    const dateChallenge = dateValue.challenges[0]!;
+    // precision `exact` without bounded start/end is not a schema/invariant valid date object.
+    const replacement = { start: null, end: null, precision: 'exact', approximate: false };
+    const proposal = acceptedProposal(dateValue, dateChallenge, replacement as JsonValue);
+    const result = resolvePersonAChallenges(input(dateValue, [proposal]));
+    expect(result.status).toBe('invalid');
+    expect(result.diagnostics.map((entry) => entry.code)).toContain('invalid_revised_record');
+    expect(result.diagnostics.map((entry) => entry.code)).toContain('atomic_batch_rejected');
+    expect(result.revised_record).toBeNull();
+    expect(result.correction_amendments).toEqual([]);
+  });
+});
+
+describe('Person A challenge resolution all-rejected fresh reconfirmation', () => {
+  it('rejects every challenge without mutation and still demands a fresh PR #8 confirmation', () => {
+    const value = context();
+    const rejected = rejectedProposal(value.challenges[0]!);
+    const result = resolvePersonAChallenges(input(value, [rejected]));
+    expect(result.status).toBe('resolved');
+    expect(result.revised_record).toEqual(value.record);
+    expect(result.revised_record_hash).toBe(result.parent_record_hash);
+    expect(result.correction_amendments).toEqual([]);
+    expect(result.rejected_resolutions).toHaveLength(1);
+    expect(result.version_transition).toMatchObject({
+      prior_record_version: 1,
+      resulting_record_version: 1,
+    });
+    expect(result.confirmation_required).toBe(true);
+    expect(result.confirmed).toBe(false);
+    expect(result.record_locked).toBe(false);
+
+    const newPackage = buildPersonAConfirmationPackage({
+      runtimePlan: value.plan,
+      answerApplication: value.application,
+      amendedRecord: result.revised_record!,
+      revision: result.confirmation_handoff!,
+    });
+    expect(newPackage.package_id).not.toBe(value.confirmationResult.confirmation_package_id);
+
+    const oldPackageAttempt = confirmPersonARecord({
+      runtimePlan: value.plan,
+      answerApplication: value.application,
+      amendedRecord: result.revised_record,
+      revision: result.confirmation_handoff,
+      submission: {
+        version: PERSON_A_CONFIRMATION_SUBMISSION_VERSION,
+        outcome: 'confirmed',
+        confirmation_package_id: value.confirmationResult.confirmation_package_id!,
+        amended_record_hash: result.revised_record_hash!,
+        explicit_confirmation: true,
+      },
+    });
+    expect(oldPackageAttempt.status).toBe('invalid');
+    expect(oldPackageAttempt.diagnostics.map((entry) => entry.code)).toContain('stale_package');
+
+    const freshConfirmation = confirmPersonARecord({
+      runtimePlan: value.plan,
+      answerApplication: value.application,
+      amendedRecord: result.revised_record,
+      revision: result.confirmation_handoff,
+      submission: {
+        version: PERSON_A_CONFIRMATION_SUBMISSION_VERSION,
+        outcome: 'confirmed',
+        confirmation_package_id: newPackage.package_id,
+        amended_record_hash: result.revised_record_hash!,
+        explicit_confirmation: true,
+      },
+    });
+    expect(freshConfirmation.status).toBe('confirmed');
+  });
+});
