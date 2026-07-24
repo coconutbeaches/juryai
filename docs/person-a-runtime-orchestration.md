@@ -104,6 +104,9 @@ are offline test/CLI fixtures, not the final production assessment engine.
 - Never apply clarification answers automatically in the planning phase. The separate answer
   application boundary consumes only explicitly submitted answers to issued questions, records
   append-only amendments, and produces a separately validated amended projection.
+- Send only a passed answer-application result and its exact amended-record identity to the
+  downstream Person A confirmation boundary. Confirmation records acceptance or precise
+  challenges without changing the projection.
 - Never read an API key or create an OpenAI client in offline planning.
 - Never use the golden fixture, alignment, or evaluation modules in runtime code.
 
