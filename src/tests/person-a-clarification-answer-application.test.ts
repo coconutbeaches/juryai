@@ -737,6 +737,140 @@ describe('Person A clarification answer application', () => {
     expect(JSON.stringify(result.amended_record)).toBe(before);
   });
 
+  it('binds a range answer to two distinct grounded endpoints', () => {
+    const { record, target, issued } = dateContextCase(
+      'The work ran from June 3 through July 4.',
+      'The work ran from June 3 through July 4.',
+    );
+    const submitted = {
+      start: '2026-06-03',
+      end: '2026-07-04',
+      precision: 'range',
+      approximate: true,
+    };
+    const first = apply(record, [issued], [answer(issued, record, submitted)]);
+    const second = apply(record, [issued], [answer(issued, record, submitted)]);
+
+    expect(first.audit.final_status).toBe('passed');
+    expect(findObject(first.amended_record!, target.event_id).date).toEqual(submitted);
+    expect(JSON.stringify(first)).toBe(JSON.stringify(second));
+  });
+
+  it.each([
+    {
+      label: 'collapsed start endpoint',
+      start: '2026-06-03',
+      end: '2026-06-03',
+    },
+    {
+      label: 'collapsed end endpoint',
+      start: '2026-07-04',
+      end: '2026-07-04',
+    },
+    {
+      label: 'reversed endpoints',
+      start: '2026-07-04',
+      end: '2026-06-03',
+    },
+    {
+      label: 'invented endpoint',
+      start: '2026-06-03',
+      end: '2026-07-05',
+    },
+  ])('rejects a range with $label', ({ start, end }) => {
+    const { record, issued } = dateContextCase(
+      'The work ran from June 3 through July 4.',
+      'The work ran from June 3 through July 4.',
+    );
+    const submitted = answer(issued, record, {
+      start,
+      end,
+      precision: 'range',
+      approximate: true,
+    });
+    const before = JSON.stringify(record);
+    const result = apply(record, [issued], [submitted]);
+
+    expect(result.audit.failure_stage).toBe('answer_validation');
+    expect(result.rejected_answers).toEqual([
+      expect.objectContaining({
+        answer_id: submitted.answer_id,
+        question_id: submitted.question_id,
+        code: 'invalid_date_precision',
+      }),
+    ]);
+    expect(result.amendments).toEqual([]);
+    expect(result.validated_answers).toEqual([]);
+    expect(JSON.stringify(result.amended_record)).toBe(before);
+  });
+
+  it('does not treat duplicate same-date grounding as a same-day range', () => {
+    const { record, issued } = dateContextCase(
+      'The stated dates were June 3 and June 3.',
+      'The first stated date was June 3 and the second stated date was June 3.',
+    );
+    const submitted = answer(issued, record, {
+      start: '2026-06-03',
+      end: '2026-06-03',
+      precision: 'range',
+      approximate: true,
+    });
+    const before = JSON.stringify(record);
+    const result = apply(record, [issued], [submitted]);
+
+    expect(result.rejected_answers).toEqual([
+      expect.objectContaining({
+        answer_id: submitted.answer_id,
+        question_id: submitted.question_id,
+        code: 'invalid_date_precision',
+      }),
+    ]);
+    expect(result.amendments).toEqual([]);
+    expect(JSON.stringify(result.amended_record)).toBe(before);
+  });
+
+  it('fails closed when multiple grounded positions create ambiguous endpoint pairs', () => {
+    const { record, issued } = dateContextCase(
+      'The interval ran during June through July.',
+      'One account began June 3, another repeated June 3, and the endpoint was July 4.',
+    );
+    const submitted = answer(issued, record, {
+      start: '2026-06-03',
+      end: '2026-07-04',
+      precision: 'range',
+      approximate: true,
+    });
+    const before = JSON.stringify(record);
+    const result = apply(record, [issued], [submitted]);
+
+    expect(result.rejected_answers).toEqual([
+      expect.objectContaining({
+        answer_id: submitted.answer_id,
+        question_id: submitted.question_id,
+        code: 'invalid_date_precision',
+      }),
+    ]);
+    expect(result.amendments).toEqual([]);
+    expect(JSON.stringify(result.amended_record)).toBe(before);
+  });
+
+  it('uses coarser event context to select one grounded endpoint pair', () => {
+    const { record, target, issued } = dateContextCase(
+      'The interval ran during June through July.',
+      'After an April 25 checkpoint, the interval ran from June 3 through July 4.',
+    );
+    const submitted = {
+      start: '2026-06-03',
+      end: '2026-07-04',
+      precision: 'range',
+      approximate: true,
+    };
+    const result = apply(record, [issued], [answer(issued, record, submitted)]);
+
+    expect(result.audit.final_status).toBe('passed');
+    expect(findObject(result.amended_record!, target.event_id).date).toEqual(submitted);
+  });
+
   it('applies a month-only date answer by adding only the supplied year', () => {
     const { record, target, issued } = monthDateCase();
     const submitted = {

@@ -15,7 +15,7 @@ export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue
 type JsonObject = { [key: string]: JsonValue };
 
 export const PERSON_A_CLARIFICATION_ANSWER_APPLICATION_VERSION =
-  'person-a-clarification-answer-application-v0.1.8';
+  'person-a-clarification-answer-application-v0.1.9';
 export const PERSON_A_CLARIFICATION_ANSWER_BATCH_VERSION =
   'person-a-clarification-answer-batch-v0.1.0';
 export const MAX_PERSON_A_CLARIFICATION_ANSWERS = 6;
@@ -703,21 +703,21 @@ function parseAnswer(value: JsonValue, index: number): SubmittedPersonAClarifica
   return value as unknown as SubmittedPersonAClarificationAnswer;
 }
 
-function sourceTexts(question: NecessaryClarificationQuestion): string[] {
-  return question.grounding_references.flatMap((reference) =>
-    reference.kind === 'source_span' ? [reference.quote] : [],
-  );
-}
-
 interface DateMention {
+  identity: string;
   year: number | null;
   month: number;
   day: number | null;
 }
 
-function dateMentionsFromTexts(texts: readonly string[]): DateMention[] {
+interface DateMentionText {
+  identity: string;
+  text: string;
+}
+
+function dateMentionsFromTexts(texts: readonly DateMentionText[]): DateMention[] {
   const result: DateMention[] = [];
-  const add = (year: number | null, month: number, day: number | null): void => {
+  const add = (identity: string, year: number | null, month: number, day: number | null): void => {
     if (day === null) {
       if (
         Number.isInteger(month) &&
@@ -725,7 +725,7 @@ function dateMentionsFromTexts(texts: readonly string[]): DateMention[] {
         month <= 12 &&
         (year === null || (Number.isInteger(year) && year >= 1 && year <= 9999))
       ) {
-        result.push({ year, month, day });
+        result.push({ identity, year, month, day });
       }
       return;
     }
@@ -736,14 +736,15 @@ function dateMentionsFromTexts(texts: readonly string[]): DateMention[] {
       date.getUTCMonth() === month - 1 &&
       date.getUTCDate() === day
     ) {
-      result.push({ year, month, day });
+      result.push({ identity, year, month, day });
     }
   };
-  for (const text of texts) {
+  for (const { identity: textIdentity, text } of texts) {
     for (const match of text.matchAll(
       new RegExp(`\\b(${monthPattern})\\s+(\\d{1,2})(?:\\s*,?\\s*(\\d{4}))?\\b`, 'giu'),
     )) {
       add(
+        `${textIdentity}:${match.index ?? 0}:${match[0].length}`,
         match[3] === undefined ? null : Number(match[3]),
         monthNumbers[match[1]!.toLowerCase()]!,
         Number(match[2]),
@@ -753,13 +754,19 @@ function dateMentionsFromTexts(texts: readonly string[]): DateMention[] {
       new RegExp(`\\b(\\d{1,2})\\s+(${monthPattern})(?:\\s+(\\d{4}))?\\b`, 'giu'),
     )) {
       add(
+        `${textIdentity}:${match.index ?? 0}:${match[0].length}`,
         match[3] === undefined ? null : Number(match[3]),
         monthNumbers[match[2]!.toLowerCase()]!,
         Number(match[1]),
       );
     }
     for (const match of text.matchAll(new RegExp(`\\b(${monthPattern})\\s+(\\d{4})\\b`, 'giu'))) {
-      add(Number(match[2]), monthNumbers[match[1]!.toLowerCase()]!, null);
+      add(
+        `${textIdentity}:${match.index ?? 0}:${match[0].length}`,
+        Number(match[2]),
+        monthNumbers[match[1]!.toLowerCase()]!,
+        null,
+      );
     }
     for (const match of text.matchAll(
       new RegExp(
@@ -767,7 +774,12 @@ function dateMentionsFromTexts(texts: readonly string[]): DateMention[] {
         'giu',
       ),
     )) {
-      add(null, monthNumbers[match[1]!.toLowerCase()]!, null);
+      add(
+        `${textIdentity}:${match.index ?? 0}:${match[0].length}`,
+        null,
+        monthNumbers[match[1]!.toLowerCase()]!,
+        null,
+      );
     }
     for (const match of text.matchAll(
       new RegExp(
@@ -775,13 +787,18 @@ function dateMentionsFromTexts(texts: readonly string[]): DateMention[] {
         'giu',
       ),
     )) {
-      add(null, monthNumbers[match[1]!.toLowerCase()]!, null);
+      add(
+        `${textIdentity}:${match.index ?? 0}:${match[0].length}`,
+        null,
+        monthNumbers[match[1]!.toLowerCase()]!,
+        null,
+      );
     }
   }
   return [
     ...new Map(
       result.map((mention) => [
-        `${mention.year ?? 'XXXX'}-${mention.month}-${mention.day ?? 'XX'}`,
+        `${mention.identity}:${mention.year ?? 'XXXX'}-${mention.month}-${mention.day ?? 'XX'}`,
         mention,
       ]),
     ).values(),
@@ -806,10 +823,23 @@ function targetDateMentions(
   question: NecessaryClarificationQuestion,
   target: JsonObject,
 ): DateMention[] {
-  const sourceMentions = dateMentionsFromTexts(sourceTexts(question));
+  const sourceMentions = dateMentionsFromTexts(
+    question.grounding_references.flatMap((reference, index) =>
+      reference.kind === 'source_span'
+        ? [
+            {
+              identity: `source:${index}:${reference.submission_id}:${reference.start_char}:${reference.end_char}`,
+              text: reference.quote,
+            },
+          ]
+        : [],
+    ),
+  );
   const eventSummary = target.event_summary;
   const contextMentions =
-    typeof eventSummary === 'string' ? dateMentionsFromTexts([eventSummary]) : [];
+    typeof eventSummary === 'string'
+      ? dateMentionsFromTexts([{ identity: 'event-summary', text: eventSummary }])
+      : [];
   if (contextMentions.length === 0) return sourceMentions;
   const compatible = sourceMentions.flatMap((sourceMention) =>
     contextMentions.flatMap((contextMention) =>
@@ -821,7 +851,7 @@ function targetDateMentions(
   return [
     ...new Map(
       compatible.map((mention) => [
-        `${mention.year ?? 'XXXX'}-${mention.month}-${mention.day ?? 'XX'}`,
+        `${mention.identity}:${mention.year ?? 'XXXX'}-${mention.month}-${mention.day ?? 'XX'}`,
         mention,
       ]),
     ).values(),
@@ -919,20 +949,29 @@ function normalizeDateAnswer(
         answer,
       );
     }
-  } else if (
-    end === null ||
-    submitted.approximate !== true ||
-    mentions.filter((mention) => mention.day !== null).length !== 2 ||
-    !mentions.some((mention) => matches(start, mention)) ||
-    !mentions.some((mention) => matches(end, mention)) ||
-    start.year !== end.year ||
-    String(submitted.start) > String(submitted.end)
-  ) {
-    return boundedError(
-      'invalid_date_precision',
-      'A range answer must preserve two grounded endpoints in one supplied year.',
-      answer,
-    );
+  } else {
+    const groundedDays = mentions.filter((mention) => mention.day !== null);
+    const compatiblePairs =
+      end === null || submitted.approximate !== true || start.year !== end.year
+        ? []
+        : groundedDays.flatMap((startMention) =>
+            !matches(start, startMention)
+              ? []
+              : groundedDays.flatMap((endMention) =>
+                  startMention.identity !== endMention.identity &&
+                  matches(end, endMention) &&
+                  String(submitted.start) < String(submitted.end)
+                    ? [{ startMention, endMention }]
+                    : [],
+                ),
+          );
+    if (compatiblePairs.length !== 1) {
+      return boundedError(
+        'invalid_date_precision',
+        'A range answer must bind one strictly ordered submitted interval to two distinct, unambiguous grounded endpoints in one supplied year.',
+        answer,
+      );
+    }
   }
   return submitted;
 }

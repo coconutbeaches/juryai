@@ -52,7 +52,9 @@ answer from otherwise valid answers rejected with the batch.
   mentions compatible with the target event summary are eligible. A coarser summary such as
   `June deadline` can select an exact grounded `June 3`, while conflicting months, days, or explicit
   years and ambiguous compatible source dates fail closed. Unrelated dates in the same span cannot
-  be applied to the event;
+  be applied to the event. Range answers must bind their start and end to exactly one pair of
+  distinct grounded mention positions in strict chronological order; repeated, collapsed,
+  reversed, invented, or ambiguously paired endpoints are rejected;
 - evidence availability remains categorical and cannot imply upload, inspection, authenticity, or
   verification;
 - causal answers are stored explicitly as Person A's asserted theory, not an adjudicated fact.
