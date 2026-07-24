@@ -14,8 +14,8 @@ The provider returns detached plain JSON in deterministic order. The orchestrati
 
 The stable rules are:
 
-- `runtime_actor_attribution_v1`: asks only for a material actor-bearing timeline action when neither the object nor its exact source span identifies an actor.
-- `runtime_material_date_precision_v1`: groups materially necessary missing calendar years for deadlines, sequence, liability, or comparable timing. Grounded full dates normalize to `YYYY-MM-DD`; yearless dates retain an `XXXX` year and are never silently promoted.
+- `runtime_actor_attribution_v1`: asks only for a material actor-bearing timeline action when neither the object nor its exact source span identifies an actor. Action detection inspects bounded event-summary clauses after temporal or contextual prefaces instead of assuming the first comma-delimited fragment is the action. Source-only suppression requires active first person or an exact registered party/third-party identity; a capitalized object noun is not treated as an actor.
+- `runtime_material_date_precision_v1`: emits one independently scoped assessment for each materially necessary missing calendar year for deadlines, sequence, liability, or comparable timing. Each assessment resolves only its identified event. Grounded full dates normalize to `YYYY-MM-DD`; yearless dates retain an `XXXX` year and are never silently promoted.
 - `runtime_evidence_availability_v1`: asks only about `described_only` or unknown evidence with an exact grounded claim link; it never promotes availability or inspection state.
 - `runtime_causal_link_v1`: classifies grounded damages theories as explicit, inferred, disputed, unstated, or ambiguous. Explicit theories are suppressed, ambiguous text fails closed, and disputed theories require two independently grounded claims.
 - `runtime_nullable_interpretation_v1`: exposes a source-grounded null `person_a_interpretation`; it does not treat required wording or claim text as a missing bucket.
