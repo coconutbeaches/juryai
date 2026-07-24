@@ -107,6 +107,12 @@ are offline test/CLI fixtures, not the final production assessment engine.
 - Send only a passed answer-application result and its exact amended-record identity to the
   downstream Person A confirmation boundary. Confirmation records acceptance or precise
   challenges without changing the projection.
+- Send a passed challenged confirmation result only to the deterministic challenge-resolution
+  boundary with an explicitly injected complete decision batch. Accepted corrections create
+  append-only runtime amendments and a revised record version; rejected challenges leave record
+  content unchanged. Every resolved result returns through confirmation with a new package.
+- Never treat challenge resolution as confirmation, record locking, Person B invitation, or a case
+  state transition.
 - Never read an API key or create an OpenAI client in offline planning.
 - Never use the golden fixture, alignment, or evaluation modules in runtime code.
 

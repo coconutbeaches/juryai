@@ -9,6 +9,12 @@ answers add a validated amendment and project it into a new record. Confirmation
 Person A accepts that complete projection as presented. A challenge records an objection for a
 future correction or resolution boundary; it never performs that correction.
 
+The challenge-resolution boundary consumes a passed challenged result plus an explicitly injected
+complete decision batch. Accepted field replacements create append-only correction amendments and
+a revised record; rejected challenges leave the record unchanged. Both paths return through this
+confirmation boundary with a revision handoff and require a fresh package and explicit
+reconfirmation. The prior package cannot confirm the returned record.
+
 ## Review package and identity binding
 
 `buildPersonAConfirmationPackage()` includes:
@@ -138,3 +144,7 @@ clarification-answer fixture.
 This milestone adds no Person B intake, persistence, database or case-state transition,
 deliberation, recommendation generation, user interface, deployment, or live model call. Live
 extraction acceptance remains **0/3**.
+
+Challenge resolution is also not confirmation: it cannot lock a record, carry forward an old
+affirmation, or invite Person B. See
+[`person-a-challenge-resolution.md`](person-a-challenge-resolution.md).

@@ -83,6 +83,7 @@ export interface PersonAConfirmationPackage {
     repaired_record_hash: string;
     clarification_answer_application_hash: string;
     amended_record_hash: string;
+    correction_resolution_handoff_hash?: string;
   };
   provenance_legend: {
     supplied_facts: string;
@@ -105,7 +106,24 @@ export interface PersonAConfirmationPackage {
     extraction_issues: JsonValue;
   };
   amendments: JsonValue[];
+  correction_amendments?: JsonValue[];
   unresolved_uncertainties: JsonValue[];
+}
+
+export const PERSON_A_CONFIRMATION_REVISION_VERSION = 'person-a-confirmation-revision-v0.1.0';
+
+export interface PersonAConfirmationRevision {
+  revision_version: typeof PERSON_A_CONFIRMATION_REVISION_VERSION;
+  handoff_id: string;
+  prior_confirmation_package_id: string;
+  challenged_confirmation_submission_id: string;
+  parent_amended_record_hash: string;
+  revised_record_hash: string;
+  prior_record_version: number;
+  resulting_record_version: number;
+  resolution_batch_id: string;
+  correction_amendments: JsonValue[];
+  confirmation_required: true;
 }
 
 export type PersonAConfirmationIssueCode =
@@ -163,6 +181,7 @@ export interface PersonARecordConfirmationInput {
   answerApplication: unknown;
   amendedRecord: unknown;
   submission: unknown;
+  revision?: unknown;
 }
 
 const categories = new Set<PersonAChallengeCategory>([
@@ -224,6 +243,10 @@ function stableJson(value: JsonValue): string {
 
 function hash(value: JsonValue): string {
   return createHash('sha256').update(stableJson(value), 'utf8').digest('hex');
+}
+
+export function hashPersonAConfirmationArtifact(value: JsonValue): string {
+  return hash(value);
 }
 
 function cloneJson<T extends JsonValue>(value: T): T {
@@ -423,16 +446,19 @@ function packageWithoutId(
   runtimePlan: PersonARuntimePlanningResult,
   application: PersonAClarificationAnswerApplicationResult,
   amendedRecord: JsonObject,
+  revision?: PersonAConfirmationRevision,
 ): Omit<PersonAConfirmationPackage, 'package_id'> {
+  const identities: PersonAConfirmationPackage['identities'] = {
+    original_extraction_hash: application.original_extraction_hash!,
+    repaired_record_hash: application.repaired_baseline_hash!,
+    clarification_answer_application_hash: applicationIdentity(application),
+    amended_record_hash: hashPersonAClarificationArtifact(amendedRecord),
+  };
+  if (revision) identities.correction_resolution_handoff_hash = revision.handoff_id;
   return {
     package_version: PERSON_A_CONFIRMATION_VERSION,
     record_schema_version: String(amendedRecord.schema_version),
-    identities: {
-      original_extraction_hash: application.original_extraction_hash!,
-      repaired_record_hash: application.repaired_baseline_hash!,
-      clarification_answer_application_hash: applicationIdentity(application),
-      amended_record_hash: application.amended_record_hash!,
-    },
+    identities,
     provenance_legend: {
       supplied_facts:
         'Verbatim supplied material appears only in source_spans and evidence extracts.',
@@ -459,6 +485,7 @@ function packageWithoutId(
       extraction_issues: cloneJson(amendedRecord.extraction_issues!),
     },
     amendments: cloneJson(application.amendments as unknown as JsonValue[]),
+    ...(revision ? { correction_amendments: cloneJson(revision.correction_amendments) } : {}),
     unresolved_uncertainties: cloneJson([
       ...runtimePlan.unresolved_material_gaps,
       ...runtimePlan.suppressed_candidates.filter(
@@ -472,8 +499,14 @@ export function buildPersonAConfirmationPackage(input: {
   runtimePlan: PersonARuntimePlanningResult;
   answerApplication: PersonAClarificationAnswerApplicationResult;
   amendedRecord: JsonObject;
+  revision?: PersonAConfirmationRevision;
 }): PersonAConfirmationPackage {
-  const body = packageWithoutId(input.runtimePlan, input.answerApplication, input.amendedRecord);
+  const body = packageWithoutId(
+    input.runtimePlan,
+    input.answerApplication,
+    input.amendedRecord,
+    input.revision,
+  );
   return { ...body, package_id: hash(body as unknown as JsonValue) };
 }
 
@@ -740,6 +773,140 @@ function invalidResult(
   };
 }
 
+function validPositiveSafeInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 1;
+}
+
+function normalizeConfirmationRevision(value: unknown): PersonAConfirmationRevision | null {
+  if (!isObject(value)) return null;
+  const expectedKeys = [
+    'revision_version',
+    'handoff_id',
+    'prior_confirmation_package_id',
+    'challenged_confirmation_submission_id',
+    'parent_amended_record_hash',
+    'revised_record_hash',
+    'prior_record_version',
+    'resulting_record_version',
+    'resolution_batch_id',
+    'correction_amendments',
+    'confirmation_required',
+  ];
+  if (
+    !hasExactKeys(value, expectedKeys) ||
+    value.revision_version !== PERSON_A_CONFIRMATION_REVISION_VERSION ||
+    !validHash(value.handoff_id) ||
+    !validHash(value.prior_confirmation_package_id) ||
+    !validHash(value.challenged_confirmation_submission_id) ||
+    !validHash(value.parent_amended_record_hash) ||
+    !validHash(value.revised_record_hash) ||
+    !validPositiveSafeInteger(value.prior_record_version) ||
+    !validPositiveSafeInteger(value.resulting_record_version) ||
+    !validHash(value.resolution_batch_id) ||
+    !Array.isArray(value.correction_amendments) ||
+    value.correction_amendments.some((amendment) => !isObject(amendment)) ||
+    value.confirmation_required !== true
+  ) {
+    return null;
+  }
+  const { handoff_id: _ignored, ...body } = value;
+  if (hash(body as unknown as JsonValue) !== value.handoff_id) return null;
+  return value as unknown as PersonAConfirmationRevision;
+}
+
+function directObjectField(targetPath: string, objectPath: string): string | null {
+  if (!targetPath.startsWith(`${objectPath}/`)) return null;
+  const encoded = targetPath.slice(objectPath.length + 1);
+  if (encoded.length === 0 || encoded.includes('/') || /~(?![01])/u.test(encoded)) return null;
+  return encoded.replaceAll('~1', '/').replaceAll('~0', '~');
+}
+
+function revisionReplaysExactly(
+  revision: PersonAConfirmationRevision,
+  parentRecord: JsonObject,
+  revisedRecord: JsonObject,
+): boolean {
+  if (
+    revision.parent_amended_record_hash !== hashPersonAClarificationArtifact(parentRecord) ||
+    revision.revised_record_hash !== hashPersonAClarificationArtifact(revisedRecord)
+  ) {
+    return false;
+  }
+  const projected = cloneJson(parentRecord);
+  const index = buildObjectIndex(projected);
+  const seenAmendments = new Set<string>();
+  const seenTargets = new Set<string>();
+  for (const [indexValue, raw] of revision.correction_amendments.entries()) {
+    if (
+      !isObject(raw) ||
+      !hasExactKeys(raw, [
+        'amendment_id',
+        'amendment_sequence',
+        'challenge_id',
+        'resolution_id',
+        'target_object_id',
+        'target_path',
+        'prior_value',
+        'replacement_value',
+        'grounding_reference',
+        'source_type',
+        'created_at',
+        'parent_record_hash',
+        'resulting_record_hash',
+        'prior_record_version',
+        'resulting_record_version',
+      ]) ||
+      typeof raw.amendment_id !== 'string' ||
+      !/^paca_corr_[a-f0-9]{24}$/u.test(raw.amendment_id) ||
+      raw.amendment_sequence !== indexValue + 1 ||
+      typeof raw.challenge_id !== 'string' ||
+      !CHALLENGE_ID_PATTERN.test(raw.challenge_id) ||
+      typeof raw.resolution_id !== 'string' ||
+      !/^pacr_[a-f0-9]{24}$/u.test(raw.resolution_id) ||
+      typeof raw.target_object_id !== 'string' ||
+      typeof raw.target_path !== 'string' ||
+      !isObject(raw.grounding_reference) ||
+      raw.source_type !== 'person_a_challenge_resolution' ||
+      (raw.created_at !== null && typeof raw.created_at !== 'string') ||
+      raw.parent_record_hash !== revision.parent_amended_record_hash ||
+      raw.resulting_record_hash !== revision.revised_record_hash ||
+      raw.prior_record_version !== revision.prior_record_version ||
+      raw.resulting_record_version !== revision.resulting_record_version ||
+      seenAmendments.has(raw.amendment_id) ||
+      seenTargets.has(`${raw.target_object_id}|${raw.target_path}`)
+    ) {
+      return false;
+    }
+    const identityBody: JsonValue = {
+      challenge_id: raw.challenge_id,
+      resolution_id: raw.resolution_id,
+      target_object_id: raw.target_object_id,
+      target_path: raw.target_path,
+      prior_value: raw.prior_value!,
+      replacement_value: raw.replacement_value!,
+      grounding_reference: raw.grounding_reference,
+      parent_record_hash: raw.parent_record_hash,
+      prior_record_version: raw.prior_record_version,
+      resulting_record_version: raw.resulting_record_version,
+    };
+    if (`paca_corr_${hash(identityBody).slice(0, 24)}` !== raw.amendment_id) return false;
+    const target = index.get(raw.target_object_id);
+    const field = target ? directObjectField(raw.target_path, target.path) : null;
+    if (
+      !target ||
+      !field ||
+      !Object.prototype.hasOwnProperty.call(target.item, field) ||
+      !isDeepStrictEqual(target.item[field], raw.prior_value)
+    ) {
+      return false;
+    }
+    target.item[field] = cloneJson(raw.replacement_value!);
+    seenAmendments.add(raw.amendment_id);
+    seenTargets.add(`${raw.target_object_id}|${raw.target_path}`);
+  }
+  return isDeepStrictEqual(projected, revisedRecord);
+}
+
 export function confirmPersonARecord(
   input: PersonARecordConfirmationInput,
 ): PersonARecordConfirmationResult {
@@ -751,6 +918,7 @@ export function confirmPersonARecord(
   let application: PersonAClarificationAnswerApplicationResult;
   let amendedRecord: JsonObject;
   let submission: JsonObject;
+  let revision: PersonAConfirmationRevision | undefined;
   try {
     runtimePlan = snapshotJson(input.runtimePlan) as unknown as PersonARuntimePlanningResult;
     application = snapshotJson(
@@ -758,6 +926,11 @@ export function confirmPersonARecord(
     ) as unknown as PersonAClarificationAnswerApplicationResult;
     amendedRecord = snapshotJson(input.amendedRecord) as JsonObject;
     submission = snapshotJson(input.submission) as JsonObject;
+    if (input.revision !== undefined) {
+      const revisionSnapshot = snapshotJson(input.revision);
+      revision = normalizeConfirmationRevision(revisionSnapshot) ?? undefined;
+      if (!revision) throw new TypeError('Confirmation revision is malformed.');
+    }
     if (![runtimePlan, application, amendedRecord, submission].every(isObject)) {
       throw new TypeError('All confirmation inputs must be plain JSON objects.');
     }
@@ -804,14 +977,30 @@ export function confirmPersonARecord(
       unchanged(),
     );
   }
-  if (
+  const applicationRecordHash = isObject(application.amended_record)
+    ? hashPersonAClarificationArtifact(application.amended_record as JsonValue)
+    : null;
+  const applicationIsInvalid =
     application.application_version !== PERSON_A_CLARIFICATION_ANSWER_APPLICATION_VERSION ||
     application.audit?.final_status !== 'passed' ||
     application.original_extraction_hash !== runtimePlan.original_extraction_hash ||
     application.repaired_baseline_hash !== runtimePlan.repaired_extraction_hash ||
-    application.amended_record_hash !== amendedHash ||
-    !isDeepStrictEqual(application.amended_record, amendedRecord)
-  ) {
+    application.amended_record_hash !== applicationRecordHash;
+  const revisionIsValid =
+    revision !== undefined &&
+    revision.parent_amended_record_hash === application.amended_record_hash &&
+    revision.revised_record_hash === amendedHash &&
+    isObject(application.amended_record) &&
+    revisionReplaysExactly(revision, application.amended_record, amendedRecord) &&
+    revision.resulting_record_version >= revision.prior_record_version &&
+    (revision.correction_amendments.length > 0
+      ? revision.resulting_record_version === revision.prior_record_version + 1
+      : revision.resulting_record_version === revision.prior_record_version);
+  const directRecordIsValid =
+    revision === undefined &&
+    application.amended_record_hash === amendedHash &&
+    isDeepStrictEqual(application.amended_record, amendedRecord);
+  if (applicationIsInvalid || (!directRecordIsValid && !revisionIsValid)) {
     return invalidResult(
       [
         diagnostic(
@@ -865,6 +1054,7 @@ export function confirmPersonARecord(
     runtimePlan,
     answerApplication: application,
     amendedRecord,
+    revision,
   });
   if (
     submission.version !== PERSON_A_CONFIRMATION_SUBMISSION_VERSION ||
