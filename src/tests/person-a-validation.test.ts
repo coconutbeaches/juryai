@@ -178,8 +178,10 @@ describe('Person A extraction validation', () => {
     expect(result.valid).toBe(true);
     expect(result.schemaErrors).toEqual([]);
     expect(result.invariantErrors).toEqual([]);
+    // The assembler implementation is unchanged, so extractor_version stays v0.1.3,
+    // while the provider-facing prompt contract advances to v0.1.4.
     expect(extraction.extractor_version).toBe('person-a-v0.1.3');
-    expect(extraction.metadata.prompt_version).toBe('person-a-v0.1.3');
+    expect(extraction.metadata.prompt_version).toBe('person-a-v0.1.4');
   });
 
   it('requires non-empty source spans in the schema', () => {

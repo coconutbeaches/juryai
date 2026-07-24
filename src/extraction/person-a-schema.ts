@@ -65,6 +65,22 @@ function applyPersonAModelConstraints(schema: JsonSchema): void {
       description:
         'Person A-only intake cannot establish bilateral agreement or dispute; use only unclear or not_applicable.',
     };
+    if (agreementTerm.properties.person_a_interpretation) {
+      agreementTerm.properties.person_a_interpretation.description =
+        "Person A's own asserted interpretation, significance, or consequence of this term as used in the dispute — not a neutral paraphrase of the wording. Keep it grounded in Person A's narrative and never present it as an agreed fact. Use null when the term is a straightforward factual recital for which Person A asserts no distinct interpretation; do not manufacture an interpretation merely because the field exists.";
+    }
+  }
+
+  const deliverableAssessment = schema.$defs?.deliverableAssessment;
+  if (deliverableAssessment?.properties) {
+    if (deliverableAssessment.properties.completion_status_person_a) {
+      deliverableAssessment.properties.completion_status_person_a.description =
+        "Person A's asserted completion position for this deliverable, using the single most precise enum Person A's own words support. Preserve partially_complete, substantially_complete, and complete as distinct; never upgrade a partial or substantial position to complete, and do not use unknown when Person A clearly states a position. This records Person A's position, not an objective adjudication.";
+    }
+    if (deliverableAssessment.properties.scope_status) {
+      deliverableAssessment.properties.scope_status.description =
+        "Person A's asserted scope characterization for this deliverable, using the most precise supported enum. Do not collapse a scope Person A treats as disputed into included or added_later without narrative support. This records Person A's position, not an objective adjudication.";
+    }
   }
 
   const sourceSpan = schema.$defs?.sourceSpan;
@@ -177,7 +193,7 @@ const extractionProperties: Record<string, JsonSchema> = {
       model: { type: 'string', minLength: 1 },
       prompt_version: {
         type: 'string',
-        enum: ['person-a-v0.1.1', 'person-a-v0.1.2', 'person-a-v0.1.3'],
+        enum: ['person-a-v0.1.1', 'person-a-v0.1.2', 'person-a-v0.1.3', 'person-a-v0.1.4'],
       },
       input_hash: { type: 'string', pattern: '^[a-f0-9]{64}$' },
       generated_at: { type: 'string', format: 'date-time' },
