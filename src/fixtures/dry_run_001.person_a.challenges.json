@@ -1,0 +1,16 @@
+{
+  "version": "person-a-record-confirmation-submission-v0.1.0",
+  "outcome": "challenged",
+  "confirmation_package_id": "37ce2e76c10ef7c4dc783685ed106572c0c04bd0b4b5720770422d5809fd0367",
+  "amended_record_hash": "47221e6f16d6e5321b7f575753d0e2d7eefe762328da6bd11a20551e50680b12",
+  "challenges": [
+    {
+      "challenge_id": "pach_321aa463e51eb9037de6e555",
+      "target_object_id": "ev_change_list_01",
+      "target_path": "/evidence/0/availability_status",
+      "category": "incorrect_evidence_association_or_status",
+      "explanation": "This evidence is available to me and can be supplied for review.",
+      "expected_prior_value": "unavailable"
+    }
+  ]
+}

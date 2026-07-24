@@ -97,3 +97,8 @@ The strict command parses all options before file access and writes:
 - `runtime-answer-result.json`
 
 This remains offline runtime infrastructure. Live extraction acceptance remains **0/3**.
+
+The passed result now feeds the separate
+[Person A record confirmation](./person-a-record-confirmation.md) boundary. Confirmation reviews
+the complete amended projection and records acceptance or objections; it never rewrites the
+record or the append-only amendment history.

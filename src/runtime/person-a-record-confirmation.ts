@@ -1,0 +1,913 @@
+import { createHash } from 'node:crypto';
+import { isDeepStrictEqual } from 'node:util';
+import type { GroundingReference } from '../clarification/question-necessity.js';
+import { validatePersonAExtraction } from '../extraction/validate-person-a-corrected.js';
+import {
+  PERSON_A_CLARIFICATION_ANSWER_APPLICATION_VERSION,
+  hashPersonAClarificationArtifact,
+  type JsonValue,
+  type PersonAClarificationAnswerApplicationResult,
+} from './person-a-clarification-answer-application.js';
+import {
+  PERSON_A_RUNTIME_ORCHESTRATION_VERSION,
+  type PersonARuntimePlanningResult,
+} from './person-a-runtime-orchestrator.js';
+
+type JsonObject = { [key: string]: JsonValue };
+
+export const PERSON_A_CONFIRMATION_VERSION = 'person-a-record-confirmation-v0.1.0';
+export const PERSON_A_CONFIRMATION_SUBMISSION_VERSION =
+  'person-a-record-confirmation-submission-v0.1.0';
+export const MAX_PERSON_A_CONFIRMATION_CHALLENGES = 50;
+export const MAX_PERSON_A_CONFIRMATION_EXPLANATION_LENGTH = 2_000;
+export const MAX_PERSON_A_CONFIRMATION_DIAGNOSTICS = 20;
+const MAX_DIAGNOSTIC_LENGTH = 240;
+const HASH_PATTERN = /^[a-f0-9]{64}$/u;
+const MAX_INPUT_NODES = 100_000;
+const MAX_INPUT_DEPTH = 64;
+
+export type PersonAChallengeCategory =
+  | 'incorrect_value'
+  | 'missing_material_information'
+  | 'wrong_actor_attribution'
+  | 'wrong_date_event_association'
+  | 'unsupported_assertion'
+  | 'omitted_uncertainty'
+  | 'incorrect_evidence_association_or_status'
+  | 'incorrect_requested_remedy'
+  | 'duplication'
+  | 'contradiction_with_supplied_source';
+
+export interface PersonARecordChallenge {
+  challenge_id: string;
+  target_object_id: string;
+  target_path: string;
+  category: PersonAChallengeCategory;
+  explanation: string;
+  expected_prior_value: JsonValue;
+  grounding_reference?: GroundingReference;
+}
+
+export interface PersonAConfirmedSubmission {
+  version: typeof PERSON_A_CONFIRMATION_SUBMISSION_VERSION;
+  outcome: 'confirmed';
+  confirmation_package_id: string;
+  amended_record_hash: string;
+  explicit_confirmation: true;
+}
+
+export interface PersonAChallengedSubmission {
+  version: typeof PERSON_A_CONFIRMATION_SUBMISSION_VERSION;
+  outcome: 'challenged';
+  confirmation_package_id: string;
+  amended_record_hash: string;
+  challenges: PersonARecordChallenge[];
+}
+
+export type PersonAConfirmationSubmission =
+  PersonAConfirmedSubmission | PersonAChallengedSubmission;
+
+export interface PersonAConfirmationPackage {
+  package_version: typeof PERSON_A_CONFIRMATION_VERSION;
+  package_id: string;
+  record_schema_version: string;
+  identities: {
+    original_extraction_hash: string;
+    repaired_record_hash: string;
+    clarification_answer_application_hash: string;
+    amended_record_hash: string;
+  };
+  provenance_legend: {
+    supplied_facts: string;
+    extracted_structured_content: string;
+    amendments: string;
+    unresolved_uncertainty: string;
+    inference: string;
+  };
+  review_record: {
+    party: JsonValue;
+    third_parties: JsonValue;
+    agreement: JsonValue;
+    deliverable_assessments: JsonValue;
+    timeline: JsonValue;
+    claims: JsonValue;
+    evidence: JsonValue;
+    claim_evidence_links: JsonValue;
+    damages_claims: JsonValue;
+    desired_outcomes: JsonValue;
+  };
+  amendments: JsonValue[];
+  unresolved_uncertainties: JsonValue[];
+}
+
+export type PersonAConfirmationIssueCode =
+  | 'invalid_input'
+  | 'invalid_runtime_plan'
+  | 'invalid_answer_application'
+  | 'invalid_amended_record'
+  | 'stale_package'
+  | 'stale_amended_record'
+  | 'invalid_submission'
+  | 'invalid_challenge'
+  | 'duplicate_challenge_id'
+  | 'duplicate_challenge_target'
+  | 'unknown_target'
+  | 'invalid_target_path'
+  | 'forbidden_target'
+  | 'stale_prior_value'
+  | 'invalid_grounding'
+  | 'atomic_submission_rejected';
+
+export interface PersonAConfirmationDiagnostic {
+  code: PersonAConfirmationIssueCode;
+  message: string;
+  challenge_id: string | null;
+}
+
+export interface PersonARecordConfirmationResult {
+  confirmation_version: typeof PERSON_A_CONFIRMATION_VERSION;
+  status: 'confirmed' | 'challenged' | 'invalid';
+  confirmation_package: PersonAConfirmationPackage | null;
+  confirmation_package_id: string | null;
+  amended_record_hash: string | null;
+  confirmation_submission_id: string | null;
+  challenges: PersonARecordChallenge[];
+  diagnostics: PersonAConfirmationDiagnostic[];
+  audit: {
+    runtime_plan_hash: string | null;
+    answer_application_hash: string | null;
+    amended_record_hash: string | null;
+    package_binding_valid: boolean;
+    record_binding_valid: boolean;
+    amended_record_valid: boolean;
+    original_input_unchanged: boolean;
+    repaired_input_unchanged: boolean;
+    amended_input_unchanged: boolean;
+    challenges_submitted: number;
+    challenges_accepted: number;
+    final_status: 'passed' | 'failed_closed';
+  };
+}
+
+export interface PersonARecordConfirmationInput {
+  runtimePlan: unknown;
+  answerApplication: unknown;
+  amendedRecord: unknown;
+  submission: unknown;
+}
+
+const categories = new Set<PersonAChallengeCategory>([
+  'incorrect_value',
+  'missing_material_information',
+  'wrong_actor_attribution',
+  'wrong_date_event_association',
+  'unsupported_assertion',
+  'omitted_uncertainty',
+  'incorrect_evidence_association_or_status',
+  'incorrect_requested_remedy',
+  'duplication',
+  'contradiction_with_supplied_source',
+]);
+
+const familyDescriptors = [
+  ['agreement.terms', 'term_id'],
+  ['deliverable_assessments', 'deliverable_id'],
+  ['timeline', 'event_id'],
+  ['claims', 'claim_id'],
+  ['evidence', 'evidence_id'],
+  ['claim_evidence_links', 'link_id'],
+  ['damages_claims', 'damages_claim_id'],
+  ['desired_outcomes.outcomes', 'outcome_id'],
+  ['third_parties', 'third_party_id'],
+  ['extraction_issues', 'issue_id'],
+] as const;
+
+const forbiddenPathSegments = new Set([
+  'metadata',
+  'submission',
+  'raw_text',
+  'clarification_questions',
+  'repair_result',
+  'stage_statuses',
+  'audit',
+  'golden',
+  'evaluation',
+  'alignment',
+]);
+
+function isObject(value: unknown): value is JsonObject {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function canonicalize(value: JsonValue): JsonValue {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (!isObject(value)) return value;
+  return Object.fromEntries(
+    Object.keys(value)
+      .sort()
+      .map((key) => [key, canonicalize(value[key]!)]),
+  );
+}
+
+function stableJson(value: JsonValue): string {
+  return JSON.stringify(canonicalize(value));
+}
+
+function hash(value: JsonValue): string {
+  return createHash('sha256').update(stableJson(value), 'utf8').digest('hex');
+}
+
+function cloneJson<T extends JsonValue>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function snapshotJson(
+  value: unknown,
+  depth = 0,
+  context: { active: WeakSet<object>; nodes: number } = {
+    active: new WeakSet<object>(),
+    nodes: 0,
+  },
+): JsonValue {
+  context.nodes += 1;
+  if (context.nodes > MAX_INPUT_NODES || depth > MAX_INPUT_DEPTH) {
+    throw new TypeError('Confirmation input exceeds bounded JSON limits.');
+  }
+  if (value === null || typeof value === 'string' || typeof value === 'boolean') return value;
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value !== 'object' || value === undefined) {
+    throw new TypeError('Confirmation input contains a non-JSON value.');
+  }
+  if (context.active.has(value)) throw new TypeError('Cyclic confirmation input is unsupported.');
+  const arrayValue = Array.isArray(value);
+  const prototype = Object.getPrototypeOf(value);
+  if (
+    arrayValue
+      ? prototype !== Array.prototype
+      : prototype !== Object.prototype && prototype !== null
+  ) {
+    throw new TypeError('Confirmation input must use plain JSON prototypes.');
+  }
+  const ownKeys = Reflect.ownKeys(value);
+  const descriptors = Object.getOwnPropertyDescriptors(value);
+  if (
+    ownKeys.some((key) => typeof key === 'symbol') ||
+    Object.values(descriptors).some((descriptor) => !('value' in descriptor))
+  ) {
+    throw new TypeError('Accessor or symbol-backed confirmation input is unsupported.');
+  }
+  context.active.add(value);
+  try {
+    if (arrayValue) {
+      const length = (value as unknown[]).length;
+      const keys = Object.keys(value);
+      if (
+        length > 5_000 ||
+        ownKeys.length !== length + 1 ||
+        keys.length !== length ||
+        keys.some((key) => !/^(?:0|[1-9]\d*)$/u.test(key) || Number(key) >= length)
+      ) {
+        throw new TypeError('Confirmation arrays must be bounded, dense, and unextended.');
+      }
+      return Array.from({ length }, (_, index) =>
+        snapshotJson(descriptors[String(index)]!.value, depth + 1, context),
+      );
+    }
+    const keys = Object.keys(value);
+    if (keys.length > 250 || keys.length !== ownKeys.length) {
+      throw new TypeError('Confirmation objects contain unsupported keys.');
+    }
+    const result: JsonObject = {};
+    for (const key of keys) {
+      const descriptor = descriptors[key]!;
+      if (descriptor.enumerable !== true) {
+        throw new TypeError('Confirmation object properties must be enumerable.');
+      }
+      result[key] = snapshotJson(descriptor.value, depth + 1, context);
+    }
+    return result;
+  } finally {
+    context.active.delete(value);
+  }
+}
+
+function bounded(message: string): string {
+  if (message.length <= MAX_DIAGNOSTIC_LENGTH) return message;
+  return `${message.slice(0, MAX_DIAGNOSTIC_LENGTH - 1)}…`;
+}
+
+function diagnostic(
+  code: PersonAConfirmationIssueCode,
+  message: string,
+  challengeId: string | null = null,
+): PersonAConfirmationDiagnostic {
+  return { code, message: bounded(message), challenge_id: challengeId };
+}
+
+function objectAtPath(root: JsonObject, dottedPath: string): unknown {
+  let current: unknown = root;
+  for (const segment of dottedPath.split('.')) {
+    if (!isObject(current)) return undefined;
+    current = current[segment];
+  }
+  return current;
+}
+
+function buildObjectIndex(record: JsonObject): Map<string, { item: JsonObject; path: string }> {
+  const index = new Map<string, { item: JsonObject; path: string }>();
+  const party = record.party;
+  if (isObject(party) && typeof party.party_id === 'string') {
+    index.set(party.party_id, { item: party, path: '/party' });
+  }
+  for (const [familyPath, idField] of familyDescriptors) {
+    const items = objectAtPath(record, familyPath);
+    if (!Array.isArray(items)) continue;
+    items.forEach((value, itemIndex) => {
+      if (!isObject(value) || typeof value[idField] !== 'string') return;
+      index.set(value[idField], {
+        item: value,
+        path: `/${familyPath.replaceAll('.', '/')}/${itemIndex}`,
+      });
+    });
+  }
+  return index;
+}
+
+function parsePointer(pointer: string): string[] | null {
+  if (!pointer.startsWith('/') || pointer === '/' || pointer.length > 500) return null;
+  const parts = pointer
+    .slice(1)
+    .split('/')
+    .map((part) => part.replaceAll('~1', '/').replaceAll('~0', '~'));
+  if (parts.some((part) => part.length === 0 || /~(?![01])/u.test(part))) return null;
+  return parts;
+}
+
+function pointerValue(root: JsonValue, pointer: string): { found: boolean; value?: JsonValue } {
+  const parts = parsePointer(pointer);
+  if (!parts) return { found: false };
+  let current: JsonValue = root;
+  for (const part of parts) {
+    if (Array.isArray(current)) {
+      if (!/^(?:0|[1-9]\d*)$/u.test(part) || Number(part) >= current.length) {
+        return { found: false };
+      }
+      current = current[Number(part)]!;
+    } else if (isObject(current) && Object.prototype.hasOwnProperty.call(current, part)) {
+      current = current[part]!;
+    } else {
+      return { found: false };
+    }
+  }
+  return { found: true, value: current };
+}
+
+function pathIsWithinObject(pointer: string, objectPath: string): boolean {
+  return pointer === objectPath || pointer.startsWith(`${objectPath}/`);
+}
+
+function validHash(value: unknown): value is string {
+  return typeof value === 'string' && HASH_PATTERN.test(value);
+}
+
+function challengePayload(challenge: Omit<PersonARecordChallenge, 'challenge_id'>): JsonValue {
+  return challenge as unknown as JsonValue;
+}
+
+export function derivePersonAChallengeId(
+  challenge: Omit<PersonARecordChallenge, 'challenge_id'>,
+): string {
+  return `pach_${hash(challengePayload(challenge)).slice(0, 24)}`;
+}
+
+function applicationIdentity(application: PersonAClarificationAnswerApplicationResult): string {
+  return hash(application as unknown as JsonValue);
+}
+
+function packageWithoutId(
+  runtimePlan: PersonARuntimePlanningResult,
+  application: PersonAClarificationAnswerApplicationResult,
+  amendedRecord: JsonObject,
+): Omit<PersonAConfirmationPackage, 'package_id'> {
+  return {
+    package_version: PERSON_A_CONFIRMATION_VERSION,
+    record_schema_version: String(amendedRecord.schema_version),
+    identities: {
+      original_extraction_hash: application.original_extraction_hash!,
+      repaired_record_hash: application.repaired_baseline_hash!,
+      clarification_answer_application_hash: applicationIdentity(application),
+      amended_record_hash: application.amended_record_hash!,
+    },
+    provenance_legend: {
+      supplied_facts:
+        'Verbatim supplied material appears only in source_spans and evidence extracts.',
+      extracted_structured_content:
+        'Review-record fields are structured content extracted or deterministically repaired from Person A material.',
+      amendments:
+        'Amendments are append-only Person A clarification answers and do not replace their audit history.',
+      unresolved_uncertainty:
+        'Unresolved uncertainties remain sidecar assessments or suppressed clarification candidates.',
+      inference:
+        'Inference is shown only where the canonical record or assessment explicitly labels it.',
+    },
+    review_record: {
+      party: cloneJson(amendedRecord.party!),
+      third_parties: cloneJson(amendedRecord.third_parties!),
+      agreement: cloneJson(amendedRecord.agreement!),
+      deliverable_assessments: cloneJson(amendedRecord.deliverable_assessments!),
+      timeline: cloneJson(amendedRecord.timeline!),
+      claims: cloneJson(amendedRecord.claims!),
+      evidence: cloneJson(amendedRecord.evidence!),
+      claim_evidence_links: cloneJson(amendedRecord.claim_evidence_links!),
+      damages_claims: cloneJson(amendedRecord.damages_claims!),
+      desired_outcomes: cloneJson(amendedRecord.desired_outcomes!),
+    },
+    amendments: cloneJson(application.amendments as unknown as JsonValue[]),
+    unresolved_uncertainties: cloneJson([
+      ...runtimePlan.unresolved_material_gaps,
+      ...runtimePlan.suppressed_candidates.filter(
+        (candidate) => candidate.classification !== 'already_explicit',
+      ),
+    ] as unknown as JsonValue[]),
+  };
+}
+
+export function buildPersonAConfirmationPackage(input: {
+  runtimePlan: PersonARuntimePlanningResult;
+  answerApplication: PersonAClarificationAnswerApplicationResult;
+  amendedRecord: JsonObject;
+}): PersonAConfirmationPackage {
+  const body = packageWithoutId(input.runtimePlan, input.answerApplication, input.amendedRecord);
+  return { ...body, package_id: hash(body as unknown as JsonValue) };
+}
+
+function validateGrounding(
+  grounding: unknown,
+  target: JsonObject,
+  targetObjectId: string,
+): boolean {
+  if (!isObject(grounding) || grounding.object_id !== targetObjectId) return false;
+  if (grounding.kind === 'source_span') {
+    const startChar = grounding.start_char;
+    const endChar = grounding.end_char;
+    if (
+      typeof grounding.submission_id !== 'string' ||
+      typeof grounding.quote !== 'string' ||
+      grounding.quote.length === 0 ||
+      typeof startChar !== 'number' ||
+      typeof endChar !== 'number' ||
+      !Number.isInteger(startChar) ||
+      !Number.isInteger(endChar) ||
+      endChar !== startChar + grounding.quote.length
+    ) {
+      return false;
+    }
+    return (
+      Array.isArray(target.source_spans) &&
+      target.source_spans.some(
+        (span) =>
+          isObject(span) &&
+          span.submission_id === grounding.submission_id &&
+          span.quote === grounding.quote &&
+          span.start_char === startChar &&
+          span.end_char === endChar,
+      )
+    );
+  }
+  if (grounding.kind === 'extracted_object') {
+    return (
+      typeof grounding.field === 'string' &&
+      Object.prototype.hasOwnProperty.call(target, grounding.field) &&
+      isDeepStrictEqual(target[grounding.field], grounding.value)
+    );
+  }
+  return false;
+}
+
+function parseChallenge(
+  value: unknown,
+  amendedRecord: JsonObject,
+  objectIndex: Map<string, { item: JsonObject; path: string }>,
+): { challenge?: PersonARecordChallenge; errors: PersonAConfirmationDiagnostic[] } {
+  const errors: PersonAConfirmationDiagnostic[] = [];
+  if (!isObject(value)) {
+    return { errors: [diagnostic('invalid_challenge', 'Challenge must be an object.')] };
+  }
+  const id = typeof value.challenge_id === 'string' ? value.challenge_id : null;
+  const allowed = new Set([
+    'challenge_id',
+    'target_object_id',
+    'target_path',
+    'category',
+    'explanation',
+    'expected_prior_value',
+    'grounding_reference',
+  ]);
+  if (Object.keys(value).some((key) => !allowed.has(key))) {
+    errors.push(diagnostic('invalid_challenge', 'Challenge contains unsupported fields.', id));
+  }
+  if (!id || !/^pach_[a-f0-9]{24}$/u.test(id)) {
+    errors.push(diagnostic('invalid_challenge', 'Challenge ID is malformed.', id));
+  }
+  const targetObjectId = typeof value.target_object_id === 'string' ? value.target_object_id : '';
+  const target = objectIndex.get(targetObjectId);
+  if (!target) errors.push(diagnostic('unknown_target', 'Target object ID is unknown.', id));
+  const targetPath = typeof value.target_path === 'string' ? value.target_path : '';
+  const parts = parsePointer(targetPath);
+  if (!parts || !target || !pathIsWithinObject(targetPath, target.path)) {
+    errors.push(
+      diagnostic('invalid_target_path', 'Target path does not identify the target object.', id),
+    );
+  }
+  if (parts?.some((part) => forbiddenPathSegments.has(part))) {
+    errors.push(
+      diagnostic('forbidden_target', 'Target path refers to non-reviewable metadata.', id),
+    );
+  }
+  const resolved = pointerValue(amendedRecord, targetPath);
+  if (!resolved.found) {
+    errors.push(diagnostic('invalid_target_path', 'Target path does not exist.', id));
+  } else if (!isDeepStrictEqual(resolved.value, value.expected_prior_value)) {
+    errors.push(diagnostic('stale_prior_value', 'Expected prior value is stale.', id));
+  }
+  if (
+    typeof value.category !== 'string' ||
+    !categories.has(value.category as PersonAChallengeCategory)
+  ) {
+    errors.push(diagnostic('invalid_challenge', 'Challenge category is unsupported.', id));
+  }
+  if (
+    typeof value.explanation !== 'string' ||
+    value.explanation.trim() !== value.explanation ||
+    value.explanation.length === 0 ||
+    value.explanation.length > MAX_PERSON_A_CONFIRMATION_EXPLANATION_LENGTH
+  ) {
+    errors.push(diagnostic('invalid_challenge', 'Challenge explanation is malformed.', id));
+  }
+  const needsGrounding = value.category === 'contradiction_with_supplied_source';
+  if (
+    (needsGrounding && value.grounding_reference === undefined) ||
+    (value.grounding_reference !== undefined &&
+      (!target || !validateGrounding(value.grounding_reference, target.item, targetObjectId)))
+  ) {
+    errors.push(
+      diagnostic(
+        'invalid_grounding',
+        needsGrounding
+          ? 'Source-conflict challenge requires exact target-compatible grounding.'
+          : 'Challenge grounding is not target-compatible.',
+        id,
+      ),
+    );
+  }
+  if (errors.length > 0) return { errors };
+  const challenge = structuredClone(value) as unknown as PersonARecordChallenge;
+  const { challenge_id: _ignored, ...payload } = challenge;
+  if (challenge.challenge_id !== derivePersonAChallengeId(payload)) {
+    return {
+      errors: [
+        diagnostic(
+          'invalid_challenge',
+          'Challenge ID does not match its deterministic content hash.',
+          id,
+        ),
+      ],
+    };
+  }
+  return { challenge, errors: [] };
+}
+
+function invalidResult(
+  diagnostics: PersonAConfirmationDiagnostic[],
+  packageValue: PersonAConfirmationPackage | null,
+  runtimePlanHash: string | null,
+  applicationHash: string | null,
+  amendedHash: string | null,
+  unchanged: [boolean, boolean, boolean],
+  challengesSubmitted = 0,
+  amendedRecordValid = false,
+): PersonARecordConfirmationResult {
+  return {
+    confirmation_version: PERSON_A_CONFIRMATION_VERSION,
+    status: 'invalid',
+    confirmation_package: packageValue,
+    confirmation_package_id: packageValue?.package_id ?? null,
+    amended_record_hash: amendedHash,
+    confirmation_submission_id: null,
+    challenges: [],
+    diagnostics: diagnostics.slice(0, MAX_PERSON_A_CONFIRMATION_DIAGNOSTICS),
+    audit: {
+      runtime_plan_hash: runtimePlanHash,
+      answer_application_hash: applicationHash,
+      amended_record_hash: amendedHash,
+      package_binding_valid: false,
+      record_binding_valid: false,
+      amended_record_valid: amendedRecordValid,
+      original_input_unchanged: unchanged[0],
+      repaired_input_unchanged: unchanged[1],
+      amended_input_unchanged: unchanged[2],
+      challenges_submitted: challengesSubmitted,
+      challenges_accepted: 0,
+      final_status: 'failed_closed',
+    },
+  };
+}
+
+export function confirmPersonARecord(
+  input: PersonARecordConfirmationInput,
+): PersonARecordConfirmationResult {
+  let runtimePlan: PersonARuntimePlanningResult;
+  let application: PersonAClarificationAnswerApplicationResult;
+  let amendedRecord: JsonObject;
+  let submission: JsonObject;
+  try {
+    runtimePlan = snapshotJson(input.runtimePlan) as unknown as PersonARuntimePlanningResult;
+    application = snapshotJson(
+      input.answerApplication,
+    ) as unknown as PersonAClarificationAnswerApplicationResult;
+    amendedRecord = snapshotJson(input.amendedRecord) as JsonObject;
+    submission = snapshotJson(input.submission) as JsonObject;
+    if (![runtimePlan, application, amendedRecord, submission].every(isObject)) {
+      throw new TypeError('All confirmation inputs must be plain JSON objects.');
+    }
+  } catch {
+    return invalidResult(
+      [diagnostic('invalid_input', 'Confirmation inputs must be detached JSON values.')],
+      null,
+      null,
+      null,
+      null,
+      [true, true, true],
+    );
+  }
+
+  const originalBefore = stableJson(runtimePlan.original_extraction as JsonValue);
+  const repairedBefore = stableJson(runtimePlan.repaired_extraction as JsonValue);
+  const amendedBefore = stableJson(amendedRecord);
+  const runtimePlanHash = hash(runtimePlan as unknown as JsonValue);
+  const answerApplicationHash = hash(application as unknown as JsonValue);
+  const amendedHash = hashPersonAClarificationArtifact(amendedRecord);
+  const unchanged = (): [boolean, boolean, boolean] => [
+    stableJson(runtimePlan.original_extraction as JsonValue) === originalBefore,
+    stableJson(runtimePlan.repaired_extraction as JsonValue) === repairedBefore,
+    stableJson(amendedRecord) === amendedBefore,
+  ];
+  if (
+    runtimePlan.orchestration_version !== PERSON_A_RUNTIME_ORCHESTRATION_VERSION ||
+    runtimePlan.audit_summary?.final_status !== 'passed' ||
+    !isObject(runtimePlan.original_extraction) ||
+    !isObject(runtimePlan.repaired_extraction) ||
+    runtimePlan.original_extraction_hash !==
+      hashPersonAClarificationArtifact(runtimePlan.original_extraction as JsonValue) ||
+    runtimePlan.repaired_extraction_hash !==
+      hashPersonAClarificationArtifact(runtimePlan.repaired_extraction as JsonValue)
+  ) {
+    return invalidResult(
+      [diagnostic('invalid_runtime_plan', 'Runtime plan is not a valid passed plan.')],
+      null,
+      runtimePlanHash,
+      answerApplicationHash,
+      amendedHash,
+      unchanged(),
+    );
+  }
+  if (
+    application.application_version !== PERSON_A_CLARIFICATION_ANSWER_APPLICATION_VERSION ||
+    application.audit?.final_status !== 'passed' ||
+    application.original_extraction_hash !== runtimePlan.original_extraction_hash ||
+    application.repaired_baseline_hash !== runtimePlan.repaired_extraction_hash ||
+    application.amended_record_hash !== amendedHash ||
+    !isDeepStrictEqual(application.amended_record, amendedRecord)
+  ) {
+    return invalidResult(
+      [
+        diagnostic(
+          'invalid_answer_application',
+          'Answer application is not passed or does not bind to the runtime plan and amended record.',
+        ),
+      ],
+      null,
+      runtimePlanHash,
+      answerApplicationHash,
+      amendedHash,
+      unchanged(),
+    );
+  }
+  const narrative = isObject(amendedRecord.submission)
+    ? amendedRecord.submission.raw_text
+    : undefined;
+  const recordValidation =
+    typeof narrative === 'string'
+      ? validatePersonAExtraction(amendedRecord, narrative)
+      : { valid: false };
+  if (!recordValidation.valid) {
+    return invalidResult(
+      [diagnostic('invalid_amended_record', 'Amended record is not schema and invariant valid.')],
+      null,
+      runtimePlanHash,
+      answerApplicationHash,
+      amendedHash,
+      unchanged(),
+    );
+  }
+
+  const confirmationPackage = buildPersonAConfirmationPackage({
+    runtimePlan,
+    answerApplication: application,
+    amendedRecord,
+  });
+  if (
+    submission.version !== PERSON_A_CONFIRMATION_SUBMISSION_VERSION ||
+    !validHash(submission.confirmation_package_id) ||
+    !validHash(submission.amended_record_hash)
+  ) {
+    return invalidResult(
+      [diagnostic('invalid_submission', 'Confirmation submission contract is malformed.')],
+      confirmationPackage,
+      runtimePlanHash,
+      answerApplicationHash,
+      amendedHash,
+      unchanged(),
+      0,
+      true,
+    );
+  }
+  if (submission.confirmation_package_id !== confirmationPackage.package_id) {
+    return invalidResult(
+      [diagnostic('stale_package', 'Confirmation package identity is stale or different.')],
+      confirmationPackage,
+      runtimePlanHash,
+      answerApplicationHash,
+      amendedHash,
+      unchanged(),
+      0,
+      true,
+    );
+  }
+  if (submission.amended_record_hash !== amendedHash) {
+    return invalidResult(
+      [diagnostic('stale_amended_record', 'Amended record identity is stale or different.')],
+      confirmationPackage,
+      runtimePlanHash,
+      answerApplicationHash,
+      amendedHash,
+      unchanged(),
+      0,
+      true,
+    );
+  }
+
+  const commonKeys = new Set([
+    'version',
+    'outcome',
+    'confirmation_package_id',
+    'amended_record_hash',
+  ]);
+  let status: 'confirmed' | 'challenged';
+  let challenges: PersonARecordChallenge[] = [];
+  if (submission.outcome === 'confirmed') {
+    const allowed = new Set([...commonKeys, 'explicit_confirmation']);
+    if (
+      submission.explicit_confirmation !== true ||
+      Object.keys(submission).some((key) => !allowed.has(key))
+    ) {
+      return invalidResult(
+        [diagnostic('invalid_submission', 'Confirmation must be explicit and exclusive.')],
+        confirmationPackage,
+        runtimePlanHash,
+        answerApplicationHash,
+        amendedHash,
+        unchanged(),
+        0,
+        true,
+      );
+    }
+    status = 'confirmed';
+  } else if (submission.outcome === 'challenged') {
+    const allowed = new Set([...commonKeys, 'challenges']);
+    if (
+      !Array.isArray(submission.challenges) ||
+      submission.challenges.length === 0 ||
+      submission.challenges.length > MAX_PERSON_A_CONFIRMATION_CHALLENGES ||
+      Object.keys(submission).some((key) => !allowed.has(key))
+    ) {
+      return invalidResult(
+        [diagnostic('invalid_submission', 'Challenge submission contract is malformed.')],
+        confirmationPackage,
+        runtimePlanHash,
+        answerApplicationHash,
+        amendedHash,
+        unchanged(),
+        Array.isArray(submission.challenges) ? submission.challenges.length : 0,
+        true,
+      );
+    }
+    const objectIndex = buildObjectIndex(amendedRecord);
+    const parsed = submission.challenges.map((challenge) =>
+      parseChallenge(challenge, amendedRecord, objectIndex),
+    );
+    const errors = parsed.flatMap((result) => result.errors);
+    const candidates = parsed.flatMap((result) => (result.challenge ? [result.challenge] : []));
+    const idCounts = new Map<string, number>();
+    const targetCounts = new Map<string, number>();
+    for (const challenge of candidates) {
+      idCounts.set(challenge.challenge_id, (idCounts.get(challenge.challenge_id) ?? 0) + 1);
+      const targetKey = `${challenge.target_path}|${challenge.category}`;
+      targetCounts.set(targetKey, (targetCounts.get(targetKey) ?? 0) + 1);
+    }
+    for (const challenge of candidates) {
+      if ((idCounts.get(challenge.challenge_id) ?? 0) > 1) {
+        errors.push(
+          diagnostic(
+            'duplicate_challenge_id',
+            'Duplicate challenge IDs are rejected.',
+            challenge.challenge_id,
+          ),
+        );
+      }
+      if ((targetCounts.get(`${challenge.target_path}|${challenge.category}`) ?? 0) > 1) {
+        errors.push(
+          diagnostic(
+            'duplicate_challenge_target',
+            'Duplicate target and category challenges are rejected.',
+            challenge.challenge_id,
+          ),
+        );
+      }
+    }
+    if (errors.length > 0) {
+      errors.push(
+        diagnostic(
+          'atomic_submission_rejected',
+          'At least one challenge failed, so no challenge was accepted.',
+        ),
+      );
+      errors.sort(
+        (left, right) =>
+          String(left.challenge_id).localeCompare(String(right.challenge_id)) ||
+          left.code.localeCompare(right.code),
+      );
+      return invalidResult(
+        errors,
+        confirmationPackage,
+        runtimePlanHash,
+        answerApplicationHash,
+        amendedHash,
+        unchanged(),
+        submission.challenges.length,
+        true,
+      );
+    }
+    challenges = candidates.sort(
+      (left, right) =>
+        left.target_path.localeCompare(right.target_path) ||
+        left.category.localeCompare(right.category) ||
+        left.challenge_id.localeCompare(right.challenge_id),
+    );
+    status = 'challenged';
+  } else {
+    return invalidResult(
+      [diagnostic('invalid_submission', 'Outcome must be confirmed or challenged.')],
+      confirmationPackage,
+      runtimePlanHash,
+      answerApplicationHash,
+      amendedHash,
+      unchanged(),
+      0,
+      true,
+    );
+  }
+
+  const normalizedSubmission: JsonValue =
+    status === 'confirmed'
+      ? (submission as JsonValue)
+      : ({
+          ...submission,
+          challenges,
+        } as unknown as JsonValue);
+  const finalUnchanged = unchanged();
+  return {
+    confirmation_version: PERSON_A_CONFIRMATION_VERSION,
+    status,
+    confirmation_package: confirmationPackage,
+    confirmation_package_id: confirmationPackage.package_id,
+    amended_record_hash: amendedHash,
+    confirmation_submission_id: hash(normalizedSubmission),
+    challenges,
+    diagnostics: [],
+    audit: {
+      runtime_plan_hash: runtimePlanHash,
+      answer_application_hash: answerApplicationHash,
+      amended_record_hash: amendedHash,
+      package_binding_valid: true,
+      record_binding_valid: true,
+      amended_record_valid: true,
+      original_input_unchanged: finalUnchanged[0],
+      repaired_input_unchanged: finalUnchanged[1],
+      amended_input_unchanged: finalUnchanged[2],
+      challenges_submitted: challenges.length,
+      challenges_accepted: challenges.length,
+      final_status: 'passed',
+    },
+  };
+}
