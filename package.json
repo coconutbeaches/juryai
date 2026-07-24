@@ -17,6 +17,7 @@
     "assess:person-a-runtime": "tsx src/commands/assess-person-a-runtime.ts",
     "apply:person-a-clarifications": "tsx src/commands/apply-person-a-clarification-answers.ts",
     "confirm:person-a-record": "tsx src/commands/confirm-person-a-record.ts",
+    "resolve:person-a-challenges": "tsx src/commands/resolve-person-a-challenges.ts",
     "format:check": "prettier --check ."
   },
   "devDependencies": {
