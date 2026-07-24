@@ -246,6 +246,10 @@ describe('Person A confirmation and challenge outcomes', () => {
     });
     expect(result.status).toBe('challenged');
     expect(result.challenges).toEqual([item]);
+    expect(result.audit).toMatchObject({
+      package_binding_valid: true,
+      record_binding_valid: true,
+    });
   });
 
   it('accepts multiple challenges atomically and normalizes their order deterministically', () => {
@@ -524,25 +528,49 @@ describe('Person A confirmation fails closed', () => {
     [
       'stale package',
       (submission: JsonObject) => (submission.confirmation_package_id = '0'.repeat(64)),
+      false,
+      false,
     ],
-    ['stale record', (submission: JsonObject) => (submission.amended_record_hash = '0'.repeat(64))],
-    ['malformed hash', (submission: JsonObject) => (submission.amended_record_hash = 'bad')],
-    ['not explicit', (submission: JsonObject) => (submission.explicit_confirmation = false)],
-    ['both outcomes', (submission: JsonObject) => (submission.challenges = [])],
-    ['neither outcome', (submission: JsonObject) => delete submission.outcome],
-  ])('rejects %s', (_label, mutate) => {
-    const { plan, application } = context();
-    const submission: JsonObject = structuredClone(confirmedSubmission(plan, application));
-    mutate(submission);
-    const result = confirmPersonARecord({
-      runtimePlan: plan,
-      answerApplication: application,
-      amendedRecord: application.amended_record,
-      submission,
-    });
-    expect(result.status).toBe('invalid');
-    expect(result.challenges).toEqual([]);
-  });
+    [
+      'stale record',
+      (submission: JsonObject) => (submission.amended_record_hash = '0'.repeat(64)),
+      true,
+      false,
+    ],
+    [
+      'malformed hash',
+      (submission: JsonObject) => (submission.amended_record_hash = 'bad'),
+      false,
+      false,
+    ],
+    [
+      'not explicit',
+      (submission: JsonObject) => (submission.explicit_confirmation = false),
+      true,
+      true,
+    ],
+    ['both outcomes', (submission: JsonObject) => (submission.challenges = []), true, true],
+    ['neither outcome', (submission: JsonObject) => delete submission.outcome, true, true],
+  ])(
+    'rejects %s with the binding stages proven before failure',
+    (_label, mutate, packageBindingValid, recordBindingValid) => {
+      const { plan, application } = context();
+      const submission: JsonObject = structuredClone(confirmedSubmission(plan, application));
+      mutate(submission);
+      const result = confirmPersonARecord({
+        runtimePlan: plan,
+        answerApplication: application,
+        amendedRecord: application.amended_record,
+        submission,
+      });
+      expect(result.status).toBe('invalid');
+      expect(result.challenges).toEqual([]);
+      expect(result.audit).toMatchObject({
+        package_binding_valid: packageBindingValid,
+        record_binding_valid: recordBindingValid,
+      });
+    },
+  );
 
   it.each([
     ['unknown target', { target_object_id: 'unknown' }],
@@ -569,7 +597,11 @@ describe('Person A confirmation fails closed', () => {
     });
     expect(result.status).toBe('invalid');
     expect(result.challenges).toEqual([]);
-    expect(result.audit.challenges_accepted).toBe(0);
+    expect(result.audit).toMatchObject({
+      package_binding_valid: true,
+      record_binding_valid: true,
+      challenges_accepted: 0,
+    });
   });
 
   it('fails closed for an unknown extraction-issue ID or path', () => {
@@ -665,10 +697,6 @@ describe('Person A confirmation fails closed', () => {
           expected_prior_value: timeline.asserted_by_party_ids,
         },
       ),
-      challengeWithRawGrounding(application, {
-        ...canonicalExtracted,
-        value: Number.NaN,
-      }),
       challengeWithRawGrounding(
         application,
         {
@@ -695,11 +723,32 @@ describe('Person A confirmation fails closed', () => {
       const serialized = JSON.stringify(first);
       expect(first.status).toBe('invalid');
       expect(first.challenges).toEqual([]);
-      expect(first.audit.challenges_accepted).toBe(0);
+      expect(first.audit).toMatchObject({
+        package_binding_valid: true,
+        record_binding_valid: true,
+        challenges_accepted: 0,
+      });
       expect(JSON.stringify(first.diagnostics).length).toBeLessThan(2_000);
       expect(serialized.includes(oversizedNestedValue)).toBe(false);
       expect(serialized).toBe(JSON.stringify(second));
     }
+    const nonJsonGrounding = challengeWithRawGrounding(application, {
+      ...canonicalExtracted,
+      value: Number.NaN,
+    });
+    const nonJsonResult = confirmPersonARecord({
+      runtimePlan: plan,
+      answerApplication: application,
+      amendedRecord: application.amended_record,
+      submission: challengedSubmission(plan, application, [nonJsonGrounding]),
+    });
+    expect(nonJsonResult.status).toBe('invalid');
+    expect(nonJsonResult.diagnostics).toEqual([expect.objectContaining({ code: 'invalid_input' })]);
+    expect(nonJsonResult.audit).toMatchObject({
+      package_binding_valid: false,
+      record_binding_valid: false,
+      challenges_accepted: 0,
+    });
   });
 
   it('rejects unsafe grounding object shapes without invoking accessors', () => {
@@ -822,6 +871,11 @@ describe('Person A confirmation fails closed', () => {
       expect(result.status).toBe('invalid');
       expect(result.challenges).toEqual([]);
       expect(result.diagnostics.length).toBeLessThanOrEqual(20);
+      expect(result.audit).toMatchObject({
+        package_binding_valid: true,
+        record_binding_valid: true,
+        challenges_accepted: 0,
+      });
     }
   });
 

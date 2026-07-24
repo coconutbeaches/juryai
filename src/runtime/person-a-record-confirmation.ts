@@ -698,12 +698,18 @@ function parseChallenge(
   return { challenge, errors: [] };
 }
 
+interface ConfirmationBindingState {
+  packageBindingValid: boolean;
+  recordBindingValid: boolean;
+}
+
 function invalidResult(
   diagnostics: PersonAConfirmationDiagnostic[],
   packageValue: PersonAConfirmationPackage | null,
   runtimePlanHash: string | null,
   applicationHash: string | null,
   amendedHash: string | null,
+  bindingState: ConfirmationBindingState,
   unchanged: [boolean, boolean, boolean],
   challengesSubmitted = 0,
   amendedRecordValid = false,
@@ -721,8 +727,8 @@ function invalidResult(
       runtime_plan_hash: runtimePlanHash,
       answer_application_hash: applicationHash,
       amended_record_hash: amendedHash,
-      package_binding_valid: false,
-      record_binding_valid: false,
+      package_binding_valid: bindingState.packageBindingValid,
+      record_binding_valid: bindingState.recordBindingValid,
       amended_record_valid: amendedRecordValid,
       original_input_unchanged: unchanged[0],
       repaired_input_unchanged: unchanged[1],
@@ -737,6 +743,10 @@ function invalidResult(
 export function confirmPersonARecord(
   input: PersonARecordConfirmationInput,
 ): PersonARecordConfirmationResult {
+  const unprovenBindings: ConfirmationBindingState = {
+    packageBindingValid: false,
+    recordBindingValid: false,
+  };
   let runtimePlan: PersonARuntimePlanningResult;
   let application: PersonAClarificationAnswerApplicationResult;
   let amendedRecord: JsonObject;
@@ -758,6 +768,7 @@ export function confirmPersonARecord(
       null,
       null,
       null,
+      unprovenBindings,
       [true, true, true],
     );
   }
@@ -789,6 +800,7 @@ export function confirmPersonARecord(
       runtimePlanHash,
       answerApplicationHash,
       amendedHash,
+      unprovenBindings,
       unchanged(),
     );
   }
@@ -811,6 +823,7 @@ export function confirmPersonARecord(
       runtimePlanHash,
       answerApplicationHash,
       amendedHash,
+      unprovenBindings,
       unchanged(),
     );
   }
@@ -828,6 +841,7 @@ export function confirmPersonARecord(
       runtimePlanHash,
       answerApplicationHash,
       amendedHash,
+      unprovenBindings,
       unchanged(),
     );
   }
@@ -840,6 +854,7 @@ export function confirmPersonARecord(
       runtimePlanHash,
       answerApplicationHash,
       amendedHash,
+      unprovenBindings,
       unchanged(),
       0,
       true,
@@ -862,6 +877,7 @@ export function confirmPersonARecord(
       runtimePlanHash,
       answerApplicationHash,
       amendedHash,
+      unprovenBindings,
       unchanged(),
       0,
       true,
@@ -874,11 +890,16 @@ export function confirmPersonARecord(
       runtimePlanHash,
       answerApplicationHash,
       amendedHash,
+      unprovenBindings,
       unchanged(),
       0,
       true,
     );
   }
+  const packageBound: ConfirmationBindingState = {
+    packageBindingValid: true,
+    recordBindingValid: false,
+  };
   if (submission.amended_record_hash !== amendedHash) {
     return invalidResult(
       [diagnostic('stale_amended_record', 'Amended record identity is stale or different.')],
@@ -886,11 +907,16 @@ export function confirmPersonARecord(
       runtimePlanHash,
       answerApplicationHash,
       amendedHash,
+      packageBound,
       unchanged(),
       0,
       true,
     );
   }
+  const fullyBound: ConfirmationBindingState = {
+    packageBindingValid: true,
+    recordBindingValid: true,
+  };
 
   const commonKeys = new Set([
     'version',
@@ -912,6 +938,7 @@ export function confirmPersonARecord(
         runtimePlanHash,
         answerApplicationHash,
         amendedHash,
+        fullyBound,
         unchanged(),
         0,
         true,
@@ -932,6 +959,7 @@ export function confirmPersonARecord(
         runtimePlanHash,
         answerApplicationHash,
         amendedHash,
+        fullyBound,
         unchanged(),
         Array.isArray(submission.challenges) ? submission.challenges.length : 0,
         true,
@@ -988,6 +1016,7 @@ export function confirmPersonARecord(
         runtimePlanHash,
         answerApplicationHash,
         amendedHash,
+        fullyBound,
         unchanged(),
         submission.challenges.length,
         true,
@@ -1007,6 +1036,7 @@ export function confirmPersonARecord(
       runtimePlanHash,
       answerApplicationHash,
       amendedHash,
+      fullyBound,
       unchanged(),
       0,
       true,
@@ -1034,8 +1064,8 @@ export function confirmPersonARecord(
       runtime_plan_hash: runtimePlanHash,
       answer_application_hash: answerApplicationHash,
       amended_record_hash: amendedHash,
-      package_binding_valid: true,
-      record_binding_valid: true,
+      package_binding_valid: fullyBound.packageBindingValid,
+      record_binding_valid: fullyBound.recordBindingValid,
       amended_record_valid: true,
       original_input_unchanged: finalUnchanged[0],
       repaired_input_unchanged: finalUnchanged[1],
