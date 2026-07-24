@@ -16,8 +16,8 @@ future correction or resolution boundary; it never performs that correction.
 - SHA-256 identities for the immutable original extraction, repaired record, successful
   clarification-answer application, and final amended record;
 - the canonical record/schema version;
-- reviewable party, actor, agreement, deliverable, event/date, claim, evidence, damages, and
-  requested-outcome sections;
+- reviewable party, actor, agreement, deliverable, event/date, claim, evidence, damages,
+  requested-outcome, and canonical extraction-issue sections;
 - append-only clarification amendments and unresolved material uncertainty sidecars;
 - an explicit provenance legend distinguishing supplied facts, extracted structured content,
   amendments, unresolved uncertainty, and schema-labelled inference.
@@ -90,6 +90,10 @@ bindings, unknown object IDs, invalid paths, stale values, unsupported categorie
 grounding, duplicate challenge IDs, and duplicate target/category pairs reject the complete
 submission. One invalid challenge means zero accepted challenges. Diagnostics are machine-readable,
 bounded to 20 entries, and each message is bounded to 240 characters.
+
+Only challenge IDs that match the exact `pach_` plus 24-lowercase-hex contract may appear in
+diagnostics. Malformed, oversized, or Unicode IDs are rejected without echoing attacker-controlled
+identifier text.
 
 Inputs are inspected into detached plain-JSON snapshots. Accessors, symbols, custom prototypes,
 cycles, sparse or extended arrays, excessive nesting, and oversized batches fail closed. The

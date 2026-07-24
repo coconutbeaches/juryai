@@ -1,5 +1,7 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import {
   parseConfirmPersonARecordArgs,
@@ -117,12 +119,19 @@ describe('Person A confirmation package', () => {
       timeline: amended.timeline,
       evidence: amended.evidence,
       desired_outcomes: amended.desired_outcomes,
+      extraction_issues: amended.extraction_issues,
     });
-    (first.review_record.timeline as JsonObject[])[0]!.summary = 'changed';
-    expect((amended.timeline as JsonObject[])[0]!.summary).not.toBe('changed');
+    (first.review_record.extraction_issues as JsonObject[])[0]!.description = 'changed';
+    expect((amended.extraction_issues as JsonObject[])[0]!.description).not.toBe('changed');
+    const packageDescription = (second.review_record.extraction_issues as JsonObject[])[0]!
+      .description;
+    (amended.extraction_issues as JsonObject[])[0]!.description = 'source changed later';
+    expect((second.review_record.extraction_issues as JsonObject[])[0]!.description).toBe(
+      packageDescription,
+    );
   });
 
-  it('changes package identity when material amended-record content changes', () => {
+  it('changes package identity when a material extraction issue changes', () => {
     const { plan, application } = context();
     const amended = structuredClone(application.amended_record!) as JsonObject;
     const original = buildPersonAConfirmationPackage({
@@ -130,7 +139,7 @@ describe('Person A confirmation package', () => {
       answerApplication: application,
       amendedRecord: amended,
     });
-    amended.timeline[0].summary = `${amended.timeline[0].summary} corrected`;
+    amended.extraction_issues[0].description = `${amended.extraction_issues[0].description} Corrected by Person A.`;
     const changedApplication = structuredClone(application);
     changedApplication.amended_record = amended;
     changedApplication.amended_record_hash = hashPersonAClarificationArtifact(amended);
@@ -291,6 +300,122 @@ describe('Person A confirmation and challenge outcomes', () => {
 describe('Person A confirmation fails closed', () => {
   it.each([
     [
+      'missing application.amendments',
+      (_plan: JsonObject, application: JsonObject) => delete application.amendments,
+    ],
+    [
+      'non-array application.amendments',
+      (_plan: JsonObject, application: JsonObject) => (application.amendments = {}),
+    ],
+    [
+      'missing runtimePlan.unresolved_material_gaps',
+      (plan: JsonObject) => delete plan.unresolved_material_gaps,
+    ],
+    [
+      'non-array runtimePlan.unresolved_material_gaps',
+      (plan: JsonObject) => (plan.unresolved_material_gaps = 'invalid'),
+    ],
+    [
+      'missing runtimePlan.suppressed_candidates',
+      (plan: JsonObject) => delete plan.suppressed_candidates,
+    ],
+    [
+      'non-array runtimePlan.suppressed_candidates',
+      (plan: JsonObject) => (plan.suppressed_candidates = null),
+    ],
+  ])('rejects %s before package construction', (_label, mutate) => {
+    const { plan, application } = context();
+    const submission = confirmedSubmission(plan, application);
+    const malformedPlan = structuredClone(plan) as unknown as JsonObject;
+    const malformedApplication = structuredClone(application) as unknown as JsonObject;
+    mutate(malformedPlan, malformedApplication);
+    const input = {
+      runtimePlan: malformedPlan,
+      answerApplication: malformedApplication,
+      amendedRecord: application.amended_record,
+      submission,
+    };
+    const first = confirmPersonARecord(input);
+    const second = confirmPersonARecord(input);
+    expect(first).toEqual(
+      expect.objectContaining({
+        status: 'invalid',
+        confirmation_package: null,
+        confirmation_package_id: null,
+        challenges: [],
+      }),
+    );
+    expect(first.diagnostics).toEqual([expect.objectContaining({ code: 'invalid_package_input' })]);
+    expect(first.audit.challenges_accepted).toBe(0);
+    expect(JSON.stringify(first)).toBe(JSON.stringify(second));
+  });
+
+  it('rejects structurally unsafe upstream arrays through the invalid-result path', () => {
+    const variants: {
+      name: string;
+      build(): { value: unknown[]; reads?: () => number };
+    }[] = [
+      {
+        name: 'sparse',
+        build: () => ({ value: new Array(1) }),
+      },
+      {
+        name: 'accessor-backed',
+        build: () => {
+          let reads = 0;
+          const value: unknown[] = [];
+          Object.defineProperty(value, '0', {
+            enumerable: true,
+            get: () => {
+              reads += 1;
+              return {};
+            },
+          });
+          return { value, reads: () => reads };
+        },
+      },
+      {
+        name: 'cyclic',
+        build: () => {
+          const value: unknown[] = [];
+          value.push(value);
+          return { value };
+        },
+      },
+      {
+        name: 'custom-prototype',
+        build: () => {
+          const value: unknown[] = [];
+          Object.setPrototypeOf(value, null);
+          return { value };
+        },
+      },
+    ];
+    for (const variant of variants) {
+      const { plan, application } = context();
+      const malformed = structuredClone(application) as unknown as JsonObject;
+      const built = variant.build();
+      malformed.amendments = built.value;
+      const run = () =>
+        confirmPersonARecord({
+          runtimePlan: plan,
+          answerApplication: malformed,
+          amendedRecord: application.amended_record,
+          submission: confirmedSubmission(plan, application),
+        });
+      const first = run();
+      const second = run();
+      expect(first.status, variant.name).toBe('invalid');
+      expect(first.confirmation_package, variant.name).toBeNull();
+      expect(first.challenges, variant.name).toEqual([]);
+      expect(first.audit.challenges_accepted, variant.name).toBe(0);
+      expect(JSON.stringify(first), variant.name).toBe(JSON.stringify(second));
+      expect(built.reads?.() ?? 0, variant.name).toBe(0);
+    }
+  });
+
+  it.each([
+    [
       'stale package',
       (submission: JsonObject) => (submission.confirmation_package_id = '0'.repeat(64)),
     ],
@@ -339,6 +464,76 @@ describe('Person A confirmation fails closed', () => {
     expect(result.status).toBe('invalid');
     expect(result.challenges).toEqual([]);
     expect(result.audit.challenges_accepted).toBe(0);
+  });
+
+  it('fails closed for an unknown extraction-issue ID or path', () => {
+    const { plan, application } = context();
+    const amended = application.amended_record as JsonObject;
+    const valid = challenge(application, {
+      target_object_id: amended.extraction_issues[0].issue_id,
+      target_path: '/extraction_issues/0/description',
+      category: 'missing_material_information',
+      expected_prior_value: amended.extraction_issues[0].description,
+    });
+    for (const patch of [
+      { target_object_id: 'issue_unknown' },
+      { target_path: '/extraction_issues/999/description' },
+    ]) {
+      const invalid = { ...valid, ...patch };
+      const { challenge_id: _ignored, ...body } = invalid;
+      invalid.challenge_id = derivePersonAChallengeId(body);
+      const result = confirmPersonARecord({
+        runtimePlan: plan,
+        answerApplication: application,
+        amendedRecord: application.amended_record,
+        submission: challengedSubmission(plan, application, [invalid]),
+      });
+      expect(result.status).toBe('invalid');
+      expect(result.challenges).toEqual([]);
+      expect(result.audit.challenges_accepted).toBe(0);
+    }
+  });
+
+  it.each([
+    ['extremely large', 'x'.repeat(1_000_000)],
+    ['valid prefix with excessive length', `pach_${'a'.repeat(100_000)}`],
+    ['Unicode', 'pach_éééééééééééééééééééééééé'],
+  ])('bounds diagnostics for an %s malformed challenge ID', (_label, malformedId) => {
+    const { plan, application } = context();
+    const malformed = { ...challenge(application), challenge_id: malformedId };
+    const submission = challengedSubmission(plan, application, [challenge(application), malformed]);
+    const input = {
+      runtimePlan: plan,
+      answerApplication: application,
+      amendedRecord: application.amended_record,
+      submission,
+    };
+    const first = confirmPersonARecord(input);
+    const second = confirmPersonARecord(input);
+    const serialized = JSON.stringify(first);
+    expect(first.status).toBe('invalid');
+    expect(first.challenges).toEqual([]);
+    expect(first.audit.challenges_accepted).toBe(0);
+    expect(first.diagnostics.every((item) => item.challenge_id === null)).toBe(true);
+    expect(JSON.stringify(first.diagnostics).length).toBeLessThan(2_000);
+    expect(serialized.includes(malformedId)).toBe(false);
+    expect(serialized.length).toBeLessThan(250_000);
+    expect(serialized).toBe(JSON.stringify(second));
+  });
+
+  it('retains an exactly valid challenge ID in applicable diagnostics', () => {
+    const { plan, application } = context();
+    const invalid = challenge(application, { target_object_id: 'unknown_target' });
+    const result = confirmPersonARecord({
+      runtimePlan: plan,
+      answerApplication: application,
+      amendedRecord: application.amended_record,
+      submission: challengedSubmission(plan, application, [invalid]),
+    });
+    expect(result.status).toBe('invalid');
+    expect(result.diagnostics.some((item) => item.challenge_id === invalid.challenge_id)).toBe(
+      true,
+    );
   });
 
   it('rejects duplicate IDs, duplicate target/category, empty challenges, and oversized audit input', () => {
@@ -455,6 +650,64 @@ describe('Person A confirmation CLI', () => {
     expect(result.status).toBe('confirmed');
     expect(writes.size).toBe(1);
     expect([...writes.values()][0]).toBe(`${JSON.stringify(result, null, 2)}\n`);
+  });
+
+  it('writes byte-identical failure JSON and exits non-zero for malformed upstream input', () => {
+    const { plan, application } = context();
+    const malformedApplication = structuredClone(application) as unknown as JsonObject;
+    delete malformedApplication.amendments;
+    const temporaryDirectory = mkdtempSync(join(tmpdir(), 'juryai-confirmation-cli-'));
+    try {
+      const paths = {
+        plan: join(temporaryDirectory, 'runtime-plan.json'),
+        application: join(temporaryDirectory, 'answer-application.json'),
+        amended: join(temporaryDirectory, 'amended-record.json'),
+        submission: join(temporaryDirectory, 'submission.json'),
+        first: join(temporaryDirectory, 'failure-1.json'),
+        second: join(temporaryDirectory, 'failure-2.json'),
+      };
+      writeFileSync(paths.plan, JSON.stringify(plan));
+      writeFileSync(paths.application, JSON.stringify(malformedApplication));
+      writeFileSync(paths.amended, JSON.stringify(application.amended_record));
+      writeFileSync(paths.submission, JSON.stringify(confirmedSubmission(plan, application)));
+      const run = (output: string) =>
+        spawnSync(
+          process.execPath,
+          [
+            '--import',
+            'tsx',
+            resolve(process.cwd(), 'src/commands/confirm-person-a-record.ts'),
+            '--runtime-plan',
+            paths.plan,
+            '--answer-application',
+            paths.application,
+            '--amended-record',
+            paths.amended,
+            '--submission',
+            paths.submission,
+            '--output',
+            output,
+          ],
+          { cwd: process.cwd(), encoding: 'utf8' },
+        );
+      const firstRun = run(paths.first);
+      const secondRun = run(paths.second);
+      expect([firstRun.status, secondRun.status]).toEqual([2, 2]);
+      const first = readFileSync(paths.first, 'utf8');
+      const second = readFileSync(paths.second, 'utf8');
+      expect(first).toBe(second);
+      const result = JSON.parse(first);
+      expect(result).toMatchObject({
+        status: 'invalid',
+        confirmation_package: null,
+        confirmation_package_id: null,
+        challenges: [],
+        diagnostics: [{ code: 'invalid_package_input' }],
+        audit: { challenges_accepted: 0, final_status: 'failed_closed' },
+      });
+    } finally {
+      rmSync(temporaryDirectory, { recursive: true, force: true });
+    }
   });
 
   it('accepts both checked Dry Run 001 confirmation fixtures', () => {

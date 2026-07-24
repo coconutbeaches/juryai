@@ -23,6 +23,7 @@ export const MAX_PERSON_A_CONFIRMATION_EXPLANATION_LENGTH = 2_000;
 export const MAX_PERSON_A_CONFIRMATION_DIAGNOSTICS = 20;
 const MAX_DIAGNOSTIC_LENGTH = 240;
 const HASH_PATTERN = /^[a-f0-9]{64}$/u;
+const CHALLENGE_ID_PATTERN = /^pach_[a-f0-9]{24}$/u;
 const MAX_INPUT_NODES = 100_000;
 const MAX_INPUT_DEPTH = 64;
 
@@ -95,6 +96,7 @@ export interface PersonAConfirmationPackage {
     claim_evidence_links: JsonValue;
     damages_claims: JsonValue;
     desired_outcomes: JsonValue;
+    extraction_issues: JsonValue;
   };
   amendments: JsonValue[];
   unresolved_uncertainties: JsonValue[];
@@ -105,6 +107,7 @@ export type PersonAConfirmationIssueCode =
   | 'invalid_runtime_plan'
   | 'invalid_answer_application'
   | 'invalid_amended_record'
+  | 'invalid_package_input'
   | 'stale_package'
   | 'stale_amended_record'
   | 'invalid_submission'
@@ -384,6 +387,26 @@ function applicationIdentity(application: PersonAClarificationAnswerApplicationR
   return hash(application as unknown as JsonValue);
 }
 
+function packageInputDiagnostic(
+  runtimePlan: PersonARuntimePlanningResult,
+  application: PersonAClarificationAnswerApplicationResult,
+): PersonAConfirmationDiagnostic | null {
+  const requiredArrays: readonly [string, unknown][] = [
+    ['application.amendments', application.amendments],
+    ['runtime_plan.unresolved_material_gaps', runtimePlan.unresolved_material_gaps],
+    ['runtime_plan.suppressed_candidates', runtimePlan.suppressed_candidates],
+  ];
+  for (const [name, value] of requiredArrays) {
+    if (!Array.isArray(value) || value.some((item) => !isObject(item))) {
+      return diagnostic(
+        'invalid_package_input',
+        `Confirmation package prerequisite ${name} must be an array of objects.`,
+      );
+    }
+  }
+  return null;
+}
+
 function packageWithoutId(
   runtimePlan: PersonARuntimePlanningResult,
   application: PersonAClarificationAnswerApplicationResult,
@@ -421,6 +444,7 @@ function packageWithoutId(
       claim_evidence_links: cloneJson(amendedRecord.claim_evidence_links!),
       damages_claims: cloneJson(amendedRecord.damages_claims!),
       desired_outcomes: cloneJson(amendedRecord.desired_outcomes!),
+      extraction_issues: cloneJson(amendedRecord.extraction_issues!),
     },
     amendments: cloneJson(application.amendments as unknown as JsonValue[]),
     unresolved_uncertainties: cloneJson([
@@ -493,7 +517,8 @@ function parseChallenge(
   if (!isObject(value)) {
     return { errors: [diagnostic('invalid_challenge', 'Challenge must be an object.')] };
   }
-  const id = typeof value.challenge_id === 'string' ? value.challenge_id : null;
+  const submittedId = typeof value.challenge_id === 'string' ? value.challenge_id : null;
+  const id = submittedId !== null && CHALLENGE_ID_PATTERN.test(submittedId) ? submittedId : null;
   const allowed = new Set([
     'challenge_id',
     'target_object_id',
@@ -506,7 +531,7 @@ function parseChallenge(
   if (Object.keys(value).some((key) => !allowed.has(key))) {
     errors.push(diagnostic('invalid_challenge', 'Challenge contains unsupported fields.', id));
   }
-  if (!id || !/^pach_[a-f0-9]{24}$/u.test(id)) {
+  if (id === null) {
     errors.push(diagnostic('invalid_challenge', 'Challenge ID is malformed.', id));
   }
   const targetObjectId = typeof value.target_object_id === 'string' ? value.target_object_id : '';
@@ -708,6 +733,20 @@ export function confirmPersonARecord(
       answerApplicationHash,
       amendedHash,
       unchanged(),
+    );
+  }
+
+  const invalidPackageInput = packageInputDiagnostic(runtimePlan, application);
+  if (invalidPackageInput) {
+    return invalidResult(
+      [invalidPackageInput],
+      null,
+      runtimePlanHash,
+      answerApplicationHash,
+      amendedHash,
+      unchanged(),
+      0,
+      true,
     );
   }
 
