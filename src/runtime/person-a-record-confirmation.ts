@@ -1,6 +1,10 @@
 import { createHash } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
-import type { GroundingReference } from '../clarification/question-necessity.js';
+import type {
+  ExtractedObjectGroundingReference,
+  GroundingReference,
+  SourceSpanGroundingReference,
+} from '../clarification/question-necessity.js';
 import { validatePersonAExtraction } from '../extraction/validate-person-a-corrected.js';
 import {
   PERSON_A_CLARIFICATION_ANSWER_APPLICATION_VERSION,
@@ -26,6 +30,8 @@ const HASH_PATTERN = /^[a-f0-9]{64}$/u;
 const CHALLENGE_ID_PATTERN = /^pach_[a-f0-9]{24}$/u;
 const MAX_INPUT_NODES = 100_000;
 const MAX_INPUT_DEPTH = 64;
+const MAX_INPUT_STRING_LENGTH = 1_000_000;
+const IDENTIFIER_PATTERN = /^[A-Za-z][A-Za-z0-9_.:-]{0,159}$/u;
 
 export type PersonAChallengeCategory =
   | 'incorrect_value'
@@ -236,7 +242,13 @@ function snapshotJson(
   if (context.nodes > MAX_INPUT_NODES || depth > MAX_INPUT_DEPTH) {
     throw new TypeError('Confirmation input exceeds bounded JSON limits.');
   }
-  if (value === null || typeof value === 'string' || typeof value === 'boolean') return value;
+  if (value === null || typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    if (value.length > MAX_INPUT_STRING_LENGTH) {
+      throw new TypeError('Confirmation input string exceeds the bounded JSON limit.');
+    }
+    return value;
+  }
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   if (typeof value !== 'object' || value === undefined) {
     throw new TypeError('Confirmation input contains a non-JSON value.');
@@ -465,28 +477,69 @@ export function buildPersonAConfirmationPackage(input: {
   return { ...body, package_id: hash(body as unknown as JsonValue) };
 }
 
-function validateGrounding(
+function hasExactKeys(value: JsonObject, expected: readonly string[]): boolean {
+  const actual = Object.keys(value).sort();
+  const canonicalExpected = [...expected].sort();
+  return (
+    actual.length === canonicalExpected.length &&
+    actual.every((key, index) => key === canonicalExpected[index])
+  );
+}
+
+function isGroundingPrimitive(value: unknown): value is string | number | boolean | null {
+  return (
+    value === null ||
+    typeof value === 'boolean' ||
+    (typeof value === 'string' && value.length <= MAX_INPUT_STRING_LENGTH) ||
+    (typeof value === 'number' && Number.isFinite(value))
+  );
+}
+
+function normalizeGrounding(
   grounding: unknown,
   target: JsonObject,
   targetObjectId: string,
-): boolean {
-  if (!isObject(grounding) || grounding.object_id !== targetObjectId) return false;
+  targetObjectPath: string,
+  challengedPath: string,
+  expectedPriorValue: JsonValue,
+): GroundingReference | null {
+  if (
+    !isObject(grounding) ||
+    Object.getPrototypeOf(grounding) !== Object.prototype ||
+    grounding.object_id !== targetObjectId
+  ) {
+    return null;
+  }
   if (grounding.kind === 'source_span') {
     const startChar = grounding.start_char;
     const endChar = grounding.end_char;
     if (
+      !hasExactKeys(grounding, [
+        'kind',
+        'object_id',
+        'submission_id',
+        'quote',
+        'start_char',
+        'end_char',
+      ]) ||
+      typeof grounding.object_id !== 'string' ||
+      !IDENTIFIER_PATTERN.test(grounding.object_id) ||
       typeof grounding.submission_id !== 'string' ||
+      !IDENTIFIER_PATTERN.test(grounding.submission_id) ||
       typeof grounding.quote !== 'string' ||
       grounding.quote.length === 0 ||
+      grounding.quote.length > MAX_INPUT_STRING_LENGTH ||
       typeof startChar !== 'number' ||
       typeof endChar !== 'number' ||
-      !Number.isInteger(startChar) ||
-      !Number.isInteger(endChar) ||
+      !Number.isSafeInteger(startChar) ||
+      !Number.isSafeInteger(endChar) ||
+      startChar < 0 ||
+      endChar <= startChar ||
       endChar !== startChar + grounding.quote.length
     ) {
-      return false;
+      return null;
     }
-    return (
+    const compatible =
       Array.isArray(target.source_spans) &&
       target.source_spans.some(
         (span) =>
@@ -495,17 +548,42 @@ function validateGrounding(
           span.quote === grounding.quote &&
           span.start_char === startChar &&
           span.end_char === endChar,
-      )
-    );
+      );
+    if (!compatible) return null;
+    const normalized: SourceSpanGroundingReference = {
+      kind: 'source_span',
+      object_id: grounding.object_id,
+      submission_id: grounding.submission_id,
+      quote: grounding.quote,
+      start_char: startChar,
+      end_char: endChar,
+    };
+    return normalized;
   }
   if (grounding.kind === 'extracted_object') {
-    return (
-      typeof grounding.field === 'string' &&
-      Object.prototype.hasOwnProperty.call(target, grounding.field) &&
-      isDeepStrictEqual(target[grounding.field], grounding.value)
-    );
+    if (
+      !hasExactKeys(grounding, ['kind', 'object_id', 'field', 'value']) ||
+      typeof grounding.object_id !== 'string' ||
+      !IDENTIFIER_PATTERN.test(grounding.object_id) ||
+      typeof grounding.field !== 'string' ||
+      !IDENTIFIER_PATTERN.test(grounding.field) ||
+      !isGroundingPrimitive(grounding.value) ||
+      challengedPath !== `${targetObjectPath}/${grounding.field}` ||
+      !Object.prototype.hasOwnProperty.call(target, grounding.field) ||
+      !isDeepStrictEqual(target[grounding.field], grounding.value) ||
+      !isDeepStrictEqual(expectedPriorValue, grounding.value)
+    ) {
+      return null;
+    }
+    const normalized: ExtractedObjectGroundingReference = {
+      kind: 'extracted_object',
+      object_id: grounding.object_id,
+      field: grounding.field,
+      value: grounding.value,
+    };
+    return normalized;
   }
-  return false;
+  return null;
 }
 
 function parseChallenge(
@@ -570,10 +648,20 @@ function parseChallenge(
     errors.push(diagnostic('invalid_challenge', 'Challenge explanation is malformed.', id));
   }
   const needsGrounding = value.category === 'contradiction_with_supplied_source';
+  const normalizedGrounding =
+    value.grounding_reference !== undefined && target && resolved.found
+      ? normalizeGrounding(
+          value.grounding_reference,
+          target.item,
+          targetObjectId,
+          target.path,
+          targetPath,
+          resolved.value!,
+        )
+      : null;
   if (
     (needsGrounding && value.grounding_reference === undefined) ||
-    (value.grounding_reference !== undefined &&
-      (!target || !validateGrounding(value.grounding_reference, target.item, targetObjectId)))
+    (value.grounding_reference !== undefined && normalizedGrounding === null)
   ) {
     errors.push(
       diagnostic(
@@ -586,7 +674,15 @@ function parseChallenge(
     );
   }
   if (errors.length > 0) return { errors };
-  const challenge = structuredClone(value) as unknown as PersonARecordChallenge;
+  const challenge: PersonARecordChallenge = {
+    challenge_id: id!,
+    target_object_id: targetObjectId,
+    target_path: targetPath,
+    category: value.category as PersonAChallengeCategory,
+    explanation: value.explanation as string,
+    expected_prior_value: cloneJson(resolved.value!),
+    ...(normalizedGrounding === null ? {} : { grounding_reference: normalizedGrounding }),
+  };
   const { challenge_id: _ignored, ...payload } = challenge;
   if (challenge.challenge_id !== derivePersonAChallengeId(payload)) {
     return {

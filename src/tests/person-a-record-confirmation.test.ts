@@ -95,6 +95,22 @@ function challengedSubmission(
   return { ...binding, outcome: 'challenged' as const, challenges };
 }
 
+function challengeWithRawGrounding(
+  application: PersonAClarificationAnswerApplicationResult,
+  groundingReference: unknown,
+  overrides: Partial<Omit<PersonARecordChallenge, 'challenge_id' | 'grounding_reference'>> = {},
+): PersonARecordChallenge {
+  const base = challenge(application, overrides);
+  const { challenge_id: _ignored, ...baseBody } = base;
+  const body = { ...baseBody, grounding_reference: groundingReference };
+  return {
+    challenge_id: derivePersonAChallengeId(
+      body as unknown as Omit<PersonARecordChallenge, 'challenge_id'>,
+    ),
+    ...body,
+  } as unknown as PersonARecordChallenge;
+}
+
 describe('Person A confirmation package', () => {
   it('is deterministic, detached, reviewable, and exactly bound to all record identities', () => {
     const { plan, application } = context();
@@ -257,7 +273,7 @@ describe('Person A confirmation and challenge outcomes', () => {
     ]);
   });
 
-  it('accepts exact source-grounded conflict and rejects missing or incompatible grounding', () => {
+  it('normalizes an exact source-span grounding into a detached canonical challenge', () => {
     const { plan, application } = context();
     const amended = application.amended_record as JsonObject;
     const target = amended.timeline[0];
@@ -281,6 +297,47 @@ describe('Person A confirmation and challenge outcomes', () => {
       submission: challengedSubmission(plan, application, [valid]),
     });
     expect(accepted.status).toBe('challenged');
+    expect(Object.keys(accepted.challenges[0]!.grounding_reference!)).toEqual([
+      'kind',
+      'object_id',
+      'submission_id',
+      'quote',
+      'start_char',
+      'end_char',
+    ]);
+    expect(accepted.challenges[0]!.grounding_reference).toEqual(grounding);
+    expect(accepted.challenges[0]!.grounding_reference).not.toBe(grounding);
+    const acceptedBeforeMutation = JSON.stringify(accepted);
+    const repeated = confirmPersonARecord({
+      runtimePlan: plan,
+      answerApplication: application,
+      amendedRecord: application.amended_record,
+      submission: challengedSubmission(plan, application, [valid]),
+    });
+    expect(JSON.stringify(repeated)).toBe(acceptedBeforeMutation);
+    grounding.quote = 'mutated after confirmation';
+    expect(JSON.stringify(accepted)).toBe(acceptedBeforeMutation);
+    const { challenge_id: _ignored, ...normalizedBody } = accepted.challenges[0]!;
+    expect(accepted.challenges[0]!.challenge_id).toBe(derivePersonAChallengeId(normalizedBody));
+  });
+
+  it('rejects missing or target-incompatible source grounding', () => {
+    const { plan, application } = context();
+    const amended = application.amended_record as JsonObject;
+    const target = amended.timeline[0];
+    const span = target.source_spans[0];
+    const grounding = {
+      kind: 'source_span' as const,
+      object_id: target.event_id,
+      submission_id: span.submission_id,
+      quote: span.quote,
+      start_char: span.start_char,
+      end_char: span.end_char,
+    };
+    const valid = challenge(application, {
+      category: 'contradiction_with_supplied_source',
+      grounding_reference: grounding,
+    });
     for (const broken of [
       { ...valid, grounding_reference: undefined },
       { ...valid, grounding_reference: { ...grounding, object_id: 'unknown' } },
@@ -295,6 +352,55 @@ describe('Person A confirmation and challenge outcomes', () => {
       expect(rejected.challenges).toEqual([]);
     }
   });
+
+  it.each([
+    ['string', 'timeline', 0, 'event_id', 'event_summary'],
+    ['number', 'desired_outcomes.outcomes', 0, 'outcome_id', 'priority'],
+    ['boolean', 'claims', 0, 'claim_id', 'requires_clarification'],
+    ['null', 'timeline', 0, 'event_id', 'actor_third_party_id'],
+  ])(
+    'accepts and normalizes a canonical extracted-object %s primitive',
+    (_label, familyPath, index, idField, field) => {
+      const { plan, application } = context();
+      const amended = application.amended_record as JsonObject;
+      const parts = familyPath.split('.');
+      let family: JsonObject = amended;
+      for (const part of parts) family = family[part];
+      const target = family[index];
+      const familyPointer = `/${parts.join('/')}`;
+      const grounding = {
+        kind: 'extracted_object' as const,
+        object_id: target[idField],
+        field,
+        value: target[field],
+      };
+      const item = challenge(application, {
+        target_object_id: target[idField],
+        target_path: `${familyPointer}/${index}/${field}`,
+        expected_prior_value: target[field],
+        grounding_reference: grounding,
+      });
+      const input = {
+        runtimePlan: plan,
+        answerApplication: application,
+        amendedRecord: application.amended_record,
+        submission: challengedSubmission(plan, application, [item]),
+      };
+      const first = confirmPersonARecord(input);
+      const second = confirmPersonARecord(input);
+      expect(first.status).toBe('challenged');
+      expect(first.challenges[0]!.grounding_reference).toEqual(grounding);
+      expect(Object.keys(first.challenges[0]!.grounding_reference!)).toEqual([
+        'kind',
+        'object_id',
+        'field',
+        'value',
+      ]);
+      const { challenge_id: _ignored, ...normalizedBody } = first.challenges[0]!;
+      expect(first.challenges[0]!.challenge_id).toBe(derivePersonAChallengeId(normalizedBody));
+      expect(JSON.stringify(first)).toBe(JSON.stringify(second));
+    },
+  );
 });
 
 describe('Person A confirmation fails closed', () => {
@@ -491,6 +597,173 @@ describe('Person A confirmation fails closed', () => {
       expect(result.status).toBe('invalid');
       expect(result.challenges).toEqual([]);
       expect(result.audit.challenges_accepted).toBe(0);
+    }
+  });
+
+  it('atomically rejects non-canonical or nested grounding payloads', () => {
+    const { plan, application } = context();
+    const amended = application.amended_record as JsonObject;
+    const timeline = amended.timeline[0];
+    const span = timeline.source_spans[0];
+    const canonicalSource = {
+      kind: 'source_span' as const,
+      object_id: timeline.event_id,
+      submission_id: span.submission_id,
+      quote: span.quote,
+      start_char: span.start_char,
+      end_char: span.end_char,
+    };
+    const canonicalExtracted = {
+      kind: 'extracted_object' as const,
+      object_id: timeline.event_id,
+      field: 'event_summary',
+      value: timeline.event_summary,
+    };
+    const valid = challenge(application, {
+      category: 'contradiction_with_supplied_source',
+      grounding_reference: canonicalSource,
+    });
+    const oversizedNestedValue = 'x'.repeat(500_000);
+    const malformed = [
+      challengeWithRawGrounding(
+        application,
+        { ...canonicalSource, extra_key: 'unsupported' },
+        { category: 'contradiction_with_supplied_source' },
+      ),
+      challengeWithRawGrounding(
+        application,
+        { ...canonicalSource, metadata: { nested: { value: 'unsupported' } } },
+        { category: 'contradiction_with_supplied_source' },
+      ),
+      challengeWithRawGrounding(application, {
+        ...canonicalExtracted,
+        extra_key: true,
+      }),
+      challengeWithRawGrounding(
+        application,
+        {
+          kind: 'extracted_object',
+          object_id: timeline.event_id,
+          field: 'date',
+          value: timeline.date,
+        },
+        {
+          target_path: '/timeline/0/date',
+          expected_prior_value: timeline.date,
+        },
+      ),
+      challengeWithRawGrounding(
+        application,
+        {
+          kind: 'extracted_object',
+          object_id: timeline.event_id,
+          field: 'asserted_by_party_ids',
+          value: timeline.asserted_by_party_ids,
+        },
+        {
+          target_path: '/timeline/0/asserted_by_party_ids',
+          expected_prior_value: timeline.asserted_by_party_ids,
+        },
+      ),
+      challengeWithRawGrounding(application, {
+        ...canonicalExtracted,
+        value: Number.NaN,
+      }),
+      challengeWithRawGrounding(
+        application,
+        {
+          ...canonicalSource,
+          metadata: { payload: oversizedNestedValue },
+        },
+        { category: 'contradiction_with_supplied_source' },
+      ),
+      challengeWithRawGrounding(application, {
+        ...canonicalExtracted,
+        field: 'actor_party_id',
+        value: timeline.actor_party_id,
+      }),
+    ];
+    for (const invalid of malformed) {
+      const input = {
+        runtimePlan: plan,
+        answerApplication: application,
+        amendedRecord: application.amended_record,
+        submission: challengedSubmission(plan, application, [valid, invalid]),
+      };
+      const first = confirmPersonARecord(input);
+      const second = confirmPersonARecord(input);
+      const serialized = JSON.stringify(first);
+      expect(first.status).toBe('invalid');
+      expect(first.challenges).toEqual([]);
+      expect(first.audit.challenges_accepted).toBe(0);
+      expect(JSON.stringify(first.diagnostics).length).toBeLessThan(2_000);
+      expect(serialized.includes(oversizedNestedValue)).toBe(false);
+      expect(serialized).toBe(JSON.stringify(second));
+    }
+  });
+
+  it('rejects unsafe grounding object shapes without invoking accessors', () => {
+    const variants: {
+      name: string;
+      build(base: JsonObject): { grounding: JsonObject; reads?: () => number };
+    }[] = [
+      {
+        name: 'custom prototype',
+        build: (base) => {
+          Object.setPrototypeOf(base, { custom: true });
+          return { grounding: base };
+        },
+      },
+      {
+        name: 'accessor',
+        build: (base) => {
+          let reads = 0;
+          Object.defineProperty(base, 'metadata', {
+            enumerable: true,
+            get: () => {
+              reads += 1;
+              return 'unsupported';
+            },
+          });
+          return { grounding: base, reads: () => reads };
+        },
+      },
+      {
+        name: 'cycle',
+        build: (base) => {
+          base.metadata = base;
+          return { grounding: base };
+        },
+      },
+      {
+        name: 'sparse nested array',
+        build: (base) => {
+          base.metadata = new Array(1);
+          return { grounding: base };
+        },
+      },
+    ];
+    for (const variant of variants) {
+      const { plan, application } = context();
+      const amended = application.amended_record as JsonObject;
+      const target = amended.timeline[0];
+      const built = variant.build({
+        kind: 'extracted_object',
+        object_id: target.event_id,
+        field: 'event_summary',
+        value: target.event_summary,
+      });
+      const submitted = challenge(application);
+      (submitted as unknown as JsonObject).grounding_reference = built.grounding;
+      const result = confirmPersonARecord({
+        runtimePlan: plan,
+        answerApplication: application,
+        amendedRecord: application.amended_record,
+        submission: challengedSubmission(plan, application, [submitted]),
+      });
+      expect(result.status, variant.name).toBe('invalid');
+      expect(result.challenges, variant.name).toEqual([]);
+      expect(built.reads?.() ?? 0, variant.name).toBe(0);
     }
   });
 

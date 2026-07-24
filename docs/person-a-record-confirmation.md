@@ -83,6 +83,20 @@ grounding reference compatible with the challenged target. Optional grounding on
 is validated by the same rule. Challenges cannot target submission text, runtime or audit
 metadata, clarification internals, fixtures, alignment, or evaluation data.
 
+Grounding references are exact discriminated unions:
+
+- `source_span` permits only `kind`, `object_id`, `submission_id`, `quote`, `start_char`, and
+  `end_char`. IDs must be canonical, coordinates must be safe ordered integers matching the quote,
+  and the complete span must exactly match one owned by the challenged object.
+- `extracted_object` permits only `kind`, `object_id`, `field`, and `value`. Its value may be only a
+  bounded string, finite number, boolean, or null. The field must be the exact directly challenged
+  field, and its value must equal both the amended record and `expected_prior_value`.
+
+Extra keys, nested metadata, object or array extracted values, and non-finite numbers fail closed.
+Accepted grounding and expected values are freshly constructed from validated canonical data.
+Challenge ID verification hashes that normalized representation rather than retaining submitted
+nested objects.
+
 ## Atomic and privacy-safe failure
 
 Confirmed and challenged forms are mutually exclusive. Unknown fields, malformed hashes, stale
