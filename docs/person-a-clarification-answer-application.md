@@ -41,7 +41,10 @@ answer from otherwise valid answers rejected with the batch.
   issued for the actor slot as `actor_party_id` is deterministically routed to
   `actor_third_party_id` when the answer is an existing third-party ID; the two actor fields remain
   mutually exclusive. A runtime plan cannot issue separate questions for both fields on the same
-  timeline event because they are validated as one canonical actor slot;
+  timeline event because they are validated as one canonical actor slot. Answer validation also
+  requires the paired actor field to remain null, and amended-record validation independently
+  rejects any timeline event with both actor fields populated, so stale or externally supplied
+  plans cannot create dual actor attribution;
 - date precision preserves exact grounded month/day components and may add only the submitted
   calendar year. A uniquely grounded bare month is represented as the exact first-to-last-day
   interval for that month with `precision: month`; mismatched months, invented days, and ambiguous

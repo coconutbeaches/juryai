@@ -15,7 +15,7 @@ export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue
 type JsonObject = { [key: string]: JsonValue };
 
 export const PERSON_A_CLARIFICATION_ANSWER_APPLICATION_VERSION =
-  'person-a-clarification-answer-application-v0.1.7';
+  'person-a-clarification-answer-application-v0.1.8';
 export const PERSON_A_CLARIFICATION_ANSWER_BATCH_VERSION =
   'person-a-clarification-answer-batch-v0.1.0';
 export const MAX_PERSON_A_CLARIFICATION_ANSWERS = 6;
@@ -562,6 +562,33 @@ function canonicalQuestionTargetField(
     ['actor_party_id', 'actor_third_party_id'].includes(field)
     ? 'actor_slot'
     : field;
+}
+
+function pairedActorField(field: string): 'actor_party_id' | 'actor_third_party_id' | null {
+  if (field === 'actor_party_id') return 'actor_third_party_id';
+  if (field === 'actor_third_party_id') return 'actor_party_id';
+  return null;
+}
+
+function actorSlotInvariantErrors(record: JsonObject): PersonAAnswerApplicationError[] {
+  return familyItems(record, 'timeline').flatMap((value, index) => {
+    if (
+      !isJsonObject(value) ||
+      value.actor_party_id === null ||
+      value.actor_party_id === undefined ||
+      value.actor_third_party_id === null ||
+      value.actor_third_party_id === undefined
+    ) {
+      return [];
+    }
+    const eventId = isIdentifier(value.event_id) ? value.event_id : `timeline[${index}]`;
+    return [
+      boundedError(
+        'immutable_fact_conflict',
+        `Timeline event ${eventId} cannot populate both actor_party_id and actor_third_party_id.`,
+      ),
+    ];
+  });
 }
 
 function validateQuestions(
@@ -1397,6 +1424,30 @@ export function applyPersonAClarificationAnswers(
       );
       continue;
     }
+    const pairedField =
+      question.trigger === 'actor_attribution' ? pairedActorField(normalizedField) : null;
+    if (pairedField !== null) {
+      if (!Object.prototype.hasOwnProperty.call(target.item, pairedField)) {
+        errors.push(
+          boundedError(
+            'unsupported_field',
+            'Paired actor field is absent on its timeline target.',
+            answer,
+          ),
+        );
+        continue;
+      }
+      if (target.item[pairedField] !== null) {
+        errors.push(
+          boundedError(
+            'stale_prior_value',
+            'Actor slot prior state is stale because the paired actor field is already populated.',
+            answer,
+          ),
+        );
+        continue;
+      }
+    }
     if (isDeepStrictEqual(answer.prior_value, normalizedValue)) {
       errors.push(
         boundedError('no_value_change', 'Answer would not change the target field.', answer),
@@ -1538,10 +1589,16 @@ export function applyPersonAClarificationAnswers(
   markStage(stages, 'amendment_projection', 'passed');
 
   const validation = validatePersonAExtraction(projected, narrative);
-  if (!validation.valid) {
-    const validationErrors = [...validation.schemaErrors, ...validation.invariantErrors]
+  const actorInvariantErrors = actorSlotInvariantErrors(projected);
+  if (!validation.valid || actorInvariantErrors.length > 0) {
+    const validationErrors = [
+      ...actorInvariantErrors,
+      ...[...validation.schemaErrors, ...validation.invariantErrors].map((entry) =>
+        boundedError('immutable_fact_conflict', `${entry.path}: ${entry.message}`),
+      ),
+    ]
       .slice(0, 20)
-      .map((entry) => boundedError('immutable_fact_conflict', `${entry.path}: ${entry.message}`));
+      .sort(compareErrors);
     markStage(stages, 'amended_record_validation', 'failed_closed', validationErrors);
     const audit = emptyAudit('amended_record_validation', submittedAnswers.length, options);
     audit.answers_rejected = submittedAnswers.length;

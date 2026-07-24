@@ -431,6 +431,107 @@ describe('Person A clarification answer application', () => {
     });
   });
 
+  it('rejects a third-party actor answer when the party actor slot is already populated', () => {
+    const { record, target, issued } = actorCase();
+    record.third_parties.push({
+      third_party_id: 'third_party_acme',
+      name_or_label: 'Acme Corp',
+      role: 'invoice sender',
+      relationship_to_party_id: null,
+      contacted_for_case: false,
+      notes: null,
+    });
+    target.actor_party_id = 'party_a';
+    const thirdPartyQuestion = question({
+      ...issued,
+      field: 'actor_third_party_id',
+    });
+    const submitted = answer(thirdPartyQuestion, record, 'third_party_acme');
+    const before = JSON.stringify(record);
+    const first = apply(record, [thirdPartyQuestion], [submitted]);
+    const second = apply(record, [thirdPartyQuestion], [submitted]);
+
+    expect(first.audit.failure_stage).toBe('answer_validation');
+    expect(first.rejected_answers).toEqual([
+      expect.objectContaining({
+        code: 'stale_prior_value',
+        answer_id: submitted.answer_id,
+        question_id: submitted.question_id,
+        message: expect.stringContaining('paired actor field is already populated'),
+      }),
+    ]);
+    expect(first.amendments).toEqual([]);
+    expect(first.validated_answers).toEqual([]);
+    expect(JSON.stringify(first.amended_record)).toBe(before);
+    expect(findObject(first.amended_record!, target.event_id)).toMatchObject({
+      actor_party_id: 'party_a',
+      actor_third_party_id: null,
+    });
+    expect(JSON.stringify(first)).toBe(JSON.stringify(second));
+  });
+
+  it('rejects a party actor answer when the third-party actor slot is already populated', () => {
+    const { record, target, issued } = actorCase();
+    record.third_parties.push({
+      third_party_id: 'third_party_acme',
+      name_or_label: 'Acme Corp',
+      role: 'invoice sender',
+      relationship_to_party_id: null,
+      contacted_for_case: false,
+      notes: null,
+    });
+    target.actor_third_party_id = 'third_party_acme';
+    const submitted = answer(issued, record, 'party_a');
+    const before = JSON.stringify(record);
+    const result = apply(record, [issued], [submitted]);
+
+    expect(result.audit.failure_stage).toBe('answer_validation');
+    expect(result.rejected_answers).toEqual([
+      expect.objectContaining({
+        code: 'stale_prior_value',
+        answer_id: submitted.answer_id,
+        question_id: submitted.question_id,
+        message: expect.stringContaining('paired actor field is already populated'),
+      }),
+    ]);
+    expect(result.amendments).toEqual([]);
+    expect(result.validated_answers).toEqual([]);
+    expect(JSON.stringify(result.amended_record)).toBe(before);
+    expect(findObject(result.amended_record!, target.event_id)).toMatchObject({
+      actor_party_id: null,
+      actor_third_party_id: 'third_party_acme',
+    });
+  });
+
+  it('rejects a preexisting dual actor slot during amended-record validation', () => {
+    const { record, target, issued } = actorCase();
+    record.third_parties.push({
+      third_party_id: 'third_party_acme',
+      name_or_label: 'Acme Corp',
+      role: 'invoice sender',
+      relationship_to_party_id: null,
+      contacted_for_case: false,
+      notes: null,
+    });
+    target.actor_party_id = 'party_a';
+    target.actor_third_party_id = 'third_party_acme';
+    const before = JSON.stringify(record);
+    const result = apply(record, [issued], []);
+
+    expect(result.audit.failure_stage).toBe('amended_record_validation');
+    expect(result.validation_errors).toEqual([
+      expect.objectContaining({
+        code: 'immutable_fact_conflict',
+        message: expect.stringContaining(
+          'cannot populate both actor_party_id and actor_third_party_id',
+        ),
+      }),
+    ]);
+    expect(result.amendments).toEqual([]);
+    expect(result.validated_answers).toEqual([]);
+    expect(JSON.stringify(result.amended_record)).toBe(before);
+  });
+
   it('rejects paired actor-field questions for one timeline actor slot', () => {
     const { record, target, issued } = actorCase();
     record.third_parties.push({
