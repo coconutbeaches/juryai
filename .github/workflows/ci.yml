@@ -34,6 +34,7 @@ jobs:
           - src/tests/person-a-record-confirmation.test.ts
           - src/tests/person-a-challenge-resolution.test.ts
           - src/tests/person-a-extraction-acceptance.test.ts
+          - src/tests/person-a-field-semantics.test.ts
     steps:
       - name: Check out repository
         uses: actions/checkout@v4

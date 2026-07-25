@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -304,17 +304,61 @@ describe('Person A judgment-field and epistemic contract (v0.1.4)', () => {
       expect(flagged.every((e) => e.severity === 'major')).toBe(true);
     });
 
-    it('rule 24 keys on disputed/operative meaning, not paraphrasability', () => {
+    it('rule 24 keys on consolidated-vs-component structure, not dispute relevance', () => {
       const rule24 = extractNumberedRule(PERSON_A_EXTRACTION_INSTRUCTIONS, 24);
-      // The permissive branch that allowed any restatable term to be populated is gone.
+      // The leaky exceptions are gone: neither generic dispute relevance nor mere
+      // paraphrasability may justify populating the field.
+      expect(rule24).not.toMatch(/relevant to the dispute/i);
       expect(rule24).not.toMatch(/restatement grounded in the narrative/i);
       expect(rule24).not.toMatch(/supplies no basis for any interpretation/i);
-      // null is now keyed on the absence of disputed/operative/interpretive meaning.
+      // Restatement without explicit argument is confined to the consolidated term.
       expect(rule24).toMatch(
-        /without attaching (?:any )?disputed, operative, or interpretive meaning/i,
+        /only for a consolidated term that states the operative engagement, overall scope, or governing arrangement/i,
       );
-      // And paraphrasability is explicitly disclaimed as a reason to populate.
+      // Component terms stay null, explicitly regardless of what is disputed elsewhere.
+      expect(rule24).toMatch(/separately represented component term/i);
+      expect(rule24).toMatch(
+        /never populate it merely because payment, refund, timing, or any other subject is disputed elsewhere/i,
+      );
       expect(rule24).toMatch(/paraphrase a term is not itself an interpretation/i);
+    });
+
+    it('branch 3: neutral component terms stay null even though payment is disputed', () => {
+      // Dry Run 001 disputes payment and refund throughout, yet the separately modeled
+      // price and deposit component terms are still null. Generic "relevant to the
+      // dispute" would wrongly populate both.
+      const golden = lockedGolden('dry_run_001');
+      const components = nullTerms(golden);
+      expect(components.map((t) => t.term_type).sort()).toEqual(['deposit', 'price']);
+      // The same case really does dispute payment elsewhere.
+      expect(populatedTerms(golden).some((t) => t.term_type === 'payment_trigger')).toBe(true);
+      const report = evaluate(clone(golden), golden);
+      expect(errors(report, 'party_interpretation', 'agreement_terms')).toHaveLength(0);
+    });
+
+    it('branch 1: an asserted significance on a payment-related term is still populated', () => {
+      // payment_trigger is payment-related like price/deposit, but Person A attaches a
+      // specific consequence to it, so it is populated rather than null.
+      const golden = lockedGolden('dry_run_001');
+      const trigger = terms(golden).find((t) => t.term_type === 'payment_trigger')!;
+      expect(typeof trigger.person_a_interpretation).toBe('string');
+      const candidate = clone(golden);
+      terms(candidate).find((t) => t.term_type === 'payment_trigger')!.person_a_interpretation =
+        null;
+      const report = evaluate(candidate, golden);
+      expect(
+        errors(report, 'party_interpretation', 'agreement_terms').map((e) => e.golden_id),
+      ).toContain(trigger.term_id);
+    });
+
+    it('branch 2: consolidated single-term engagements stay populated', () => {
+      for (const caseId of ['dry_run_002', 'dry_run_003']) {
+        const golden = lockedGolden(caseId);
+        // A single consolidated term defines the whole engagement, including its price.
+        expect(terms(golden)).toHaveLength(1);
+        expect(terms(golden)[0]!.term_type).toBe('scope');
+        expect(typeof terms(golden)[0]!.person_a_interpretation).toBe('string');
+      }
     });
 
     it('following rule 24 on the locked goldens constructs no party_interpretation failure', () => {
@@ -529,7 +573,43 @@ describe('Person A judgment-field and epistemic contract (v0.1.4)', () => {
 
       const providerInterp = (buildOpenAIResponseSchema() as JsonObject).$defs.agreementTerm
         .properties.person_a_interpretation;
-      expect(providerInterp.description).toMatch(/operative scope/i);
+      expect(providerInterp.description).toMatch(/consolidated term/i);
+    });
+  });
+
+  /**
+   * The CI test matrix enumerates test files explicitly, so a new suite silently stops
+   * being a required check unless it is added. This guard fails when any test file on
+   * disk is missing from the matrix — including this file itself.
+   */
+  describe('continuous integration coverage', () => {
+    const workflow = readFileSync(
+      resolve(dirname(fileURLToPath(import.meta.url)), '../../.github/workflows/ci.yml'),
+      'utf8',
+    );
+    const listed = new Set(
+      [...workflow.matchAll(/-\s+(src\/tests\/\S+\.test\.ts)/g)].map((match) => match[1]!),
+    );
+
+    it('runs every test file on disk in the CI matrix', () => {
+      const onDisk = readdirSync(resolve(dirname(fileURLToPath(import.meta.url))))
+        .filter((entry) => entry.endsWith('.test.ts'))
+        .map((entry) => `src/tests/${entry}`)
+        .sort();
+      expect(onDisk.filter((file) => !listed.has(file))).toEqual([]);
+    });
+
+    it('runs this semantic suite as its own required check', () => {
+      expect(listed).toContain('src/tests/person-a-field-semantics.test.ts');
+    });
+
+    it('lists no CI test file that no longer exists', () => {
+      const onDisk = new Set(
+        readdirSync(resolve(dirname(fileURLToPath(import.meta.url))))
+          .filter((entry) => entry.endsWith('.test.ts'))
+          .map((entry) => `src/tests/${entry}`),
+      );
+      expect([...listed].filter((file) => !onDisk.has(file))).toEqual([]);
     });
   });
 });

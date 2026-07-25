@@ -4,12 +4,23 @@ type JsonObject = Record<string, any>;
 
 export const clone = <T>(value: T): T => structuredClone(value);
 
+/** Start of a top-level numbered rule, anchored to the beginning of a line. */
+const RULE_START = /^\d+\.\s/;
+
+/**
+ * End of the numbered-rule block. The instructions close with a standalone
+ * directive rather than another rule, so that line is the structural terminator.
+ */
+const END_OF_RULES = /^Return only\b/;
+
 /**
  * Extract one complete numbered rule from the extraction instructions.
  *
- * The rule is identified structurally: it starts at the line beginning `<n>.` and
- * continues until the next numbered rule or a blank line, so every sentence of the
- * rule is returned — not only the sentences containing some expected phrase.
+ * The rule is identified structurally: it starts at the line beginning `<n>. ` and
+ * continues until a genuine boundary — the next top-level numbered rule, or the
+ * end-of-rules directive. Blank lines do NOT terminate extraction, so a rule split
+ * into several paragraphs is still returned in full; terminating on blank lines
+ * would let a later paragraph escape validation entirely.
  */
 export function extractNumberedRule(instructions: string, ruleNumber: number): string {
   const lines = instructions.split('\n');
@@ -17,10 +28,11 @@ export function extractNumberedRule(instructions: string, ruleNumber: number): s
   if (start === -1) throw new Error(`Instruction rule ${ruleNumber} was not found.`);
   const body: string[] = [lines[start]!];
   for (const line of lines.slice(start + 1)) {
-    if (/^\d+\.\s/.test(line) || line.trim().length === 0) break;
+    if (RULE_START.test(line) || END_OF_RULES.test(line)) break;
     body.push(line);
   }
-  return body.join('\n');
+  // Keep interior blank lines; drop only trailing padding before the boundary.
+  return body.join('\n').replace(/\s+$/u, '');
 }
 
 /** All snake_case tokens appearing anywhere in a block of instruction text. */

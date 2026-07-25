@@ -149,7 +149,7 @@ describe('OpenAI Responses parsing', () => {
   it('documents the judgment-field and epistemic contract in the instructions', () => {
     // person_a_interpretation semantics
     expect(PERSON_A_EXTRACTION_INSTRUCTIONS).toContain('person_a_interpretation');
-    expect(PERSON_A_EXTRACTION_INSTRUCTIONS).toContain('operative scope');
+    expect(PERSON_A_EXTRACTION_INSTRUCTIONS).toContain('consolidated term');
     expect(PERSON_A_EXTRACTION_INSTRUCTIONS).toContain(
       'never as an agreed or bilaterally established fact',
     );
@@ -202,6 +202,86 @@ describe('OpenAI Responses parsing', () => {
     }
   });
 
+  describe('numbered-rule extraction boundaries', () => {
+    const evidence = () => buildOpenAIResponseSchema().$defs.evidence;
+    const multiParagraph = [
+      '26. A previous rule.',
+      '27. Do not create an evidence object from a belief.',
+      '',
+      'Populate source_spans and set claim_text for each entry.',
+      '',
+      'Also set description_from_submitter and leave extracts empty.',
+      '',
+      '28. A later rule mentioning file_hash.',
+      '',
+      'Return only the structured JSON object required by the response schema.',
+    ].join('\n');
+
+    it('extracts a multi-paragraph rule across blank lines', () => {
+      const rule = extractNumberedRule(multiParagraph, 27);
+      expect(rule).toContain('Do not create an evidence object');
+      expect(rule).toContain('Populate source_spans');
+      expect(rule).toContain('Also set description_from_submitter');
+    });
+
+    it('detects source_spans in a later paragraph', () => {
+      expect(unsupportedFieldTokens(extractNumberedRule(multiParagraph, 27), evidence())).toContain(
+        'source_spans',
+      );
+    });
+
+    it('detects claim_text in a later paragraph', () => {
+      expect(unsupportedFieldTokens(extractNumberedRule(multiParagraph, 27), evidence())).toContain(
+        'claim_text',
+      );
+    });
+
+    it('accepts permitted evidence fields in later paragraphs', () => {
+      const permitted = [
+        '27. Ground every evidence object.',
+        '',
+        'Set description_from_submitter and model_summary, and leave extracts empty.',
+      ].join('\n');
+      expect(unsupportedFieldTokens(extractNumberedRule(permitted, 27), evidence())).toEqual([]);
+    });
+
+    it('stops at the next top-level numbered rule', () => {
+      const rule = extractNumberedRule(multiParagraph, 27);
+      expect(rule).not.toContain('A later rule');
+      expect(rule).not.toContain('file_hash');
+    });
+
+    it('stops before the end-of-rules instruction boundary', () => {
+      const trailing = [
+        '27. Ground every evidence object.',
+        '',
+        'Set description_from_submitter.',
+        '',
+        'Return only the structured JSON object required by the response schema.',
+      ].join('\n');
+      const rule = extractNumberedRule(trailing, 27);
+      expect(rule).toContain('Set description_from_submitter');
+      expect(rule).not.toContain('Return only the structured JSON object');
+    });
+
+    it('still extracts existing single-paragraph rules and ignores inline numbering', () => {
+      const single = extractNumberedRule(PERSON_A_EXTRACTION_INSTRUCTIONS, 24);
+      expect(single).toMatch(/^24\.\s/);
+      expect(single).not.toMatch(/^\s*(?:23|25)\.\s/m);
+      // A number appearing inside prose must not be treated as a rule boundary.
+      const inline = extractNumberedRule(
+        ['27. Ground it. Person A paid 1. 200 dollars overall.', '28. Next.'].join('\n'),
+        27,
+      );
+      expect(inline).toContain('200 dollars overall');
+      expect(inline).not.toContain('Next');
+    });
+
+    it('throws when the requested rule does not exist', () => {
+      expect(() => extractNumberedRule('1. Only rule.', 99)).toThrow(/rule 99/i);
+    });
+  });
+
   it('detects an unsupported field added anywhere in the evidence rule', () => {
     const evidence = buildOpenAIResponseSchema().$defs.evidence;
 
@@ -223,7 +303,7 @@ describe('OpenAI Responses parsing', () => {
   it('carries provider-facing judgment-field schema descriptions', () => {
     const schema = buildOpenAIResponseSchema();
     expect(schema.$defs.agreementTerm.properties.person_a_interpretation.description).toMatch(
-      /operative scope/i,
+      /consolidated term/i,
     );
     expect(schema.$defs.agreementTerm.properties.person_a_interpretation.description).toMatch(
       /paraphrase a term is not itself an interpretation/i,
@@ -299,7 +379,7 @@ describe('OpenAI Responses parsing', () => {
       expect(body.instructions).toContain('wording_status not_inspected');
       expect(body.instructions).toContain('interpretation_status unclear or not_applicable');
       // v0.1.4 judgment-field and epistemic rules are transmitted to the provider
-      expect(body.instructions).toContain('operative scope');
+      expect(body.instructions).toContain('consolidated term');
       // Whole-rule check on the transmitted instructions, not a sentence-local regex.
       expect(
         unsupportedFieldTokens(
