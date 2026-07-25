@@ -5,6 +5,7 @@ import {
   PERSON_A_PROMPT_VERSION,
   PERSON_A_EXTRACTION_INSTRUCTIONS,
 } from '../extraction/person-a-prompt.js';
+import { extractNumberedRule, unsupportedFieldTokens } from './person-a-test-helpers.js';
 
 type SchemaNode = Record<string, unknown>;
 
@@ -148,12 +149,12 @@ describe('OpenAI Responses parsing', () => {
   it('documents the judgment-field and epistemic contract in the instructions', () => {
     // person_a_interpretation semantics
     expect(PERSON_A_EXTRACTION_INSTRUCTIONS).toContain('person_a_interpretation');
-    expect(PERSON_A_EXTRACTION_INSTRUCTIONS).toContain('asserted significance');
+    expect(PERSON_A_EXTRACTION_INSTRUCTIONS).toContain('operative scope');
     expect(PERSON_A_EXTRACTION_INSTRUCTIONS).toContain(
-      'never presented as an agreed or bilaterally established fact',
+      'never as an agreed or bilaterally established fact',
     );
     expect(PERSON_A_EXTRACTION_INSTRUCTIONS).toContain(
-      'Never invent an interpretation the narrative does not support',
+      'Being able to paraphrase a term is not itself an interpretation',
     );
     // completion / scope precision
     expect(PERSON_A_EXTRACTION_INSTRUCTIONS).toContain(
@@ -171,6 +172,19 @@ describe('OpenAI Responses parsing', () => {
     expect(PERSON_A_EXTRACTION_INSTRUCTIONS).toContain('Never fabricate or imply contents');
   });
 
+  it('extracts the complete numbered evidence rule, not just matching sentences', () => {
+    const rule27 = extractNumberedRule(PERSON_A_EXTRACTION_INSTRUCTIONS, 27);
+    // Every sentence of the rule must be covered, including the ones that never say
+    // "evidence object" — the blind spot that let an unsupported field slip through.
+    expect(rule27).toMatch(/^27\.\s/);
+    expect(rule27).toContain('Do not create an evidence object from a belief');
+    expect(rule27).toContain('Never fabricate or imply contents');
+    expect(rule27).toContain('When Person A states a belief that cannot be proven');
+    // The rule must stop before the next rule and before the closing instruction.
+    expect(rule27).not.toMatch(/^\s*(?:26|28)\.\s/m);
+    expect(rule27).not.toContain('Return only the structured JSON object');
+  });
+
   it('never instructs the model to emit a field the evidence schema cannot express', () => {
     // Regression guard: rule 27 previously demanded non-empty evidence source_spans,
     // which the evidence definition (additionalProperties: false) cannot express.
@@ -178,34 +192,28 @@ describe('OpenAI Responses parsing', () => {
     expect(evidence.additionalProperties).toBe(false);
     expect(Object.keys(evidence.properties)).not.toContain('source_spans');
 
-    // No sentence may pair an evidence object with source_spans.
-    const sentences = PERSON_A_EXTRACTION_INSTRUCTIONS.split(/(?<=\.)\s+/);
-    const conflicting = sentences.filter(
-      (sentence) => /\bevidence object\b/i.test(sentence) && /source_spans/.test(sentence),
-    );
-    expect(conflicting).toEqual([]);
+    // Validate every field token in the WHOLE rule against the evidence definition only.
+    const rule27 = extractNumberedRule(PERSON_A_EXTRACTION_INSTRUCTIONS, 27);
+    expect(unsupportedFieldTokens(rule27, evidence)).toEqual([]);
 
-    // Every schema field named by the belief-not-evidence rule must exist on the evidence
-    // definition (or be one of its enum values).
-    const evidenceVocabulary = new Set<string>(Object.keys(evidence.properties));
-    const collectEnums = (node: unknown): void => {
-      if (Array.isArray(node)) return node.forEach(collectEnums);
-      if (!node || typeof node !== 'object') return;
-      const record = node as SchemaNode;
-      if (Array.isArray(record.enum)) {
-        record.enum.forEach((value) => typeof value === 'string' && evidenceVocabulary.add(value));
-      }
-      if (typeof record.const === 'string') evidenceVocabulary.add(record.const);
-      Object.values(record).forEach(collectEnums);
-    };
-    collectEnums(evidence);
+    // The fields the rule does rely on must genuinely exist on the evidence definition.
+    for (const field of ['title', 'description_from_submitter', 'extracts', 'model_summary']) {
+      expect(Object.keys(evidence.properties)).toContain(field);
+    }
+  });
 
-    const beliefRule = sentences.filter((sentence) => /\bevidence object\b/i.test(sentence));
-    expect(beliefRule.length).toBeGreaterThan(0);
-    const unsupported = beliefRule
-      .flatMap((sentence) => sentence.match(/\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b/g) ?? [])
-      .filter((token) => !evidenceVocabulary.has(token));
-    expect(unsupported).toEqual([]);
+  it('detects an unsupported field added anywhere in the evidence rule', () => {
+    const evidence = buildOpenAIResponseSchema().$defs.evidence;
+
+    // A later sentence — the exact position the old sentence-local filter missed.
+    const laterSentence = `${extractNumberedRule(PERSON_A_EXTRACTION_INSTRUCTIONS, 27)} Populate source_spans for each entry.`;
+    expect(unsupportedFieldTokens(laterSentence, evidence)).toContain('source_spans');
+
+    // A token valid on another definition must still be reported for evidence.
+    expect(unsupportedFieldTokens('27. Set claim_text on it.', evidence)).toContain('claim_text');
+
+    // And the checker must not fire on fields the evidence definition really has.
+    expect(unsupportedFieldTokens('27. Set description_from_submitter.', evidence)).toEqual([]);
   });
 
   it('keeps the production instructions free of case-specific identities', () => {
@@ -215,10 +223,10 @@ describe('OpenAI Responses parsing', () => {
   it('carries provider-facing judgment-field schema descriptions', () => {
     const schema = buildOpenAIResponseSchema();
     expect(schema.$defs.agreementTerm.properties.person_a_interpretation.description).toMatch(
-      /asserted significance/i,
+      /operative scope/i,
     );
     expect(schema.$defs.agreementTerm.properties.person_a_interpretation.description).toMatch(
-      /never invent an interpretation/i,
+      /paraphrase a term is not itself an interpretation/i,
     );
     expect(schema.$defs.agreementTerm.properties.person_a_interpretation.description).toMatch(
       /null/i,
@@ -291,8 +299,14 @@ describe('OpenAI Responses parsing', () => {
       expect(body.instructions).toContain('wording_status not_inspected');
       expect(body.instructions).toContain('interpretation_status unclear or not_applicable');
       // v0.1.4 judgment-field and epistemic rules are transmitted to the provider
-      expect(body.instructions).toContain('asserted significance');
-      expect(body.instructions).not.toMatch(/evidence object[^.]*source_spans/i);
+      expect(body.instructions).toContain('operative scope');
+      // Whole-rule check on the transmitted instructions, not a sentence-local regex.
+      expect(
+        unsupportedFieldTokens(
+          extractNumberedRule(String(body.instructions), 27),
+          buildOpenAIResponseSchema().$defs.evidence,
+        ),
+      ).toEqual([]);
       expect(body.instructions).toContain(
         'never upgrade partially_complete or substantially_complete to complete',
       );

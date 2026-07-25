@@ -16,7 +16,7 @@ import {
 } from '../extraction/person-a-schema.js';
 import { PERSON_A_EXTRACTION_INSTRUCTIONS } from '../extraction/person-a-prompt.js';
 import { validatePersonAExtraction } from '../extraction/validate-person-a-corrected.js';
-import { validPersonAExtraction, clone } from './person-a-test-helpers.js';
+import { validPersonAExtraction, clone, extractNumberedRule } from './person-a-test-helpers.js';
 
 type JsonObject = Record<string, any>;
 
@@ -56,8 +56,8 @@ function syntheticGolden(): JsonObject {
           wording: 'a deposit of 1200 was paid up front',
           wording_status: 'not_inspected',
           interpretation_status: 'not_applicable',
-          // Bare amount with no accompanying meaning: the narrative supplies no basis
-          // for any interpretation, so null is correct (see rule 24).
+          // Branch 3: a neutral payment recital carrying no disputed, operative, or
+          // interpretive meaning. Paraphrasable, but null is correct (see rule 24).
           person_a_interpretation: null,
           person_b_interpretation: null,
           source_evidence_ids: [],
@@ -223,58 +223,98 @@ describe('Person A judgment-field and epistemic contract (v0.1.4)', () => {
   });
 
   /**
-   * Rule 24 must not contradict the locked PR #10 acceptance contract. Dry Runs 002 and 003
-   * expect grounded restatements for their factual scope recitals, while Dry Run 001 expects
-   * null only where the narrative supplies no basis. These tests read the real locked goldens
-   * read-only and exercise the real unchanged evaluator.
+   * Rule 24 must not contradict the locked PR #10 acceptance contract. The locked goldens
+   * define both branches: Dry Run 001 leaves neutral amount/payment recitals (price, deposit)
+   * null, while Dry Runs 002 and 003 populate a term whose operative scope is the subject of
+   * the dispute. These tests read the real locked goldens read-only and drive the real
+   * unchanged evaluator, exercising each semantic branch rather than checking prompt phrases.
    */
-  describe('rule 24 compatibility with the locked acceptance contract', () => {
+  describe('rule 24 semantic branches against the locked acceptance contract', () => {
+    const lockedCases = ['dry_run_001', 'dry_run_002', 'dry_run_003'] as const;
+
     const lockedGolden = (caseId: string): JsonObject =>
       JSON.parse(
         readFileSync(resolve(fixturesDir, `${caseId}.person_a.golden.extraction.json`), 'utf8'),
       );
 
-    it.each(['dry_run_002', 'dry_run_003'])(
-      '%s: a grounded restatement is not rejected or forced to null',
-      (caseId) => {
-        const golden = lockedGolden(caseId);
-        const terms = golden.agreement.terms;
-        // The locked contract expects a populated, narrative-grounded restatement here.
-        expect(terms.every((t: JsonObject) => typeof t.person_a_interpretation === 'string')).toBe(
-          true,
-        );
-        const report = evaluate(clone(golden), golden);
-        expect(errors(report, 'party_interpretation', 'agreement_terms')).toHaveLength(0);
-      },
-    );
+    const terms = (golden: JsonObject): JsonObject[] => golden.agreement.terms;
+    const nullTerms = (golden: JsonObject) =>
+      terms(golden).filter((t) => t.person_a_interpretation === null);
+    const populatedTerms = (golden: JsonObject) =>
+      terms(golden).filter((t) => typeof t.person_a_interpretation === 'string');
 
-    it.each(['dry_run_002', 'dry_run_003'])(
-      '%s: nulling the grounded restatement would be a major party_interpretation failure',
-      (caseId) => {
-        const golden = lockedGolden(caseId);
+    it('the locked corpus really does contain both branches', () => {
+      // Branch 3 (neutral recital -> null) lives in Dry Run 001; branch 2 (operative
+      // scope -> populated) lives in every case. If this ever changes, the branch tests
+      // below would silently stop proving anything.
+      const dr001 = lockedGolden('dry_run_001');
+      expect(
+        nullTerms(dr001)
+          .map((t) => t.term_id)
+          .sort(),
+      ).toEqual(['term_deposit', 'term_price']);
+      expect(populatedTerms(dr001).length).toBeGreaterThan(0);
+      for (const caseId of ['dry_run_002', 'dry_run_003']) {
+        expect(populatedTerms(lockedGolden(caseId)).length).toBeGreaterThan(0);
+      }
+    });
+
+    it.each(lockedCases)('%s: the locked values produce no party_interpretation failure', (id) => {
+      const golden = lockedGolden(id);
+      const report = evaluate(clone(golden), golden);
+      expect(errors(report, 'party_interpretation', 'agreement_terms')).toHaveLength(0);
+    });
+
+    it('branch 3: neutral recitals stay null — paraphrasing them is a major failure', () => {
+      // "She paid a $1,200 deposit" / "for $2,400." are perfectly paraphrasable, yet the
+      // locked contract requires null. A rule keyed on paraphrasability would fail here.
+      const golden = lockedGolden('dry_run_001');
+      for (const target of nullTerms(golden)) {
         const candidate = clone(golden);
-        // This is exactly what a blanket "factual recital => null" rule would produce.
-        candidate.agreement.terms.forEach((t: JsonObject) => {
-          t.person_a_interpretation = null;
-        });
+        const term = terms(candidate).find((t) => t.term_id === target.term_id)!;
+        term.person_a_interpretation = `Person A states that ${String(term.wording).replace(/\.$/, '')}.`;
         const report = evaluate(candidate, golden);
         const flagged = errors(report, 'party_interpretation', 'agreement_terms');
-        expect(flagged.length).toBeGreaterThan(0);
+        expect(flagged.map((e) => e.golden_id)).toContain(target.term_id);
         expect(flagged.every((e) => e.severity === 'major')).toBe(true);
-      },
-    );
+      }
+    });
 
-    it('rule 24 no longer mandates null for factual recitals', () => {
-      // The removed instruction is what made the prompt disagree with the gate.
-      expect(PERSON_A_EXTRACTION_INSTRUCTIONS).not.toMatch(
-        /straightforward factual recital[^.]*null|null[^.]*straightforward factual recital/i,
+    it.each(lockedCases)('%s: branch 1/2 populated interpretations may not be nulled', (id) => {
+      const golden = lockedGolden(id);
+      for (const target of populatedTerms(golden)) {
+        const candidate = clone(golden);
+        terms(candidate).find((t) => t.term_id === target.term_id)!.person_a_interpretation = null;
+        const report = evaluate(candidate, golden);
+        const flagged = errors(report, 'party_interpretation', 'agreement_terms');
+        expect(flagged.map((e) => e.golden_id)).toContain(target.term_id);
+        expect(flagged.every((e) => e.severity === 'major')).toBe(true);
+      }
+    });
+
+    it.each(['dry_run_002', 'dry_run_003'])('%s: blanket nulling every term still fails', (id) => {
+      const golden = lockedGolden(id);
+      const candidate = clone(golden);
+      terms(candidate).forEach((t) => {
+        t.person_a_interpretation = null;
+      });
+      const report = evaluate(candidate, golden);
+      const flagged = errors(report, 'party_interpretation', 'agreement_terms');
+      expect(flagged.length).toBeGreaterThan(0);
+      expect(flagged.every((e) => e.severity === 'major')).toBe(true);
+    });
+
+    it('rule 24 keys on disputed/operative meaning, not paraphrasability', () => {
+      const rule24 = extractNumberedRule(PERSON_A_EXTRACTION_INSTRUCTIONS, 24);
+      // The permissive branch that allowed any restatable term to be populated is gone.
+      expect(rule24).not.toMatch(/restatement grounded in the narrative/i);
+      expect(rule24).not.toMatch(/supplies no basis for any interpretation/i);
+      // null is now keyed on the absence of disputed/operative/interpretive meaning.
+      expect(rule24).toMatch(
+        /without attaching (?:any )?disputed, operative, or interpretive meaning/i,
       );
-      // A grounded restatement must remain explicitly permitted.
-      expect(PERSON_A_EXTRACTION_INSTRUCTIONS).toMatch(/restatement grounded in the narrative/i);
-      // null is reserved for the no-basis case only.
-      expect(PERSON_A_EXTRACTION_INSTRUCTIONS).toMatch(
-        /use null only when the narrative supplies no basis/i,
-      );
+      // And paraphrasability is explicitly disclaimed as a reason to populate.
+      expect(rule24).toMatch(/paraphrase a term is not itself an interpretation/i);
     });
 
     it('following rule 24 on the locked goldens constructs no party_interpretation failure', () => {
@@ -489,7 +529,7 @@ describe('Person A judgment-field and epistemic contract (v0.1.4)', () => {
 
       const providerInterp = (buildOpenAIResponseSchema() as JsonObject).$defs.agreementTerm
         .properties.person_a_interpretation;
-      expect(providerInterp.description).toMatch(/asserted significance/i);
+      expect(providerInterp.description).toMatch(/operative scope/i);
     });
   });
 });
