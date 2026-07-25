@@ -14,7 +14,10 @@ import {
   personAExtractionSchema,
   buildOpenAIResponseSchema,
 } from '../extraction/person-a-schema.js';
-import { PERSON_A_EXTRACTION_INSTRUCTIONS } from '../extraction/person-a-prompt.js';
+import {
+  PERSON_A_EXTRACTION_INSTRUCTIONS,
+  PERSON_A_PROMPT_VERSION,
+} from '../extraction/person-a-prompt.js';
 import { validatePersonAExtraction } from '../extraction/validate-person-a-corrected.js';
 import { validPersonAExtraction, clone, extractNumberedRule } from './person-a-test-helpers.js';
 
@@ -374,6 +377,83 @@ describe('Person A judgment-field and epistemic contract (v0.1.4)', () => {
           .map((t) => t.term_type)
           .sort(),
       ).toEqual(['deposit', 'price']);
+    });
+
+    const incompatibleDecompositionCases: {
+      caseId: string;
+      components: [termType: string, quote: string][];
+    }[] = [
+      {
+        caseId: 'dry_run_002',
+        components: [
+          ['scope', 'restore six dining chairs'],
+          ['price', 'for $1,800'],
+          ['deposit', '$900 paid upfront'],
+          ['payment_trigger', '$900 due after delivery'],
+        ],
+      },
+      {
+        caseId: 'dry_run_003',
+        components: [
+          ['scope', 'provide event lighting'],
+          ['price', 'for $1,200'],
+        ],
+      },
+    ];
+
+    it.each(incompatibleDecompositionCases)(
+      '$caseId: rule-23 decomposition conflicts with the locked consolidated golden',
+      ({ caseId, components }) => {
+        const golden = lockedGolden(caseId);
+        const candidate = clone(golden);
+        const narrative = readFileSync(resolve(fixturesDir, `${caseId}.person_a.txt`), 'utf8');
+        const template = candidate.agreement.terms[0];
+        candidate.agreement.terms = components.map(([termType, quote], index) => {
+          const start = narrative.indexOf(quote);
+          expect(start).toBeGreaterThanOrEqual(0);
+          return {
+            ...clone(template),
+            term_id: `rule_23_${index}_${termType}`,
+            term_type: termType,
+            wording: quote,
+            person_a_interpretation: null,
+            source_spans: [
+              {
+                submission_id: template.source_spans[0].submission_id,
+                quote,
+                start_char: start,
+                end_char: start + quote.length,
+              },
+            ],
+          };
+        });
+
+        expect(validatePersonAExtraction(candidate, narrative).valid).toBe(true);
+        const report = evaluate(candidate, golden);
+        const extraTerms = report.errors.filter(
+          (error) =>
+            error.family === 'agreement_terms' && error.code === 'unsupported_extra_object',
+        );
+        expect(extraTerms.length).toBe(components.length - 1);
+        expect(extraTerms.every((error) => error.severity === 'critical')).toBe(true);
+        expect(report.summary.critical).toBeGreaterThan(0);
+      },
+    );
+
+    it('keeps Dry Runs 002 and 003 control-only until their contract is migrated', () => {
+      expect(PERSON_A_PROMPT_VERSION).toBe('person-a-v0.1.4');
+      const manifest = JSON.parse(
+        readFileSync(resolve(fixturesDir, 'person-a-extraction-acceptance.manifest.json'), 'utf8'),
+      ) as JsonObject;
+      for (const caseId of ['dry_run_002', 'dry_run_003']) {
+        const candidates = manifest.candidates.filter(
+          (candidate: JsonObject) => candidate.case_id === caseId,
+        );
+        expect(candidates.length).toBeGreaterThan(0);
+        expect(
+          candidates.every((candidate: JsonObject) => candidate.origin === 'hand_authored_control'),
+        ).toBe(true);
+      }
     });
 
     it('rule 24 keys on consolidated-vs-component structure, not dispute relevance', () => {

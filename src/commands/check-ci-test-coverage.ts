@@ -21,16 +21,42 @@ const WORKFLOW_PATH = '.github/workflows/ci.yml';
 const TESTS_DIRECTORY = 'src/tests';
 
 /**
- * Matrix entries, read as `- src/tests/<path>.test.ts` list items.
+ * Matrix entries, read as YAML list-item values and then validated as normalized
+ * repository-relative test paths below `src/tests` with a `.test.ts` suffix.
  *
- * Nested paths are accepted, but each segment is restricted to word characters,
- * dots, and dashes, and relative segments are rejected, so the parser stays tight.
+ * Repository filenames may contain characters such as `+` or Unicode. Safety comes
+ * from validating the path structure, not from imposing an unrelated ASCII alphabet.
  */
 export function parseMatrixTestFiles(workflow: string): string[] {
-  const entry = /^\s*-\s+(src\/tests\/(?:[\w.-]+\/)*[\w.-]+\.test\.ts)\s*$/gm;
-  return [...workflow.matchAll(entry)]
+  const listItem = /^\s*-\s+(.+?)\s*$/gm;
+  return [...workflow.matchAll(listItem)]
     .map((match) => match[1]!)
-    .filter((file) => !file.split('/').some((segment) => segment === '.' || segment === '..'))
+    .map((value) => {
+      const quote = value[0];
+      return (quote === '"' || quote === "'") && value.at(-1) === quote
+        ? value.slice(1, -1)
+        : value;
+    })
+    .filter((file) => {
+      if (
+        file.length === 0 ||
+        file.includes('\\') ||
+        file.startsWith('/') ||
+        /^[A-Za-z]:\//u.test(file)
+      ) {
+        return false;
+      }
+      const segments = file.split('/');
+      const filename = segments.at(-1) ?? '';
+      return (
+        segments.length >= 3 &&
+        segments[0] === 'src' &&
+        segments[1] === 'tests' &&
+        !segments.some((segment) => segment === '' || segment === '.' || segment === '..') &&
+        filename.length > '.test.ts'.length &&
+        filename.endsWith('.test.ts')
+      );
+    })
     .sort();
 }
 
