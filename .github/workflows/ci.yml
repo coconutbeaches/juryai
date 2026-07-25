@@ -63,6 +63,8 @@ jobs:
         run: npm ci --ignore-scripts
       - name: Typecheck
         run: npm run typecheck
+      - name: Check every test file runs in the CI matrix
+        run: npm run check:ci-test-coverage
       - name: Validate golden fixture
         run: npm run validate:golden
       - name: Gate Person A extraction acceptance corpus

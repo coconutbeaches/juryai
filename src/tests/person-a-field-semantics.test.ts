@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -304,6 +304,78 @@ describe('Person A judgment-field and epistemic contract (v0.1.4)', () => {
       expect(flagged.every((e) => e.severity === 'major')).toBe(true);
     });
 
+    /**
+     * Rule 24's consolidated-vs-component branch is only deterministic if the term
+     * structure itself is specified. Rule 23 now defines agreement-term decomposition.
+     *
+     * These are PROMPT-CONTRACT assertions: the evaluator scores values on an already
+     * decomposed record and cannot by itself prove how a model should decompose. The
+     * corpus-behaviour claims are asserted separately against the real goldens below.
+     */
+    describe('rule 23 agreement-term decomposition (prompt contract)', () => {
+      const rule23 = () => extractNumberedRule(PERSON_A_EXTRACTION_INSTRUCTIONS, 23);
+
+      it('requires a separate term per independently operative component', () => {
+        const rule = rule23();
+        expect(rule).toMatch(/separate agreement term for each separately named/i);
+        for (const component of [
+          'scope',
+          'price',
+          'deposit',
+          'payment trigger',
+          'deadline',
+          'dependency',
+          'credential obligation',
+        ]) {
+          expect(rule.toLowerCase()).toContain(component);
+        }
+      });
+
+      it('prohibits consolidating components merely because they share a sentence', () => {
+        expect(rule23()).toMatch(
+          /not combine those components into one broad term merely because they appear in the same sentence, paragraph, or engagement description/i,
+        );
+      });
+
+      it('permits a single consolidated term only for an undivided engagement recital', () => {
+        expect(rule23()).toMatch(
+          /single consolidated agreement term only where the narrative itself presents the engagement, overall scope, or governing arrangement as one undivided operative term/i,
+        );
+      });
+
+      it('forbids manufacturing artificial fragmentation', () => {
+        expect(rule23()).toMatch(/not manufacture artificial fragmentation/i);
+      });
+
+      it('is carried to the provider schema alongside the prompt', () => {
+        const terms = (buildOpenAIResponseSchema() as JsonObject).$defs.agreement.properties.terms;
+        expect(terms.description).toMatch(/independently operative/i);
+        expect(terms.description).toMatch(/single consolidated term only/i);
+      });
+    });
+
+    it('corpus: the real case decomposes one sentence into independent component terms', () => {
+      // Dry Run 001 splits a single narrative sentence into scope, price, deposit and
+      // payment-trigger terms — the behaviour rule 23 now specifies. This is the
+      // decomposition evidence; it is a corpus fact, not an evaluator result.
+      const golden = lockedGolden('dry_run_001');
+      const byType = Object.fromEntries(
+        terms(golden).map((t) => [t.term_type, (t.source_spans ?? [])[0]?.quote ?? '']),
+      );
+      for (const type of ['scope', 'price', 'deposit', 'payment_trigger']) {
+        expect(byType[type]).toBeTruthy();
+      }
+      // price is a fragment of the same sentence that produced the scope term.
+      expect(byType.price).toContain('$2,400');
+      expect(byType.price!.length).toBeLessThan(String(byType.scope).length);
+      // Decomposed neutral components are exactly the ones held null by rule 24.
+      expect(
+        nullTerms(golden)
+          .map((t) => t.term_type)
+          .sort(),
+      ).toEqual(['deposit', 'price']);
+    });
+
     it('rule 24 keys on consolidated-vs-component structure, not dispute relevance', () => {
       const rule24 = extractNumberedRule(PERSON_A_EXTRACTION_INSTRUCTIONS, 24);
       // The leaky exceptions are gone: neither generic dispute relevance nor mere
@@ -574,42 +646,6 @@ describe('Person A judgment-field and epistemic contract (v0.1.4)', () => {
       const providerInterp = (buildOpenAIResponseSchema() as JsonObject).$defs.agreementTerm
         .properties.person_a_interpretation;
       expect(providerInterp.description).toMatch(/consolidated term/i);
-    });
-  });
-
-  /**
-   * The CI test matrix enumerates test files explicitly, so a new suite silently stops
-   * being a required check unless it is added. This guard fails when any test file on
-   * disk is missing from the matrix — including this file itself.
-   */
-  describe('continuous integration coverage', () => {
-    const workflow = readFileSync(
-      resolve(dirname(fileURLToPath(import.meta.url)), '../../.github/workflows/ci.yml'),
-      'utf8',
-    );
-    const listed = new Set(
-      [...workflow.matchAll(/-\s+(src\/tests\/\S+\.test\.ts)/g)].map((match) => match[1]!),
-    );
-
-    it('runs every test file on disk in the CI matrix', () => {
-      const onDisk = readdirSync(resolve(dirname(fileURLToPath(import.meta.url))))
-        .filter((entry) => entry.endsWith('.test.ts'))
-        .map((entry) => `src/tests/${entry}`)
-        .sort();
-      expect(onDisk.filter((file) => !listed.has(file))).toEqual([]);
-    });
-
-    it('runs this semantic suite as its own required check', () => {
-      expect(listed).toContain('src/tests/person-a-field-semantics.test.ts');
-    });
-
-    it('lists no CI test file that no longer exists', () => {
-      const onDisk = new Set(
-        readdirSync(resolve(dirname(fileURLToPath(import.meta.url))))
-          .filter((entry) => entry.endsWith('.test.ts'))
-          .map((entry) => `src/tests/${entry}`),
-      );
-      expect([...listed].filter((file) => !onDisk.has(file))).toEqual([]);
     });
   });
 });

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
@@ -8,6 +9,12 @@ import {
   type ExtractPersonACommandDependencies,
 } from '../commands/extract-person-a.js';
 import { validPersonAExtraction } from './person-a-test-helpers.js';
+import {
+  checkRepositoryTestMatrixCoverage,
+  compareTestMatrixCoverage,
+  listTestFilesOnDisk,
+  parseMatrixTestFiles,
+} from '../commands/check-ci-test-coverage.js';
 
 function inertDependencies(calls: string[]): ExtractPersonACommandDependencies {
   return {
@@ -164,5 +171,61 @@ describe('Person A extraction CLI', () => {
       model: 'gpt-5.6',
       failOnCritical: true,
     });
+  });
+});
+
+describe('CI test-matrix coverage guard', () => {
+  // The guard is hosted by the always-required quality-gates job, not by a matrix
+  // suite: a guard living inside a matrix suite cannot detect its own omission.
+  it('reports the repository as fully covered', () => {
+    expect(checkRepositoryTestMatrixCoverage()).toEqual({
+      missingFromMatrix: [],
+      staleMatrixEntries: [],
+    });
+  });
+
+  it('parses matrix entries and ignores helper or non-test files', () => {
+    const workflow = [
+      '        test_file:',
+      '          - src/tests/alpha.test.ts',
+      '          - src/tests/beta.test.ts',
+      '      - name: Some step',
+    ].join('\n');
+    expect(parseMatrixTestFiles(workflow)).toEqual([
+      'src/tests/alpha.test.ts',
+      'src/tests/beta.test.ts',
+    ]);
+    expect(listTestFilesOnDisk(resolve(import.meta.dirname))).not.toContain(
+      'src/tests/person-a-test-helpers.ts',
+    );
+  });
+
+  it('fails when the semantic suite is dropped from the matrix', () => {
+    const onDisk = ['src/tests/a.test.ts', 'src/tests/person-a-field-semantics.test.ts'];
+    const matrix = ['src/tests/a.test.ts'];
+    expect(compareTestMatrixCoverage(onDisk, matrix)).toEqual({
+      missingFromMatrix: ['src/tests/person-a-field-semantics.test.ts'],
+      staleMatrixEntries: [],
+    });
+  });
+
+  it('fails when the matrix lists a file that no longer exists', () => {
+    expect(
+      compareTestMatrixCoverage(
+        ['src/tests/a.test.ts'],
+        ['src/tests/a.test.ts', 'src/tests/removed.test.ts'],
+      ),
+    ).toEqual({ missingFromMatrix: [], staleMatrixEntries: ['src/tests/removed.test.ts'] });
+  });
+
+  it('is invoked by the required quality-gates job', () => {
+    const workflow = readFileSync(
+      resolve(import.meta.dirname, '../../.github/workflows/ci.yml'),
+      'utf8',
+    );
+    const qualityJob = workflow.slice(workflow.indexOf('Quality gates'));
+    expect(qualityJob).toContain('npm run check:ci-test-coverage');
+    // And the semantic suite is still separately present in the matrix.
+    expect(parseMatrixTestFiles(workflow)).toContain('src/tests/person-a-field-semantics.test.ts');
   });
 });

@@ -71,6 +71,12 @@ function applyPersonAModelConstraints(schema: JsonSchema): void {
     }
   }
 
+  const agreement = schema.$defs?.agreement;
+  if (agreement?.properties?.terms) {
+    agreement.properties.terms.description =
+      'One agreement term per separately named, independently operative, or independently disputed component (scope, price, deposit, payment trigger, deadline, dependency, qualification or credential obligation). Do not combine such components into one broad term merely because they share a sentence, paragraph, or engagement description. Use a single consolidated term only where the narrative presents the engagement, overall scope, or governing arrangement as one undivided operative term. Do not manufacture fragmentation beyond what the narrative states.';
+  }
+
   const deliverableAssessment = schema.$defs?.deliverableAssessment;
   if (deliverableAssessment?.properties) {
     if (deliverableAssessment.properties.completion_status_person_a) {
