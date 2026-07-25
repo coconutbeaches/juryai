@@ -56,7 +56,8 @@ function syntheticGolden(): JsonObject {
           wording: 'a deposit of 1200 was paid up front',
           wording_status: 'not_inspected',
           interpretation_status: 'not_applicable',
-          // Pure factual recital: Person A asserts no distinct interpretation -> null.
+          // Bare amount with no accompanying meaning: the narrative supplies no basis
+          // for any interpretation, so null is correct (see rule 24).
           person_a_interpretation: null,
           person_b_interpretation: null,
           source_evidence_ids: [],
@@ -121,7 +122,9 @@ function syntheticGolden(): JsonObject {
         against_asserting_party_interest: false,
         materiality: 'high',
         support_level: 'not_assessed',
-        supporting_evidence_ids: [],
+        // Evidence grounding travels through claim linkage, not evidence source_spans:
+        // the evidence definition has no source_spans property.
+        supporting_evidence_ids: ['ev_messages'],
         source_spans: span(
           'the account credentials will be transferred once the outstanding balance is paid',
         ),
@@ -142,6 +145,8 @@ function syntheticGolden(): JsonObject {
     ],
     evidence: [
       {
+        // The evidence definition has no source_spans property (additionalProperties: false),
+        // so an evidence object is grounded by its described artifact and claim linkage.
         evidence_id: 'ev_messages',
         submitted_by_party_id: 'party_a',
         evidence_type: 'message_export',
@@ -152,7 +157,6 @@ function syntheticGolden(): JsonObject {
         completeness_status: 'unknown',
         visibility: 'party_private',
         relevance: 'medium',
-        source_spans: span('exported chat messages about the completion deadline'),
         extracts: [],
       },
     ],
@@ -199,7 +203,7 @@ describe('Person A judgment-field and epistemic contract (v0.1.4)', () => {
       expect(flagged.map((e) => e.golden_id)).toContain('term_payment');
     });
 
-    it('rejects filling person_a_interpretation for a pure factual term whose golden value is null', () => {
+    it('rejects filling person_a_interpretation where the narrative supplies no basis (golden null)', () => {
       const golden = syntheticGolden();
       const candidate = clone(golden);
       candidate.agreement.terms[1].person_a_interpretation = 'A deposit of 1200 was paid up front.';
@@ -215,6 +219,97 @@ describe('Person A judgment-field and epistemic contract (v0.1.4)', () => {
       const report = evaluate(candidate, golden);
       const flagged = errors(report, 'party_interpretation', 'agreement_terms');
       expect(flagged.map((e) => e.golden_id)).toContain('term_payment');
+    });
+  });
+
+  /**
+   * Rule 24 must not contradict the locked PR #10 acceptance contract. Dry Runs 002 and 003
+   * expect grounded restatements for their factual scope recitals, while Dry Run 001 expects
+   * null only where the narrative supplies no basis. These tests read the real locked goldens
+   * read-only and exercise the real unchanged evaluator.
+   */
+  describe('rule 24 compatibility with the locked acceptance contract', () => {
+    const lockedGolden = (caseId: string): JsonObject =>
+      JSON.parse(
+        readFileSync(resolve(fixturesDir, `${caseId}.person_a.golden.extraction.json`), 'utf8'),
+      );
+
+    it.each(['dry_run_002', 'dry_run_003'])(
+      '%s: a grounded restatement is not rejected or forced to null',
+      (caseId) => {
+        const golden = lockedGolden(caseId);
+        const terms = golden.agreement.terms;
+        // The locked contract expects a populated, narrative-grounded restatement here.
+        expect(terms.every((t: JsonObject) => typeof t.person_a_interpretation === 'string')).toBe(
+          true,
+        );
+        const report = evaluate(clone(golden), golden);
+        expect(errors(report, 'party_interpretation', 'agreement_terms')).toHaveLength(0);
+      },
+    );
+
+    it.each(['dry_run_002', 'dry_run_003'])(
+      '%s: nulling the grounded restatement would be a major party_interpretation failure',
+      (caseId) => {
+        const golden = lockedGolden(caseId);
+        const candidate = clone(golden);
+        // This is exactly what a blanket "factual recital => null" rule would produce.
+        candidate.agreement.terms.forEach((t: JsonObject) => {
+          t.person_a_interpretation = null;
+        });
+        const report = evaluate(candidate, golden);
+        const flagged = errors(report, 'party_interpretation', 'agreement_terms');
+        expect(flagged.length).toBeGreaterThan(0);
+        expect(flagged.every((e) => e.severity === 'major')).toBe(true);
+      },
+    );
+
+    it('rule 24 no longer mandates null for factual recitals', () => {
+      // The removed instruction is what made the prompt disagree with the gate.
+      expect(PERSON_A_EXTRACTION_INSTRUCTIONS).not.toMatch(
+        /straightforward factual recital[^.]*null|null[^.]*straightforward factual recital/i,
+      );
+      // A grounded restatement must remain explicitly permitted.
+      expect(PERSON_A_EXTRACTION_INSTRUCTIONS).toMatch(/restatement grounded in the narrative/i);
+      // null is reserved for the no-basis case only.
+      expect(PERSON_A_EXTRACTION_INSTRUCTIONS).toMatch(
+        /use null only when the narrative supplies no basis/i,
+      );
+    });
+
+    it('following rule 24 on the locked goldens constructs no party_interpretation failure', () => {
+      // End-to-end guard for all three locked cases: the values the corrected rule 24
+      // endorses are exactly the values the unchanged evaluator accepts.
+      for (const caseId of ['dry_run_001', 'dry_run_002', 'dry_run_003']) {
+        const golden = lockedGolden(caseId);
+        const report = evaluate(clone(golden), golden);
+        expect(errors(report, 'party_interpretation', 'agreement_terms')).toHaveLength(0);
+      }
+    });
+
+    it('rejects an invented interpretation the narrative does not support', () => {
+      const golden = lockedGolden('dry_run_002');
+      const candidate = clone(golden);
+      candidate.agreement.terms[0].person_a_interpretation =
+        'The parties additionally agreed to an unlimited warranty and a full refund on demand.';
+      const report = evaluate(candidate, golden);
+      expect(errors(report, 'party_interpretation', 'agreement_terms').length).toBeGreaterThan(0);
+    });
+
+    it('keeps a disputed interpretation attributed to Person A rather than an agreed fact', () => {
+      const narrative = readFileSync(resolve(fixturesDir, 'dry_run_001.person_a.txt'), 'utf8');
+      const record = validPersonAExtraction();
+      const term = record.agreement.terms[0];
+      // Person A's side is asserted; Person B's is never inferred.
+      expect(['unclear', 'not_applicable']).toContain(term.interpretation_status);
+      expect(term.wording_status).toBe('not_inspected');
+      expect(term.person_b_interpretation).toBeNull();
+      expect(validatePersonAExtraction(record, narrative).valid).toBe(true);
+
+      // Promoting Person A's interpretation to a bilaterally agreed fact fails closed.
+      const promoted = clone(record);
+      promoted.agreement.terms[0].interpretation_status = 'agreed';
+      expect(validatePersonAExtraction(promoted, narrative).valid).toBe(false);
     });
   });
 
@@ -286,9 +381,11 @@ describe('Person A judgment-field and epistemic contract (v0.1.4)', () => {
   });
 
   describe('belief is not evidence', () => {
-    it('rejects an unprovable belief materialized as an evidence object with empty source spans', () => {
+    it('rejects an unprovable belief materialized as an ungrounded evidence object', () => {
       const golden = syntheticGolden();
       const candidate = clone(golden);
+      // No described artifact and no supporting claim linkage: the only available
+      // grounding signals the evidence schema actually supports.
       candidate.evidence.push({
         evidence_id: 'ev_belief',
         submitted_by_party_id: 'party_a',
@@ -301,7 +398,6 @@ describe('Person A judgment-field and epistemic contract (v0.1.4)', () => {
         completeness_status: 'unavailable',
         visibility: 'party_private',
         relevance: 'unknown',
-        source_spans: [],
         extracts: [],
       });
       const report = evaluate(candidate, golden);
@@ -393,7 +489,7 @@ describe('Person A judgment-field and epistemic contract (v0.1.4)', () => {
 
       const providerInterp = (buildOpenAIResponseSchema() as JsonObject).$defs.agreementTerm
         .properties.person_a_interpretation;
-      expect(providerInterp.description).toMatch(/asserted interpretation/i);
+      expect(providerInterp.description).toMatch(/asserted significance/i);
     });
   });
 });

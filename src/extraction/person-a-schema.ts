@@ -67,7 +67,7 @@ function applyPersonAModelConstraints(schema: JsonSchema): void {
     };
     if (agreementTerm.properties.person_a_interpretation) {
       agreementTerm.properties.person_a_interpretation.description =
-        "Person A's own asserted interpretation, significance, or consequence of this term as used in the dispute — not a neutral paraphrase of the wording. Keep it grounded in Person A's narrative and never present it as an agreed fact. Use null when the term is a straightforward factual recital for which Person A asserts no distinct interpretation; do not manufacture an interpretation merely because the field exists.";
+        "How Person A understands this term, always grounded in Person A's narrative and never presented as an agreed or bilaterally established fact. Where the narrative supplies Person A's asserted significance or consequence, state that asserted significance rather than only echoing the wording; where it supports only a plain statement of what the term provides, a grounded restatement is appropriate. Never invent an interpretation the narrative does not support. Use null only when the narrative supplies no basis for any interpretation of the term.";
     }
   }
 

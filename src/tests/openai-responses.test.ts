@@ -148,7 +148,13 @@ describe('OpenAI Responses parsing', () => {
   it('documents the judgment-field and epistemic contract in the instructions', () => {
     // person_a_interpretation semantics
     expect(PERSON_A_EXTRACTION_INSTRUCTIONS).toContain('person_a_interpretation');
-    expect(PERSON_A_EXTRACTION_INSTRUCTIONS).toContain('not a neutral paraphrase');
+    expect(PERSON_A_EXTRACTION_INSTRUCTIONS).toContain('asserted significance');
+    expect(PERSON_A_EXTRACTION_INSTRUCTIONS).toContain(
+      'never presented as an agreed or bilaterally established fact',
+    );
+    expect(PERSON_A_EXTRACTION_INSTRUCTIONS).toContain(
+      'Never invent an interpretation the narrative does not support',
+    );
     // completion / scope precision
     expect(PERSON_A_EXTRACTION_INSTRUCTIONS).toContain(
       'never upgrade partially_complete or substantially_complete to complete',
@@ -162,7 +168,44 @@ describe('OpenAI Responses parsing', () => {
     expect(PERSON_A_EXTRACTION_INSTRUCTIONS).toContain(
       'Do not create an evidence object from a belief',
     );
-    expect(PERSON_A_EXTRACTION_INSTRUCTIONS).toContain('empty source_spans');
+    expect(PERSON_A_EXTRACTION_INSTRUCTIONS).toContain('Never fabricate or imply contents');
+  });
+
+  it('never instructs the model to emit a field the evidence schema cannot express', () => {
+    // Regression guard: rule 27 previously demanded non-empty evidence source_spans,
+    // which the evidence definition (additionalProperties: false) cannot express.
+    const evidence = buildOpenAIResponseSchema().$defs.evidence;
+    expect(evidence.additionalProperties).toBe(false);
+    expect(Object.keys(evidence.properties)).not.toContain('source_spans');
+
+    // No sentence may pair an evidence object with source_spans.
+    const sentences = PERSON_A_EXTRACTION_INSTRUCTIONS.split(/(?<=\.)\s+/);
+    const conflicting = sentences.filter(
+      (sentence) => /\bevidence object\b/i.test(sentence) && /source_spans/.test(sentence),
+    );
+    expect(conflicting).toEqual([]);
+
+    // Every schema field named by the belief-not-evidence rule must exist on the evidence
+    // definition (or be one of its enum values).
+    const evidenceVocabulary = new Set<string>(Object.keys(evidence.properties));
+    const collectEnums = (node: unknown): void => {
+      if (Array.isArray(node)) return node.forEach(collectEnums);
+      if (!node || typeof node !== 'object') return;
+      const record = node as SchemaNode;
+      if (Array.isArray(record.enum)) {
+        record.enum.forEach((value) => typeof value === 'string' && evidenceVocabulary.add(value));
+      }
+      if (typeof record.const === 'string') evidenceVocabulary.add(record.const);
+      Object.values(record).forEach(collectEnums);
+    };
+    collectEnums(evidence);
+
+    const beliefRule = sentences.filter((sentence) => /\bevidence object\b/i.test(sentence));
+    expect(beliefRule.length).toBeGreaterThan(0);
+    const unsupported = beliefRule
+      .flatMap((sentence) => sentence.match(/\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b/g) ?? [])
+      .filter((token) => !evidenceVocabulary.has(token));
+    expect(unsupported).toEqual([]);
   });
 
   it('keeps the production instructions free of case-specific identities', () => {
@@ -172,7 +215,10 @@ describe('OpenAI Responses parsing', () => {
   it('carries provider-facing judgment-field schema descriptions', () => {
     const schema = buildOpenAIResponseSchema();
     expect(schema.$defs.agreementTerm.properties.person_a_interpretation.description).toMatch(
-      /asserted interpretation/i,
+      /asserted significance/i,
+    );
+    expect(schema.$defs.agreementTerm.properties.person_a_interpretation.description).toMatch(
+      /never invent an interpretation/i,
     );
     expect(schema.$defs.agreementTerm.properties.person_a_interpretation.description).toMatch(
       /null/i,
@@ -245,7 +291,8 @@ describe('OpenAI Responses parsing', () => {
       expect(body.instructions).toContain('wording_status not_inspected');
       expect(body.instructions).toContain('interpretation_status unclear or not_applicable');
       // v0.1.4 judgment-field and epistemic rules are transmitted to the provider
-      expect(body.instructions).toContain('not a neutral paraphrase');
+      expect(body.instructions).toContain('asserted significance');
+      expect(body.instructions).not.toMatch(/evidence object[^.]*source_spans/i);
       expect(body.instructions).toContain(
         'never upgrade partially_complete or substantially_complete to complete',
       );
