@@ -1,13 +1,20 @@
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
+import { access, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import {
   parseExtractPersonAArgs,
   runExtractPersonACommand,
   type ExtractPersonACommandDependencies,
 } from '../commands/extract-person-a.js';
 import { validPersonAExtraction } from './person-a-test-helpers.js';
+import {
+  checkRepositoryTestMatrixCoverage,
+  compareTestMatrixCoverage,
+  listTestFilesOnDisk,
+  parseMatrixTestFiles,
+} from '../commands/check-ci-test-coverage.js';
 
 function inertDependencies(calls: string[]): ExtractPersonACommandDependencies {
   return {
@@ -164,5 +171,181 @@ describe('Person A extraction CLI', () => {
       model: 'gpt-5.6',
       failOnCritical: true,
     });
+  });
+});
+
+describe('CI test-matrix coverage guard', () => {
+  // The guard is hosted by the always-required quality-gates job, not by a matrix
+  // suite: a guard living inside a matrix suite cannot detect its own omission.
+  it('reports the repository as fully covered', () => {
+    expect(checkRepositoryTestMatrixCoverage()).toEqual({
+      missingFromMatrix: [],
+      staleMatrixEntries: [],
+    });
+  });
+
+  it('parses matrix entries and ignores helper or non-test files', () => {
+    const workflow = [
+      '        test_file:',
+      '          - src/tests/alpha.test.ts',
+      '          - src/tests/beta.test.ts',
+      '      - name: Some step',
+    ].join('\n');
+    expect(parseMatrixTestFiles(workflow)).toEqual([
+      'src/tests/alpha.test.ts',
+      'src/tests/beta.test.ts',
+    ]);
+    expect(listTestFilesOnDisk(resolve(import.meta.dirname))).not.toContain(
+      'src/tests/person-a-test-helpers.ts',
+    );
+  });
+
+  describe('discovers test suites at any depth', () => {
+    // A temporary tree is used so no permanent fake suites are added to src/tests.
+    const temporaryRoots = new Set<string>();
+
+    afterEach(async () => {
+      await Promise.all(
+        [...temporaryRoots].map((root) => rm(root, { recursive: true, force: true })),
+      );
+      temporaryRoots.clear();
+    });
+
+    const withTree = async <T>(callback: (root: string) => Promise<T> | T): Promise<T> => {
+      const root = await mkdtemp(resolve(tmpdir(), 'ci-coverage-'));
+      temporaryRoots.add(root);
+      try {
+        await mkdir(resolve(root, 'evaluation/deep'), { recursive: true });
+        await writeFile(resolve(root, 'top.test.ts'), '');
+        await writeFile(resolve(root, 'evaluation/nested.test.ts'), '');
+        await writeFile(resolve(root, 'evaluation/deep/deeper.test.ts'), '');
+        await writeFile(resolve(root, 'person-a-test-helpers.ts'), '');
+        await writeFile(resolve(root, 'fixture.json'), '{}');
+        await writeFile(resolve(root, 'notes.md'), '');
+        return await callback(root);
+      } finally {
+        await rm(root, { recursive: true, force: true });
+        temporaryRoots.delete(root);
+      }
+    };
+
+    it('finds top-level, nested, and multiply nested suites and ignores everything else', async () => {
+      await withTree((root) => {
+        expect(listTestFilesOnDisk(root)).toEqual([
+          'src/tests/evaluation/deep/deeper.test.ts',
+          'src/tests/evaluation/nested.test.ts',
+          'src/tests/top.test.ts',
+        ]);
+      });
+    });
+
+    it('emits POSIX repository-relative paths regardless of host platform', async () => {
+      await withTree((root) => {
+        for (const file of listTestFilesOnDisk(root)) {
+          expect(file.startsWith('src/tests/')).toBe(true);
+          expect(file).not.toContain('\\');
+        }
+      });
+    });
+
+    it('accepts valid nested paths with plus and Unicode filename characters', () => {
+      const workflow = [
+        '        test_file:',
+        '          - src/tests/top.test.ts',
+        '          - src/tests/evaluation/deep/deeper.test.ts',
+        '          - src/tests/evaluation/cache+http.test.ts',
+        '          - src/tests/評価/抽出.test.ts',
+      ].join('\n');
+      expect(parseMatrixTestFiles(workflow)).toEqual([
+        'src/tests/evaluation/cache+http.test.ts',
+        'src/tests/evaluation/deep/deeper.test.ts',
+        'src/tests/top.test.ts',
+        'src/tests/評価/抽出.test.ts',
+      ]);
+    });
+
+    it('rejects unsafe, outside-directory, malformed, and non-test matrix values', () => {
+      const workflow = [
+        '        test_file:',
+        '          - /src/tests/absolute.test.ts',
+        '          - C:/src/tests/windows-absolute.test.ts',
+        '          - src/tests//empty.test.ts',
+        '          - src/tests/./same.test.ts',
+        '          - src/tests/../escape.test.ts',
+        '          - tests/outside.test.ts',
+        '          - src/other/outside.test.ts',
+        '          - src/tests/.test.ts',
+        '          - src/tests/helper.ts',
+        '          - src/tests/not-a-test.ts',
+      ].join('\n');
+      expect(parseMatrixTestFiles(workflow)).toEqual([]);
+    });
+
+    it('reports a nested suite missing from the matrix', () => {
+      expect(
+        compareTestMatrixCoverage(
+          ['src/tests/top.test.ts', 'src/tests/evaluation/nested.test.ts'],
+          ['src/tests/top.test.ts'],
+        ).missingFromMatrix,
+      ).toEqual(['src/tests/evaluation/nested.test.ts']);
+    });
+
+    it('reports a stale nested matrix entry', () => {
+      expect(
+        compareTestMatrixCoverage(
+          ['src/tests/top.test.ts'],
+          ['src/tests/top.test.ts', 'src/tests/evaluation/removed.test.ts'],
+        ).staleMatrixEntries,
+      ).toEqual(['src/tests/evaluation/removed.test.ts']);
+    });
+
+    it('removes a temporary tree after a successful callback', async () => {
+      let root = '';
+      await withTree(async (temporaryRoot) => {
+        root = temporaryRoot;
+        await expect(access(root)).resolves.toBeUndefined();
+      });
+      await expect(access(root)).rejects.toThrow();
+    });
+
+    it('removes a temporary tree after a thrown callback', async () => {
+      let root = '';
+      await expect(
+        withTree((temporaryRoot) => {
+          root = temporaryRoot;
+          throw new Error('deliberate callback failure');
+        }),
+      ).rejects.toThrow('deliberate callback failure');
+      await expect(access(root)).rejects.toThrow();
+    });
+  });
+
+  it('fails when the semantic suite is dropped from the matrix', () => {
+    const onDisk = ['src/tests/a.test.ts', 'src/tests/person-a-field-semantics.test.ts'];
+    const matrix = ['src/tests/a.test.ts'];
+    expect(compareTestMatrixCoverage(onDisk, matrix)).toEqual({
+      missingFromMatrix: ['src/tests/person-a-field-semantics.test.ts'],
+      staleMatrixEntries: [],
+    });
+  });
+
+  it('fails when the matrix lists a file that no longer exists', () => {
+    expect(
+      compareTestMatrixCoverage(
+        ['src/tests/a.test.ts'],
+        ['src/tests/a.test.ts', 'src/tests/removed.test.ts'],
+      ),
+    ).toEqual({ missingFromMatrix: [], staleMatrixEntries: ['src/tests/removed.test.ts'] });
+  });
+
+  it('is invoked by the required quality-gates job', () => {
+    const workflow = readFileSync(
+      resolve(import.meta.dirname, '../../.github/workflows/ci.yml'),
+      'utf8',
+    );
+    const qualityJob = workflow.slice(workflow.indexOf('Quality gates'));
+    expect(qualityJob).toContain('npm run check:ci-test-coverage');
+    // And the semantic suite is still separately present in the matrix.
+    expect(parseMatrixTestFiles(workflow)).toContain('src/tests/person-a-field-semantics.test.ts');
   });
 });

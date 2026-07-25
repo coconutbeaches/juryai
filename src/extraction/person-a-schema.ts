@@ -65,6 +65,28 @@ function applyPersonAModelConstraints(schema: JsonSchema): void {
       description:
         'Person A-only intake cannot establish bilateral agreement or dispute; use only unclear or not_applicable.',
     };
+    if (agreementTerm.properties.person_a_interpretation) {
+      agreementTerm.properties.person_a_interpretation.description =
+        "The meaning Person A attaches to this term, stated expressly as Person A's position and never as an agreed or bilaterally established fact. Populate it when Person A attaches an asserted significance or consequence to this specific term — what it means for entitlement, breach, responsibility, timing, scope, payment, or defense. Absent such an assertion, populate a grounded restatement only for a consolidated term stating the operative engagement, overall scope, or governing arrangement as a whole. Keep a separately represented component term — a price, a deposit, a payment made, a bare date, or a single occurrence — null unless Person A attaches an asserted significance to that component itself, and never populate it merely because payment, refund, timing, or another subject is disputed elsewhere. Being able to paraphrase a term is not itself an interpretation; never manufacture a meaning because the field exists or because the wording can be restated.";
+    }
+  }
+
+  const agreement = schema.$defs?.agreement;
+  if (agreement?.properties?.terms) {
+    agreement.properties.terms.description =
+      'One agreement term per separately named, independently operative, or independently disputed component (scope, price, deposit, payment trigger, deadline, dependency, qualification or credential obligation). Do not combine such components into one broad term merely because they share a sentence, paragraph, or engagement description. Use a single consolidated term only where the narrative presents the engagement, overall scope, or governing arrangement as one undivided operative term. Do not manufacture fragmentation beyond what the narrative states.';
+  }
+
+  const deliverableAssessment = schema.$defs?.deliverableAssessment;
+  if (deliverableAssessment?.properties) {
+    if (deliverableAssessment.properties.completion_status_person_a) {
+      deliverableAssessment.properties.completion_status_person_a.description =
+        "Person A's asserted completion position for this deliverable, using the single most precise enum Person A's own words support. Preserve partially_complete, substantially_complete, and complete as distinct; never upgrade a partial or substantial position to complete, and do not use unknown when Person A clearly states a position. This records Person A's position, not an objective adjudication.";
+    }
+    if (deliverableAssessment.properties.scope_status) {
+      deliverableAssessment.properties.scope_status.description =
+        "Person A's asserted scope characterization for this deliverable, using the most precise supported enum. Do not collapse a scope Person A treats as disputed into included or added_later without narrative support. This records Person A's position, not an objective adjudication.";
+    }
   }
 
   const sourceSpan = schema.$defs?.sourceSpan;
@@ -177,7 +199,7 @@ const extractionProperties: Record<string, JsonSchema> = {
       model: { type: 'string', minLength: 1 },
       prompt_version: {
         type: 'string',
-        enum: ['person-a-v0.1.1', 'person-a-v0.1.2', 'person-a-v0.1.3'],
+        enum: ['person-a-v0.1.1', 'person-a-v0.1.2', 'person-a-v0.1.3', 'person-a-v0.1.4'],
       },
       input_hash: { type: 'string', pattern: '^[a-f0-9]{64}$' },
       generated_at: { type: 'string', format: 'date-time' },

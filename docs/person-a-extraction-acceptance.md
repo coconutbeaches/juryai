@@ -59,6 +59,20 @@ Controls are reported separately and never contribute to historical model accept
 tracked saved outputs reproduce a historical result of **0/3 accepted**. This is an offline
 replay, not a newly executed live/model result.
 
+### Prompt v0.1.4 compatibility boundary
+
+Dry Runs 002 and 003 are minimal hand-authored controls for the unchanged evaluator, not fresh
+live-extraction acceptance cases for prompt `person-a-v0.1.4`. Their narratives separately name
+agreement components that rule 23 now requires a live extraction to decompose, while their locked
+goldens retain one consolidated scope term. The unchanged evaluator necessarily reports the
+additional components as acceptance-blocking unsupported extra objects.
+
+No fresh model-backed candidate may be added for Dry Run 002 or 003 while that mismatch remains.
+The CI semantic-contract suite enforces that both cases contain only `hand_authored_control`
+candidates. Removing that restriction requires a coordinated follow-up migration of the
+narratives/goldens and evaluator contract; prompt wording, thresholds, or candidate labels must
+not be used to hide the mismatch. Dry Run 001 remains the separately planned fresh-run target.
+
 Only extraction JSON is tracked. The corpus excludes raw Responses payloads, request IDs, token
 usage, credentials, secrets, and unnecessary provider metadata. The v1 and v2 fixtures were
 promoted from ignored local diagnostic extraction files after inspection; v3 was already a
