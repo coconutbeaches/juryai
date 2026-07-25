@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -198,6 +198,67 @@ describe('CI test-matrix coverage guard', () => {
     expect(listTestFilesOnDisk(resolve(import.meta.dirname))).not.toContain(
       'src/tests/person-a-test-helpers.ts',
     );
+  });
+
+  describe('discovers test suites at any depth', () => {
+    // A temporary tree is used so no permanent fake suites are added to src/tests.
+    const buildTree = async (): Promise<string> => {
+      const root = await mkdtemp(resolve(tmpdir(), 'ci-coverage-'));
+      await mkdir(resolve(root, 'evaluation/deep'), { recursive: true });
+      await writeFile(resolve(root, 'top.test.ts'), '');
+      await writeFile(resolve(root, 'evaluation/nested.test.ts'), '');
+      await writeFile(resolve(root, 'evaluation/deep/deeper.test.ts'), '');
+      await writeFile(resolve(root, 'person-a-test-helpers.ts'), '');
+      await writeFile(resolve(root, 'fixture.json'), '{}');
+      await writeFile(resolve(root, 'notes.md'), '');
+      return root;
+    };
+
+    it('finds top-level, nested, and multiply nested suites and ignores everything else', async () => {
+      expect(listTestFilesOnDisk(await buildTree())).toEqual([
+        'src/tests/evaluation/deep/deeper.test.ts',
+        'src/tests/evaluation/nested.test.ts',
+        'src/tests/top.test.ts',
+      ]);
+    });
+
+    it('emits POSIX repository-relative paths regardless of host platform', async () => {
+      for (const file of listTestFilesOnDisk(await buildTree())) {
+        expect(file.startsWith('src/tests/')).toBe(true);
+        expect(file).not.toContain('\\');
+      }
+    });
+
+    it('parses nested matrix paths and rejects relative segments', () => {
+      const workflow = [
+        '        test_file:',
+        '          - src/tests/top.test.ts',
+        '          - src/tests/evaluation/deep/deeper.test.ts',
+        '          - src/tests/../escape.test.ts',
+      ].join('\n');
+      expect(parseMatrixTestFiles(workflow)).toEqual([
+        'src/tests/evaluation/deep/deeper.test.ts',
+        'src/tests/top.test.ts',
+      ]);
+    });
+
+    it('reports a nested suite missing from the matrix', () => {
+      expect(
+        compareTestMatrixCoverage(
+          ['src/tests/top.test.ts', 'src/tests/evaluation/nested.test.ts'],
+          ['src/tests/top.test.ts'],
+        ).missingFromMatrix,
+      ).toEqual(['src/tests/evaluation/nested.test.ts']);
+    });
+
+    it('reports a stale nested matrix entry', () => {
+      expect(
+        compareTestMatrixCoverage(
+          ['src/tests/top.test.ts'],
+          ['src/tests/top.test.ts', 'src/tests/evaluation/removed.test.ts'],
+        ).staleMatrixEntries,
+      ).toEqual(['src/tests/evaluation/removed.test.ts']);
+    });
   });
 
   it('fails when the semantic suite is dropped from the matrix', () => {
