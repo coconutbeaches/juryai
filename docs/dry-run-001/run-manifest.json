@@ -1,0 +1,38 @@
+{
+  "run_id": "dry-run-001-live-v014",
+  "status": "rejected",
+  "evidence": {
+    "narrative_path": "src/fixtures/dry_run_001.person_a.txt",
+    "narrative_sha256": "2cdb00b4b2b28c1813a979be5cf22f1ac51a30282abea9e144df491549c4fcc7",
+    "modified_for_run": false
+  },
+  "request": {
+    "requested_model": "gpt-5.6",
+    "served_model": "gpt-5.6-sol",
+    "reasoning_effort": "medium",
+    "store": false,
+    "submitted_at": "2026-07-25T00:00:00Z",
+    "prompt_version": "person-a-v0.1.4",
+    "extractor_version": "person-a-v0.1.3",
+    "schema_version": "0.1.2",
+    "response_status": "completed",
+    "truncated": false
+  },
+  "outputs": {
+    "extraction_sha256": "68a3a5da581f98caf6bdfdee127d6b8b632d7845d968acce46c411cfc20a641c",
+    "report_sha256": "a6cd2426a2e7b2a5f975c159eac295155d8fe1db7fa97b7564a75ea688c54509",
+    "alignment_sha256": "6ae6ae7f662c9b632739caf43a22958305621af17199cafa553fe6e3058d97ab"
+  },
+  "result": {
+    "critical": 8,
+    "major": 53,
+    "minor": 13,
+    "human_edit_rate": 0.7454545454545455,
+    "weighted_error_rate": 0.6509090909090909
+  },
+  "replay": {
+    "command": "npm run extract:person-a -- --input src/fixtures/dry_run_001.person_a.txt --submitted-at 2026-07-25T00:00:00Z --extraction docs/dry-run-001/extraction.json --output-dir <dir>",
+    "verified_byte_identical": true
+  },
+  "excluded": ["raw Responses payload", "response id", "token usage", "credentials"]
+}

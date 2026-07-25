@@ -1,0 +1,635 @@
+{
+  "version": "person-a-evaluation-v0.1.0",
+  "schema_version": "0.1.2",
+  "summary": {
+    "critical": 8,
+    "major": 53,
+    "minor": 13,
+    "human_edit_rate": 0.7454545454545455,
+    "weighted_error_rate": 0.6509090909090909
+  },
+  "metrics": {
+    "agreement_terms": {
+      "matched": 8,
+      "golden_total": 8,
+      "extracted_total": 15,
+      "recall": 1,
+      "precision": 0.5333333333333333
+    },
+    "deliverables": {
+      "matched": 7,
+      "golden_total": 7,
+      "extracted_total": 7,
+      "recall": 1,
+      "precision": 1
+    },
+    "timeline": {
+      "matched": 7,
+      "golden_total": 10,
+      "extracted_total": 10,
+      "recall": 0.7,
+      "precision": 0.7
+    },
+    "claims": {
+      "matched": 11,
+      "golden_total": 13,
+      "extracted_total": 15,
+      "recall": 0.8461538461538461,
+      "precision": 0.7333333333333333
+    },
+    "evidence": {
+      "matched": 2,
+      "golden_total": 9,
+      "extracted_total": 7,
+      "recall": 0.2222222222222222,
+      "precision": 0.2857142857142857
+    },
+    "damages": {
+      "matched": 1,
+      "golden_total": 1,
+      "extracted_total": 1,
+      "recall": 1,
+      "precision": 1
+    },
+    "outcomes": {
+      "matched": 1,
+      "golden_total": 1,
+      "extracted_total": 1,
+      "recall": 1,
+      "precision": 1
+    },
+    "third_parties": {
+      "matched": 0,
+      "golden_total": 0,
+      "extracted_total": 0,
+      "recall": 1,
+      "precision": 1
+    },
+    "extraction_issues": {
+      "matched": 2,
+      "golden_total": 2,
+      "extracted_total": 5,
+      "recall": 1,
+      "precision": 0.4
+    },
+    "clarification_questions": {
+      "matched": 1,
+      "golden_total": 4,
+      "extracted_total": 6,
+      "recall": 0.25,
+      "precision": 0.16666666666666666
+    }
+  },
+  "errors": [
+    {
+      "severity": "major",
+      "family": "agreement_terms",
+      "code": "term_wording",
+      "message": "Agreement-term wording differs materially.",
+      "extracted_id": "term_07_price",
+      "golden_id": "term_price"
+    },
+    {
+      "severity": "major",
+      "family": "agreement_terms",
+      "code": "party_interpretation",
+      "message": "Person A interpretation was lost or distorted.",
+      "extracted_id": "term_09_balance_trigger",
+      "golden_id": "term_payment_trigger"
+    },
+    {
+      "severity": "major",
+      "family": "agreement_terms",
+      "code": "party_interpretation",
+      "message": "Person A interpretation was lost or distorted.",
+      "extracted_id": "term_10_target_launch",
+      "golden_id": "term_deadline"
+    },
+    {
+      "severity": "major",
+      "family": "agreement_terms",
+      "code": "party_interpretation",
+      "message": "Person A interpretation was lost or distorted.",
+      "extracted_id": "term_11_content_dependency",
+      "golden_id": "term_client_dependency"
+    },
+    {
+      "severity": "major",
+      "family": "agreement_terms",
+      "code": "party_interpretation",
+      "message": "Person A interpretation was lost or distorted.",
+      "extracted_id": "term_15_credentials_trigger",
+      "golden_id": "term_credentials"
+    },
+    {
+      "severity": "major",
+      "family": "agreement_terms",
+      "code": "term_wording",
+      "message": "Agreement-term wording differs materially.",
+      "extracted_id": "term_05_mobile_layout",
+      "golden_id": "term_scope"
+    },
+    {
+      "severity": "major",
+      "family": "agreement_terms",
+      "code": "party_interpretation",
+      "message": "Person A interpretation was lost or distorted.",
+      "extracted_id": "term_05_mobile_layout",
+      "golden_id": "term_scope"
+    },
+    {
+      "severity": "critical",
+      "family": "agreement_terms",
+      "code": "unsupported_extra_object",
+      "message": "Extracted object has no supported golden match and is a fabrication hard failure.",
+      "extracted_id": "term_01_homepage"
+    },
+    {
+      "severity": "critical",
+      "family": "agreement_terms",
+      "code": "unsupported_extra_object",
+      "message": "Extracted object has no supported golden match and is a fabrication hard failure.",
+      "extracted_id": "term_02_about_page"
+    },
+    {
+      "severity": "critical",
+      "family": "agreement_terms",
+      "code": "unsupported_extra_object",
+      "message": "Extracted object has no supported golden match and is a fabrication hard failure.",
+      "extracted_id": "term_03_services_page"
+    },
+    {
+      "severity": "critical",
+      "family": "agreement_terms",
+      "code": "unsupported_extra_object",
+      "message": "Extracted object has no supported golden match and is a fabrication hard failure.",
+      "extracted_id": "term_04_contact_page"
+    },
+    {
+      "severity": "critical",
+      "family": "agreement_terms",
+      "code": "unsupported_extra_object",
+      "message": "Extracted object has no supported golden match and is a fabrication hard failure.",
+      "extracted_id": "term_12_pricing_section"
+    },
+    {
+      "severity": "critical",
+      "family": "agreement_terms",
+      "code": "unsupported_extra_object",
+      "message": "Extracted object has no supported golden match and is a fabrication hard failure.",
+      "extracted_id": "term_13_newsletter_signup"
+    },
+    {
+      "severity": "critical",
+      "family": "agreement_terms",
+      "code": "unsupported_extra_object",
+      "message": "Extracted object has no supported golden match and is a fabrication hard failure.",
+      "extracted_id": "term_14_homepage_changes"
+    },
+    {
+      "severity": "major",
+      "family": "deliverables",
+      "code": "completion_status",
+      "message": "Person A completion position differs.",
+      "extracted_id": "del_02_about",
+      "golden_id": "del_about"
+    },
+    {
+      "severity": "major",
+      "family": "deliverables",
+      "code": "completion_status",
+      "message": "Person A completion position differs.",
+      "extracted_id": "del_03_services",
+      "golden_id": "del_services"
+    },
+    {
+      "severity": "major",
+      "family": "deliverables",
+      "code": "completion_status",
+      "message": "Person A completion position differs.",
+      "extracted_id": "del_04_contact",
+      "golden_id": "del_contact"
+    },
+    {
+      "severity": "major",
+      "family": "deliverables",
+      "code": "completion_status",
+      "message": "Person A completion position differs.",
+      "extracted_id": "del_05_mobile",
+      "golden_id": "del_mobile"
+    },
+    {
+      "severity": "major",
+      "family": "deliverables",
+      "code": "scope_status",
+      "message": "Deliverable scope status differs.",
+      "extracted_id": "del_06_pricing",
+      "golden_id": "del_pricing"
+    },
+    {
+      "severity": "major",
+      "family": "deliverables",
+      "code": "completion_status",
+      "message": "Person A completion position differs.",
+      "extracted_id": "del_06_pricing",
+      "golden_id": "del_pricing"
+    },
+    {
+      "severity": "major",
+      "family": "deliverables",
+      "code": "completion_status",
+      "message": "Person A completion position differs.",
+      "extracted_id": "del_07_newsletter",
+      "golden_id": "del_newsletter"
+    },
+    {
+      "severity": "major",
+      "family": "timeline",
+      "code": "actor_specificity",
+      "message": "Timeline actor specificity differs from golden (one side has no attributed actor).",
+      "extracted_id": "event_01_agreement",
+      "golden_id": "tl_agreement"
+    },
+    {
+      "severity": "major",
+      "family": "timeline",
+      "code": "actor_specificity",
+      "message": "Timeline actor specificity differs from golden (one side has no attributed actor).",
+      "extracted_id": "event_04_major_batch",
+      "golden_id": "tl_photo_delivery"
+    },
+    {
+      "severity": "major",
+      "family": "timeline",
+      "code": "missing_golden_object",
+      "message": "Golden object was not extracted.",
+      "golden_id": "tl_content_due"
+    },
+    {
+      "severity": "major",
+      "family": "timeline",
+      "code": "missing_golden_object",
+      "message": "Golden object was not extracted.",
+      "golden_id": "tl_instagram_use"
+    },
+    {
+      "severity": "major",
+      "family": "timeline",
+      "code": "missing_golden_object",
+      "message": "Golden object was not extracted.",
+      "golden_id": "tl_brief_publication"
+    },
+    {
+      "severity": "major",
+      "family": "timeline",
+      "code": "source_grounded_extra_object",
+      "message": "Extracted object is grounded in an exact source quote but has no golden match and requires review for granularity or unsupported inference.",
+      "extracted_id": "event_02_content_deadline"
+    },
+    {
+      "severity": "major",
+      "family": "timeline",
+      "code": "source_grounded_extra_object",
+      "message": "Extracted object is grounded in an exact source quote but has no golden match and requires review for granularity or unsupported inference.",
+      "extracted_id": "event_03_content_late"
+    },
+    {
+      "severity": "major",
+      "family": "timeline",
+      "code": "source_grounded_extra_object",
+      "message": "Extracted object is grounded in an exact source quote but has no golden match and requires review for granularity or unsupported inference.",
+      "extracted_id": "event_08_changes_made"
+    },
+    {
+      "severity": "major",
+      "family": "claims",
+      "code": "claim_meaning_distorted",
+      "message": "Aligned claim meaning differs materially.",
+      "extracted_id": "claim_05_added_requests",
+      "golden_id": "cl_a_004"
+    },
+    {
+      "severity": "major",
+      "family": "claims",
+      "code": "claim_meaning_distorted",
+      "message": "Aligned claim meaning differs materially.",
+      "extracted_id": "claim_07_feedback_changes",
+      "golden_id": "cl_a_006"
+    },
+    {
+      "severity": "major",
+      "family": "claims",
+      "code": "claim_type",
+      "message": "Claim type differs.",
+      "extracted_id": "claim_13_delay_causation",
+      "golden_id": "cl_a_012"
+    },
+    {
+      "severity": "major",
+      "family": "claims",
+      "code": "claim_type",
+      "message": "Claim type differs.",
+      "extracted_id": "claim_02_payment_terms",
+      "golden_id": "cl_a_001"
+    },
+    {
+      "severity": "major",
+      "family": "claims",
+      "code": "claim_meaning_distorted",
+      "message": "Aligned claim meaning differs materially.",
+      "extracted_id": "claim_02_payment_terms",
+      "golden_id": "cl_a_001"
+    },
+    {
+      "severity": "major",
+      "family": "claims",
+      "code": "claim_meaning_distorted",
+      "message": "Aligned claim meaning differs materially.",
+      "extracted_id": "claim_12_communication",
+      "golden_id": "cl_a_009"
+    },
+    {
+      "severity": "major",
+      "family": "claims",
+      "code": "against_interest_flag",
+      "message": "Against-interest admission flag differs.",
+      "extracted_id": "claim_12_communication",
+      "golden_id": "cl_a_009"
+    },
+    {
+      "severity": "minor",
+      "family": "claims",
+      "code": "materiality",
+      "message": "Claim materiality differs.",
+      "extracted_id": "claim_12_communication",
+      "golden_id": "cl_a_009"
+    },
+    {
+      "severity": "major",
+      "family": "claims",
+      "code": "claim_meaning_distorted",
+      "message": "Aligned claim meaning differs materially.",
+      "extracted_id": "claim_10_use",
+      "golden_id": "cl_a_008"
+    },
+    {
+      "severity": "major",
+      "family": "claims",
+      "code": "claim_meaning_distorted",
+      "message": "Aligned claim meaning differs materially.",
+      "extracted_id": "claim_14_balance_entitlement",
+      "golden_id": "cl_a_010"
+    },
+    {
+      "severity": "major",
+      "family": "claims",
+      "code": "claim_meaning_distorted",
+      "message": "Aligned claim meaning differs materially.",
+      "extracted_id": "claim_06_staging_complete",
+      "golden_id": "cl_a_005"
+    },
+    {
+      "severity": "major",
+      "family": "claims",
+      "code": "claim_type",
+      "message": "Claim type differs.",
+      "extracted_id": "claim_04_content_dependency",
+      "golden_id": "cl_a_002"
+    },
+    {
+      "severity": "major",
+      "family": "claims",
+      "code": "claim_meaning_distorted",
+      "message": "Aligned claim meaning differs materially.",
+      "extracted_id": "claim_04_content_dependency",
+      "golden_id": "cl_a_002"
+    },
+    {
+      "severity": "critical",
+      "family": "claims",
+      "code": "missing_golden_object",
+      "message": "Golden object was not extracted.",
+      "golden_id": "cl_a_003"
+    },
+    {
+      "severity": "minor",
+      "family": "claims",
+      "code": "missing_golden_object",
+      "message": "Golden object was not extracted.",
+      "golden_id": "cl_a_013"
+    },
+    {
+      "severity": "major",
+      "family": "claims",
+      "code": "source_grounded_extra_object",
+      "message": "Extracted object is grounded in an exact source quote but has no golden match and requires review for granularity or unsupported inference.",
+      "extracted_id": "claim_01_original_scope"
+    },
+    {
+      "severity": "major",
+      "family": "claims",
+      "code": "source_grounded_extra_object",
+      "message": "Extracted object is grounded in an exact source quote but has no golden match and requires review for granularity or unsupported inference.",
+      "extracted_id": "claim_03_launch_target"
+    },
+    {
+      "severity": "major",
+      "family": "claims",
+      "code": "source_grounded_extra_object",
+      "message": "Extracted object is grounded in an exact source quote but has no golden match and requires review for granularity or unsupported inference.",
+      "extracted_id": "claim_09_campaign_loss_report"
+    },
+    {
+      "severity": "major",
+      "family": "claims",
+      "code": "source_grounded_extra_object",
+      "message": "Extracted object is grounded in an exact source quote but has no golden match and requires review for granularity or unsupported inference.",
+      "extracted_id": "claim_11_nonpayment"
+    },
+    {
+      "severity": "major",
+      "family": "evidence",
+      "code": "evidence_identity",
+      "message": "Evidence identity differs materially.",
+      "extracted_id": "ev_06_social_media_posts",
+      "golden_id": "ev_007"
+    },
+    {
+      "severity": "major",
+      "family": "evidence",
+      "code": "missing_golden_object",
+      "message": "Golden object was not extracted.",
+      "golden_id": "ev_002"
+    },
+    {
+      "severity": "major",
+      "family": "evidence",
+      "code": "missing_golden_object",
+      "message": "Golden object was not extracted.",
+      "golden_id": "ev_003"
+    },
+    {
+      "severity": "major",
+      "family": "evidence",
+      "code": "missing_golden_object",
+      "message": "Golden object was not extracted.",
+      "golden_id": "ev_004"
+    },
+    {
+      "severity": "major",
+      "family": "evidence",
+      "code": "missing_golden_object",
+      "message": "Golden object was not extracted.",
+      "golden_id": "ev_005"
+    },
+    {
+      "severity": "major",
+      "family": "evidence",
+      "code": "missing_golden_object",
+      "message": "Golden object was not extracted.",
+      "golden_id": "ev_006"
+    },
+    {
+      "severity": "major",
+      "family": "evidence",
+      "code": "missing_golden_object",
+      "message": "Golden object was not extracted.",
+      "golden_id": "ev_008"
+    },
+    {
+      "severity": "major",
+      "family": "evidence",
+      "code": "missing_golden_object",
+      "message": "Golden object was not extracted.",
+      "golden_id": "ev_009"
+    },
+    {
+      "severity": "major",
+      "family": "evidence",
+      "code": "source_grounded_extra_object",
+      "message": "Extracted object is grounded in an exact source quote but has no golden match and requires review for granularity or unsupported inference.",
+      "extracted_id": "ev_02_whatsapp_requests"
+    },
+    {
+      "severity": "major",
+      "family": "evidence",
+      "code": "source_grounded_extra_object",
+      "message": "Extracted object is grounded in an exact source quote but has no golden match and requires review for granularity or unsupported inference.",
+      "extracted_id": "ev_03_client_content"
+    },
+    {
+      "severity": "major",
+      "family": "evidence",
+      "code": "source_grounded_extra_object",
+      "message": "Extracted object is grounded in an exact source quote but has no golden match and requires review for granularity or unsupported inference.",
+      "extracted_id": "ev_04_staging_version"
+    },
+    {
+      "severity": "major",
+      "family": "evidence",
+      "code": "source_grounded_extra_object",
+      "message": "Extracted object is grounded in an exact source quote but has no golden match and requires review for granularity or unsupported inference.",
+      "extracted_id": "ev_05_feedback_message"
+    },
+    {
+      "severity": "major",
+      "family": "evidence",
+      "code": "source_grounded_extra_object",
+      "message": "Extracted object is grounded in an exact source quote but has no golden match and requires review for granularity or unsupported inference.",
+      "extracted_id": "ev_07_communication_messages"
+    },
+    {
+      "severity": "major",
+      "family": "damages",
+      "code": "causal_theory",
+      "message": "Damages causal theory differs.",
+      "extracted_id": "damages_01_unpaid_balance",
+      "golden_id": "dam_a_balance"
+    },
+    {
+      "severity": "major",
+      "family": "extraction_issues",
+      "code": "issue_type",
+      "message": "Extraction-issue type differs.",
+      "extracted_id": "issue_03_publication_unproven",
+      "golden_id": "xi_publication_dates"
+    },
+    {
+      "severity": "minor",
+      "family": "extraction_issues",
+      "code": "unmatched_extracted_object",
+      "message": "Extracted object has no golden semantic match and may be hallucinated or over-segmented.",
+      "extracted_id": "issue_01_missing_year"
+    },
+    {
+      "severity": "minor",
+      "family": "extraction_issues",
+      "code": "unmatched_extracted_object",
+      "message": "Extracted object has no golden semantic match and may be hallucinated or over-segmented.",
+      "extracted_id": "issue_04_mobile_condition"
+    },
+    {
+      "severity": "minor",
+      "family": "extraction_issues",
+      "code": "unmatched_extracted_object",
+      "message": "Extracted object has no golden semantic match and may be hallucinated or over-segmented.",
+      "extracted_id": "issue_05_communication_period"
+    },
+    {
+      "severity": "minor",
+      "family": "clarification_questions",
+      "code": "missing_golden_object",
+      "message": "Golden object was not extracted.",
+      "golden_id": "q_a_002"
+    },
+    {
+      "severity": "minor",
+      "family": "clarification_questions",
+      "code": "missing_golden_object",
+      "message": "Golden object was not extracted.",
+      "golden_id": "q_a_003"
+    },
+    {
+      "severity": "minor",
+      "family": "clarification_questions",
+      "code": "missing_golden_object",
+      "message": "Golden object was not extracted.",
+      "golden_id": "q_a_004"
+    },
+    {
+      "severity": "minor",
+      "family": "clarification_questions",
+      "code": "unmatched_extracted_object",
+      "message": "Extracted object has no golden semantic match and may be hallucinated or over-segmented.",
+      "extracted_id": "question_01_project_year"
+    },
+    {
+      "severity": "minor",
+      "family": "clarification_questions",
+      "code": "unmatched_extracted_object",
+      "message": "Extracted object has no golden semantic match and may be hallucinated or over-segmented.",
+      "extracted_id": "question_03_added_requests"
+    },
+    {
+      "severity": "minor",
+      "family": "clarification_questions",
+      "code": "unmatched_extracted_object",
+      "message": "Extracted object has no golden semantic match and may be hallucinated or over-segmented.",
+      "extracted_id": "question_04_mobile_issues"
+    },
+    {
+      "severity": "minor",
+      "family": "clarification_questions",
+      "code": "unmatched_extracted_object",
+      "message": "Extracted object has no golden semantic match and may be hallucinated or over-segmented.",
+      "extracted_id": "question_05_communications"
+    },
+    {
+      "severity": "minor",
+      "family": "clarification_questions",
+      "code": "unmatched_extracted_object",
+      "message": "Extracted object has no golden semantic match and may be hallucinated or over-segmented.",
+      "extracted_id": "question_06_content_timeline"
+    }
+  ]
+}
