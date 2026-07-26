@@ -1,7 +1,5 @@
 type JsonObject = Record<string, any>;
 
-const DIRECT_DELAY_CAUSATION =
-  /\b(?:caus(?:e|es|ed|ing)|contribut(?:e|es|ed|ing)|result(?:s|ed|ing))\b[^.]{0,96}\b(?:schedule\s+)?delay\b|\b(?:schedule\s+)?delay\b[^.]{0,96}\b(?:caus(?:e|es|ed|ing)|result(?:s|ed|ing)\s+from|came\s+from)\b/iu;
 const NON_ASSERTED_CAUSATION =
   /\b(?:could|might|possibly|possible|perhaps|hypothetical(?:ly)?|speculat(?:e|es|ed|ing|ive)|unclear|uncertain|unknown|unresolved|ambiguous|unsure|whether|infer(?:s|red|ring)?|wonder(?:s|ed|ing)?)\b|\b(?:not|isn['’]t|wasn['’]t)\s+(?:clear|known|established|resolved)\b/iu;
 const REPORTED_BELIEF =
@@ -93,16 +91,91 @@ function deniesCausalRelation(value: string): boolean {
   );
 }
 
-function isDirectClientDelayInterpretation(value: unknown): value is string {
+function causalUnits(value: string): string[] {
+  const coordinatedSubjectBoundary =
+    /,\s+(?:and|but|while|whereas)\s+(?=(?:an?|the|[\p{L}\p{N}'’_-]+)(?:\s+[\p{L}\p{N}'’_-]+){0,5}\s+(?:caus|contribut|result)\w*\b)/giu;
+  return value
+    .replace(coordinatedSubjectBoundary, '\n')
+    .split(/[.;()\r\n]|[—–]/u)
+    .map((unit) => unit.trim())
+    .filter((unit) => unit.length > 0);
+}
+
+function localForwardCause(prefix: string): string {
+  const relativeClause = prefix.match(/^(.*?),\s*(?:which|thereby)\s*$/iu);
+  if (relativeClause?.[1] != null) return relativeClause[1].trim();
+
+  const participial = prefix.match(/^(.*?),\s*$/u);
+  if (participial?.[1] != null) return participial[1].trim();
+
+  const connectors = /\b(?:although|because|but|while|whereas)\b|,\s*(?:and|but)\s+|\band\b/giu;
+  let localStart = 0;
+  for (const match of prefix.matchAll(connectors)) {
+    localStart = (match.index ?? 0) + match[0].length;
+  }
+  return prefix.slice(localStart).trim();
+}
+
+function assertedCausePhrases(unit: string): string[] {
+  const causes: string[] = [];
+  const forward =
+    /\b(?:caus(?:e|es|ed|ing)|contribut(?:e|es|ed|ing)|result(?:s|ed|ing))\b[^.;()—–\r\n]{0,96}\b(?:schedule\s+)?delay\b/giu;
+  for (const match of unit.matchAll(forward)) {
+    const cause = localForwardCause(unit.slice(0, match.index));
+    if (cause.length > 0) causes.push(cause);
+  }
+
+  const reverse =
+    /\b(?:schedule\s+)?delay\b[^.;()—–\r\n]{0,48}\b(?:result(?:s|ed|ing)\s+from|came\s+from|was\s+caused\s+by)\s+(.+)$/giu;
+  for (const match of unit.matchAll(reverse)) {
+    const cause = match[1]?.trim();
+    if (cause != null && cause.length > 0) causes.push(cause);
+  }
+  return causes;
+}
+
+function overlaps(values: string[], candidates: string[]): boolean {
+  const candidateSet = new Set(candidates);
+  return values.some((value) => candidateSet.has(value));
+}
+
+function causeBindsToCandidateIncident(cause: string, eventSummary: string): boolean {
+  // A causal predicate is usable only when its local cause phrase names a
+  // recognized incident and, when the event summary names an incident or actor,
+  // overlaps those anchors. Merely sharing a sentence or source span is not
+  // causal binding.
+  const candidate = canonicalAssertedMeaning([eventSummary], 'client_delay');
+  const assertedCause = canonicalAssertedMeaning([cause], 'client_delay');
+  if (assertedCause.incidents.length === 0) return false;
+  if (candidate.incidents.length > 0 && !overlaps(candidate.incidents, assertedCause.incidents)) {
+    return false;
+  }
+  if (
+    candidate.actors.length > 0 &&
+    assertedCause.actors.length > 0 &&
+    !overlaps(candidate.actors, assertedCause.actors)
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function isDirectClientDelayInterpretation(value: unknown, eventSummary: string): value is string {
   if (typeof value !== 'string' || value.length === 0) return false;
-  return (
-    DIRECT_DELAY_CAUSATION.test(value) &&
-    !NON_ASSERTED_CAUSATION.test(value) &&
-    !hasModalMay(value) &&
-    !deniesCausalRelation(value) &&
-    !REPORTED_BELIEF.test(value) &&
-    !METADATA_ONLY.test(value)
-  );
+  return causalUnits(value).some((unit) => {
+    if (
+      NON_ASSERTED_CAUSATION.test(unit) ||
+      hasModalMay(unit) ||
+      deniesCausalRelation(unit) ||
+      REPORTED_BELIEF.test(unit) ||
+      METADATA_ONLY.test(unit)
+    ) {
+      return false;
+    }
+    return assertedCausePhrases(unit).some((cause) =>
+      causeBindsToCandidateIncident(cause, eventSummary),
+    );
+  });
 }
 
 function preservesSourceQualifications(eventSummary: string, spans: JsonObject[]): boolean {
@@ -214,7 +287,6 @@ type CanonicalRelationships = {
 };
 
 const NAMED_ENTITY = String.raw`\p{Lu}[\p{L}\p{N}&.'’_-]*(?:\s+\p{Lu}[\p{L}\p{N}&.'’_-]*){0,2}`;
-const REPORTING_VERBS = String.raw`says|asserts|thinks|treats|reports|attributes|considers|presents|acknowledges|disputes`;
 const INCIDENT_VERBS = String.raw`deliver(?:s|ed|ing)?|send(?:s|ing)?|sent|suppl(?:y|ies|ied|ying)|request(?:s|ed|ing)?|revis(?:e|es|ed|ing)|chang(?:e|es|ed|ing)|caus(?:e|es|ed|ing)|contribut(?:e|es|ed|ing)`;
 const INCIDENT_NOUNS = String.raw`delivery|shipment|content|copy|images?|materials?|files?|requests?|revisions?|changes?|scope`;
 
@@ -237,10 +309,11 @@ function assertedRelationships(
   values: unknown[],
   expected: CanonicalRelationships = { asserters: [], actors: [] },
 ): CanonicalRelationships {
-  // Typed party relationships gate recovery before this fallback runs. Text is
-  // consulted only to compare named asserters and action subjects between an
-  // already-typed event and an existing claim; capitalization alone is not an
-  // entity signal.
+  // Typed party relationships are authoritative. When they are present, text
+  // cannot add document titles or other free-text asserters. This recovery path
+  // requires a typed asserter, so it does not guess one when typing is absent.
+  // Known actor names are resolved next; action grammar is used only as a
+  // bounded fallback, and capitalization alone is never an entity signal.
   const asserters = new Set<string>();
   const actors = new Set<string>();
   const normalizedValues = values
@@ -250,15 +323,7 @@ function assertedRelationships(
       normalized: normalizeAssertedMeaning(value) ?? '',
     }));
 
-  for (const expectedAsserter of expected.asserters) {
-    if (
-      normalizedValues.some(({ normalized }) =>
-        containsCanonicalEntity(normalized, expectedAsserter),
-      )
-    ) {
-      asserters.add(expectedAsserter);
-    }
-  }
+  expected.asserters.forEach((asserter) => asserters.add(asserter));
   for (const expectedActor of expected.actors) {
     if (
       normalizedValues.some(({ normalized }) => containsCanonicalEntity(normalized, expectedActor))
@@ -268,21 +333,6 @@ function assertedRelationships(
   }
 
   for (const { raw } of normalizedValues) {
-    addRelationshipMatches(
-      asserters,
-      raw,
-      new RegExp(String.raw`\b(${NAMED_ENTITY})\s+(?:${REPORTING_VERBS})\b`, 'gu'),
-    );
-    addRelationshipMatches(
-      asserters,
-      raw,
-      new RegExp(String.raw`\baccording\s+to\s+(${NAMED_ENTITY})\b`, 'giu'),
-    );
-    addRelationshipMatches(
-      asserters,
-      raw,
-      new RegExp(String.raw`\bbased\s+on\s+(${NAMED_ENTITY})['’]s\s+account\b`, 'giu'),
-    );
     addRelationshipMatches(
       actors,
       raw,
@@ -336,13 +386,12 @@ function canonicalAssertedMeaning(
     'text',
   );
   const hasDeliveryObject = hasAny('deliver', 'supply');
-  const hasScheduleMarker = hasAny('schedule');
   const neverDelivered =
     /\bnever\s+(?:deliver(?:ed)?|sen[dt]|suppl(?:y|ied)|arriv(?:e|ed))\b/iu.test(text);
   const notDeliveredByDeadline =
     /\b(?:did\s+not|didn['’]t|failed\s+to)\s+(?:deliver|send|supply)[^.]{0,64}\bby\b/iu.test(text);
   const partiallyDelivered =
-    /\b(?:partially|partly|only\s+(?:part|some))\s+(?:deliver(?:ed)?|sen[dt]|suppl(?:y|ied))\b|\b(?:deliver(?:ed)?|sen[dt]|suppl(?:y|ied))\s+(?:partially|partly|only\s+(?:part|some))\b/iu.test(
+    /\b(?:partially|partly|only\s+(?:part|some))\s+(?:deliver(?:ed)?|sen[dt]|suppl(?:y|ied))\b|\b(?:deliver(?:ed)?|sen[dt]|suppl(?:y|ied))\s+(?:partially|partly|only\s+(?:part|some)(?:\s+of)?)\b/iu.test(
       text,
     );
   const deliveryUnclear =
@@ -361,8 +410,9 @@ function canonicalAssertedMeaning(
 
   if (deliveryMeaningPresent) {
     // Incident occurrence polarity and completion state are intentionally
-    // independent of causal polarity. A missing delivery can directly cause
-    // delay without becoming a late-but-completed delivery.
+    // independent of causal polarity. Mutually compatible delivered states such
+    // as partial and late accumulate compositionally; non-delivery, uncertainty,
+    // and denial remain distinct from completed delivery states.
     incidents.add('input_delivery');
     objects.add(hasContentObject ? 'content' : 'delivery');
     if (deliveryDeniedOrDisputed) {
@@ -377,12 +427,15 @@ function canonicalAssertedMeaning(
     } else if (notDeliveredByDeadline) {
       occurrencePolarity.add('not_delivered_by_deadline');
       completionState.add('not_completed_by_deadline');
-    } else if (partiallyDelivered) {
-      occurrencePolarity.add('partially_delivered');
-      completionState.add('partial');
-    } else if (deliveredLate || hasAny('late', 'later', 'overdue')) {
-      occurrencePolarity.add('delivered_late');
-      completionState.add('completed_late');
+    } else {
+      if (partiallyDelivered) {
+        occurrencePolarity.add('partially_delivered');
+        completionState.add('partial');
+      }
+      if (deliveredLate || hasAny('late', 'later', 'overdue')) {
+        occurrencePolarity.add('delivered_late');
+        completionState.add('completed_late');
+      }
     }
   }
   const hasScopeChange = hasAny('scope') && hasAny('add', 'added', 'change', 'request');
@@ -412,6 +465,15 @@ function canonicalAssertedMeaning(
     for (const match of text.matchAll(pattern)) {
       temporalRelations.add(`${relation}:${match[1]?.toLocaleLowerCase()}`);
     }
+  }
+  if (/\bbefore\s+(?:the\s+)?deadline\b/iu.test(text)) {
+    temporalRelations.add('before_deadline');
+  }
+  if (/\bby\s+(?:the\s+)?deadline\b|\bon\s+time\b/iu.test(text)) {
+    temporalRelations.add('by_deadline');
+  }
+  if (/\bafter\s+(?:the\s+)?deadline\b/iu.test(text) || occurrencePolarity.has('delivered_late')) {
+    temporalRelations.add('after_deadline');
   }
   if (neverDelivered) temporalRelations.add('never');
   if (hasAny('around', 'approximately', 'approximate', 'about')) {
@@ -454,9 +516,17 @@ function claimHasEquivalentAssertedMeaning(claim: JsonObject, event: JsonObject)
   const candidateMeaning = canonicalAssertedMeaning(
     [event.event_summary, event.person_a_interpretation],
     'client_delay',
+    {
+      asserters: Array.isArray(event.asserted_by_party_ids)
+        ? event.asserted_by_party_ids.filter(
+            (value: unknown): value is string => typeof value === 'string',
+          )
+        : [],
+      actors: [],
+    },
   );
   const claimMeaning = canonicalAssertedMeaning([claim.claim_text], 'client_delay', {
-    asserters: candidateMeaning.asserters,
+    asserters: typeof claim.party_id === 'string' ? [claim.party_id] : [],
     actors: candidateMeaning.actors,
   });
   // Equivalence is bidirectional equality of the canonical causal representation.
@@ -504,9 +574,15 @@ function eventEvidenceIds(event: JsonObject): string[] {
 function canonicalProviderRowValue(value: unknown, propertyName: string | null = null): unknown {
   if (Array.isArray(value)) {
     const items = value.map((item) => canonicalProviderRowValue(item));
-    return propertyName === 'source_evidence_ids'
-      ? [...items].sort((left, right) => String(left).localeCompare(String(right)))
-      : items;
+    if (propertyName === 'source_evidence_ids') {
+      return [...items].sort((left, right) => String(left).localeCompare(String(right)));
+    }
+    if (propertyName === 'source_spans') {
+      return [...items].sort((left, right) =>
+        JSON.stringify(left).localeCompare(JSON.stringify(right)),
+      );
+    }
+    return items;
   }
   if (!isJsonObject(value)) return value;
   return Object.fromEntries(
@@ -522,10 +598,11 @@ function exactProviderDuplicateKey(event: JsonObject): string {
 
 function consolidateExactDuplicateTimelineRows(timeline: unknown[]): unknown[] {
   // A reused canonical ID is not occurrence identity. We remove a later row only
-  // when its complete provider structure is equal to the first row, normalizing
-  // solely the order of source-evidence references. Different evidence
-  // membership, dates, meanings, or source coordinates remain in the output so
-  // canonical duplicate-ID validation continues to fail honestly.
+  // when its complete provider structure is equal to the first row. Evidence IDs
+  // and complete source-span identities are order-insensitive for this comparison
+  // only; membership and every span field remain significant. The retained row is
+  // not reordered. Different evidence, dates, meanings, or grounding remain in
+  // the output so canonical duplicate-ID validation continues to fail honestly.
   const retained: unknown[] = [];
   const exactRowsById = new Map<string, Set<string>>();
   for (const row of timeline) {
@@ -620,7 +697,7 @@ export function recoverGroundedClientDelayClaims(
       event.interpretation_status !== 'unclear' ||
       event.person_b_interpretation !== null ||
       event.materiality !== 'high' ||
-      !isDirectClientDelayInterpretation(event.person_a_interpretation)
+      !isDirectClientDelayInterpretation(event.person_a_interpretation, event.event_summary)
     ) {
       continue;
     }

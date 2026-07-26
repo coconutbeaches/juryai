@@ -1138,6 +1138,322 @@ describe('cl_a_003 Person A recall coverage', () => {
     });
   });
 
+  describe('fifth review finding 1: candidate-clause causal binding', () => {
+    it.each([
+      'Maya delivered late; a server outage caused the schedule delay.',
+      'Maya delivered late — Alex’s revisions caused the schedule delay.',
+      'Maya delivered late (a hosting failure caused the schedule delay).',
+      'Maya delivered late. A server outage caused the schedule delay.',
+      'Maya delivered late\nA server outage caused the schedule delay.',
+      'Maya delivered late, and a server outage caused the schedule delay.',
+    ])('does not borrow causation from another causal unit in %s', (interpretation) => {
+      const narrative = interpretation;
+      const modelOutput = candidateFixture(narrative, {
+        event_summary: 'Alex says Maya delivered the content late.',
+        person_a_interpretation: interpretation,
+      });
+
+      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toEqual([]);
+    });
+
+    it.each([
+      'Maya delivered late, causing schedule delay.',
+      'Maya’s late delivery caused schedule delay.',
+      'The schedule delay resulted from Maya’s late delivery.',
+      'Maya did not send the files, which caused schedule delay.',
+    ])('keeps direct same-unit causation in %s', (interpretation) => {
+      const narrative = interpretation;
+      const modelOutput = candidateFixture(narrative, {
+        event_summary: interpretation,
+        person_a_interpretation: interpretation,
+      });
+
+      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toHaveLength(1);
+    });
+  });
+
+  describe('fifth review finding 2: compositional delivery states', () => {
+    const narrative =
+      'Maya partially delivered content before, by, and after the deadline; Alex attributes different delay effects to those delivery states.';
+
+    function withExistingClaim(
+      eventSummary: string,
+      interpretation: string,
+      claimText: string,
+    ): JsonObject {
+      const modelOutput = candidateFixture(narrative, {
+        event_summary: eventSummary,
+        person_a_interpretation: interpretation,
+      });
+      modelOutput.claims.push(existingClaim(narrative, { claim_text: claimText }));
+      return recoverGroundedClientDelayClaims(modelOutput, narrative);
+    }
+
+    it('preserves both partial and late state after the deadline', () => {
+      const corrected = withExistingClaim(
+        'Alex says Maya partially delivered the content after the deadline.',
+        'Alex says Maya’s partial delivery after the deadline caused schedule delay.',
+        'Alex says Maya partially delivered the content, causing schedule delay.',
+      );
+      expect(corrected.claims).toHaveLength(2);
+    });
+
+    it('does not equate a partial-and-late delivery with a late-only delivery', () => {
+      const corrected = withExistingClaim(
+        'Alex says Maya partially delivered the content after the deadline.',
+        'Alex says Maya’s partial delivery after the deadline caused schedule delay.',
+        'Alex says Maya delivered the content late, causing schedule delay.',
+      );
+      expect(corrected.claims).toHaveLength(2);
+    });
+
+    it('keeps partial delivery by the deadline partial without adding lateness', () => {
+      const corrected = withExistingClaim(
+        'Alex says Maya partially delivered the content by the deadline.',
+        'Alex says Maya’s partial delivery by the deadline caused schedule delay.',
+        'Alex says Maya delivered the content late, causing schedule delay.',
+      );
+      expect(corrected.claims).toHaveLength(2);
+    });
+
+    it.each([
+      {
+        eventSummary: 'Alex says Maya partially delivered the content before the deadline.',
+        interpretation:
+          'Alex says Maya’s partial delivery before the deadline caused schedule delay.',
+        claimText:
+          'Alex says Maya partially delivered the content by the deadline, causing schedule delay.',
+      },
+      {
+        eventSummary: 'Alex says Maya partially delivered the content.',
+        interpretation: 'Alex says Maya’s partial delivery caused schedule delay.',
+        claimText:
+          'Alex says Maya partially delivered the content by the deadline, causing schedule delay.',
+      },
+    ])(
+      'preserves explicit temporal meaning in $eventSummary',
+      ({ eventSummary, interpretation, claimText }) => {
+        expect(withExistingClaim(eventSummary, interpretation, claimText).claims).toHaveLength(2);
+      },
+    );
+
+    it.each([
+      {
+        label: 'late-only',
+        eventSummary: 'Alex says Maya delivered the content late.',
+        interpretation: 'Alex says Maya’s late delivery caused schedule delay.',
+        claimText: 'Alex says Maya partially delivered the content, causing schedule delay.',
+      },
+      {
+        label: 'partial-only',
+        eventSummary: 'Alex says Maya partially delivered the content.',
+        interpretation: 'Alex says Maya’s partial delivery caused schedule delay.',
+        claimText: 'Alex says Maya delivered the content late, causing schedule delay.',
+      },
+    ])(
+      'preserves the $label state independently',
+      ({ eventSummary, interpretation, claimText }) => {
+        expect(withExistingClaim(eventSummary, interpretation, claimText).claims).toHaveLength(2);
+      },
+    );
+
+    it.each([
+      {
+        eventSummary: 'Alex says Maya partially delivered the content after the deadline.',
+        interpretation: 'Alex says Maya’s partial late delivery caused schedule delay.',
+        claimText:
+          'alex says maya delivered only part of the content late, causing schedule delay.',
+      },
+      {
+        eventSummary: 'Alex says Maya partially delivered the content by the deadline.',
+        interpretation: 'Alex says Maya’s partial on-time delivery caused schedule delay.',
+        claimText:
+          'alex says maya delivered only part of the content by the deadline, causing schedule delay.',
+      },
+    ])(
+      'treats harmless compositional paraphrasing as equivalent for $eventSummary',
+      ({ eventSummary, interpretation, claimText }) => {
+        const corrected = withExistingClaim(eventSummary, interpretation, claimText);
+        expect(corrected.claims).toHaveLength(1);
+        expect(corrected.claims[0].claim_id).toBe('claim_existing');
+      },
+    );
+  });
+
+  describe('fifth review finding 3: exact duplicate span ordering', () => {
+    const firstQuote = 'Maya delivered the content late.';
+    const secondQuote = 'Alex says the late delivery caused schedule delay.';
+    const narrative = `${firstQuote}\n${secondQuote}`;
+
+    function multiSpanDuplicate(): JsonObject {
+      const modelOutput = candidateFixture(narrative, {
+        event_summary: 'Alex says Maya delivered the content late.',
+        person_a_interpretation: 'Alex says Maya’s late delivery directly caused schedule delay.',
+        source_spans: [exactSpan(narrative, firstQuote), exactSpan(narrative, secondQuote)],
+        source_evidence_ids: ['ev_client_content', 'ev_follow_up'],
+      });
+      modelOutput.evidence.push({ evidence_id: 'ev_follow_up' });
+      modelOutput.timeline.push({
+        ...structuredClone(modelOutput.timeline[0]),
+        source_spans: structuredClone(modelOutput.timeline[0].source_spans).reverse(),
+      });
+      return modelOutput;
+    }
+
+    it('consolidates identical multi-span rows whose spans are reversed', () => {
+      const corrected = recoverGroundedClientDelayClaims(multiSpanDuplicate(), narrative);
+      expect(corrected.timeline).toHaveLength(1);
+      expect(corrected.claims).toHaveLength(1);
+      expect(corrected.timeline[0].source_spans).toEqual([
+        exactSpan(narrative, firstQuote),
+        exactSpan(narrative, secondQuote),
+      ]);
+    });
+
+    it('consolidates reversed evidence and source-span ordering together', () => {
+      const modelOutput = multiSpanDuplicate();
+      modelOutput.timeline[1].source_evidence_ids.reverse();
+
+      const corrected = recoverGroundedClientDelayClaims(modelOutput, narrative);
+      expect(corrected.timeline).toHaveLength(1);
+      expect(corrected.claims[0].supporting_evidence_ids).toEqual([
+        'ev_client_content',
+        'ev_follow_up',
+      ]);
+    });
+
+    it('keeps a full assembled extraction valid after multi-span order consolidation', async () => {
+      const { narrative: frozenNarrative, modelOutput } = await frozenInputs();
+      const sourceEvent = modelOutput.timeline.find(
+        (event: JsonObject) => event.event_id === 'event_04_major_batch',
+      );
+      const supportingEvent = modelOutput.timeline.find(
+        (event: JsonObject) => event.event_id === 'event_03_content_late',
+      );
+      sourceEvent.source_spans.push(structuredClone(supportingEvent.source_spans[0]));
+      const duplicate = structuredClone(sourceEvent);
+      duplicate.source_spans.reverse();
+      modelOutput.timeline.push(duplicate);
+
+      const corrected = assemblePersonAExtraction(modelOutput, {
+        narrative: frozenNarrative,
+        submittedAt,
+        model,
+        generatedAt,
+      });
+      expect(
+        corrected.timeline.filter((event: JsonObject) => event.event_id === sourceEvent.event_id),
+      ).toHaveLength(1);
+      expect(validatePersonAExtraction(corrected, frozenNarrative).valid).toBe(true);
+    });
+
+    it.each([
+      {
+        label: 'different span membership',
+        mutate: (span: JsonObject, event: JsonObject) => {
+          event.source_spans = [span];
+        },
+      },
+      {
+        label: 'same coordinates with a different quote',
+        mutate: (span: JsonObject) => {
+          span.quote = `${span.quote} `;
+        },
+      },
+      {
+        label: 'same quote with different coordinates',
+        mutate: (span: JsonObject) => {
+          span.start_char += 1;
+          span.end_char += 1;
+        },
+      },
+      {
+        label: 'different submission',
+        mutate: (span: JsonObject) => {
+          span.submission_id = 'submission_other';
+        },
+      },
+    ])('does not consolidate rows with $label', ({ mutate }) => {
+      const modelOutput = multiSpanDuplicate();
+      const event = modelOutput.timeline[1];
+      mutate(event.source_spans[0], event);
+
+      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).timeline).toHaveLength(2);
+    });
+  });
+
+  describe('fifth review finding 4: authoritative typed asserters', () => {
+    const narrative =
+      'Alex attributes schedule delay to Maya’s late delivery, as reflected in project documents.';
+
+    it.each([
+      'The Project Plan reports that Maya’s late delivery caused schedule delay.',
+      'The Contract states that Maya delivered late and caused schedule delay.',
+      'The Email says Maya’s late delivery caused schedule delay.',
+    ])('does not treat document language as an asserter in %s', (eventSummary) => {
+      const modelOutput = candidateFixture(narrative, {
+        event_summary: eventSummary,
+        person_a_interpretation: eventSummary,
+      });
+      modelOutput.claims.push(
+        existingClaim(narrative, {
+          claim_text: 'Alex says Maya’s late delivery caused schedule delay.',
+        }),
+      );
+
+      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toEqual(
+        modelOutput.claims,
+      );
+    });
+
+    it('keeps typed party_a authoritative despite document-language noise', () => {
+      const modelOutput = candidateFixture(narrative, {
+        event_summary:
+          'The Project Plan reports that Maya delivered late; Alex says this caused schedule delay.',
+        person_a_interpretation: 'Alex says Maya’s late delivery directly caused schedule delay.',
+      });
+      modelOutput.claims.push(
+        existingClaim(narrative, {
+          claim_text: 'According to Alex, Maya’s late delivery caused schedule delay.',
+        }),
+      );
+
+      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toEqual(
+        modelOutput.claims,
+      );
+    });
+
+    it('resolves Alex’s email to typed party_a without treating email as an asserter', () => {
+      const modelOutput = candidateFixture(narrative, {
+        event_summary: 'Alex’s email states that Maya’s late delivery caused schedule delay.',
+        person_a_interpretation: 'Alex says Maya’s late delivery directly caused schedule delay.',
+      });
+      modelOutput.claims.push(
+        existingClaim(narrative, {
+          claim_text: 'Alex says Maya’s late delivery caused schedule delay.',
+        }),
+      );
+
+      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toEqual(
+        modelOutput.claims,
+      );
+    });
+
+    it('keeps actual actors distinct under typed party_a', () => {
+      const modelOutput = candidateFixture(narrative, {
+        event_summary: 'The Email says Maya’s late delivery caused schedule delay.',
+        person_a_interpretation: 'Alex says Maya’s late delivery directly caused schedule delay.',
+      });
+      modelOutput.claims.push(
+        existingClaim(narrative, {
+          claim_text: 'Alex says Jordan’s late delivery caused schedule delay.',
+        }),
+      );
+
+      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toHaveLength(2);
+    });
+  });
+
   describe('review finding 3: canonical generated-ID registry', () => {
     const stem = 'claim_event_candidate_client_delay';
 
