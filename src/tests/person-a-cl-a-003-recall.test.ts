@@ -108,6 +108,29 @@ function candidateFixture(
   };
 }
 
+function existingClaim(
+  narrative: string,
+  overrides: JsonObject = {},
+  quote = narrative,
+): JsonObject {
+  return {
+    claim_id: 'claim_existing',
+    party_id: 'party_a',
+    claim_text: 'Alex asserts that Maya’s late delivery directly caused schedule delay.',
+    claim_type: 'client_delay',
+    response_status: 'unanswered',
+    materiality: 'high',
+    support_level: 'not_assessed',
+    supporting_evidence_ids: ['ev_client_content'],
+    contradicting_evidence_ids: [],
+    counterclaim_ids: [],
+    requires_clarification: false,
+    against_asserting_party_interest: false,
+    source_spans: [exactSpan(narrative, quote)],
+    ...overrides,
+  };
+}
+
 describe('cl_a_003 Person A recall coverage', () => {
   it('recovers the omitted grounded client-delay claim from the exact frozen model output', async () => {
     const { narrative, historicalExtraction, golden, modelOutput } = await frozenInputs();
@@ -198,13 +221,209 @@ describe('cl_a_003 Person A recall coverage', () => {
   it('does not duplicate an event already covered by a claim source span', () => {
     const narrative = 'Maya delivered the content late and it directly contributed to delay.';
     const modelOutput = candidateFixture(narrative);
-    modelOutput.claims.push({
-      claim_id: 'claim_existing',
-      source_spans: [exactSpan(narrative, narrative)],
-    });
+    modelOutput.claims.push(existingClaim(narrative));
 
     const corrected = recoverGroundedClientDelayClaims(modelOutput, narrative);
     expect(corrected.claims).toEqual(modelOutput.claims);
+  });
+
+  describe('review finding 1: explicit causal uncertainty', () => {
+    it.each([
+      'Alex says it is unclear whether the delivery contributed to delay.',
+      'Alex says it is unknown whether the delivery caused delay.',
+      'Alex says the delivery may have caused delay.',
+      'Alex says the delivery might have contributed to delay.',
+      'Alex says it remains unresolved whether the delivery caused delay.',
+      'Alex says it is merely possible that the delivery caused delay.',
+    ])('does not promote %s', (personAInterpretation) => {
+      const narrative = 'Maya delivered the content after the deadline.';
+      const modelOutput = candidateFixture(narrative, {
+        person_a_interpretation: personAInterpretation,
+      });
+
+      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toEqual([]);
+    });
+
+    it('still promotes a direct asserted causal interpretation', () => {
+      const narrative = 'Maya delivered the content late and it directly contributed to delay.';
+      const modelOutput = candidateFixture(narrative);
+
+      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toHaveLength(1);
+    });
+  });
+
+  describe('review finding 2: typed semantic duplicate coverage', () => {
+    it('does not let an unrelated deadline claim with a containing span suppress recovery', () => {
+      const eventQuote = 'Maya delivered the content late and it directly contributed to delay.';
+      const narrative = `The deadline was April 25. ${eventQuote}`;
+      const modelOutput = candidateFixture(narrative, { quote: eventQuote });
+      modelOutput.claims.push(
+        existingClaim(narrative, {
+          claim_text: 'Alex asserts that the deadline was April 25.',
+          claim_type: 'delay',
+          supporting_evidence_ids: ['ev_client_content'],
+        }),
+      );
+
+      const corrected = recoverGroundedClientDelayClaims(modelOutput, narrative);
+      expect(
+        corrected.claims.filter(
+          (claim: JsonObject) => claim.claim_id === 'claim_event_candidate_client_delay',
+        ),
+      ).toHaveLength(1);
+    });
+
+    it.each(['payment', 'scope'])(
+      'does not let an unrelated %s claim with a containing span suppress recovery',
+      (claimType) => {
+        const eventQuote = 'Maya delivered the content late and it directly contributed to delay.';
+        const narrative = `The paragraph discusses terms. ${eventQuote}`;
+        const modelOutput = candidateFixture(narrative, { quote: eventQuote });
+        modelOutput.claims.push(
+          existingClaim(narrative, {
+            claim_text: `Alex makes a ${claimType} assertion.`,
+            claim_type: claimType,
+          }),
+        );
+
+        const corrected = recoverGroundedClientDelayClaims(modelOutput, narrative);
+        expect(
+          corrected.claims.filter(
+            (claim: JsonObject) => claim.claim_id === 'claim_event_candidate_client_delay',
+          ),
+        ).toHaveLength(1);
+      },
+    );
+
+    it('suppresses a semantically compatible existing client-delay claim', () => {
+      const narrative = 'Maya delivered the content late and it directly contributed to delay.';
+      const modelOutput = candidateFixture(narrative);
+      modelOutput.claims.push(existingClaim(narrative));
+
+      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toEqual(
+        modelOutput.claims,
+      );
+    });
+
+    it('represents two structurally distinct qualifying events that share one source span', () => {
+      const narrative =
+        'Maya delivered the images late and continued changing text, and both events contributed to delay.';
+      const modelOutput = candidateFixture(narrative, {
+        event_id: 'event_images_late',
+        event_summary: 'Alex says Maya delivered the images late.',
+        person_a_interpretation:
+          'Alex treats the late image delivery as directly contributing to schedule delay.',
+      });
+      modelOutput.timeline.push({
+        ...structuredClone(modelOutput.timeline[0]),
+        event_id: 'event_text_changes',
+        event_summary: 'Alex says Maya continued changing the text.',
+        person_a_interpretation:
+          'Alex treats the continued text changes as directly contributing to schedule delay.',
+      });
+
+      const corrected = recoverGroundedClientDelayClaims(modelOutput, narrative);
+      expect(corrected.claims.map((claim: JsonObject) => claim.claim_id)).toEqual([
+        'claim_event_images_late_client_delay',
+        'claim_event_text_changes_client_delay',
+      ]);
+    });
+
+    it('does not duplicate structurally equivalent events', () => {
+      const narrative = 'Maya delivered the content late and it directly contributed to delay.';
+      const modelOutput = candidateFixture(narrative);
+      modelOutput.timeline.push({
+        ...structuredClone(modelOutput.timeline[0]),
+        event_id: 'event_duplicate',
+      });
+
+      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toHaveLength(1);
+    });
+  });
+
+  describe('review finding 3: canonical generated-ID registry', () => {
+    const stem = 'claim_event_candidate_client_delay';
+
+    it.each([
+      {
+        label: 'timeline event',
+        addCollision: (modelOutput: JsonObject) =>
+          modelOutput.timeline.push({
+            ...structuredClone(modelOutput.timeline[0]),
+            event_id: stem,
+          }),
+      },
+      {
+        label: 'evidence',
+        addCollision: (modelOutput: JsonObject) => modelOutput.evidence.push({ evidence_id: stem }),
+      },
+      {
+        label: 'agreement term',
+        addCollision: (modelOutput: JsonObject) => {
+          modelOutput.agreement = { terms: [{ term_id: stem }] };
+        },
+      },
+      {
+        label: 'claim',
+        addCollision: (modelOutput: JsonObject) =>
+          modelOutput.claims.push(
+            existingClaim('Maya delivered the content late and it directly contributed to delay.', {
+              claim_id: stem,
+              claim_type: 'payment',
+              source_spans: [],
+            }),
+          ),
+      },
+    ])('suffixes past a collision with a $label ID', ({ addCollision }) => {
+      const narrative = 'Maya delivered the content late and it directly contributed to delay.';
+      const modelOutput = candidateFixture(narrative);
+      addCollision(modelOutput);
+
+      const corrected = recoverGroundedClientDelayClaims(modelOutput, narrative);
+      expect(corrected.claims.some((claim: JsonObject) => claim.claim_id === `${stem}_2`)).toBe(
+        true,
+      );
+    });
+
+    it('advances deterministically through sequential cross-family collisions', () => {
+      const narrative = 'Maya delivered the content late and it directly contributed to delay.';
+      const modelOutput = candidateFixture(narrative);
+      modelOutput.timeline.push({
+        ...structuredClone(modelOutput.timeline[0]),
+        event_id: stem,
+      });
+      modelOutput.evidence.push({ evidence_id: `${stem}_2` });
+      modelOutput.agreement = { terms: [{ term_id: `${stem}_3` }] };
+      modelOutput.claims.push(
+        existingClaim(narrative, {
+          claim_id: `${stem}_4`,
+          claim_type: 'payment',
+          source_spans: [],
+        }),
+      );
+
+      const corrected = recoverGroundedClientDelayClaims(modelOutput, narrative);
+      expect(corrected.claims.some((claim: JsonObject) => claim.claim_id === `${stem}_5`)).toBe(
+        true,
+      );
+    });
+
+    it('keeps a full assembled extraction valid when another family owns the stem', async () => {
+      const { narrative, modelOutput } = await frozenInputs();
+      const frozenStem = 'claim_event_04_major_batch_client_delay';
+      modelOutput.clarification_questions[0].question_id = frozenStem;
+
+      const corrected = assemblePersonAExtraction(modelOutput, {
+        narrative,
+        submittedAt,
+        model,
+        generatedAt,
+      });
+      expect(
+        corrected.claims.some((claim: JsonObject) => claim.claim_id === `${frozenStem}_2`),
+      ).toBe(true);
+      expect(validatePersonAExtraction(corrected, narrative).valid).toBe(true);
+    });
   });
 
   it('preserves the selected occurrence when identical source text repeats', () => {

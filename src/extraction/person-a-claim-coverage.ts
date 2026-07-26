@@ -3,7 +3,7 @@ type JsonObject = Record<string, any>;
 const DIRECT_DELAY_CAUSATION =
   /\b(?:caus(?:e|es|ed|ing)|contribut(?:e|es|ed|ing)|result(?:s|ed|ing))\b[^.]{0,96}\b(?:schedule\s+)?delay\b|\b(?:schedule\s+)?delay\b[^.]{0,96}\b(?:caus(?:e|es|ed|ing)|result(?:s|ed|ing)\s+from|came\s+from)\b/iu;
 const NON_ASSERTED_CAUSATION =
-  /\b(?:could|might|may|possibly|perhaps|hypothetical(?:ly)?|speculat(?:e|es|ed|ing|ive)|uncertain|unsure|infer(?:s|red|ring)?|wonder(?:s|ed|ing)?\s+whether)\b/iu;
+  /\b(?:could|might|possibly|possible|perhaps|hypothetical(?:ly)?|speculat(?:e|es|ed|ing|ive)|unclear|uncertain|unknown|unresolved|ambiguous|unsure|whether|infer(?:s|red|ring)?|wonder(?:s|ed|ing)?)\b|\bmay\b(?!\s+\d{1,2}\b)|\b(?:not|isn['’]t|wasn['’]t)\s+(?:clear|known|established|resolved)\b/iu;
 const DENIED_CAUSATION =
   /\b(?:den(?:y|ies|ied|ying)|disput(?:e|es|ed|ing)|did\s+not|does\s+not|do\s+not|was\s+not|were\s+not|never)\b[^.]{0,96}\b(?:caus|contribut|result|delay)\w*/iu;
 const REPORTED_BELIEF =
@@ -61,27 +61,122 @@ function preservesSourceQualifications(eventSummary: string, spans: JsonObject[]
   return true;
 }
 
-function spanCoveredByExistingClaim(span: JsonObject, claims: JsonObject[]): boolean {
-  return claims.some((claim) =>
-    (Array.isArray(claim.source_spans) ? claim.source_spans : []).some(
-      (claimSpan: unknown) =>
-        isJsonObject(claimSpan) &&
-        claimSpan.submission_id === span.submission_id &&
-        Number.isInteger(claimSpan.start_char) &&
-        Number.isInteger(claimSpan.end_char) &&
-        claimSpan.start_char <= span.start_char &&
-        claimSpan.end_char >= span.end_char,
-    ),
+function spanContains(claimSpan: unknown, eventSpan: JsonObject): boolean {
+  return (
+    isJsonObject(claimSpan) &&
+    claimSpan.submission_id === eventSpan.submission_id &&
+    Number.isInteger(claimSpan.start_char) &&
+    Number.isInteger(claimSpan.end_char) &&
+    claimSpan.start_char <= eventSpan.start_char &&
+    claimSpan.end_char >= eventSpan.end_char
   );
 }
 
-function uniqueClaimId(eventId: string, claims: JsonObject[]): string {
-  const stem = `claim_${eventId.replace(/[^a-zA-Z0-9_-]/gu, '_')}_client_delay`;
-  const ids = new Set(
-    claims
-      .map((claim) => claim.claim_id)
-      .filter((value): value is string => typeof value === 'string'),
+function evidenceSupportCompatible(claim: JsonObject, event: JsonObject): boolean {
+  const claimEvidence = new Set(
+    (Array.isArray(claim.supporting_evidence_ids) ? claim.supporting_evidence_ids : []).filter(
+      (value: unknown): value is string => typeof value === 'string',
+    ),
   );
+  const eventEvidence = (
+    Array.isArray(event.source_evidence_ids) ? event.source_evidence_ids : []
+  ).filter((value: unknown): value is string => typeof value === 'string');
+  if (eventEvidence.length === 0) return claimEvidence.size === 0;
+  return eventEvidence.some((id: string) => claimEvidence.has(id));
+}
+
+function existingClaimCoversEvent(
+  claim: JsonObject,
+  event: JsonObject,
+  spans: JsonObject[],
+): boolean {
+  if (
+    claim.party_id !== 'party_a' ||
+    claim.claim_type !== 'client_delay' ||
+    claim.response_status !== 'unanswered' ||
+    claim.materiality !== event.materiality ||
+    claim.against_asserting_party_interest !== false ||
+    !evidenceSupportCompatible(claim, event)
+  ) {
+    return false;
+  }
+  const claimSpans = Array.isArray(claim.source_spans) ? claim.source_spans : [];
+  return spans.every((span) =>
+    claimSpans.some((claimSpan: unknown) => spanContains(claimSpan, span)),
+  );
+}
+
+function eventSemanticKey(event: JsonObject, spans: JsonObject[]): string {
+  const evidenceIds = (Array.isArray(event.source_evidence_ids) ? event.source_evidence_ids : [])
+    .filter((value: unknown): value is string => typeof value === 'string')
+    .sort();
+  const sourceSpans = spans
+    .map((span) => ({
+      submission_id: span.submission_id,
+      start_char: span.start_char,
+      end_char: span.end_char,
+      quote: span.quote,
+    }))
+    .sort(
+      (left, right) =>
+        String(left.submission_id).localeCompare(String(right.submission_id)) ||
+        left.start_char - right.start_char ||
+        left.end_char - right.end_char ||
+        String(left.quote).localeCompare(String(right.quote)),
+    );
+  return JSON.stringify({
+    event_summary: event.event_summary,
+    actor_party_id: event.actor_party_id,
+    actor_third_party_id: event.actor_third_party_id,
+    asserted_by_party_ids: event.asserted_by_party_ids,
+    occurrence_status: event.occurrence_status,
+    interpretation_status: event.interpretation_status,
+    person_a_interpretation: event.person_a_interpretation,
+    person_b_interpretation: event.person_b_interpretation,
+    materiality: event.materiality,
+    date: {
+      start: event.date?.start,
+      end: event.date?.end,
+      precision: event.date?.precision,
+      approximate: event.date?.approximate,
+    },
+    source_evidence_ids: evidenceIds,
+    source_spans: sourceSpans,
+  });
+}
+
+function collectCanonicalIds(modelOutput: JsonObject): Set<string> {
+  // Mirrors every canonical object-ID family registered by validate-person-a.ts.
+  const ids = new Set<string>(['party_a', 'sub_a_extracted']);
+  const register = (value: unknown): void => {
+    if (typeof value === 'string') ids.add(value);
+  };
+  const each = (value: unknown, visit: (item: JsonObject) => void): void => {
+    if (!Array.isArray(value)) return;
+    value.forEach((item) => {
+      if (isJsonObject(item)) visit(item);
+    });
+  };
+
+  each(modelOutput.third_parties, (item) => register(item.third_party_id));
+  each(modelOutput.agreement?.terms, (item) => register(item.term_id));
+  each(modelOutput.deliverable_assessments, (item) => register(item.deliverable_id));
+  each(modelOutput.timeline, (item) => register(item.event_id));
+  each(modelOutput.claims, (item) => register(item.claim_id));
+  each(modelOutput.evidence, (item) => {
+    register(item.evidence_id);
+    each(item.extracts, (extract) => register(extract.extract_id));
+  });
+  each(modelOutput.claim_evidence_links, (item) => register(item.link_id));
+  each(modelOutput.damages_claims, (item) => register(item.damages_claim_id));
+  each(modelOutput.desired_outcomes?.outcomes, (item) => register(item.outcome_id));
+  each(modelOutput.extraction_issues, (item) => register(item.issue_id));
+  each(modelOutput.clarification_questions, (item) => register(item.question_id));
+  return ids;
+}
+
+function uniqueClaimId(eventId: string, ids: Set<string>): string {
+  const stem = `claim_${eventId.replace(/[^a-zA-Z0-9_-]/gu, '_')}_client_delay`;
   if (!ids.has(stem)) return stem;
   let suffix = 2;
   while (ids.has(`${stem}_${suffix}`)) suffix += 1;
@@ -105,6 +200,9 @@ export function recoverGroundedClientDelayClaims(
   const normalized = structuredClone(modelOutput);
   const timeline = Array.isArray(normalized.timeline) ? normalized.timeline : [];
   const claims: JsonObject[] = Array.isArray(normalized.claims) ? normalized.claims : [];
+  const providerClaims = [...claims];
+  const canonicalIds = collectCanonicalIds(normalized);
+  const representedEvents = new Set<string>();
   normalized.claims = claims;
 
   for (const event of timeline) {
@@ -131,9 +229,14 @@ export function recoverGroundedClientDelayClaims(
     if (
       spans.length === 0 ||
       !spans.every((span: unknown) => exactSourceSpan(span, narrative)) ||
-      !preservesSourceQualifications(event.event_summary, spans) ||
-      spans.every((span: JsonObject) => spanCoveredByExistingClaim(span, claims))
+      !preservesSourceQualifications(event.event_summary, spans)
     ) {
+      continue;
+    }
+    const semanticKey = eventSemanticKey(event, spans);
+    if (representedEvents.has(semanticKey)) continue;
+    if (providerClaims.some((claim) => existingClaimCoversEvent(claim, event, spans))) {
+      representedEvents.add(semanticKey);
       continue;
     }
 
@@ -146,8 +249,11 @@ export function recoverGroundedClientDelayClaims(
           ),
         ]
       : [];
+    const claimId = uniqueClaimId(event.event_id, canonicalIds);
+    canonicalIds.add(claimId);
+    representedEvents.add(semanticKey);
     claims.push({
-      claim_id: uniqueClaimId(event.event_id, claims),
+      claim_id: claimId,
       party_id: 'party_a',
       claim_text: event.event_summary,
       claim_type: 'client_delay',
