@@ -2,9 +2,22 @@ type JsonObject = Record<string, any>;
 
 export type PersonASemanticAliases = Readonly<Record<string, string>>;
 
+export type PersonAEvaluationContractVersion = 'locked_acceptance_v1' | 'calibrated_live_v2';
+
 export type PersonAAlignmentOptions = {
   aliases?: PersonASemanticAliases;
+  narrative?: string;
+  contractVersion: PersonAEvaluationContractVersion;
 };
+
+export function requirePersonAEvaluationContractVersion(
+  value: unknown,
+): PersonAEvaluationContractVersion {
+  if (value === 'locked_acceptance_v1' || value === 'calibrated_live_v2') return value;
+  throw new Error(
+    'Person A evaluation requires an explicit contractVersion: locked_acceptance_v1 or calibrated_live_v2.',
+  );
+}
 
 export const DRY_RUN_001_COMPATIBILITY_ALIASES: PersonASemanticAliases = {
   client: 'maya',
@@ -86,6 +99,22 @@ const genericSynonyms: Record<string, string> = {
   unusable: 'broken',
   defective: 'broken',
 };
+
+const messageEvidenceTypes = new Set(['message_export', 'message_history', 'message_screenshot']);
+
+export function isMessageEvidenceType(value: unknown): value is string {
+  return typeof value === 'string' && messageEvidenceTypes.has(value);
+}
+
+/**
+ * Compatibility is deliberately narrow. These three values describe different
+ * representations of the same message-based source, so they may be compared when
+ * the evidence identity also matches. No other evidence categories normalize.
+ */
+export function evidenceTypesCompatible(left: unknown, right: unknown): boolean {
+  if (typeof left !== 'string' || typeof right !== 'string') return false;
+  return left === right || (isMessageEvidenceType(left) && isMessageEvidenceType(right));
+}
 
 export function normalizeMeaning(value: unknown, aliases: PersonASemanticAliases = {}): string {
   const text = typeof value === 'string' ? value : '';
@@ -177,6 +206,141 @@ function join(value: unknown): string {
   return Array.isArray(value) ? value.join(' ') : '';
 }
 
+function evidenceExtractText(item: JsonObject): string {
+  return Array.isArray(item.extracts)
+    ? item.extracts
+        .map((extract: JsonObject) => extract?.text)
+        .filter((text: unknown): text is string => typeof text === 'string' && text.length > 0)
+        .join(' ')
+    : '';
+}
+
+const messageIdentityNoise = new Set([
+  'alex',
+  'chat',
+  'communication',
+  'communications',
+  'conversation',
+  'evidence',
+  'maya',
+  'message',
+  'messages',
+  'party',
+  'submitter',
+  'whatsapp',
+]);
+
+const messageArtifactMarkers = new Set([
+  'archive',
+  'attachment',
+  'capture',
+  'export',
+  'exported',
+  'file',
+  'history',
+  'log',
+  'record',
+  'saved',
+  'screenshot',
+  'transcript',
+]);
+
+export type EvidenceIdentityCorrespondence = {
+  matches: boolean;
+  basis: 'quoted_content' | 'artifact_identity' | null;
+  strength: number;
+};
+
+function substantiveMessageTokens(value: unknown): Set<string> {
+  return new Set(
+    normalizeMeaning(value)
+      .split(' ')
+      .filter((token) => token.length >= 3 && !messageIdentityNoise.has(token)),
+  );
+}
+
+function sharedTokenCount(left: Set<string>, right: Set<string>): number {
+  return [...left].filter((token) => right.has(token)).length;
+}
+
+function hasMessageArtifactAssertion(item: JsonObject): boolean {
+  if (
+    ['file_reference', 'original_filename', 'file_hash'].some(
+      (field) => typeof item[field] === 'string' && item[field].length > 0,
+    )
+  ) {
+    return true;
+  }
+  if (
+    typeof item.provenance?.export_method === 'string' &&
+    item.provenance.export_method.length > 0
+  ) {
+    return true;
+  }
+  const tokens = substantiveMessageTokens(
+    `${item.title ?? ''} ${item.description_from_submitter ?? ''}`,
+  );
+  return [...tokens].some((token) => messageArtifactMarkers.has(token));
+}
+
+/**
+ * Cross-type message compatibility only opens the comparison gate. Identity
+ * still requires corresponding quoted content, or two artifact records with
+ * substantive subject correspondence. A channel, source system, or shared
+ * participant never establishes artifact identity by itself.
+ */
+export function evidenceIdentityCorrespondence(
+  left: JsonObject,
+  right: JsonObject,
+  aliases: PersonASemanticAliases = {},
+): EvidenceIdentityCorrespondence {
+  if (!evidenceTypesCompatible(left.evidence_type, right.evidence_type)) {
+    return { matches: false, basis: null, strength: 0 };
+  }
+
+  const leftExtracts = evidenceExtractText(left);
+  const rightExtracts = evidenceExtractText(right);
+  if (leftExtracts.length > 0 && rightExtracts.length > 0) {
+    const leftTokens = substantiveMessageTokens(leftExtracts);
+    const rightTokens = substantiveMessageTokens(rightExtracts);
+    const shared = sharedTokenCount(leftTokens, rightTokens);
+    const smaller = Math.min(leftTokens.size, rightTokens.size);
+    const coverage = smaller === 0 ? 0 : shared / smaller;
+    const similarity = semanticSimilarity(leftExtracts, rightExtracts, aliases);
+    if (shared >= 2 && coverage >= 0.5 && similarity >= 0.35) {
+      return {
+        matches: true,
+        basis: 'quoted_content',
+        strength: Math.max(coverage, similarity),
+      };
+    }
+  }
+
+  if (!hasMessageArtifactAssertion(left) || !hasMessageArtifactAssertion(right)) {
+    return { matches: false, basis: null, strength: 0 };
+  }
+
+  const leftIdentity = `${left.title ?? ''} ${left.description_from_submitter ?? ''}`;
+  const rightIdentity = `${right.title ?? ''} ${right.description_from_submitter ?? ''}`;
+  const leftTokens = substantiveMessageTokens(leftIdentity);
+  const rightTokens = substantiveMessageTokens(rightIdentity);
+  const shared = sharedTokenCount(leftTokens, rightTokens);
+  const smaller = Math.min(leftTokens.size, rightTokens.size);
+  const coverage = smaller === 0 ? 0 : shared / smaller;
+  const similarity = Math.max(
+    semanticSimilarity(left.title, right.title, aliases),
+    semanticSimilarity(left.description_from_submitter, right.description_from_submitter, aliases),
+  );
+  if (shared >= 2 && coverage >= 0.5 && similarity >= 0.45) {
+    return {
+      matches: true,
+      basis: 'artifact_identity',
+      strength: Math.max(coverage, similarity),
+    };
+  }
+  return { matches: false, basis: null, strength: 0 };
+}
+
 function idFor(family: PersonAFamily, item: JsonObject, index: number): string {
   const keys: Record<PersonAFamily, string> = {
     agreement_terms: 'term_id',
@@ -221,6 +385,7 @@ function candidateScore(
   extracted: JsonObject,
   golden: JsonObject,
   aliases: PersonASemanticAliases,
+  contractVersion: PersonAAlignmentOptions['contractVersion'],
 ): number | null {
   const similarity = (left: unknown, right: unknown): number =>
     semanticSimilarity(left, right, aliases);
@@ -238,11 +403,35 @@ function candidateScore(
       return 0.72 * similarity(extracted.event_summary, golden.event_summary) + 0.28 * dates;
     }
     case 'evidence':
+      if (extracted.submitted_by_party_id !== golden.submitted_by_party_id) return null;
       if (
-        extracted.submitted_by_party_id !== golden.submitted_by_party_id ||
-        extracted.evidence_type !== golden.evidence_type
-      )
+        contractVersion === 'locked_acceptance_v1'
+          ? extracted.evidence_type !== golden.evidence_type
+          : !evidenceTypesCompatible(extracted.evidence_type, golden.evidence_type)
+      ) {
         return null;
+      }
+      if (
+        contractVersion === 'calibrated_live_v2' &&
+        isMessageEvidenceType(extracted.evidence_type)
+      ) {
+        const correspondence = evidenceIdentityCorrespondence(extracted, golden, aliases);
+        if (!correspondence.matches) return null;
+        const sameSourceSystem =
+          typeof extracted.provenance?.source_system === 'string' &&
+          extracted.provenance.source_system.length > 0 &&
+          extracted.provenance.source_system === golden.provenance?.source_system;
+        return 0.52 + 0.25 * correspondence.strength + 0.05 * Number(sameSourceSystem);
+      }
+      if (extracted.evidence_type !== golden.evidence_type) {
+        const correspondence = evidenceIdentityCorrespondence(extracted, golden, aliases);
+        if (!correspondence.matches) return null;
+        const sameSourceSystem =
+          typeof extracted.provenance?.source_system === 'string' &&
+          extracted.provenance.source_system.length > 0 &&
+          extracted.provenance.source_system === golden.provenance?.source_system;
+        return 0.52 + 0.25 * correspondence.strength + 0.05 * Number(sameSourceSystem);
+      }
       return (
         0.48 * similarity(extracted.title, golden.title) +
         0.37 * similarity(extracted.description_from_submitter, golden.description_from_submitter) +
@@ -379,9 +568,12 @@ function alignFamily(
   extractedItems: JsonObject[],
   goldenItems: JsonObject[],
   aliases: PersonASemanticAliases,
+  contractVersion: PersonAAlignmentOptions['contractVersion'],
 ): FamilyAlignment {
   const scores = extractedItems.map((extracted) =>
-    goldenItems.map((golden) => candidateScore(family, extracted, golden, aliases)),
+    goldenItems.map((golden) =>
+      candidateScore(family, extracted, golden, aliases, contractVersion),
+    ),
   );
   const assignment = maximumWeightAssignment(scores);
   const pairs: AlignmentPair[] = [];
@@ -448,8 +640,9 @@ function alignFamily(
 export function alignPersonAForCase(
   extracted: JsonObject,
   golden: JsonObject,
-  options: PersonAAlignmentOptions = {},
+  options: PersonAAlignmentOptions,
 ): PersonAAlignment {
+  const contractVersion = requirePersonAEvaluationContractVersion(options.contractVersion);
   const families = {} as Record<PersonAFamily, FamilyAlignment>;
   for (const family of familyOrder) {
     families[family] = alignFamily(
@@ -457,6 +650,7 @@ export function alignPersonAForCase(
       familyItems(extracted, family),
       familyItems(golden, family),
       options.aliases ?? {},
+      contractVersion,
     );
   }
   return { version: 'person-a-alignment-v0.1.0', families };
@@ -465,5 +659,6 @@ export function alignPersonAForCase(
 export function alignPersonA(extracted: JsonObject, golden: JsonObject): PersonAAlignment {
   return alignPersonAForCase(extracted, golden, {
     aliases: DRY_RUN_001_COMPATIBILITY_ALIASES,
+    contractVersion: 'calibrated_live_v2',
   });
 }

@@ -4,6 +4,10 @@ import { fileURLToPath } from 'node:url';
 import { alignPersonA } from '../alignment/person-a-alignment-corrected.js';
 import { evaluatePersonA, reportMarkdown } from '../evaluation/person-a-diff-corrected.js';
 import { buildPersonAGoldenProjection } from '../evaluation/person-a-golden.js';
+import {
+  diagnosePersonASourceSpans,
+  parsePersonAModelOutputFromRawResponse,
+} from '../evaluation/person-a-span-diagnostics.js';
 import { extractPersonA } from '../extraction/person-a-extractor.js';
 import {
   OpenAIResponsesClient,
@@ -17,6 +21,7 @@ export type ExtractPersonACommandArgs = {
   model: string;
   outputDir: string;
   extraction?: string;
+  rawResponse?: string;
   failOnCritical: boolean;
 };
 
@@ -24,7 +29,14 @@ const currentFile = fileURLToPath(import.meta.url);
 const projectRoot = resolve(currentFile, '../../..');
 
 export function parseExtractPersonAArgs(argv: string[]): ExtractPersonACommandArgs {
-  const valueOptions = new Set(['input', 'submitted-at', 'model', 'output-dir', 'extraction']);
+  const valueOptions = new Set([
+    'input',
+    'submitted-at',
+    'model',
+    'output-dir',
+    'extraction',
+    'raw-response',
+  ]);
   const flagOptions = new Set(['fail-on-critical']);
   const values = new Map<string, string>();
   const flags = new Set<string>();
@@ -57,6 +69,9 @@ export function parseExtractPersonAArgs(argv: string[]): ExtractPersonACommandAr
     outputDir: resolve(projectRoot, values.get('output-dir') ?? 'artifacts/person-a/latest'),
     ...(values.get('extraction')
       ? { extraction: resolve(projectRoot, values.get('extraction')!) }
+      : {}),
+    ...(values.get('raw-response')
+      ? { rawResponse: resolve(projectRoot, values.get('raw-response')!) }
       : {}),
     failOnCritical: flags.has('fail-on-critical'),
   };
@@ -91,10 +106,18 @@ export async function runExtractPersonACommand(
     (configuredReasoning as 'low' | 'medium' | 'high' | undefined) ?? 'medium';
   let extraction: Record<string, any>;
   let rawResponse: Record<string, any> | null = null;
+  let savedModelOutput: Record<string, any> | null = null;
 
   if (args.extraction) {
     extraction = JSON.parse(await readFile(args.extraction, 'utf8')) as Record<string, any>;
+    if (args.rawResponse) {
+      rawResponse = JSON.parse(await readFile(args.rawResponse, 'utf8')) as Record<string, any>;
+      savedModelOutput = parsePersonAModelOutputFromRawResponse(rawResponse);
+    }
   } else {
+    if (args.rawResponse) {
+      throw new TypeError('--raw-response requires --extraction for an offline saved-run replay.');
+    }
     const apiKey = dependencies.getEnvironment('OPENAI_API_KEY');
     if (!apiKey)
       throw new Error(
@@ -113,6 +136,7 @@ export async function runExtractPersonACommand(
     });
     extraction = result.extraction;
     rawResponse = result.rawResponse;
+    savedModelOutput = result.modelOutput;
   }
 
   const validation = validatePersonAExtraction(extraction, narrative);
@@ -158,6 +182,22 @@ export async function runExtractPersonACommand(
       writeFile(
         resolve(args.outputDir, 'raw-response.json'),
         `${JSON.stringify(rawResponse, null, 2)}\n`,
+      ),
+    );
+  }
+  if (savedModelOutput) {
+    writes.push(
+      writeFile(
+        resolve(args.outputDir, 'span-diagnostics.json'),
+        `${JSON.stringify(
+          diagnosePersonASourceSpans({
+            modelOutput: savedModelOutput,
+            narrative,
+            assembledExtraction: extraction,
+          }),
+          null,
+          2,
+        )}\n`,
       ),
     );
   }

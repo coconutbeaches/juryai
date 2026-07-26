@@ -52,26 +52,76 @@ contract is rejection, historical 0/3, and broad failure classes.
 Candidate provenance is a typed field:
 
 - `historical_saved_output` is sanitized JSON captured from a historical model-backed extraction;
+- `live_run` is a fresh model execution preserved with its live-run provenance; and
 - `hand_authored_control` is a manually constructed control that proves the evaluator can accept
   a correct candidate.
 
-Controls are reported separately and never contribute to historical model acceptance. The
-tracked saved outputs reproduce a historical result of **0/3 accepted**. This is an offline
-replay, not a newly executed live/model result.
+Origin is provenance, not acceptance. A tracked `live_run` remains subject to the same
+zero-critical/zero-major rule and is not included in `historical_model_acceptance`. A live run is
+also never relabelled as a historical saved output or hand-authored control merely because its
+artifacts are later preserved. Rejected live runs may remain outside the acceptance manifest when
+their audit artifacts are tracked elsewhere.
 
-### Prompt v0.1.4 compatibility boundary
+Historical saved outputs and hand-authored controls continue through the byte-locked
+`locked_acceptance_v1` path so the PR #11 canonical output hash remains stable. A `live_run`
+candidate uses `calibrated_live_v2`. This is an explicit version boundary, not an origin-dependent
+acceptance threshold: both paths still require valid schema/invariants and zero critical and major
+findings. The origin selects which measurement contract is historically truthful for that fixture;
+it never changes a finding into an acceptance waiver.
 
-Dry Runs 002 and 003 are minimal hand-authored controls for the unchanged evaluator, not fresh
-live-extraction acceptance cases for prompt `person-a-v0.1.4`. Their narratives separately name
-agreement components that rule 23 now requires a live extraction to decompose, while their locked
-goldens retain one consolidated scope term. The unchanged evaluator necessarily reports the
-additional components as acceptance-blocking unsupported extra objects.
+The case-aware alignment and evaluation functions require `contractVersion` at every call site.
+Canonical acceptance explicitly selects `locked_acceptance_v1`; the ordinary `alignPersonA` and
+`evaluatePersonA` wrappers explicitly select `calibrated_live_v2`. There is no silent omitted-version
+fallback.
 
-No fresh model-backed candidate may be added for Dry Run 002 or 003 while that mismatch remains.
-The CI semantic-contract suite enforces that both cases contain only `hand_authored_control`
-candidates. Removing that restriction requires a coordinated follow-up migration of the
-narratives/goldens and evaluator contract; prompt wording, thresholds, or candidate labels must
-not be used to hide the mismatch. Dry Run 001 remains the separately planned fresh-run target.
+Controls are reported separately and never contribute to historical model acceptance. The tracked
+saved outputs reproduce a historical result of **0/3 accepted**. This is an offline replay, not a
+newly executed live/model result.
+
+### Prompt v0.1.4 agreement-term granularity
+
+Rule 23 requires separately named agreement components to remain separate even when a locked golden
+uses one broader term. The evaluator therefore recognizes a compatible one-to-many decomposition
+only when deterministic support exists: equal `term_type`, or a named Rule 23 component
+(`price`, `deposit`, `payment_trigger`, `deadline`, `client_dependency`, `revision_limit`, or
+`credentials`) under a broader golden `scope`; at least two substantive wording concepts supported
+by exact source slices; category cues expressed by those slices; and at least two substantive
+concepts shared with the broader matched golden term. Span overlap corroborates provenance but does
+not establish semantic correspondence. A single shared token cannot qualify. The evaluator records
+a valid split as the non-blocking `agreement_term_decomposition` diagnostic without lowering the
+generic semantic thresholds.
+
+An unmatched agreement term outside a broader matched term has a separate
+`source_grounded_extra_object` path only when its substantive assertion and category are supported
+by exact narrative slices and the claim is not materially stronger than the narrative. That path
+remains major because the evaluator cannot prove whether the difference is intentional granularity
+or a golden omission. A mislabeled term, invented legal consequence, or assertion supported only by
+the location of a real quote remains an `unsupported_extra_object` critical.
+
+### Evidence observability and type compatibility
+
+Evidence recall is scored against the exact Person A narrative supplied to the extractor. The
+report preserves both views:
+
+- `metrics.evidence` uses only observable golden evidence as its recall denominator;
+- `evidence_recall` reports total, observable, unobservable, matched-observable, observable recall,
+  the full-golden diagnostic, and one explanation for every excluded golden object.
+
+An evidence object is observable when the Person A narrative describes the relevant artifact class
+or contains the quoted evidence detail. Details found only in a richer golden record, Person B
+material, or another source are not observable. They remain in the golden and in the full-golden
+diagnostic; they are not silently deleted.
+
+Evidence types are exact by default. Only `message_export`, `message_history`, and
+`message_screenshot` form a compatibility group. A compatible type is necessary but insufficient:
+cross-type alignment requires either substantively corresponding quoted content, or two actual
+artifact descriptions with substantive subject correspondence. A communication channel, shared
+source system, or shared participant never proves possession of an export, history, screenshot,
+full record, or partial record. Legitimate unequal representations produce an informational
+diagnostic without changing critical, major, or minor counts. A superficially related message type
+with unrelated wording is not aligned.
+Contracts, email threads, payment records, project histories, recordings, videos, deliverables,
+and every other category remain incompatible unless their enum values are exact.
 
 Only extraction JSON is tracked. The corpus excludes raw Responses payloads, request IDs, token
 usage, credentials, secrets, and unnecessary provider metadata. The v1 and v2 fixtures were

@@ -1,7 +1,12 @@
 import {
   alignPersonAForCase as alignBase,
   DRY_RUN_001_COMPATIBILITY_ALIASES,
+  evidenceIdentityCorrespondence,
+  evidenceTypesCompatible,
   familyItems,
+  isMessageEvidenceType,
+  normalizeMeaning,
+  requirePersonAEvaluationContractVersion,
   semanticSimilarity,
   type AlignmentPair,
   type PersonAAlignmentOptions,
@@ -363,6 +368,8 @@ function recoverUniqueEvidenceBlocks(
   extracted: JsonObject,
   golden: JsonObject,
   alignment: PersonAAlignment,
+  aliases: PersonASemanticAliases,
+  contractVersion: PersonAAlignmentOptions['contractVersion'],
 ): void {
   const family = alignment.families.evidence;
   const extractedItems = familyItems(extracted, 'evidence');
@@ -373,29 +380,41 @@ function recoverUniqueEvidenceBlocks(
     const left = extractedItems[extra.index] ?? {};
     const compatibleGolden = family.unmatched_golden.filter((missing) => {
       const right = goldenItems[missing.index] ?? {};
+      const sameType = left.evidence_type === right.evidence_type;
+      const correspondence = evidenceIdentityCorrespondence(left, right, aliases);
       return (
         left.submitted_by_party_id === right.submitted_by_party_id &&
-        left.evidence_type === right.evidence_type
+        (contractVersion === 'locked_acceptance_v1'
+          ? sameType
+          : (sameType && !isMessageEvidenceType(left.evidence_type)) || correspondence.matches)
       );
     });
     const compatibleExtracted = family.unmatched_extracted.filter((other) => {
       const item = extractedItems[other.index] ?? {};
       return (
         item.submitted_by_party_id === left.submitted_by_party_id &&
-        item.evidence_type === left.evidence_type
+        (contractVersion === 'locked_acceptance_v1'
+          ? item.evidence_type === left.evidence_type
+          : evidenceTypesCompatible(item.evidence_type, left.evidence_type))
       );
     });
     if (compatibleGolden.length !== 1 || compatibleExtracted.length !== 1) continue;
     const missing = compatibleGolden[0]!;
     const right = goldenItems[missing.index] ?? {};
     const sameSourceSystem =
-      typeof left.source_system === 'string' &&
-      left.source_system.length > 0 &&
-      left.source_system === right.source_system;
+      typeof left.provenance?.source_system === 'string' &&
+      left.provenance.source_system.length > 0 &&
+      left.provenance.source_system === right.provenance?.source_system;
+    const correspondence = evidenceIdentityCorrespondence(left, right, aliases);
     candidates.push({
       extractedIndex: extra.index,
       goldenIndex: missing.index,
-      score: sameSourceSystem ? 0.8 : 0.55,
+      score:
+        left.evidence_type === right.evidence_type
+          ? sameSourceSystem
+            ? 0.8
+            : 0.55
+          : 0.52 + 0.25 * correspondence.strength + 0.05 * Number(sameSourceSystem),
     });
   }
 
@@ -469,8 +488,9 @@ function recoverOutcomeTransferReversals(
 export function alignPersonAForCase(
   extracted: JsonObject,
   golden: JsonObject,
-  options: PersonAAlignmentOptions = {},
+  options: PersonAAlignmentOptions,
 ): PersonAAlignment {
+  requirePersonAEvaluationContractVersion(options.contractVersion);
   const aliases = options.aliases ?? {};
   const alignment = alignBase(extracted, golden, options);
   removeAmbiguousDuplicates(alignment);
@@ -478,7 +498,7 @@ export function alignPersonAForCase(
   recoverContainedDeliverableNames(extracted, golden, alignment);
   recoverUniqueClaimFacts(extracted, golden, alignment, aliases);
   recoverAdjacentTimelineDates(extracted, golden, alignment, aliases);
-  recoverUniqueEvidenceBlocks(extracted, golden, alignment);
+  recoverUniqueEvidenceBlocks(extracted, golden, alignment, aliases, options.contractVersion);
   recoverActorReversals(extracted, golden, alignment, aliases);
   recoverOutcomeTransferReversals(extracted, golden, alignment, aliases);
   return alignment;
@@ -487,12 +507,18 @@ export function alignPersonAForCase(
 export function alignPersonA(extracted: JsonObject, golden: JsonObject): PersonAAlignment {
   return alignPersonAForCase(extracted, golden, {
     aliases: DRY_RUN_001_COMPATIBILITY_ALIASES,
+    contractVersion: 'calibrated_live_v2',
   });
 }
 
 export {
   DRY_RUN_001_COMPATIBILITY_ALIASES,
+  evidenceIdentityCorrespondence,
+  evidenceTypesCompatible,
   familyItems,
+  isMessageEvidenceType,
+  normalizeMeaning,
+  requirePersonAEvaluationContractVersion,
   semanticSimilarity,
 } from './person-a-alignment.js';
 export type {

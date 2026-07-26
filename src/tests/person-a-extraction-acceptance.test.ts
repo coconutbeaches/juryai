@@ -84,6 +84,40 @@ describe('Person A extraction acceptance corpus', () => {
         .every((result) => result.status === 'accepted'),
     ).toBe(true);
     expect(suite.historical_model_acceptance).toEqual({ accepted: 0, total: 3 });
+    expect(suite.by_origin.live_run).toBeUndefined();
+  });
+
+  it('keeps a live-run origin distinct from historical outputs and controls', async () => {
+    const cases = await corpus();
+    const dryRun1 = cases.find((entry) => entry.caseId === 'dry_run_001')!;
+    const liveCandidate = {
+      candidateId: 'synthetic_live_origin_probe',
+      origin: 'live_run' as const,
+      extraction: clone(dryRun1.golden),
+      candidateHash: sha256Bytes(JSON.stringify(dryRun1.golden)),
+      expectedStatus: 'accepted' as const,
+    };
+    const suite = evaluatePersonAExtractionAcceptanceSuite(
+      cases.map((entry) =>
+        entry.caseId === dryRun1.caseId
+          ? { ...entry, candidates: [...entry.candidates, liveCandidate] }
+          : entry,
+      ),
+    );
+    const liveResult = suite.results.find(
+      (result) => result.candidate_id === liveCandidate.candidateId,
+    );
+    expect(liveResult).toMatchObject({
+      candidate_origin: 'live_run',
+      status: 'accepted',
+    });
+    expect(suite.by_origin.live_run).toEqual({ total: 1, accepted: 1, rejected: 0 });
+    expect(suite.by_origin.hand_authored_control).toEqual({
+      total: 3,
+      accepted: 3,
+      rejected: 0,
+    });
+    expect(suite.historical_model_acceptance).toEqual({ accepted: 0, total: 3 });
   });
 
   it('keeps synthetic controls internally consistent and preserves quoted authorship', async () => {
@@ -282,7 +316,10 @@ describe('Person A extraction acceptance corpus', () => {
 
     const golden = buildPersonAGoldenProjection();
     expect(alignPersonA(golden, golden)).toEqual(
-      alignPersonAForCase(golden, golden, { aliases: DRY_RUN_001_COMPATIBILITY_ALIASES }),
+      alignPersonAForCase(golden, golden, {
+        aliases: DRY_RUN_001_COMPATIBILITY_ALIASES,
+        contractVersion: 'calibrated_live_v2',
+      }),
     );
   });
 
@@ -462,6 +499,32 @@ describe('Person A extraction acceptance manifest safety', () => {
     await expect(loadPersonAExtractionAcceptanceManifest(contained)).resolves.toHaveLength(1);
   });
 
+  it('loads live_run as its own provenance without relabelling it', async () => {
+    const narrative = await readFile(
+      resolve(process.cwd(), 'src/fixtures/dry_run_002.person_a.txt'),
+    );
+    const golden = await readFile(
+      resolve(process.cwd(), 'src/fixtures/dry_run_002.person_a.golden.extraction.json'),
+    );
+    const manifest = await temporaryManifest(
+      (value) => {
+        value.candidates[0]!.origin = 'live_run';
+        value.candidates[0]!.expected_status = 'accepted';
+      },
+      {
+        narrative: narrative.toString('utf8'),
+        golden: golden.toString('utf8'),
+        candidate: golden.toString('utf8'),
+      },
+    );
+    const loaded = await loadPersonAExtractionAcceptanceManifest(manifest);
+    expect(loaded[0]?.candidates[0]?.origin).toBe('live_run');
+    const suite = evaluatePersonAExtractionAcceptanceSuite(loaded);
+    expect(suite.by_origin.live_run).toEqual({ total: 1, accepted: 1, rejected: 0 });
+    expect(suite.by_origin.hand_authored_control.total).toBe(0);
+    expect(suite.historical_model_acceptance).toEqual({ accepted: 0, total: 0 });
+  });
+
   it('rejects a symlink target in a sibling directory with a shared path prefix', async () => {
     const manifest = await temporaryManifest((value) => {
       value.candidates[0]!.extraction.path = 'prefix-link.json';
@@ -580,6 +643,7 @@ describe('Person A extraction acceptance CLI', () => {
       evaluatePersonAExtractionAcceptanceSuite(cases),
     );
     expect(human).toContain('Historical saved outputs: **0/3 accepted**');
+    expect(human).not.toContain('Tracked live runs');
     expect(human).toContain('Hand-authored controls: **3/3 accepted**');
     expect(human).toContain('historical_saved_output');
     expect(human).toContain('hand_authored_control');
