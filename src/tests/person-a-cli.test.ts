@@ -124,6 +124,44 @@ describe('Person A extraction CLI', () => {
     );
   });
 
+  it('replays a saved raw response for span diagnostics without selecting the live path', async () => {
+    const directory = await mkdtemp(resolve(tmpdir(), 'juryai-cli-raw-replay-'));
+    const output = resolve(directory, 'output');
+    const calls: string[] = [];
+    const dependencies = inertDependencies(calls);
+    dependencies.getEnvironment = (name) => {
+      calls.push(`environment:${name}`);
+      return name === 'JURYAI_REASONING_EFFORT' ? 'medium' : undefined;
+    };
+
+    await runExtractPersonACommand(
+      [
+        '--input',
+        resolve(process.cwd(), 'src/fixtures/dry_run_001.person_a.txt'),
+        '--extraction',
+        resolve(process.cwd(), 'docs/dry-run-001/extraction.json'),
+        '--raw-response',
+        resolve(process.cwd(), 'docs/dry-run-001/raw-response.json'),
+        '--output-dir',
+        output,
+        '--submitted-at',
+        '2026-07-25T00:00:00Z',
+      ],
+      dependencies,
+    );
+
+    expect(calls).toEqual(['environment:JURYAI_REASONING_EFFORT']);
+    const diagnostics = JSON.parse(
+      await readFile(resolve(output, 'span-diagnostics.json'), 'utf8'),
+    );
+    expect(diagnostics).toMatchObject({
+      raw_model: { total_spans: 58, exact_spans: 48, failing_spans: 10 },
+      assembler: { repaired_spans: 10 },
+      assembled: { total_spans: 58, exact_spans: 58, failing_spans: 0 },
+      final_invariants: { invariants_valid: true, exact_source_slice_valid: true },
+    });
+  });
+
   it('reaches the injected live path only after valid parsing succeeds', async () => {
     const directory = await mkdtemp(resolve(tmpdir(), 'juryai-cli-live-'));
     const extraction = validPersonAExtraction();

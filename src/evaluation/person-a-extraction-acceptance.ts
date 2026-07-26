@@ -12,7 +12,8 @@ type JsonObject = Record<string, unknown>;
 
 export const PERSON_A_EXTRACTION_ACCEPTANCE_EVALUATOR_VERSION = 'person-a-extraction-acceptance-v1';
 
-export type PersonAExtractionCandidateOrigin = 'historical_saved_output' | 'hand_authored_control';
+export type PersonAExtractionCandidateOrigin =
+  'historical_saved_output' | 'live_run' | 'hand_authored_control';
 
 export type PersonAExtractionAcceptanceStatus = 'accepted' | 'rejected';
 
@@ -84,7 +85,11 @@ export type PersonAExtractionAcceptanceSuiteResult = {
     accepted: number;
     rejected: number;
   };
-  by_origin: Record<PersonAExtractionCandidateOrigin, PersonAExtractionAcceptanceOriginSummary>;
+  by_origin: Record<
+    Exclude<PersonAExtractionCandidateOrigin, 'live_run'>,
+    PersonAExtractionAcceptanceOriginSummary
+  > &
+    Partial<Record<'live_run', PersonAExtractionAcceptanceOriginSummary>>;
   historical_model_acceptance: {
     accepted: number;
     total: number;
@@ -130,6 +135,7 @@ type PersonAExtractionAcceptanceManifest = {
 
 const candidateOrigins = new Set<PersonAExtractionCandidateOrigin>([
   'historical_saved_output',
+  'live_run',
   'hand_authored_control',
 ]);
 const statuses = new Set<PersonAExtractionAcceptanceStatus>(['accepted', 'rejected']);
@@ -223,13 +229,22 @@ export function evaluatePersonAExtractionAcceptanceCase(
         const alignment = alignPersonAForCase(
           candidate.extraction as JsonObject,
           acceptanceCase.golden as JsonObject,
-          { aliases: acceptanceCase.aliases },
+          {
+            aliases: acceptanceCase.aliases,
+            contractVersion:
+              candidate.origin === 'live_run' ? 'calibrated_live_v2' : 'locked_acceptance_v1',
+          },
         );
         report = evaluatePersonAForCase(
           candidate.extraction as JsonObject,
           acceptanceCase.golden as JsonObject,
           alignment,
-          { aliases: acceptanceCase.aliases },
+          {
+            aliases: acceptanceCase.aliases,
+            narrative: acceptanceCase.narrative,
+            contractVersion:
+              candidate.origin === 'live_run' ? 'calibrated_live_v2' : 'locked_acceptance_v1',
+          },
         );
       }
 
@@ -285,7 +300,9 @@ export function evaluatePersonAExtractionAcceptanceSuite(
     hand_authored_control: { total: 0, accepted: 0, rejected: 0 },
   };
   for (const result of results) {
-    const summary = byOrigin[result.candidate_origin];
+    const summary =
+      byOrigin[result.candidate_origin] ??
+      (byOrigin.live_run = { total: 0, accepted: 0, rejected: 0 });
     summary.total += 1;
     summary[result.status] += 1;
   }
@@ -652,6 +669,11 @@ export function renderPersonAExtractionAcceptanceReport(
     '',
     `Gate: **${suite.gate_passed ? 'PASS' : 'FAIL'}**`,
     `Historical saved outputs: **${suite.historical_model_acceptance.accepted}/${suite.historical_model_acceptance.total} accepted**`,
+    ...(suite.by_origin.live_run
+      ? [
+          `Tracked live runs: **${suite.by_origin.live_run.accepted}/${suite.by_origin.live_run.total} accepted**`,
+        ]
+      : []),
     `Hand-authored controls: **${suite.by_origin.hand_authored_control.accepted}/${suite.by_origin.hand_authored_control.total} accepted**`,
     '',
     '| Case | Candidate | Provenance | Status | Critical | Major | Minor |',

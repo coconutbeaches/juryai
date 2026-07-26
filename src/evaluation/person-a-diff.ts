@@ -1,5 +1,6 @@
 import {
   DRY_RUN_001_COMPATIBILITY_ALIASES,
+  evidenceTypesCompatible,
   familyItems,
   semanticSimilarity,
   type PersonAAlignmentOptions,
@@ -39,7 +40,23 @@ export type PersonAEvaluationReport = {
     weighted_error_rate: number;
   };
   metrics: Record<PersonAFamily, FamilyMetrics>;
+  evidence_recall?: EvidenceRecallDiagnostics;
   errors: EvaluationError[];
+};
+
+export type EvidenceRecallDiagnostics = {
+  observability_basis: 'person_a_narrative' | 'unavailable';
+  total_golden_evidence: number;
+  observable_golden_evidence: number;
+  unobservable_golden_evidence: number;
+  matched_observable_evidence: number;
+  observable_recall: number | null;
+  full_golden_matched_evidence: number;
+  full_golden_recall: number;
+  excluded_from_extractor_recall: Array<{
+    golden_id: string;
+    reason: string;
+  }>;
 };
 
 const equalSet = (a: unknown, b: unknown): boolean => {
@@ -77,6 +94,15 @@ function sourceCoverage(item: JsonObject): number {
   return spans.length;
 }
 
+function evidenceExtractText(item: JsonObject): string {
+  return Array.isArray(item.extracts)
+    ? item.extracts
+        .map((extract: JsonObject) => extract?.text)
+        .filter((text: unknown): text is string => typeof text === 'string' && text.length > 0)
+        .join(' ')
+    : '';
+}
+
 function comparePair(
   family: PersonAFamily,
   extracted: JsonObject,
@@ -85,6 +111,7 @@ function comparePair(
   goldenId: string,
   errors: EvaluationError[],
   aliases: PersonASemanticAliases,
+  contractVersion: PersonAAlignmentOptions['contractVersion'],
 ): void {
   const similarity = (left: unknown, right: unknown): number =>
     semanticSimilarity(left, right, aliases);
@@ -217,17 +244,37 @@ function comparePair(
           extractedId,
           goldenId,
         );
-      if (extracted.evidence_type !== golden.evidence_type)
+      if (
+        contractVersion === 'locked_acceptance_v1'
+          ? extracted.evidence_type !== golden.evidence_type
+          : !evidenceTypesCompatible(extracted.evidence_type, golden.evidence_type)
+      )
         add(
           errors,
           'major',
           family,
           'evidence_type',
-          'Evidence type differs.',
+          'Evidence types belong to incompatible categories.',
           extractedId,
           goldenId,
         );
-      if (similarity(extracted.title, golden.title) < 0.45)
+      const extractedExtractText = evidenceExtractText(extracted);
+      const goldenExtractText = evidenceExtractText(golden);
+      const compatibleRepresentationSupport =
+        contractVersion !== 'locked_acceptance_v1' &&
+        extracted.evidence_type !== golden.evidence_type &&
+        evidenceTypesCompatible(extracted.evidence_type, golden.evidence_type) &&
+        ((extractedExtractText.length > 0 &&
+          goldenExtractText.length > 0 &&
+          similarity(extractedExtractText, goldenExtractText) >= 0.4) ||
+          (typeof extracted.provenance?.source_system === 'string' &&
+            extracted.provenance.source_system.length > 0 &&
+            extracted.provenance.source_system === golden.provenance?.source_system &&
+            Math.max(
+              similarity(extracted.title, golden.title),
+              similarity(extracted.description_from_submitter, golden.description_from_submitter),
+            ) >= 0.25));
+      if (similarity(extracted.title, golden.title) < 0.45 && !compatibleRepresentationSupport)
         add(
           errors,
           'major',
@@ -450,6 +497,7 @@ export function evaluatePersonAForCase(
         pair.golden_id,
         errors,
         options.aliases ?? {},
+        options.contractVersion,
       );
       if (errors.slice(before).some((error) => error.severity !== 'minor')) {
         editedGoldenObjects.add(`${family}:${pair.golden_id}`);
@@ -541,6 +589,29 @@ export function reportMarkdown(report: PersonAEvaluationReport): string {
     lines.push(
       `| ${family} | ${metric.matched} | ${metric.golden_total} | ${metric.extracted_total} | ${(metric.recall * 100).toFixed(1)}% | ${(metric.precision * 100).toFixed(1)}% |`,
     );
+  }
+  if (report.evidence_recall) {
+    const evidence = report.evidence_recall;
+    lines.push(
+      '',
+      '## Evidence recall observability',
+      '',
+      `- Basis: **${evidence.observability_basis}**`,
+      `- Total golden evidence: **${evidence.total_golden_evidence}**`,
+      `- Observable golden evidence: **${evidence.observable_golden_evidence}**`,
+      `- Unobservable golden evidence: **${evidence.unobservable_golden_evidence}**`,
+      `- Matched observable evidence: **${evidence.matched_observable_evidence}**`,
+      `- Observable recall: **${evidence.observable_recall === null ? 'not available' : `${(evidence.observable_recall * 100).toFixed(1)}%`}**`,
+      `- Full-golden diagnostic: **${evidence.full_golden_matched_evidence}/${evidence.total_golden_evidence} (${(evidence.full_golden_recall * 100).toFixed(1)}%)**`,
+    );
+    if (evidence.excluded_from_extractor_recall.length > 0) {
+      lines.push(
+        '',
+        ...evidence.excluded_from_extractor_recall.map(
+          (entry) => `- \`${entry.golden_id}\`: ${entry.reason}`,
+        ),
+      );
+    }
   }
   lines.push('', '## Classified differences', '');
   if (report.errors.length === 0) lines.push('No classified differences.');

@@ -1,6 +1,7 @@
 import {
   alignPersonAForCase as alignBase,
   DRY_RUN_001_COMPATIBILITY_ALIASES,
+  evidenceTypesCompatible,
   familyItems,
   semanticSimilarity,
   type AlignmentPair,
@@ -363,6 +364,8 @@ function recoverUniqueEvidenceBlocks(
   extracted: JsonObject,
   golden: JsonObject,
   alignment: PersonAAlignment,
+  aliases: PersonASemanticAliases,
+  contractVersion: PersonAAlignmentOptions['contractVersion'],
 ): void {
   const family = alignment.families.evidence;
   const extractedItems = familyItems(extracted, 'evidence');
@@ -373,16 +376,44 @@ function recoverUniqueEvidenceBlocks(
     const left = extractedItems[extra.index] ?? {};
     const compatibleGolden = family.unmatched_golden.filter((missing) => {
       const right = goldenItems[missing.index] ?? {};
+      const leftExtracts = joinStrings(
+        Array.isArray(left.extracts)
+          ? left.extracts.map((extract: JsonObject) => extract?.text)
+          : [],
+      );
+      const rightExtracts = joinStrings(
+        Array.isArray(right.extracts)
+          ? right.extracts.map((extract: JsonObject) => extract?.text)
+          : [],
+      );
+      const extractSupport =
+        leftExtracts.length > 0 && rightExtracts.length > 0
+          ? semanticSimilarity(leftExtracts, rightExtracts, aliases)
+          : 0;
+      const identitySupport = Math.max(
+        semanticSimilarity(left.title, right.title, aliases),
+        semanticSimilarity(
+          left.description_from_submitter,
+          right.description_from_submitter,
+          aliases,
+        ),
+        extractSupport,
+      );
       return (
         left.submitted_by_party_id === right.submitted_by_party_id &&
-        left.evidence_type === right.evidence_type
+        (contractVersion === 'locked_acceptance_v1'
+          ? left.evidence_type === right.evidence_type
+          : evidenceTypesCompatible(left.evidence_type, right.evidence_type)) &&
+        (left.evidence_type === right.evidence_type || identitySupport >= 0.25)
       );
     });
     const compatibleExtracted = family.unmatched_extracted.filter((other) => {
       const item = extractedItems[other.index] ?? {};
       return (
         item.submitted_by_party_id === left.submitted_by_party_id &&
-        item.evidence_type === left.evidence_type
+        (contractVersion === 'locked_acceptance_v1'
+          ? item.evidence_type === left.evidence_type
+          : evidenceTypesCompatible(item.evidence_type, left.evidence_type))
       );
     });
     if (compatibleGolden.length !== 1 || compatibleExtracted.length !== 1) continue;
@@ -478,7 +509,7 @@ export function alignPersonAForCase(
   recoverContainedDeliverableNames(extracted, golden, alignment);
   recoverUniqueClaimFacts(extracted, golden, alignment, aliases);
   recoverAdjacentTimelineDates(extracted, golden, alignment, aliases);
-  recoverUniqueEvidenceBlocks(extracted, golden, alignment);
+  recoverUniqueEvidenceBlocks(extracted, golden, alignment, aliases, options.contractVersion);
   recoverActorReversals(extracted, golden, alignment, aliases);
   recoverOutcomeTransferReversals(extracted, golden, alignment, aliases);
   return alignment;
@@ -492,6 +523,7 @@ export function alignPersonA(extracted: JsonObject, golden: JsonObject): PersonA
 
 export {
   DRY_RUN_001_COMPATIBILITY_ALIASES,
+  evidenceTypesCompatible,
   familyItems,
   semanticSimilarity,
 } from './person-a-alignment.js';

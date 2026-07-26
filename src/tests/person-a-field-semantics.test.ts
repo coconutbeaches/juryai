@@ -402,7 +402,7 @@ describe('Person A judgment-field and epistemic contract (v0.1.4)', () => {
     ];
 
     it.each(incompatibleDecompositionCases)(
-      '$caseId: rule-23 decomposition conflicts with the locked consolidated golden',
+      '$caseId: rule-23 decomposition is recognized against the locked consolidated golden',
       ({ caseId, components }) => {
         const golden = lockedGolden(caseId);
         const candidate = clone(golden);
@@ -432,15 +432,21 @@ describe('Person A judgment-field and epistemic contract (v0.1.4)', () => {
         const report = evaluate(candidate, golden);
         const extraTerms = report.errors.filter(
           (error) =>
-            error.family === 'agreement_terms' && error.code === 'unsupported_extra_object',
+            error.family === 'agreement_terms' && error.code === 'agreement_term_decomposition',
         );
         expect(extraTerms.length).toBe(components.length - 1);
-        expect(extraTerms.every((error) => error.severity === 'critical')).toBe(true);
-        expect(report.summary.critical).toBeGreaterThan(0);
+        expect(extraTerms.every((error) => error.severity === 'minor')).toBe(true);
+        expect(
+          report.errors.some(
+            (error) =>
+              error.family === 'agreement_terms' && error.code === 'unsupported_extra_object',
+          ),
+        ).toBe(false);
+        expect(report.summary.critical).toBe(0);
       },
     );
 
-    it('keeps Dry Runs 002 and 003 control-only until their contract is migrated', () => {
+    it('keeps the locked acceptance manifest control-only for Dry Runs 002 and 003', () => {
       expect(PERSON_A_PROMPT_VERSION).toBe('person-a-v0.1.4');
       const manifest = JSON.parse(
         readFileSync(resolve(fixturesDir, 'person-a-extraction-acceptance.manifest.json'), 'utf8'),
