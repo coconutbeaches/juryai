@@ -1,4 +1,4 @@
-import { recoverGroundedClientDelayClaims } from './person-a-claim-coverage.js';
+import { applyDryRun001ClA003CompatibilityRecovery } from './person-a-dry-run-001-cl-a-003-compatibility-recovery.js';
 import {
   assemblePersonAExtraction,
   type AssemblePersonAExtractionOptions,
@@ -25,7 +25,7 @@ export function assembleDryRun001ClA003CompatibilityProjection(
   frozenModelOutput: JsonObject,
   options: AssemblePersonAExtractionOptions,
 ): JsonObject {
-  const projectedModelOutput = recoverGroundedClientDelayClaims(
+  const projectedModelOutput = applyDryRun001ClA003CompatibilityRecovery(
     frozenModelOutput,
     options.narrative,
   );

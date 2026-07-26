@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
@@ -8,7 +8,7 @@ import {
 import { evaluatePersonAForCase } from '../evaluation/person-a-diff-corrected.js';
 import { buildPersonAGoldenProjection } from '../evaluation/person-a-golden.js';
 import { parsePersonAModelOutputFromRawResponse } from '../evaluation/person-a-span-diagnostics.js';
-import { recoverGroundedClientDelayClaims } from '../extraction/person-a-claim-coverage.js';
+import { applyDryRun001ClA003CompatibilityRecovery } from '../extraction/person-a-dry-run-001-cl-a-003-compatibility-recovery.js';
 import { assembleDryRun001ClA003CompatibilityProjection } from '../extraction/person-a-frozen-compatibility.js';
 import {
   assemblePersonAExtraction,
@@ -164,7 +164,7 @@ describe('cl_a_003 Person A recall coverage', () => {
       ),
     ).toBe(false);
 
-    const coverageOnly = recoverGroundedClientDelayClaims(modelOutput, narrative);
+    const coverageOnly = applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative);
     expect(coverageOnly.timeline).toEqual(modelOutput.timeline);
     expect(coverageOnly.evidence).toEqual(modelOutput.evidence);
 
@@ -225,7 +225,7 @@ describe('cl_a_003 Person A recall coverage', () => {
     const modelOutput = candidateFixture(narrative);
     modelOutput.claims.push(existingClaim(narrative));
 
-    const corrected = recoverGroundedClientDelayClaims(modelOutput, narrative);
+    const corrected = applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative);
     expect(corrected.claims).toEqual(modelOutput.claims);
   });
 
@@ -243,14 +243,16 @@ describe('cl_a_003 Person A recall coverage', () => {
         person_a_interpretation: personAInterpretation,
       });
 
-      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toEqual([]);
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toEqual([]);
     });
 
     it('still promotes a direct asserted causal interpretation', () => {
       const narrative = 'Maya delivered the content late and it directly contributed to delay.';
       const modelOutput = candidateFixture(narrative);
 
-      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toHaveLength(1);
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        1,
+      );
     });
   });
 
@@ -265,7 +267,9 @@ describe('cl_a_003 Person A recall coverage', () => {
         person_a_interpretation: personAInterpretation,
       });
 
-      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toHaveLength(1);
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        1,
+      );
     });
 
     it.each([
@@ -279,7 +283,7 @@ describe('cl_a_003 Person A recall coverage', () => {
         person_a_interpretation: personAInterpretation,
       });
 
-      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toEqual([]);
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toEqual([]);
     });
   });
 
@@ -296,7 +300,7 @@ describe('cl_a_003 Person A recall coverage', () => {
         }),
       );
 
-      const corrected = recoverGroundedClientDelayClaims(modelOutput, narrative);
+      const corrected = applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative);
       expect(
         corrected.claims.filter(
           (claim: JsonObject) => claim.claim_id === 'claim_event_candidate_client_delay',
@@ -317,7 +321,7 @@ describe('cl_a_003 Person A recall coverage', () => {
           }),
         );
 
-        const corrected = recoverGroundedClientDelayClaims(modelOutput, narrative);
+        const corrected = applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative);
         expect(
           corrected.claims.filter(
             (claim: JsonObject) => claim.claim_id === 'claim_event_candidate_client_delay',
@@ -331,7 +335,7 @@ describe('cl_a_003 Person A recall coverage', () => {
       const modelOutput = candidateFixture(narrative);
       modelOutput.claims.push(existingClaim(narrative));
 
-      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toEqual(
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toEqual(
         modelOutput.claims,
       );
     });
@@ -353,7 +357,7 @@ describe('cl_a_003 Person A recall coverage', () => {
           'Alex treats the continued text changes as directly contributing to schedule delay.',
       });
 
-      const corrected = recoverGroundedClientDelayClaims(modelOutput, narrative);
+      const corrected = applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative);
       expect(corrected.claims.map((claim: JsonObject) => claim.claim_id)).toEqual([
         'claim_event_images_late_client_delay',
         'claim_event_text_changes_client_delay',
@@ -368,7 +372,9 @@ describe('cl_a_003 Person A recall coverage', () => {
         event_id: 'event_candidate',
       });
 
-      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toHaveLength(1);
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        1,
+      );
     });
   });
 
@@ -385,7 +391,7 @@ describe('cl_a_003 Person A recall coverage', () => {
         source_evidence_ids: ['ev_follow_up'],
       });
 
-      const corrected = recoverGroundedClientDelayClaims(modelOutput, narrative);
+      const corrected = applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative);
       expect(corrected.claims).toHaveLength(2);
       expect(corrected.claims.map((claim: JsonObject) => claim.supporting_evidence_ids)).toEqual([
         ['ev_client_content'],
@@ -405,7 +411,7 @@ describe('cl_a_003 Person A recall coverage', () => {
         source_evidence_ids: ['ev_client_content', 'ev_follow_up'],
       });
 
-      const corrected = recoverGroundedClientDelayClaims(modelOutput, narrative);
+      const corrected = applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative);
       expect(corrected.claims).toHaveLength(1);
       expect(corrected.claims[0].supporting_evidence_ids).toEqual([
         'ev_client_content',
@@ -430,7 +436,9 @@ describe('cl_a_003 Person A recall coverage', () => {
           'Alex treats the continued text changes as directly contributing to schedule delay.',
       });
 
-      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toHaveLength(2);
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        2,
+      );
     });
 
     it('treats different exact source occurrences as distinct event identity', () => {
@@ -443,7 +451,9 @@ describe('cl_a_003 Person A recall coverage', () => {
         source_spans: [exactSpan(narrative, quote, 1)],
       });
 
-      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toHaveLength(2);
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        2,
+      );
     });
 
     it('treats materially different typed dates as distinct event identity', () => {
@@ -468,7 +478,9 @@ describe('cl_a_003 Person A recall coverage', () => {
         },
       });
 
-      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toHaveLength(2);
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        2,
+      );
     });
   });
 
@@ -496,7 +508,10 @@ describe('cl_a_003 Person A recall coverage', () => {
     }
 
     it('lets two distinct events sharing one span and evidence coexist', () => {
-      const corrected = recoverGroundedClientDelayClaims(sharedParagraphEvents(), paragraph);
+      const corrected = applyDryRun001ClA003CompatibilityRecovery(
+        sharedParagraphEvents(),
+        paragraph,
+      );
       expect(corrected.claims.map((claim: JsonObject) => claim.claim_text)).toEqual([
         imageSummary,
         textSummary,
@@ -507,7 +522,7 @@ describe('cl_a_003 Person A recall coverage', () => {
       const modelOutput = sharedParagraphEvents();
       modelOutput.claims.push(existingClaim(paragraph, { claim_text: imageSummary }));
 
-      const corrected = recoverGroundedClientDelayClaims(modelOutput, paragraph);
+      const corrected = applyDryRun001ClA003CompatibilityRecovery(modelOutput, paragraph);
       expect(corrected.claims.map((claim: JsonObject) => claim.claim_text)).toEqual([
         imageSummary,
         textSummary,
@@ -519,7 +534,7 @@ describe('cl_a_003 Person A recall coverage', () => {
       modelOutput.timeline = [modelOutput.timeline[0]];
       modelOutput.claims.push(existingClaim(paragraph, { claim_text: imageSummary }));
 
-      expect(recoverGroundedClientDelayClaims(modelOutput, paragraph).claims).toEqual(
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, paragraph).claims).toEqual(
         modelOutput.claims,
       );
     });
@@ -533,7 +548,7 @@ describe('cl_a_003 Person A recall coverage', () => {
         }),
       );
 
-      expect(recoverGroundedClientDelayClaims(modelOutput, paragraph).claims).toEqual(
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, paragraph).claims).toEqual(
         modelOutput.claims,
       );
     });
@@ -579,7 +594,9 @@ describe('cl_a_003 Person A recall coverage', () => {
       ];
       modelOutput.claims.push(existingClaim(paragraph, { claim_text: claimText }));
 
-      expect(recoverGroundedClientDelayClaims(modelOutput, paragraph).claims).toHaveLength(2);
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, paragraph).claims).toHaveLength(
+        2,
+      );
     });
 
     it('keeps one final claim for duplicate provider events plus one equivalent claim', () => {
@@ -593,7 +610,7 @@ describe('cl_a_003 Person A recall coverage', () => {
       ];
       modelOutput.claims.push(existingClaim(paragraph, { claim_text: imageSummary }));
 
-      expect(recoverGroundedClientDelayClaims(modelOutput, paragraph).claims).toEqual(
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, paragraph).claims).toEqual(
         modelOutput.claims,
       );
     });
@@ -629,7 +646,9 @@ describe('cl_a_003 Person A recall coverage', () => {
         const modelOutput = genericCausalEvent(interpretation);
         modelOutput.claims.push(existingClaim(narrative, { claim_text: existing }));
 
-        expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toHaveLength(2);
+        expect(
+          applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims,
+        ).toHaveLength(2);
       },
     );
 
@@ -644,7 +663,7 @@ describe('cl_a_003 Person A recall coverage', () => {
         }),
       );
 
-      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toEqual(
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toEqual(
         modelOutput.claims,
       );
     });
@@ -659,7 +678,7 @@ describe('cl_a_003 Person A recall coverage', () => {
         }),
       );
 
-      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toEqual(
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toEqual(
         modelOutput.claims,
       );
     });
@@ -686,7 +705,7 @@ describe('cl_a_003 Person A recall coverage', () => {
     }
 
     it('preserves same-paragraph real incidents with distinct evidence support', () => {
-      const corrected = recoverGroundedClientDelayClaims(ambiguousEvents(), narrative);
+      const corrected = applyDryRun001ClA003CompatibilityRecovery(ambiguousEvents(), narrative);
       expect(corrected.claims).toHaveLength(2);
       expect(corrected.claims.map((claim: JsonObject) => claim.supporting_evidence_ids)).toEqual([
         ['ev_batch_a'],
@@ -705,11 +724,13 @@ describe('cl_a_003 Person A recall coverage', () => {
         };
       }
 
-      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toHaveLength(2);
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        2,
+      );
     });
 
     it('does not let unknown dates force ambiguous incidents to merge', () => {
-      const corrected = recoverGroundedClientDelayClaims(ambiguousEvents(), narrative);
+      const corrected = applyDryRun001ClA003CompatibilityRecovery(ambiguousEvents(), narrative);
       expect(corrected.claims).toHaveLength(2);
     });
 
@@ -717,7 +738,7 @@ describe('cl_a_003 Person A recall coverage', () => {
       const modelOutput = ambiguousEvents();
       modelOutput.timeline[1].event_id = modelOutput.timeline[0].event_id;
 
-      const corrected = recoverGroundedClientDelayClaims(modelOutput, narrative);
+      const corrected = applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative);
       expect(corrected.claims).toHaveLength(2);
       expect(corrected.claims.map((claim: JsonObject) => claim.supporting_evidence_ids)).toEqual([
         ['ev_batch_a'],
@@ -731,13 +752,13 @@ describe('cl_a_003 Person A recall coverage', () => {
       modelOutput.timeline[1].event_id = modelOutput.timeline[0].event_id;
       modelOutput.timeline[1].source_evidence_ids = ['ev_batch_a', 'ev_batch_b'];
 
-      const corrected = recoverGroundedClientDelayClaims(modelOutput, narrative);
+      const corrected = applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative);
       expect(corrected.claims).toHaveLength(1);
       expect(corrected.claims[0].supporting_evidence_ids).toEqual(['ev_batch_a', 'ev_batch_b']);
     });
 
     it('preserves ambiguous provider entries rather than treating matching text as proof', () => {
-      const corrected = recoverGroundedClientDelayClaims(ambiguousEvents(), narrative);
+      const corrected = applyDryRun001ClA003CompatibilityRecovery(ambiguousEvents(), narrative);
       expect(corrected.claims.map((claim: JsonObject) => claim.claim_id)).toEqual([
         'claim_event_batch_a_client_delay',
         'claim_event_batch_b_client_delay',
@@ -763,7 +784,7 @@ describe('cl_a_003 Person A recall coverage', () => {
     }
 
     it('preserves reused-ID rows grounded at different copies as an unresolved collision', () => {
-      const corrected = recoverGroundedClientDelayClaims(
+      const corrected = applyDryRun001ClA003CompatibilityRecovery(
         repeatedCopyEvents('event_copied_delivery'),
         narrative,
       );
@@ -796,11 +817,13 @@ describe('cl_a_003 Person A recall coverage', () => {
         approximate: false,
       };
 
-      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toHaveLength(2);
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        2,
+      );
     });
 
     it('preserves ambiguous repeated wording when provider identity differs', () => {
-      const corrected = recoverGroundedClientDelayClaims(
+      const corrected = applyDryRun001ClA003CompatibilityRecovery(
         repeatedCopyEvents('event_second_delivery'),
         narrative,
       );
@@ -935,7 +958,7 @@ describe('cl_a_003 Person A recall coverage', () => {
         source_evidence_ids: ['ev_batch_b'],
       });
 
-      const corrected = recoverGroundedClientDelayClaims(modelOutput, narrative);
+      const corrected = applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative);
       expect(corrected.timeline).toHaveLength(2);
       expect(corrected.claims).toHaveLength(2);
       expect(corrected.claims.map((claim: JsonObject) => claim.supporting_evidence_ids)).toEqual([
@@ -959,7 +982,9 @@ describe('cl_a_003 Person A recall coverage', () => {
         person_a_interpretation: interpretation,
       });
       modelOutput.claims.push(existingClaim(narrative, { claim_text: claimText }));
-      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toHaveLength(2);
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        2,
+      );
     }
 
     it('distinguishes not delivered by May from delivered late in May', () => {
@@ -1009,7 +1034,7 @@ describe('cl_a_003 Person A recall coverage', () => {
         });
         modelOutput.claims.push(existingClaim(narrative, { claim_text: claimText }));
 
-        expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toEqual(
+        expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toEqual(
           modelOutput.claims,
         );
       },
@@ -1055,7 +1080,9 @@ describe('cl_a_003 Person A recall coverage', () => {
         person_a_interpretation: personAInterpretation,
       });
 
-      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toHaveLength(1);
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        1,
+      );
     });
 
     it.each([
@@ -1070,7 +1097,7 @@ describe('cl_a_003 Person A recall coverage', () => {
         person_a_interpretation: personAInterpretation,
       });
 
-      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toEqual([]);
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toEqual([]);
     });
   });
 
@@ -1101,7 +1128,7 @@ describe('cl_a_003 Person A recall coverage', () => {
         });
         modelOutput.claims.push(existingClaim(narrative, { claim_text: claimText }));
 
-        expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toEqual(
+        expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toEqual(
           modelOutput.claims,
         );
       },
@@ -1119,7 +1146,9 @@ describe('cl_a_003 Person A recall coverage', () => {
         }),
       );
 
-      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toHaveLength(2);
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        2,
+      );
     });
 
     it('uses an explicit organization action-subject without adding the sentence-opener', () => {
@@ -1134,7 +1163,7 @@ describe('cl_a_003 Person A recall coverage', () => {
         }),
       );
 
-      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toEqual(
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toEqual(
         modelOutput.claims,
       );
     });
@@ -1155,7 +1184,7 @@ describe('cl_a_003 Person A recall coverage', () => {
         person_a_interpretation: interpretation,
       });
 
-      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toEqual([]);
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toEqual([]);
     });
 
     it.each([
@@ -1170,7 +1199,9 @@ describe('cl_a_003 Person A recall coverage', () => {
         person_a_interpretation: interpretation,
       });
 
-      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toHaveLength(1);
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        1,
+      );
     });
   });
 
@@ -1188,7 +1219,7 @@ describe('cl_a_003 Person A recall coverage', () => {
         person_a_interpretation: interpretation,
       });
       modelOutput.claims.push(existingClaim(narrative, { claim_text: claimText }));
-      return recoverGroundedClientDelayClaims(modelOutput, narrative);
+      return applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative);
     }
 
     it('preserves both partial and late state after the deadline', () => {
@@ -1303,7 +1334,7 @@ describe('cl_a_003 Person A recall coverage', () => {
     }
 
     it('consolidates identical multi-span rows whose spans are reversed', () => {
-      const corrected = recoverGroundedClientDelayClaims(multiSpanDuplicate(), narrative);
+      const corrected = applyDryRun001ClA003CompatibilityRecovery(multiSpanDuplicate(), narrative);
       expect(corrected.timeline).toHaveLength(1);
       expect(corrected.claims).toHaveLength(1);
       expect(corrected.timeline[0].source_spans).toEqual([
@@ -1316,7 +1347,7 @@ describe('cl_a_003 Person A recall coverage', () => {
       const modelOutput = multiSpanDuplicate();
       modelOutput.timeline[1].source_evidence_ids.reverse();
 
-      const corrected = recoverGroundedClientDelayClaims(modelOutput, narrative);
+      const corrected = applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative);
       expect(corrected.timeline).toHaveLength(1);
       expect(corrected.claims[0].supporting_evidence_ids).toEqual([
         'ev_client_content',
@@ -1380,7 +1411,9 @@ describe('cl_a_003 Person A recall coverage', () => {
       const event = modelOutput.timeline[1];
       mutate(event.source_spans[0], event);
 
-      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).timeline).toHaveLength(2);
+      expect(
+        applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).timeline,
+      ).toHaveLength(2);
     });
   });
 
@@ -1403,7 +1436,7 @@ describe('cl_a_003 Person A recall coverage', () => {
         }),
       );
 
-      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toEqual(
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toEqual(
         modelOutput.claims,
       );
     });
@@ -1420,7 +1453,7 @@ describe('cl_a_003 Person A recall coverage', () => {
         }),
       );
 
-      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toEqual(
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toEqual(
         modelOutput.claims,
       );
     });
@@ -1436,7 +1469,7 @@ describe('cl_a_003 Person A recall coverage', () => {
         }),
       );
 
-      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toEqual(
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toEqual(
         modelOutput.claims,
       );
     });
@@ -1452,7 +1485,9 @@ describe('cl_a_003 Person A recall coverage', () => {
         }),
       );
 
-      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toHaveLength(2);
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        2,
+      );
     });
   });
 
@@ -1494,7 +1529,7 @@ describe('cl_a_003 Person A recall coverage', () => {
       const modelOutput = candidateFixture(narrative);
       addCollision(modelOutput);
 
-      const corrected = recoverGroundedClientDelayClaims(modelOutput, narrative);
+      const corrected = applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative);
       expect(corrected.claims.some((claim: JsonObject) => claim.claim_id === `${stem}_2`)).toBe(
         true,
       );
@@ -1517,7 +1552,7 @@ describe('cl_a_003 Person A recall coverage', () => {
         }),
       );
 
-      const corrected = recoverGroundedClientDelayClaims(modelOutput, narrative);
+      const corrected = applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative);
       expect(corrected.claims.some((claim: JsonObject) => claim.claim_id === `${stem}_5`)).toBe(
         true,
       );
@@ -1549,7 +1584,7 @@ describe('cl_a_003 Person A recall coverage', () => {
       );
 
       expect(productionExtractor).not.toMatch(
-        /recoverGroundedClientDelayClaims|person-a-frozen-compatibility/u,
+        /applyDryRun001ClA003CompatibilityRecovery|person-a-frozen-compatibility/u,
       );
     });
 
@@ -1650,7 +1685,9 @@ describe('cl_a_003 Person A recall coverage', () => {
         person_a_interpretation: interpretation,
       });
 
-      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toHaveLength(1);
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        1,
+      );
     });
 
     it.each([
@@ -1666,7 +1703,7 @@ describe('cl_a_003 Person A recall coverage', () => {
         person_a_interpretation: interpretation,
       });
 
-      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toEqual([]);
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toEqual([]);
     });
   });
 
@@ -1685,7 +1722,9 @@ describe('cl_a_003 Person A recall coverage', () => {
         person_a_interpretation: interpretation,
       });
 
-      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toHaveLength(1);
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        1,
+      );
     });
 
     it.each([
@@ -1700,7 +1739,9 @@ describe('cl_a_003 Person A recall coverage', () => {
           person_a_interpretation: interpretation,
         });
 
-        expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toEqual([]);
+        expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toEqual(
+          [],
+        );
       },
     );
   });
@@ -1746,7 +1787,9 @@ describe('cl_a_003 Person A recall coverage', () => {
           person_a_interpretation: interpretation,
         });
 
-        expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toEqual([]);
+        expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toEqual(
+          [],
+        );
       },
     );
 
@@ -1765,7 +1808,7 @@ describe('cl_a_003 Person A recall coverage', () => {
         },
       });
 
-      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toEqual([]);
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toEqual([]);
     });
 
     it.each([
@@ -1788,9 +1831,285 @@ describe('cl_a_003 Person A recall coverage', () => {
           person_a_interpretation: interpretation,
         });
 
-        expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toHaveLength(1);
+        expect(
+          applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims,
+        ).toHaveLength(1);
       },
     );
+  });
+
+  describe('seventh review finding 1: parenthetical antecedent selection', () => {
+    it.each([
+      {
+        label: 'named coordinated subject',
+        interpretation:
+          'Maya delivered the content late and Jordan’s content delivery (which caused schedule delay).',
+      },
+      {
+        label: 'possessive named subject',
+        interpretation:
+          'Maya delivered the content late while Alex’s revisions (which caused schedule delay) continued.',
+      },
+      {
+        label: 'typed different actor',
+        interpretation:
+          'Alex says Maya delivered the content late and Jordan’s delivery (which caused schedule delay) followed.',
+      },
+      {
+        label: 'article-led new subject',
+        interpretation:
+          'Maya delivered the content late and a server outage (which caused schedule delay) followed.',
+      },
+      {
+        label: 'named organization subject',
+        interpretation:
+          'Maya delivered the content late and Acme LLC’s migration (which caused schedule delay) followed.',
+      },
+    ])('does not attach causation from a $label', ({ interpretation }) => {
+      const eventSummary = 'Alex says Maya delivered the content late.';
+      const narrative = `${eventSummary} ${interpretation}`;
+      const modelOutput = candidateFixture(narrative, {
+        event_summary: eventSummary,
+        person_a_interpretation: interpretation,
+      });
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toEqual([]);
+    });
+
+    it('attaches a possessive relative clause to the same actor and incident', () => {
+      const eventSummary = 'Alex says Maya delivered the content late.';
+      const interpretation = 'Maya’s late delivery (which caused schedule delay).';
+      const narrative = `${eventSummary} ${interpretation}`;
+      const modelOutput = candidateFixture(narrative, {
+        event_summary: eventSummary,
+        person_a_interpretation: interpretation,
+      });
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        1,
+      );
+    });
+
+    it('preserves a coordinated possessive antecedent for the same actor', () => {
+      const eventSummary = 'Alex says Maya delivered the content late.';
+      const interpretation =
+        'Maya delivered the content late and Maya’s late delivery (which caused schedule delay).';
+      const narrative = `${eventSummary} ${interpretation}`;
+      const modelOutput = candidateFixture(narrative, {
+        event_summary: eventSummary,
+        person_a_interpretation: interpretation,
+      });
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        1,
+      );
+    });
+  });
+
+  describe('seventh review finding 2: coordinated subjects with modifiers', () => {
+    it.each([
+      {
+        label: 'named subject with a comma-delimited modifier',
+        interpretation:
+          'Maya delivered content late, and Jordan, after a long review, caused schedule delay.',
+      },
+      {
+        label: 'article-led subject with a modifier',
+        interpretation:
+          'Maya delivered content late, but the server, following an outage, caused schedule delay.',
+      },
+      {
+        label: 'possessive subject with a modifier',
+        interpretation:
+          'Maya delivered content late, and Jordan’s delivery, after review, caused schedule delay.',
+      },
+      {
+        label: 'new subject after and',
+        interpretation:
+          'Maya delivered content late, and Jordan, unexpectedly, caused schedule delay.',
+      },
+      {
+        label: 'new subject after but',
+        interpretation:
+          'Maya delivered content late, but Jordan, independently, caused schedule delay.',
+      },
+    ])('splits a $label', ({ interpretation }) => {
+      const eventSummary = 'Alex says Maya delivered the content late.';
+      const narrative = `${eventSummary} ${interpretation}`;
+      const modelOutput = candidateFixture(narrative, {
+        event_summary: eventSummary,
+        person_a_interpretation: interpretation,
+      });
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toEqual([]);
+    });
+
+    it.each([
+      'Maya delivered content late and directly caused schedule delay.',
+      'Maya delivered content late and, as a result, caused schedule delay.',
+      'Maya delivered content late and, after review, contributed to schedule delay.',
+    ])('preserves shared-subject causation: %s', (interpretation) => {
+      const eventSummary = 'Alex says Maya delivered the content late.';
+      const narrative = `${eventSummary} ${interpretation}`;
+      const modelOutput = candidateFixture(narrative, {
+        event_summary: eventSummary,
+        person_a_interpretation: interpretation,
+      });
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        1,
+      );
+    });
+  });
+
+  describe('seventh review finding 3: fail-closed temporal conflicts', () => {
+    it.each([
+      {
+        label: 'matching month plus conflicting typed date',
+        eventSummary: 'Alex says Maya delivered the content late in May.',
+        interpretation: 'Alex says Maya’s May content delivery caused schedule delay.',
+        date: {
+          start: '2024-06-08',
+          end: '2024-06-08',
+          precision: 'day',
+          approximate: false,
+        },
+      },
+      {
+        label: 'matching year plus conflicting month',
+        eventSummary: 'Alex says Maya delivered the content late in May 2024.',
+        interpretation: 'Alex says Maya’s May 2024 content delivery caused schedule delay.',
+        date: {
+          start: '2024-06-08',
+          end: '2024-06-08',
+          precision: 'day',
+          approximate: false,
+        },
+      },
+      {
+        label: 'exact typed date versus conflicting named period',
+        eventSummary: 'Alex says Maya delivered the content late.',
+        interpretation: 'Alex says Maya’s May 2024 content delivery caused schedule delay.',
+        date: {
+          start: '2024-06-08',
+          end: '2024-06-08',
+          precision: 'day',
+          approximate: false,
+        },
+      },
+    ])('rejects $label', ({ eventSummary, interpretation, date }) => {
+      const narrative = `${eventSummary} ${interpretation}`;
+      const modelOutput = candidateFixture(narrative, {
+        event_summary: eventSummary,
+        person_a_interpretation: interpretation,
+        date,
+      });
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toEqual([]);
+    });
+
+    it.each([
+      {
+        label: 'compatible textual and typed dates',
+        eventSummary: 'Alex says Maya delivered the content late in May.',
+        interpretation: 'Alex says Maya’s May content delivery caused schedule delay.',
+        date: {
+          start: '2024-05-08',
+          end: '2024-05-08',
+          precision: 'day',
+          approximate: false,
+        },
+      },
+      {
+        label: 'missing typed date with exact textual match',
+        eventSummary: 'Alex says Maya delivered the content late in May.',
+        interpretation: 'Alex says Maya’s May content delivery caused schedule delay.',
+        date: {
+          start: null,
+          end: null,
+          precision: 'unknown',
+          approximate: false,
+        },
+      },
+    ])('accepts $label', ({ eventSummary, interpretation, date }) => {
+      const narrative = `${eventSummary} ${interpretation}`;
+      const modelOutput = candidateFixture(narrative, {
+        event_summary: eventSummary,
+        person_a_interpretation: interpretation,
+        date,
+      });
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        1,
+      );
+    });
+
+    it.each([
+      {
+        label: 'conflicting deadline relations',
+        eventSummary: 'Alex says Maya delivered the content before the deadline.',
+        interpretation: 'Alex says Maya’s delivery after the deadline caused schedule delay.',
+      },
+      {
+        label: 'conflicting ordinal qualifiers',
+        eventSummary: 'Alex says Maya’s first content delivery was late.',
+        interpretation: 'Alex says Maya’s revised content delivery caused schedule delay.',
+      },
+    ])('rejects $label', ({ eventSummary, interpretation }) => {
+      const narrative = `${eventSummary} ${interpretation}`;
+      const modelOutput = candidateFixture(narrative, {
+        event_summary: eventSummary,
+        person_a_interpretation: interpretation,
+      });
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toEqual([]);
+    });
+  });
+
+  describe('seventh review finding 4: frozen compatibility API boundary', () => {
+    it('does not expose the generic recovery helper as a normal extraction API', async () => {
+      const coverageSource = await readFile(
+        resolve(root, 'src/extraction/person-a-dry-run-001-cl-a-003-compatibility-recovery.ts'),
+        'utf8',
+      );
+      expect(coverageSource).not.toContain('recoverGroundedClientDelayClaims');
+      expect(coverageSource).toContain('@internal');
+      expect(coverageSource).toContain('applyDryRun001ClA003CompatibilityRecovery');
+    });
+
+    it('keeps normal production extraction disconnected from compatibility recovery', async () => {
+      const extractorSource = await readFile(
+        resolve(root, 'src/extraction/person-a-extractor.ts'),
+        'utf8',
+      );
+      expect(extractorSource).not.toMatch(/claim-coverage|frozen-compatibility|compatibility/iu);
+      expect(extractorSource).not.toContain('applyDryRun001ClA003CompatibilityRecovery');
+    });
+
+    it('exposes the explicit Dry Run 001 projection entrypoint', async () => {
+      const compatibilitySource = await readFile(
+        resolve(root, 'src/extraction/person-a-frozen-compatibility.ts'),
+        'utf8',
+      );
+      expect(compatibilitySource).toContain(
+        'export function assembleDryRun001ClA003CompatibilityProjection',
+      );
+    });
+
+    it('allows only the frozen compatibility module to import the internal recovery', async () => {
+      const extractionDirectory = resolve(root, 'src/extraction');
+      const files = (await readdir(extractionDirectory)).filter(
+        (file) =>
+          file.endsWith('.ts') &&
+          file !== 'person-a-dry-run-001-cl-a-003-compatibility-recovery.ts',
+      );
+      const importers: string[] = [];
+      for (const file of files) {
+        const source = await readFile(resolve(extractionDirectory, file), 'utf8');
+        if (source.includes('applyDryRun001ClA003CompatibilityRecovery')) importers.push(file);
+      }
+      expect(importers).toEqual(['person-a-frozen-compatibility.ts']);
+    });
   });
 
   it('preserves the selected occurrence when identical source text repeats', () => {
@@ -1798,7 +2117,7 @@ describe('cl_a_003 Person A recall coverage', () => {
     const narrative = `${quote}\nUnrelated separator.\n${quote}`;
     const modelOutput = candidateFixture(narrative, { quote }, 1);
 
-    const corrected = recoverGroundedClientDelayClaims(modelOutput, narrative);
+    const corrected = applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative);
     expect(corrected.claims).toHaveLength(1);
     expect(corrected.claims[0].source_spans[0]).toEqual(exactSpan(narrative, quote, 1));
   });
@@ -1806,7 +2125,7 @@ describe('cl_a_003 Person A recall coverage', () => {
   it('does not recover a claim when the relevant event is absent', () => {
     const modelOutput = { timeline: [], claims: [], evidence: [] };
     expect(
-      recoverGroundedClientDelayClaims(modelOutput, 'Nothing relevant occurred.').claims,
+      applyDryRun001ClA003CompatibilityRecovery(modelOutput, 'Nothing relevant occurred.').claims,
     ).toEqual([]);
   });
 
@@ -1869,7 +2188,7 @@ describe('cl_a_003 Person A recall coverage', () => {
     delete (overrides as JsonObject).label;
     const modelOutput = candidateFixture(narrative, overrides);
 
-    const corrected = recoverGroundedClientDelayClaims(modelOutput, narrative);
+    const corrected = applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative);
     expect(corrected.claims).toEqual([]);
   });
 
@@ -1878,7 +2197,7 @@ describe('cl_a_003 Person A recall coverage', () => {
     const modelOutput = candidateFixture(narrative);
     modelOutput.timeline[0].source_spans[0].end_char -= 1;
 
-    expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toEqual([]);
+    expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toEqual([]);
   });
 
   it('does not upgrade agreed or disputed interpretation states into a Person A claim', () => {
@@ -1887,13 +2206,13 @@ describe('cl_a_003 Person A recall coverage', () => {
       const modelOutput = candidateFixture(narrative, {
         interpretation_status: interpretationStatus,
       });
-      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toEqual([]);
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toEqual([]);
     }
   });
 
   it('keeps compatibility claim coverage independent of case identities and comparison fixtures', async () => {
     const source = await readFile(
-      resolve(root, 'src/extraction/person-a-claim-coverage.ts'),
+      resolve(root, 'src/extraction/person-a-dry-run-001-cl-a-003-compatibility-recovery.ts'),
       'utf8',
     );
     expect(source).not.toMatch(

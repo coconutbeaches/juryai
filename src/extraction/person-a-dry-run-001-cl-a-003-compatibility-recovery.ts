@@ -91,7 +91,38 @@ function deniesCausalRelation(value: string): boolean {
   );
 }
 
-function preserveAttachedRelativeCausalParentheticals(value: string): string {
+const COORDINATOR = /\b(?:and|but|while|whereas)\b/giu;
+const PROPER_SUBJECT = String.raw`\p{Lu}[\p{L}\p{N}&.'’_-]*(?:\s+\p{Lu}[\p{L}\p{N}&.'’_-]*){0,2}`;
+
+function normalizedSubjectName(value: string): string | null {
+  return normalizeAssertedMeaning(value.replace(/['’]s$/u, ''));
+}
+
+function candidateActorNames(event: JsonObject): string[] {
+  return canonicalAssertedMeaning([event.event_summary], 'client_delay').actors;
+}
+
+function coordinatedAntecedentBelongsToCandidate(antecedent: string, event: JsonObject): boolean {
+  const coordinators = [...antecedent.matchAll(COORDINATOR)];
+  const lastCoordinator = coordinators.at(-1);
+  if (lastCoordinator?.index == null) return true;
+
+  const tail = antecedent
+    .slice(lastCoordinator.index + lastCoordinator[0].length)
+    .trim()
+    .replace(/^,+\s*/u, '');
+  if (/^(?:an?|the)\b/iu.test(tail)) return false;
+
+  const namedSubject = new RegExp(String.raw`^(${PROPER_SUBJECT})(?:['’]s)?\b`, 'u').exec(tail);
+  if (namedSubject?.[1] == null) return false;
+  const normalizedSubject = normalizedSubjectName(namedSubject[1]);
+  return (
+    normalizedSubject != null &&
+    candidateActorNames(event).some((actor) => actor === normalizedSubject)
+  );
+}
+
+function preserveAttachedRelativeCausalParentheticals(value: string, event: JsonObject): string {
   let depth = 0;
   for (const character of value) {
     if (character === '(') {
@@ -107,18 +138,59 @@ function preserveAttachedRelativeCausalParentheticals(value: string): string {
   const attachedRelative =
     /([^.;()\r\n—–]+?)\s*\(\s*((?:which\s+(?:caus\w*|contribut\w*)|resulting\s+in|thereby\s+causing)\b[^()]*)\)/giu;
   return value.replace(attachedRelative, (full, antecedent: string, relative: string) => {
-    const coordinatedNewSubject =
-      /\b(?:and|but|while|whereas)\s+(?:an?|the)\s+[\p{L}\p{N}'’_-]+(?:\s+[\p{L}\p{N}'’_-]+){0,5}\s*$/iu;
-    return coordinatedNewSubject.test(antecedent) ? full : `${antecedent}, ${relative}`;
+    // A relative causal parenthetical belongs to the immediately preceding
+    // incident only. After a coordinator, article-led noun phrases and named
+    // or possessive subjects attach only when the named subject is the typed
+    // candidate actor; an unresolved antecedent is left detached.
+    return coordinatedAntecedentBelongsToCandidate(antecedent, event)
+      ? `${antecedent}, ${relative}`
+      : full;
   });
 }
 
-function causalUnits(value: string): string[] {
-  const coordinatedSubjectBoundary =
-    /(?:,\s*)?\b(?:and|but|while|whereas)\b\s+(?!(?:directly|also|separately|then|together)\s+(?:caus|contribut|result)\w*\b)(?=(?:an?|the|[\p{L}\p{N}'’_-]+)(?:\s+[\p{L}\p{N}'’_-]+){0,5}\s+(?:caus|contribut|result)\w*\b)/giu;
-  return preserveAttachedRelativeCausalParentheticals(value)
-    .replace(coordinatedSubjectBoundary, '\n')
+function introducesDifferentCoordinatedSubject(followingText: string, event: JsonObject): boolean {
+  const causalPredicate = /\b(?:caus|contribut|result)\w*\b/iu.exec(followingText);
+  if (causalPredicate?.index == null) return false;
+  const subjectAndModifiers = followingText
+    .slice(0, causalPredicate.index)
+    .trim()
+    .replace(/^,+\s*/u, '');
+  if (subjectAndModifiers.length === 0) return false;
+  if (/^(?:an?|the)\b/iu.test(subjectAndModifiers)) return true;
+
+  const namedSubject = new RegExp(String.raw`^(${PROPER_SUBJECT})(?:['’]s)?\b`, 'u').exec(
+    subjectAndModifiers,
+  );
+  if (namedSubject?.[1] == null) return false;
+  const normalizedSubject = normalizedSubjectName(namedSubject[1]);
+  return (
+    normalizedSubject == null ||
+    !candidateActorNames(event).some((actor) => actor === normalizedSubject)
+  );
+}
+
+function splitCoordinatedSubjects(value: string, event: JsonObject): string[] {
+  const units: string[] = [];
+  let unitStart = 0;
+  for (const match of value.matchAll(COORDINATOR)) {
+    if (match.index == null) continue;
+    const afterCoordinator = match.index + match[0].length;
+    if (!introducesDifferentCoordinatedSubject(value.slice(afterCoordinator), event)) continue;
+    const preceding = value.slice(unitStart, match.index).replace(/,\s*$/u, '').trim();
+    if (preceding.length > 0) units.push(preceding);
+    unitStart = afterCoordinator;
+  }
+  const remainder = value.slice(unitStart).trim();
+  if (remainder.length > 0) units.push(remainder);
+  return units;
+}
+
+function causalUnits(value: string, event: JsonObject): string[] {
+  return preserveAttachedRelativeCausalParentheticals(value, event)
     .split(/[.;()\r\n]|[—–]/u)
+    .map((unit) => unit.trim())
+    .filter((unit) => unit.length > 0)
+    .flatMap((unit) => splitCoordinatedSubjects(unit, event))
     .map((unit) => unit.trim())
     .filter((unit) => unit.length > 0);
 }
@@ -186,6 +258,19 @@ function causeBindsToCandidateIncident(cause: string, event: JsonObject): boolea
   // occurrence state, object, calendar anchor, deadline relation, or occurrence
   // qualifier. Missing cause detail is tolerated only when no known field
   // conflicts; the causal predicate has already been confined to its local unit.
+  const candidateText = canonicalAssertedMeaning([event.event_summary], 'client_delay');
+  const typedTemporalAnchors = temporalAnchors([event.date?.start, event.date?.end]);
+  // Textual occurrence language and provider-typed dates are independent
+  // identity signals. A named-period match cannot sanitize a contradictory
+  // typed date, so an internally inconsistent candidate fails closed before
+  // it is compared with the asserted cause.
+  if (
+    candidateText.temporalAnchors.length > 0 &&
+    typedTemporalAnchors.length > 0 &&
+    anyTemporalAnchorConflict(candidateText.temporalAnchors, typedTemporalAnchors)
+  ) {
+    return false;
+  }
   const candidate = canonicalAssertedMeaning(
     [event.event_summary, event.date?.start, event.date?.end],
     'client_delay',
@@ -237,7 +322,7 @@ function causeBindsToCandidateIncident(cause: string, event: JsonObject): boolea
 
 function isDirectClientDelayInterpretation(value: unknown, event: JsonObject): value is string {
   if (typeof value !== 'string' || value.length === 0) return false;
-  return causalUnits(value).some((unit) => {
+  return causalUnits(value, event).some((unit) => {
     if (
       NON_ASSERTED_CAUSATION.test(unit) ||
       hasModalMay(unit) ||
@@ -398,12 +483,16 @@ function temporalAnchorParts(anchor: string): [string, string, string] {
   return [year, month, day];
 }
 
-function temporalAnchorPairCompatible(left: string, right: string): boolean {
-  return temporalAnchorParts(left).every(
-    (part, index) =>
-      part === '*' ||
-      temporalAnchorParts(right)[index] === '*' ||
-      part === temporalAnchorParts(right)[index],
+function temporalAnchorPairConflicts(left: string, right: string): boolean {
+  const rightParts = temporalAnchorParts(right);
+  return temporalAnchorParts(left).some(
+    (part, index) => part !== '*' && rightParts[index] !== '*' && part !== rightParts[index],
+  );
+}
+
+function anyTemporalAnchorConflict(left: string[], right: string[]): boolean {
+  return left.some((leftAnchor) =>
+    right.some((rightAnchor) => temporalAnchorPairConflicts(leftAnchor, rightAnchor)),
   );
 }
 
@@ -468,11 +557,7 @@ function hasConflictingTemporalIdentity(
   if (
     candidate.temporalAnchors.length > 0 &&
     assertedCause.temporalAnchors.length > 0 &&
-    !candidate.temporalAnchors.some((candidateAnchor) =>
-      assertedCause.temporalAnchors.some((causeAnchor) =>
-        temporalAnchorPairCompatible(candidateAnchor, causeAnchor),
-      ),
-    )
+    anyTemporalAnchorConflict(candidate.temporalAnchors, assertedCause.temporalAnchors)
   ) {
     return true;
   }
@@ -909,7 +994,9 @@ function uniqueClaimId(eventId: string, ids: Set<string>): string {
 }
 
 /**
- * Recover only a claim whose complete meaning is already present in typed model output.
+ * Internal pure transform used by the focused compatibility regression suite
+ * and the explicit projection entrypoint. This case-specific name is
+ * intentional: normal extraction and assembly must never call this helper.
  *
  * This is deliberately not a narrative parser. It requires a high-materiality Person A
  * assertion about Person B, a supported-unanswered occurrence, an explicit direct
@@ -917,8 +1004,10 @@ function uniqueClaimId(eventId: string, ids: Set<string>): string {
  * covers those slices. The emitted claim copies the model's qualified event summary,
  * evidence references, materiality, and spans without importing golden data or inferring
  * objective occurrence.
+ *
+ * @internal
  */
-export function recoverGroundedClientDelayClaims(
+export function applyDryRun001ClA003CompatibilityRecovery(
   modelOutput: JsonObject,
   narrative: string,
 ): JsonObject {
