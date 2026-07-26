@@ -1,11 +1,12 @@
 import { createHash } from 'node:crypto';
 import type { StructuredExtractionClient } from './openai-responses.js';
+import { recoverGroundedClientDelayClaims } from './person-a-claim-coverage.js';
 import { PERSON_A_PROMPT_VERSION } from './person-a-prompt.js';
 import { validatePersonAExtraction } from './validate-person-a-corrected.js';
 
 type JsonObject = Record<string, any>;
 
-export const PERSON_A_EXTRACTOR_VERSION = 'person-a-v0.1.3';
+export const PERSON_A_EXTRACTOR_VERSION = 'person-a-v0.1.4';
 
 export type ExtractPersonAOptions = {
   narrative: string;
@@ -82,9 +83,13 @@ export function assemblePersonAExtraction(
   const submissionId = 'sub_a_extracted';
   const inputHash = sha256(options.narrative);
   const generatedAt = options.generatedAt ?? new Date().toISOString();
-  const normalizedModelOutput = structuredClone(modelOutput);
+  let normalizedModelOutput = structuredClone(modelOutput);
   normalizeSourceSpanSubmissionIds(normalizedModelOutput, submissionId);
   normalizeUniqueExactSourceSpanOffsets(normalizedModelOutput, options.narrative);
+  normalizedModelOutput = recoverGroundedClientDelayClaims(
+    normalizedModelOutput,
+    options.narrative,
+  );
 
   const extraction: JsonObject = {
     schema_version: '0.1.2',
