@@ -77,6 +77,8 @@ function hasModalMay(value: string): boolean {
 function deniesCausalRelation(value: string): boolean {
   const directNegation =
     /\b(?:did|does|do|is|are|was|were|has|have|had)\s+not\s+(?:directly\s+)?(?:caus(?:e|es|ed|ing)|contribut(?:e|es|ed|ing)|result(?:s|ed|ing))\b|\bnever\s+(?:directly\s+)?(?:caus(?:e|es|ed|ing)|contribut(?:e|es|ed|ing)|result(?:s|ed|ing))\b/iu;
+  const resultNegation =
+    /\b(?:caus(?:e|es|ed|ing)|contribut(?:e|es|ed|ing)|result(?:s|ed|ing))\b[^,.;]{0,64}\b(?:no|zero)\s+(?:(?:actual|material|measurable|meaningful|schedule)\s+)*delay\b|\bwithout\s+(?:directly\s+)?caus(?:e|es|ed|ing)\s+(?:any\s+)?(?:schedule\s+)?delay\b/iu;
   const passiveNegation =
     /\b(?:schedule\s+)?delay\b[^.]{0,48}\b(?:is|are|was|were)\s+not\s+(?:caus(?:e|ed)|attribut(?:e|ed))\b/iu;
   const reportedCausalClauseDenial =
@@ -85,9 +87,21 @@ function deniesCausalRelation(value: string): boolean {
     /\b(?:den(?:y|ies|ied|ying)|disput(?:e|es|ed|ing))\s+(?:the\s+)?(?:(?:missing|late|delayed)\s+)?(?:content|delivery|shipment|files?)\s+(?:caus|contribut|result)\w*/iu;
   return (
     directNegation.test(value) ||
+    resultNegation.test(value) ||
     passiveNegation.test(value) ||
     reportedCausalClauseDenial.test(value) ||
     reportedDirectObjectDenial.test(value)
+  );
+}
+
+function reportsCausalDenial(value: string): boolean {
+  return (
+    /\b(?:den(?:y|ies|ied|ying)|disput(?:e|es|ed|ing))\s+(?:the\s+(?:claim|view)\s+)?(?:that|whether)\b[^,.;]{0,96}\b(?:caus|contribut|result|delay)\w*/iu.test(
+      value,
+    ) ||
+    /\b(?:den(?:y|ies|ied|ying)|disput(?:e|es|ed|ing))\s+(?:the\s+)?(?:(?:missing|late|delayed)\s+)?(?:content|delivery|shipment|files?)\s+(?:caus|contribut|result)\w*/iu.test(
+      value,
+    )
   );
 }
 
@@ -213,22 +227,75 @@ function localForwardCause(prefix: string): string {
     .trim();
 }
 
-function assertedCausePhrases(unit: string): string[] {
-  const causes: string[] = [];
+type AssertedCausalRelation = {
+  cause: string;
+  predicateIndex: number;
+  relationEnd: number;
+};
+
+function assertedCausalRelations(unit: string): AssertedCausalRelation[] {
+  const relations: AssertedCausalRelation[] = [];
   const forward =
-    /\b(?:caus(?:e|es|ed|ing)|contribut(?:e|es|ed|ing)|result(?:s|ed|ing))\b[^.;()—–\r\n]{0,96}\b(?:schedule\s+)?delay\b/giu;
+    /\b(?:caus(?:e|es|ed|ing)|contribut(?:e|es|ed|ing)|result(?:s|ed|ing))\b[^.;()—–\r\n]{0,96}?\b(?:schedule\s+)?delay\b/giu;
   for (const match of unit.matchAll(forward)) {
+    if (match.index == null) continue;
     const cause = localForwardCause(unit.slice(0, match.index));
-    if (cause.length > 0) causes.push(cause);
+    if (cause.length > 0) {
+      relations.push({
+        cause,
+        predicateIndex: match.index,
+        relationEnd: match.index + match[0].length,
+      });
+    }
   }
 
   const reverse =
     /\b(?:schedule\s+)?delay\b[^.;()—–\r\n]{0,48}\b(?:result(?:s|ed|ing)\s+from|came\s+from|was\s+caused\s+by)\s+(.+)$/giu;
   for (const match of unit.matchAll(reverse)) {
+    if (match.index == null) continue;
     const cause = match[1]?.trim();
-    if (cause != null && cause.length > 0) causes.push(cause);
+    if (cause != null && cause.length > 0) {
+      relations.push({
+        cause,
+        predicateIndex: match.index,
+        relationEnd: match.index + match[0].length,
+      });
+    }
   }
-  return causes;
+  return relations;
+}
+
+function causalRelationIsNegated(unit: string, relation: AssertedCausalRelation): boolean {
+  const leftContext = unit.slice(
+    Math.max(0, relation.predicateIndex - 48),
+    relation.predicateIndex,
+  );
+  const localRelation = unit.slice(Math.max(0, relation.predicateIndex - 24), relation.relationEnd);
+
+  // Incident negation is independent: "did not send, which caused delay"
+  // remains positive causation. Only an auxiliary or "without" immediately
+  // governing this causal predicate negates the predicate itself.
+  if (
+    /\b(?:did|does|do|is|are|was|were|has|have|had)\s+not\s+(?:directly\s+)?$/iu.test(
+      leftContext,
+    ) ||
+    /\bnever\s+(?:directly\s+)?$/iu.test(leftContext) ||
+    /\bwithout\s+(?:directly\s+)?$/iu.test(leftContext)
+  ) {
+    return true;
+  }
+
+  // Result polarity is clause-local. Bare "no/zero [qualified] delay" denies
+  // any delay result; "not a major delay", "no more than two days", and
+  // "only minor delay" remain limited positive assertions.
+  return (
+    /\b(?:caus(?:e|es|ed|ing)|contribut(?:e|es|ed|ing)|result(?:s|ed|ing))\b[^,.;]{0,64}\b(?:no|zero)\s+(?:(?:actual|material|measurable|meaningful|schedule)\s+)*delay\b/iu.test(
+      localRelation,
+    ) ||
+    /\b(?:no|zero)\s+(?:(?:actual|material|measurable|meaningful|schedule)\s+)*delay\b[^,.;]{0,48}\b(?:result(?:s|ed|ing)\s+from|came\s+from|was\s+caused\s+by)\b/iu.test(
+      localRelation,
+    )
+  );
 }
 
 function overlaps(values: string[], candidates: string[]): boolean {
@@ -326,14 +393,114 @@ function isDirectClientDelayInterpretation(value: unknown, event: JsonObject): v
     if (
       NON_ASSERTED_CAUSATION.test(unit) ||
       hasModalMay(unit) ||
-      deniesCausalRelation(unit) ||
+      reportsCausalDenial(unit) ||
       REPORTED_BELIEF.test(unit) ||
       METADATA_ONLY.test(unit)
     ) {
       return false;
     }
-    return assertedCausePhrases(unit).some((cause) => causeBindsToCandidateIncident(cause, event));
+    return assertedCausalRelations(unit).some(
+      (relation) =>
+        !causalRelationIsNegated(unit, relation) &&
+        causeBindsToCandidateIncident(relation.cause, event),
+    );
   });
+}
+
+type TemporalAlternativeKind = 'alternative' | 'conjunction' | 'range';
+
+type TemporalAlternativeGroup = {
+  anchors: string[];
+  kind: TemporalAlternativeKind;
+};
+
+function temporalAlternativeKind(
+  between: string | undefined,
+  connector: string,
+): TemporalAlternativeKind {
+  if (between != null || /^[-–—]$/u.test(connector)) return 'range';
+  if (connector.toLocaleLowerCase() === 'and') return 'conjunction';
+  return 'alternative';
+}
+
+function temporalAlternativeGroups(value: string): TemporalAlternativeGroup[] {
+  const groups: TemporalAlternativeGroup[] = [];
+  const months = [...MONTH_TOKENS].join('|');
+  const push = (anchors: string[], kind: TemporalAlternativeKind): void => {
+    groups.push({ anchors: [...new Set(anchors)].sort(), kind });
+  };
+
+  const monthDays = new RegExp(
+    String.raw`\b(?:(between)\s+|either\s+)?(${months})\s+(\d{1,2})(?:st|nd|rd|th)?\s*(or|and|\/|[-–—])\s*(?:(${months})\s+)?(\d{1,2})(?:st|nd|rd|th)?\b`,
+    'giu',
+  );
+  for (const match of value.matchAll(monthDays)) {
+    const firstMonth = MONTH_NUMBERS.get((match[2] ?? '').toLocaleLowerCase());
+    const secondMonth = MONTH_NUMBERS.get((match[5] ?? match[2] ?? '').toLocaleLowerCase());
+    if (firstMonth == null || secondMonth == null) continue;
+    push(
+      [
+        temporalAnchorKey(null, firstMonth, String(Number(match[3])).padStart(2, '0')),
+        temporalAnchorKey(null, secondMonth, String(Number(match[6])).padStart(2, '0')),
+      ],
+      temporalAlternativeKind(match[1], match[4] ?? ''),
+    );
+  }
+
+  const namedPeriods = new RegExp(
+    String.raw`\b(?:(between)\s+|either\s+)?(early|mid|late)\s+(${months})\s*(or|and|\/|[-–—])\s*(early|mid|late)\s+(${months})\b`,
+    'giu',
+  );
+  for (const match of value.matchAll(namedPeriods)) {
+    const firstMonth = MONTH_NUMBERS.get((match[3] ?? '').toLocaleLowerCase());
+    const secondMonth = MONTH_NUMBERS.get((match[6] ?? '').toLocaleLowerCase());
+    if (firstMonth == null || secondMonth == null) continue;
+    push(
+      [
+        `period:${match[2]?.toLocaleLowerCase()}:${firstMonth}`,
+        `period:${match[5]?.toLocaleLowerCase()}:${secondMonth}`,
+      ],
+      temporalAlternativeKind(match[1], match[4] ?? ''),
+    );
+  }
+
+  const isoDates =
+    /\b(?:(between)\s+|either\s+)?(\d{4}-\d{2}-\d{2})\s*(or|and|\/|[-–—])\s*(\d{4}-\d{2}-\d{2})\b/giu;
+  for (const match of value.matchAll(isoDates)) {
+    push([match[2] ?? '', match[4] ?? ''], temporalAlternativeKind(match[1], match[3] ?? ''));
+  }
+
+  const years = /\b(?:(between)\s+|either\s+)?(\d{4})\s*(or|and|\/|[-–—])\s*(\d{4})\b/giu;
+  for (const match of value.matchAll(years)) {
+    push(
+      [`year:${match[2]}`, `year:${match[4]}`],
+      temporalAlternativeKind(match[1], match[3] ?? ''),
+    );
+  }
+
+  return groups;
+}
+
+function preservesAlternativeTemporalMeaning(sourceText: string, eventSummary: string): boolean {
+  const sourceGroups = temporalAlternativeGroups(sourceText);
+  if (sourceGroups.length === 0) return true;
+  const summaryGroups = temporalAlternativeGroups(eventSummary);
+
+  // Exact source spans are authoritative. A provider summary may normalize
+  // punctuation or render an adjacent alternative as a bounded range, but it
+  // must retain every anchor and may not turn a range into a point or "or"
+  // into an additive "and".
+  return sourceGroups.every((sourceGroup) =>
+    summaryGroups.some((summaryGroup) => {
+      if (JSON.stringify(sourceGroup.anchors) !== JSON.stringify(summaryGroup.anchors)) {
+        return false;
+      }
+      if (sourceGroup.kind === 'alternative') {
+        return summaryGroup.kind === 'alternative' || summaryGroup.kind === 'range';
+      }
+      return sourceGroup.kind === summaryGroup.kind;
+    }),
+  );
 }
 
 function preservesSourceQualifications(eventSummary: string, spans: JsonObject[]): boolean {
@@ -350,7 +517,7 @@ function preservesSourceQualifications(eventSummary: string, spans: JsonObject[]
   ) {
     return false;
   }
-  return true;
+  return preservesAlternativeTemporalMeaning(sourceText, eventSummary);
 }
 
 function spanContains(claimSpan: unknown, eventSpan: JsonObject): boolean {

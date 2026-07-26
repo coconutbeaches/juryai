@@ -2112,6 +2112,163 @@ describe('cl_a_003 Person A recall coverage', () => {
     });
   });
 
+  describe('eighth review finding 1: causal-result polarity', () => {
+    it.each([
+      'Maya’s late content delivery caused no schedule delay.',
+      'Maya’s late content delivery resulted in no delay.',
+      'Maya’s late content delivery contributed to zero delay.',
+      'Maya’s late content delivery ended without causing delay.',
+      'Maya’s late content delivery did not result in any delay.',
+    ])('rejects a negated causal result: %s', (interpretation) => {
+      const eventSummary = 'Alex says Maya delivered the content late.';
+      const narrative = `${eventSummary} ${interpretation}`;
+      const modelOutput = candidateFixture(narrative, {
+        event_summary: eventSummary,
+        person_a_interpretation: interpretation,
+      });
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toEqual([]);
+    });
+
+    it.each([
+      'Maya’s late content delivery caused only a minor delay.',
+      'Maya’s late content delivery caused no more than two days of delay.',
+      'Maya’s late content delivery caused a delay, but not a major delay.',
+      'Maya’s late content delivery did not cause a major delay, but caused a one-day delay.',
+      'Maya supplied no images, but her late content delivery caused schedule delay.',
+    ])('preserves limited positive causation: %s', (interpretation) => {
+      const eventSummary = 'Alex says Maya’s late content delivery caused a limited delay.';
+      const narrative = `${eventSummary} ${interpretation}`;
+      const modelOutput = candidateFixture(narrative, {
+        event_summary: eventSummary,
+        person_a_interpretation: interpretation,
+      });
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        1,
+      );
+    });
+
+    it('preserves the exact frozen cl_a_003 direct causal interpretation', async () => {
+      const { narrative, modelOutput } = await frozenInputs();
+
+      expect(
+        applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims.filter(
+          (claim: JsonObject) => claim.claim_id === 'claim_event_04_major_batch_client_delay',
+        ),
+      ).toHaveLength(1);
+    });
+  });
+
+  describe('eighth review finding 2: alternative temporal anchors', () => {
+    function temporalAlternativeCandidate(
+      source: string,
+      eventSummary: string,
+    ): { narrative: string; modelOutput: JsonObject } {
+      const interpretation = 'Maya’s late content delivery caused schedule delay.';
+      const narrative = `${source} ${interpretation}`;
+      return {
+        narrative,
+        modelOutput: candidateFixture(narrative, {
+          event_summary: eventSummary,
+          person_a_interpretation: interpretation,
+        }),
+      };
+    }
+
+    it.each([
+      {
+        label: 'May 8 or May 9',
+        source: 'I think Maya’s content arrived around May 8 or May 9.',
+        summary: 'Alex thinks Maya’s content arrived around May 8 or May 9.',
+      },
+      {
+        label: 'May 8/9',
+        source: 'I think Maya’s content arrived around May 8/9.',
+        summary: 'Alex thinks Maya’s content arrived around May 8 or May 9.',
+      },
+      {
+        label: 'normalized adjacent-date range',
+        source: 'I think Maya’s content arrived around May 8 or May 9.',
+        summary: 'Alex thinks Maya’s content arrived around May 8–9.',
+      },
+      {
+        label: 'named-period alternative',
+        source: 'I think Maya’s content arrived in late May or early June.',
+        summary: 'Alex thinks Maya’s content arrived in late May or early June.',
+      },
+      {
+        label: 'bounded date range',
+        source: 'Maya’s content arrived between May 8 and May 9.',
+        summary: 'Alex says Maya’s content arrived May 8–9.',
+      },
+      {
+        label: 'year alternative',
+        source: 'Maya’s content arrived in 2024 or 2025.',
+        summary: 'Alex says Maya’s content arrived in either 2024 or 2025.',
+      },
+      {
+        label: 'approximate single date',
+        source: 'I think Maya’s content arrived around May 8.',
+        summary: 'Alex thinks Maya’s content arrived around May 8.',
+      },
+      {
+        label: 'definite single date',
+        source: 'Maya’s content arrived on May 8.',
+        summary: 'Alex says Maya’s content arrived on May 8.',
+      },
+    ])('accepts preserved temporal meaning: $label', ({ source, summary }) => {
+      const { narrative, modelOutput } = temporalAlternativeCandidate(source, summary);
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        1,
+      );
+    });
+
+    it.each([
+      {
+        label: 'drops May 9 from an or alternative',
+        source: 'I think Maya’s content arrived around May 8 or May 9.',
+        summary: 'Alex thinks Maya’s content arrived around May 8.',
+      },
+      {
+        label: 'changes or into and',
+        source: 'I think Maya’s content arrived around May 8 or May 9.',
+        summary: 'Alex thinks Maya’s content arrived around May 8 and May 9.',
+      },
+      {
+        label: 'drops early June',
+        source: 'I think Maya’s content arrived in late May or early June.',
+        summary: 'Alex thinks Maya’s content arrived in late May.',
+      },
+      {
+        label: 'reduces a date range to one point',
+        source: 'Maya’s content arrived between May 8 and May 9.',
+        summary: 'Alex says Maya’s content arrived on May 8.',
+      },
+      {
+        label: 'drops 2025',
+        source: 'Maya’s content arrived in 2024 or 2025.',
+        summary: 'Alex says Maya’s content arrived in 2024.',
+      },
+    ])('rejects a summary that $label', ({ source, summary }) => {
+      const { narrative, modelOutput } = temporalAlternativeCandidate(source, summary);
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toEqual([]);
+    });
+
+    it('preserves the exact frozen May 8 or May 9 uncertainty', async () => {
+      const { narrative, modelOutput } = await frozenInputs();
+      const corrected = applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative);
+
+      expect(
+        corrected.claims.filter(
+          (claim: JsonObject) => claim.claim_id === 'claim_event_04_major_batch_client_delay',
+        ),
+      ).toHaveLength(1);
+    });
+  });
+
   it('preserves the selected occurrence when identical source text repeats', () => {
     const quote = 'Maya delivered the content late and it directly contributed to delay.';
     const narrative = `${quote}\nUnrelated separator.\n${quote}`;
