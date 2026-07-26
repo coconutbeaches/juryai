@@ -2476,6 +2476,182 @@ describe('cl_a_003 Person A recall coverage', () => {
     });
   });
 
+  describe('tenth review finding 1: modal May before event verbs', () => {
+    function mayCandidate(
+      source: string,
+      eventSummary: string,
+      interpretation: string,
+    ): { narrative: string; modelOutput: JsonObject } {
+      const narrative = `${source} ${interpretation}`;
+      return {
+        narrative,
+        modelOutput: candidateFixture(narrative, {
+          event_summary: eventSummary,
+          person_a_interpretation: interpretation,
+        }),
+      };
+    }
+
+    it.each([
+      {
+        label: 'may change',
+        source: 'Maya may change the content after the deadline.',
+        summary: 'Alex says Maya changed the content after the deadline.',
+        interpretation: 'Maya’s content change caused schedule delay.',
+      },
+      {
+        label: 'may deliver',
+        source: 'Maya may deliver the files late.',
+        summary: 'Alex says Maya delivered the files late.',
+        interpretation: 'Maya’s late file delivery caused schedule delay.',
+      },
+      {
+        label: 'may have changed',
+        source: 'Maya may have changed the scope.',
+        summary: 'Alex says Maya changed the scope.',
+        interpretation: 'Maya’s scope change caused schedule delay.',
+      },
+      {
+        label: 'modal may plus calendar May',
+        source: 'Maya may not deliver the files by May.',
+        summary: 'Alex says Maya did not deliver the files by May.',
+        interpretation: 'Maya’s missed May delivery caused schedule delay.',
+      },
+      {
+        label: 'sentence-initial modal May',
+        source: 'May have caused delay: Maya’s late file delivery.',
+        summary: 'Alex says Maya’s late file delivery caused delay.',
+        interpretation: 'Maya’s late file delivery caused schedule delay.',
+      },
+    ])(
+      'requires a definite summary to preserve $label uncertainty',
+      ({ source, summary, interpretation }) => {
+        const { narrative, modelOutput } = mayCandidate(source, summary, interpretation);
+
+        expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toEqual(
+          [],
+        );
+      },
+    );
+
+    it.each([
+      {
+        label: 'article-led May changes',
+        source: 'The May changes caused delay.',
+        summary: 'Alex says Maya made content changes in May.',
+        interpretation: 'Maya’s May content changes caused schedule delay.',
+      },
+      {
+        label: 'article-led singular May change',
+        source: 'The May change caused delay.',
+        summary: 'Alex says Maya made a content change in May.',
+        interpretation: 'Maya’s May content change caused schedule delay.',
+      },
+      {
+        label: 'bare May changes noun phrase',
+        source: 'May changes caused delay.',
+        summary: 'Alex says Maya made content changes in May.',
+        interpretation: 'Maya’s May content changes caused schedule delay.',
+      },
+      {
+        label: 'calendar-preposition May',
+        source: 'Changes made in May caused delay.',
+        summary: 'Alex says Maya made content changes in May.',
+        interpretation: 'Maya’s content changes in May caused schedule delay.',
+      },
+      {
+        label: 'May delivery noun phrase',
+        source: 'The May delivery caused delay.',
+        summary: 'Alex says Maya’s May delivery was late.',
+        interpretation: 'Maya’s May delivery caused schedule delay.',
+      },
+    ])('allows definite calendar usage: $label', ({ source, summary, interpretation }) => {
+      const { narrative, modelOutput } = mayCandidate(source, summary, interpretation);
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        1,
+      );
+    });
+
+    it('allows recovery when modal may is preserved in the summary', () => {
+      const { narrative, modelOutput } = mayCandidate(
+        'Maya may change the content after the deadline.',
+        'Alex says Maya may change the content after the deadline.',
+        'Maya’s content change caused schedule delay.',
+      );
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        1,
+      );
+    });
+
+    it('preserves the exact frozen cl_a_003 calendar references', async () => {
+      const { narrative, modelOutput } = await frozenInputs();
+
+      expect(
+        applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims.filter(
+          (claim: JsonObject) => claim.claim_id === 'claim_event_04_major_batch_client_delay',
+        ),
+      ).toHaveLength(1);
+    });
+  });
+
+  describe('tenth review finding 2: contrastively excluded reverse causes', () => {
+    function reverseCauseCandidate(interpretation: string): {
+      narrative: string;
+      modelOutput: JsonObject;
+    } {
+      const eventSummary = 'Alex says Maya delivered the content late.';
+      const narrative = `${eventSummary} ${interpretation}`;
+      return {
+        narrative,
+        modelOutput: candidateFixture(narrative, {
+          event_summary: eventSummary,
+          person_a_interpretation: interpretation,
+        }),
+      };
+    }
+
+    it.each([
+      'The schedule delay resulted from bad weather, not Maya’s late delivery.',
+      'The schedule delay resulted from bad weather rather than Maya’s late delivery.',
+      'The schedule delay resulted from the outage instead of Maya’s revisions.',
+      'The schedule delay resulted from bad weather but not Maya’s late delivery.',
+      'The schedule delay resulted from bad weather and not Maya’s late delivery.',
+      'The schedule delay resulted from bad weather, not because of Maya’s late delivery.',
+      'The schedule delay resulted from bad weather (not Maya’s late delivery).',
+      'The schedule delay resulted from bad weather, but Maya delivered the content late.',
+      'The schedule delay was caused by the outage—not Maya’s delivery.',
+      'The schedule delay did not result from Maya’s delivery.',
+    ])('does not bind Maya from an excluded cause: %s', (interpretation) => {
+      const { narrative, modelOutput } = reverseCauseCandidate(interpretation);
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toEqual([]);
+    });
+
+    it.each([
+      'The schedule delay resulted from bad weather and Maya’s late delivery.',
+      'The schedule delay resulted mainly from bad weather, but Maya’s late delivery also contributed to delay.',
+      'The schedule delay resulted from bad weather, not Maya’s revisions, but Maya’s late delivery also contributed to delay.',
+    ])('retains a separately positive Maya cause: %s', (interpretation) => {
+      const { narrative, modelOutput } = reverseCauseCandidate(interpretation);
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        1,
+      );
+    });
+
+    it('preserves the exact frozen cl_a_003 positive cause', async () => {
+      const { narrative, modelOutput } = await frozenInputs();
+
+      expect(
+        applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims.filter(
+          (claim: JsonObject) => claim.claim_id === 'claim_event_04_major_batch_client_delay',
+        ),
+      ).toHaveLength(1);
+    });
+  });
+
   it('preserves the selected occurrence when identical source text repeats', () => {
     const quote = 'Maya delivered the content late and it directly contributed to delay.';
     const narrative = `${quote}\nUnrelated separator.\n${quote}`;

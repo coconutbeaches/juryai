@@ -5,24 +5,17 @@ const NON_ASSERTED_CAUSATION =
 const REPORTED_BELIEF =
   /\b(?:report(?:s|ed|ing)?|describ(?:e|es|ed|ing))\b[^.]{0,96}\b(?:belief|opinion|view)\b/iu;
 const METADATA_ONLY = /\b(?:metadata|file\s*name|filename|label|index|keyword)\b/iu;
-const CALENDAR_MAY_EVENT_NOUNS = new Set([
-  'batch',
-  'change',
+const CALENDAR_MAY_NOUNS = new Set([
   'changes',
   'content',
-  'copy',
   'deadline',
   'deliverable',
   'deliverables',
   'delivery',
-  'image',
   'images',
-  'launch',
   'milestone',
-  'request',
   'requests',
   'shipment',
-  'work',
 ]);
 
 function isJsonObject(value: unknown): value is JsonObject {
@@ -54,21 +47,42 @@ function hasModalMay(value: string): boolean {
     if (tokens[index]?.toLocaleLowerCase() !== 'may') continue;
     const previous = tokens[index - 1]?.toLocaleLowerCase();
     const next = tokens[index + 1]?.toLocaleLowerCase();
-    const followsCalendarDate =
+    const calendarDate =
       typeof next === 'string' &&
       (/^\d{4}$/u.test(next) || /^(?:[1-9]|[12]\d|3[01])(?:st|nd|rd|th)?$/u.test(next));
-    const followsCalendarPreposition =
+    const calendarIntroducer =
       previous != null &&
-      ['after', 'around', 'before', 'by', 'during', 'in', 'since', 'through', 'until'].includes(
-        previous,
-      );
-    if (
-      followsCalendarDate ||
-      followsCalendarPreposition ||
-      (next != null && CALENDAR_MAY_EVENT_NOUNS.has(next))
-    ) {
-      continue;
-    }
+      [
+        'a',
+        'after',
+        'an',
+        'around',
+        'before',
+        'by',
+        'during',
+        'each',
+        'early',
+        'from',
+        'in',
+        'late',
+        'last',
+        'mid',
+        'next',
+        'on',
+        'since',
+        'that',
+        'the',
+        'this',
+        'through',
+        'until',
+      ].includes(previous);
+    const clearCalendarNoun = next != null && CALENDAR_MAY_NOUNS.has(next);
+
+    // Calendar syntax must be affirmative: a date, a calendar introducer, or
+    // an unambiguously nominal complement such as plural "changes" or
+    // "delivery". A base-form verb or unresolved role (including
+    // sentence-initial "May have") fails closed as modal uncertainty.
+    if (calendarDate || calendarIntroducer || clearCalendarNoun) continue;
     return true;
   }
   return false;
@@ -216,6 +230,11 @@ function localForwardCause(prefix: string): string {
   const participial = prefix.match(/^(.*?),\s*$/u);
   if (participial?.[1] != null) return participial[1].trim();
 
+  const contrastiveNewSubject = prefix.match(
+    /(?:^|,)\s*but\s+((?:\p{Lu}[\p{L}\p{N}.'’_-]*(?:['’]s)?|[Tt]he)\b.*)$/u,
+  );
+  if (contrastiveNewSubject?.[1] != null) return contrastiveNewSubject[1].trim();
+
   const connectors = /\b(?:although|because|while|whereas)\b/giu;
   let localStart = 0;
   for (const match of prefix.matchAll(connectors)) {
@@ -230,9 +249,46 @@ function localForwardCause(prefix: string): string {
 type AssertedCausalRelation = {
   cause: string;
   direction: 'cause_to_delay' | 'delay_from_cause';
+  excludedCauses: string[];
   predicateIndex: number;
   relationEnd: number;
 };
+
+function reverseCauseComplement(value: string): {
+  positiveCause: string;
+  excludedCauses: string[];
+} {
+  const exclusion =
+    /(?:,\s*)?(?:but\s+not|and\s+not|not(?:\s+because\s+of)?|rather\s+than|instead\s+of)\b|[—–]\s*not\b|\(\s*not\b/iu.exec(
+      value,
+    );
+  const contrastiveClause = /,\s*but\s+(?!not\b)/iu.exec(value);
+  if (
+    contrastiveClause?.index != null &&
+    (exclusion?.index == null || contrastiveClause.index < exclusion.index)
+  ) {
+    return {
+      positiveCause: value.slice(0, contrastiveClause.index).trim(),
+      excludedCauses: [],
+    };
+  }
+  if (exclusion?.index == null) {
+    return { positiveCause: value.trim(), excludedCauses: [] };
+  }
+  const excludedRemainder = value.slice(exclusion.index + exclusion[0].length).trim();
+  const positiveResumption = /,\s*but\s+(?!not\b)/iu.exec(excludedRemainder);
+  const excludedCause =
+    positiveResumption?.index == null
+      ? excludedRemainder
+      : excludedRemainder.slice(0, positiveResumption.index).trim();
+  return {
+    positiveCause: value
+      .slice(0, exclusion.index)
+      .replace(/[,—–\s]+$/gu, '')
+      .trim(),
+    excludedCauses: [excludedCause].filter((cause) => cause.length > 0),
+  };
+}
 
 function assertedCausalRelations(unit: string): AssertedCausalRelation[] {
   const relations: AssertedCausalRelation[] = [];
@@ -261,6 +317,7 @@ function assertedCausalRelations(unit: string): AssertedCausalRelation[] {
         relations.push({
           cause,
           direction: 'cause_to_delay',
+          excludedCauses: [],
           predicateIndex: match.index,
           relationEnd: match.index + match[0].length,
         });
@@ -274,11 +331,12 @@ function assertedCausalRelations(unit: string): AssertedCausalRelation[] {
     /\b(?:schedule\s+)?delay\b[^.;()—–\r\n]{0,48}\b(?:result(?:s|ed|ing)\s+from|came\s+from|was\s+(?:directly\s+)?caused\s+by)\s+(.+)$/giu;
   for (const match of unit.matchAll(reverse)) {
     if (match.index == null) continue;
-    const cause = match[1]?.trim();
-    if (cause != null && cause.length > 0) {
+    const complement = reverseCauseComplement(match[1] ?? '');
+    if (complement.positiveCause.length > 0) {
       relations.push({
-        cause,
+        cause: complement.positiveCause,
         direction: 'delay_from_cause',
+        excludedCauses: complement.excludedCauses,
         predicateIndex: match.index,
         relationEnd: match.index + match[0].length,
       });
@@ -424,7 +482,8 @@ function isDirectClientDelayInterpretation(value: unknown, event: JsonObject): v
     return assertedCausalRelations(unit).some(
       (relation) =>
         !causalRelationIsNegated(unit, relation) &&
-        causeBindsToCandidateIncident(relation.cause, event),
+        causeBindsToCandidateIncident(relation.cause, event) &&
+        !relation.excludedCauses.some((cause) => causeBindsToCandidateIncident(cause, event)),
     );
   });
 }
