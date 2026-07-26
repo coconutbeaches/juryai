@@ -2269,6 +2269,213 @@ describe('cl_a_003 Person A recall coverage', () => {
     });
   });
 
+  describe('ninth review finding 1: explicit causal direction', () => {
+    function directionalCandidate(interpretation: string): {
+      narrative: string;
+      modelOutput: JsonObject;
+    } {
+      const eventSummary = 'Alex says Maya delivered the content late.';
+      const narrative = `${eventSummary} ${interpretation}`;
+      return {
+        narrative,
+        modelOutput: candidateFixture(narrative, {
+          event_summary: eventSummary,
+          person_a_interpretation: interpretation,
+        }),
+      };
+    }
+
+    it.each([
+      'Maya’s late delivery resulted from the schedule delay.',
+      'Maya’s late delivery was caused by the schedule delay.',
+    ])('rejects a candidate incident that is the causal effect: %s', (interpretation) => {
+      const { narrative, modelOutput } = directionalCandidate(interpretation);
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toEqual([]);
+    });
+
+    it.each([
+      'The schedule delay resulted from Maya’s late delivery.',
+      'The schedule delay was caused by Maya’s late delivery.',
+      'Maya’s late delivery resulted in schedule delay.',
+      'Maya’s late delivery contributed to schedule delay.',
+    ])(
+      'promotes only when the candidate incident occupies the causal role: %s',
+      (interpretation) => {
+        const { narrative, modelOutput } = directionalCandidate(interpretation);
+        const corrected = applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative);
+
+        expect(corrected.claims).toHaveLength(1);
+        expect(corrected.claims[0].claim_text).toBe('Alex says Maya delivered the content late.');
+      },
+    );
+
+    it('preserves the exact frozen cl_a_003 causal direction', async () => {
+      const { narrative, modelOutput } = await frozenInputs();
+
+      expect(
+        applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims.filter(
+          (claim: JsonObject) => claim.claim_id === 'claim_event_04_major_batch_client_delay',
+        ),
+      ).toHaveLength(1);
+    });
+  });
+
+  describe('ninth review finding 2: material epistemic qualifications', () => {
+    function epistemicCandidate(
+      source: string,
+      eventSummary: string,
+      interpretation = 'Maya’s late content delivery caused schedule delay.',
+    ): { narrative: string; modelOutput: JsonObject } {
+      const narrative = `${source} ${interpretation}`;
+      return {
+        narrative,
+        modelOutput: candidateFixture(narrative, {
+          event_summary: eventSummary,
+          person_a_interpretation: interpretation,
+        }),
+      };
+    }
+
+    it.each([
+      {
+        label: 'drops modal might',
+        source: 'Maya might have delivered the content late.',
+        summary: 'Alex says Maya delivered the content late.',
+      },
+      {
+        label: 'drops possibility',
+        source: 'Maya possibly delivered the content late.',
+        summary: 'Alex says Maya delivered the content late.',
+      },
+      {
+        label: 'drops modal may from a causal statement',
+        source: 'Maya’s late content delivery may have contributed to delay.',
+        summary: 'Alex says Maya’s late content delivery contributed to delay.',
+      },
+      {
+        label: 'drops appearance',
+        source: 'Maya apparently delivered the content late.',
+        summary: 'Alex says Maya delivered the content late.',
+      },
+      {
+        label: 'drops probability',
+        source: 'Maya likely delivered the content late.',
+        summary: 'Alex says Maya delivered the content late.',
+      },
+      {
+        label: 'drops perhaps',
+        source: 'Perhaps Maya delivered the content late.',
+        summary: 'Alex says Maya delivered the content late.',
+      },
+      {
+        label: 'drops could have',
+        source: 'Maya could have delivered the content late.',
+        summary: 'Alex says Maya delivered the content late.',
+      },
+      {
+        label: 'drops seeming appearance',
+        source: 'Maya seemingly delivered the content late.',
+        summary: 'Alex says Maya delivered the content late.',
+      },
+      {
+        label: 'drops unlikely probability',
+        source: 'Maya was unlikely to have delivered the content late.',
+        summary: 'Alex says Maya delivered the content late.',
+      },
+      {
+        label: 'drops an appearance construction',
+        source: 'It appears that Maya delivered the content late.',
+        summary: 'Alex says Maya delivered the content late.',
+      },
+      {
+        label: 'recasts suspicion as generic belief',
+        source: 'I suspect Maya delivered the content late.',
+        summary: 'Alex thinks Maya delivered the content late.',
+      },
+      {
+        label: 'recasts inference as generic belief',
+        source: 'I infer that Maya delivered the content late.',
+        summary: 'Alex thinks Maya delivered the content late.',
+      },
+      {
+        label: 'drops an allegation',
+        source: 'Maya allegedly delivered the content late.',
+        summary: 'Alex says Maya delivered the content late.',
+      },
+      {
+        label: 'drops an explicit dispute',
+        source: 'Maya disputes that she delivered the content late.',
+        summary: 'Alex says Maya delivered the content late.',
+      },
+    ])('rejects a summary that $label', ({ source, summary }) => {
+      const { narrative, modelOutput } = epistemicCandidate(source, summary);
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toEqual([]);
+    });
+
+    it.each([
+      {
+        label: 'modal might',
+        source: 'Maya might have delivered the content late.',
+        summary: 'Alex says Maya might have delivered the content late.',
+      },
+      {
+        label: 'possibility',
+        source: 'Maya possibly delivered the content late.',
+        summary: 'Alex says it is possible Maya delivered the content late.',
+      },
+      {
+        label: 'first-person belief',
+        source: 'I think Maya delivered the content late.',
+        summary: 'Alex believes Maya delivered the content late.',
+      },
+      {
+        label: 'approximation and alternatives',
+        source: 'I think Maya delivered the content around May 8 or May 9.',
+        summary: 'Alex thinks Maya delivered the content around May 8–9.',
+      },
+      {
+        label: 'probability with normalized wording',
+        source: 'Maya likely delivered the content late.',
+        summary: 'Alex says Maya probably delivered the content late.',
+      },
+      {
+        label: 'appearance with normalized wording',
+        source: 'It appears that Maya delivered the content late.',
+        summary: 'Alex says Maya seemingly delivered the content late.',
+      },
+    ])('accepts a summary preserving $label', ({ source, summary }) => {
+      const { narrative, modelOutput } = epistemicCandidate(source, summary);
+      const corrected = applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative);
+
+      expect(corrected.claims).toHaveLength(1);
+      expect(corrected.claims[0].claim_text).toBe(summary);
+    });
+
+    it('allows a cautious summary of a definite source because it does not strengthen meaning', () => {
+      const summary = 'Alex says Maya might have delivered the content late.';
+      const { narrative, modelOutput } = epistemicCandidate(
+        'Maya delivered the content late.',
+        summary,
+      );
+      const corrected = applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative);
+
+      expect(corrected.claims).toHaveLength(1);
+      expect(corrected.claims[0].claim_text).toBe(summary);
+    });
+
+    it('preserves the exact frozen cl_a_003 belief, approximation, and alternatives', async () => {
+      const { narrative, modelOutput } = await frozenInputs();
+
+      expect(
+        applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims.filter(
+          (claim: JsonObject) => claim.claim_id === 'claim_event_04_major_batch_client_delay',
+        ),
+      ).toHaveLength(1);
+    });
+  });
+
   it('preserves the selected occurrence when identical source text repeats', () => {
     const quote = 'Maya delivered the content late and it directly contributed to delay.';
     const narrative = `${quote}\nUnrelated separator.\n${quote}`;

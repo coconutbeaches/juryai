@@ -229,34 +229,56 @@ function localForwardCause(prefix: string): string {
 
 type AssertedCausalRelation = {
   cause: string;
+  direction: 'cause_to_delay' | 'delay_from_cause';
   predicateIndex: number;
   relationEnd: number;
 };
 
 function assertedCausalRelations(unit: string): AssertedCausalRelation[] {
   const relations: AssertedCausalRelation[] = [];
-  const forward =
-    /\b(?:caus(?:e|es|ed|ing)|contribut(?:e|es|ed|ing)|result(?:s|ed|ing))\b[^.;()—–\r\n]{0,96}?\b(?:schedule\s+)?delay\b/giu;
-  for (const match of unit.matchAll(forward)) {
-    if (match.index == null) continue;
-    const cause = localForwardCause(unit.slice(0, match.index));
-    if (cause.length > 0) {
-      relations.push({
-        cause,
-        predicateIndex: match.index,
-        relationEnd: match.index + match[0].length,
-      });
+
+  // Direction is part of the compatibility contract, independently of
+  // polarity. Forward forms admit only predicates whose grammatical subject
+  // is the cause and whose delay complement is the effect. In particular,
+  // "resulted from" and passive "caused by" never enter this branch.
+  const forwardPredicates = [
+    /\bcaus(?:e|es|ed|ing)\b(?!\s+(?:directly\s+)?by\b)[^.;()—–\r\n]{0,96}?\b(?:schedule\s+)?delay\b/giu,
+    /\bcontribut(?:e|es|ed|ing)\b[^.;()—–\r\n]{0,24}?\bto\b[^.;()—–\r\n]{0,96}?\b(?:schedule\s+)?delay\b/giu,
+    /\bresult(?:s|ed|ing)\s+in\b[^.;()—–\r\n]{0,96}?\b(?:schedule\s+)?delay\b/giu,
+  ];
+  for (const forward of forwardPredicates) {
+    for (const match of unit.matchAll(forward)) {
+      if (match.index == null) continue;
+      const prefix = unit.slice(0, match.index);
+      if (
+        /^caus/iu.test(match[0]) &&
+        /\b(?:is|are|was|were|be|been|being)\s+(?:directly\s+)?$/iu.test(prefix)
+      ) {
+        continue;
+      }
+      const cause = localForwardCause(prefix);
+      if (cause.length > 0) {
+        relations.push({
+          cause,
+          direction: 'cause_to_delay',
+          predicateIndex: match.index,
+          relationEnd: match.index + match[0].length,
+        });
+      }
     }
   }
 
+  // Reverse surface forms are accepted only when delay is the grammatical
+  // effect and the post-predicate complement is therefore the cause.
   const reverse =
-    /\b(?:schedule\s+)?delay\b[^.;()—–\r\n]{0,48}\b(?:result(?:s|ed|ing)\s+from|came\s+from|was\s+caused\s+by)\s+(.+)$/giu;
+    /\b(?:schedule\s+)?delay\b[^.;()—–\r\n]{0,48}\b(?:result(?:s|ed|ing)\s+from|came\s+from|was\s+(?:directly\s+)?caused\s+by)\s+(.+)$/giu;
   for (const match of unit.matchAll(reverse)) {
     if (match.index == null) continue;
     const cause = match[1]?.trim();
     if (cause != null && cause.length > 0) {
       relations.push({
         cause,
+        direction: 'delay_from_cause',
         predicateIndex: match.index,
         relationEnd: match.index + match[0].length,
       });
@@ -503,21 +525,76 @@ function preservesAlternativeTemporalMeaning(sourceText: string, eventSummary: s
   );
 }
 
+type MaterialEpistemicQualification =
+  | 'allegation'
+  | 'appearance'
+  | 'approximation'
+  | 'belief'
+  | 'denial_or_dispute'
+  | 'inference'
+  | 'modal_possibility'
+  | 'probability_likely'
+  | 'probability_unlikely'
+  | 'suspicion'
+  | 'uncertainty';
+
+function materialEpistemicQualifications(value: string): Set<MaterialEpistemicQualification> {
+  const qualifications = new Set<MaterialEpistemicQualification>();
+  const add = (qualification: MaterialEpistemicQualification, pattern: RegExp): void => {
+    if (pattern.test(value)) qualifications.add(qualification);
+  };
+
+  if (
+    hasModalMay(value) ||
+    /\b(?:might|could(?:\s+have)?|possibly|possible|perhaps)\b/iu.test(value)
+  ) {
+    qualifications.add('modal_possibility');
+  }
+  add('probability_likely', /\b(?:likely|probably|probable)\b/iu);
+  add('probability_unlikely', /\b(?:unlikely|improbably|improbable)\b/iu);
+  add('belief', /\b(?:think|thinks|thought|believ(?:e|es|ed|ing))\b/iu);
+  add('suspicion', /\b(?:suspect|suspects|suspected|suspecting|suspicion)\b/iu);
+  add('inference', /\b(?:infer|infers|inferred|inferring|inference|deduc\w*|conclud\w*)\b/iu);
+  add(
+    'appearance',
+    /\b(?:apparently|seemingly|appear|appears|appeared|appearing|seem|seems|seemed)\b/iu,
+  );
+  add(
+    'approximation',
+    /\b(?:around|about|approximately|approximate|estimated?|estimates|estimating)\b/iu,
+  );
+  add(
+    'uncertainty',
+    /\b(?:unclear|uncertain|unknown|unresolved|ambiguous|unsure|not\s+(?:clear|known|established|resolved))\b/iu,
+  );
+  add('allegation', /\b(?:allege|alleges|alleged|alleging|allegation|allegedly)\b/iu);
+  add(
+    'denial_or_dispute',
+    /\b(?:deny|denies|denied|denying|denial|dispute|disputes|disputed|disputing|contest(?:s|ed|ing)?)\b/iu,
+  );
+  return qualifications;
+}
+
+function preservesEpistemicQualifications(sourceText: string, eventSummary: string): boolean {
+  const sourceQualifications = materialEpistemicQualifications(sourceText);
+  const summaryQualifications = materialEpistemicQualifications(eventSummary);
+
+  // Exact source spans are authoritative. Wording may be normalized, and a
+  // definite source may be summarized more cautiously, but every material
+  // source category must survive. Categories are deliberately not collapsed
+  // into one generic "uncertain" bucket: likely, possible, apparent, believed,
+  // suspected, inferred, alleged, and disputed meanings are not interchangeable.
+  return [...sourceQualifications].every((qualification) =>
+    summaryQualifications.has(qualification),
+  );
+}
+
 function preservesSourceQualifications(eventSummary: string, spans: JsonObject[]): boolean {
   const sourceText = spans.map((span) => span.quote).join(' ');
-  if (
-    /\bI\s+(?:think|believe|suspect|estimate)\b/iu.test(sourceText) &&
-    !/\b(?:think|believ|suspect|estimat)\w*\b/iu.test(eventSummary)
-  ) {
-    return false;
-  }
-  if (
-    /\b(?:around|about|approximately)\b/iu.test(sourceText) &&
-    !/\b(?:around|about|approximately|approximate)\b/iu.test(eventSummary)
-  ) {
-    return false;
-  }
-  return preservesAlternativeTemporalMeaning(sourceText, eventSummary);
+  return (
+    preservesEpistemicQualifications(sourceText, eventSummary) &&
+    preservesAlternativeTemporalMeaning(sourceText, eventSummary)
+  );
 }
 
 function spanContains(claimSpan: unknown, eventSpan: JsonObject): boolean {
