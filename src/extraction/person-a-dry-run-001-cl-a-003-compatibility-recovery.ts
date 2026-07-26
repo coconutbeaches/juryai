@@ -90,7 +90,7 @@ function hasModalMay(value: string): boolean {
 
 function deniesCausalRelation(value: string): boolean {
   const directNegation =
-    /\b(?:did|does|do|is|are|was|were|has|have|had)\s+not\s+(?:directly\s+)?(?:caus(?:e|es|ed|ing)|contribut(?:e|es|ed|ing)|result(?:s|ed|ing))\b|\bnever\s+(?:directly\s+)?(?:caus(?:e|es|ed|ing)|contribut(?:e|es|ed|ing)|result(?:s|ed|ing))\b/iu;
+    /\b(?:(?:did|does|do|is|are|was|were|has|have|had|could|would|can)\s+not|(?:didn|doesn|isn|aren|wasn|weren|hasn|haven|hadn|couldn|wouldn|can)['’]t|cannot)\s+(?:have\s+)?(?:directly\s+)?(?:caus(?:e|es|ed|ing)|contribut(?:e|es|ed|ing)|result(?:s|ed|ing))\b|\b(?:never\s+(?:(?:managed|served)\s+to\s+)?|failed\s+to\s+|did\s+nothing\s+to\s+)(?:directly\s+)?(?:caus(?:e|es|ed|ing)|contribut(?:e|es|ed|ing)|result(?:s|ed|ing))\b/iu;
   const resultNegation =
     /\b(?:caus(?:e|es|ed|ing)|contribut(?:e|es|ed|ing)|result(?:s|ed|ing))\b[^,.;]{0,64}\b(?:no|zero)\s+(?:(?:actual|material|measurable|meaningful|schedule)\s+)*delay\b|\bwithout\s+(?:directly\s+)?caus(?:e|es|ed|ing)\s+(?:any\s+)?(?:schedule\s+)?delay\b/iu;
   const passiveNegation =
@@ -352,14 +352,21 @@ function causalRelationIsNegated(unit: string, relation: AssertedCausalRelation)
   );
   const localRelation = unit.slice(Math.max(0, relation.predicateIndex - 24), relation.relationEnd);
 
-  // Incident negation is independent: "did not send, which caused delay"
-  // remains positive causation. Only an auxiliary or "without" immediately
-  // governing this causal predicate negates the predicate itself.
+  // Causal-polarity taxonomy is predicate-local:
+  // 1. Incident negation is independent: "did not send, which caused delay"
+  //    remains positive causation.
+  // 2. Contracted/separate auxiliary negation governs only the immediately
+  //    following causal predicate.
+  // 3. "cannot/could not/would not" is modal impossibility, not uncertainty.
+  // 4. "failed/did nothing/never managed to cause" is lexical causal failure.
+  // 5. Limited non-zero effects are positive and are handled separately below.
   if (
-    /\b(?:did|does|do|is|are|was|were|has|have|had)\s+not\s+(?:directly\s+)?$/iu.test(
+    /\b(?:(?:did|does|do|is|are|was|were|has|have|had|could|would|can)\s+not|(?:didn|doesn|isn|aren|wasn|weren|hasn|haven|hadn|couldn|wouldn|can)['’]t|cannot)\s+(?:have\s+)?(?:directly\s+)?$/iu.test(
       leftContext,
     ) ||
-    /\bnever\s+(?:directly\s+)?$/iu.test(leftContext) ||
+    /\b(?:never\s+(?:(?:managed|served)\s+to\s+)?|failed\s+to\s+|did\s+nothing\s+to\s+)(?:directly\s+)?$/iu.test(
+      leftContext,
+    ) ||
     /\bwithout\s+(?:directly\s+)?$/iu.test(leftContext)
   ) {
     return true;
@@ -375,6 +382,18 @@ function causalRelationIsNegated(unit: string, relation: AssertedCausalRelation)
     /\b(?:no|zero)\s+(?:(?:actual|material|measurable|meaningful|schedule)\s+)*delay\b[^,.;]{0,48}\b(?:result(?:s|ed|ing)\s+from|came\s+from|was\s+caused\s+by)\b/iu.test(
       localRelation,
     )
+  );
+}
+
+function relationAssertsLimitedPositiveDelay(
+  unit: string,
+  relation: AssertedCausalRelation,
+): boolean {
+  const localRelation = unit.slice(relation.predicateIndex, relation.relationEnd);
+  return (
+    /\b(?:caus(?:e|es|ed|ing)|contribut(?:e|es|ed|ing)|result(?:s|ed|ing))\b[^,.;]{0,64}\b(?:(?:an?|only\s+an?)\s+)?(?:minor|limited|small|brief|short|one[-\s]day|\d+\s*[- ]?\s*(?:day|hour|week)s?)\s+(?:schedule\s+)?delay\b/iu.test(
+      localRelation,
+    ) && !causalRelationIsNegated(unit, relation)
   );
 }
 
@@ -470,17 +489,14 @@ function causeBindsToCandidateIncident(cause: string, event: JsonObject): boolea
 function isDirectClientDelayInterpretation(value: unknown, event: JsonObject): value is string {
   if (typeof value !== 'string' || value.length === 0) return false;
   return causalUnits(value, event).some((unit) => {
-    if (
-      NON_ASSERTED_CAUSATION.test(unit) ||
-      hasModalMay(unit) ||
-      reportsCausalDenial(unit) ||
-      REPORTED_BELIEF.test(unit) ||
-      METADATA_ONLY.test(unit)
-    ) {
+    const relations = assertedCausalRelations(unit);
+    const hasUncertainLanguage = NON_ASSERTED_CAUSATION.test(unit) || hasModalMay(unit);
+    if (reportsCausalDenial(unit) || REPORTED_BELIEF.test(unit) || METADATA_ONLY.test(unit)) {
       return false;
     }
-    return assertedCausalRelations(unit).some(
+    return relations.some(
       (relation) =>
+        (!hasUncertainLanguage || relationAssertsLimitedPositiveDelay(unit, relation)) &&
         !causalRelationIsNegated(unit, relation) &&
         causeBindsToCandidateIncident(relation.cause, event) &&
         !relation.excludedCauses.some((cause) => causeBindsToCandidateIncident(cause, event)),
@@ -648,11 +664,128 @@ function preservesEpistemicQualifications(sourceText: string, eventSummary: stri
   );
 }
 
+type DeliveryOccurrenceState = {
+  delivered: boolean;
+  late: boolean;
+  partial: boolean;
+  complete: boolean;
+  notDeliveredByDeadline: boolean;
+  neverDelivered: boolean;
+  unclear: boolean;
+  deniedOrDisputed: boolean;
+};
+
+function deliveryOccurrenceSegments(value: string): string[] {
+  // Exact spans sometimes ground several explicitly separate occurrences. Keep
+  // a composite state such as "partially delivered after the deadline" in one
+  // segment, while separating provider wording that expressly moves to a later
+  // or another occurrence.
+  return value
+    .split(
+      /[.;\r\n]+|,\s*(?=(?:and\s+)?(?:later|then|subsequently|only\s+(?:part|some)|partially|partly)\b)/iu,
+    )
+    .map((segment) => segment.trim())
+    .filter((segment) => segment.length > 0);
+}
+
+function deliveryOccurrenceState(value: string): DeliveryOccurrenceState | null {
+  const deliveryTerm =
+    /\b(?:deliver(?:y|ed|ing)?|shipment|sen[dt]|send(?:ing)?|suppl(?:y|ied|ying)|submit(?:ted|ting)?|arriv(?:al|e|ed|ing))\b/iu;
+  if (!deliveryTerm.test(value)) return null;
+
+  const deniedOrDisputed =
+    /\b(?:den(?:y|ies|ied|ying)|disput(?:e|es|ed|ing)|contest(?:s|ed|ing)?)\s+(?:that|whether)\b[^.;]{0,80}\b(?:deliver|ship|send|sent|suppl|submit|arriv)\w*/iu.test(
+      value,
+    );
+  const unclear =
+    /\b(?:unclear|uncertain|unknown|unresolved|ambiguous|unsure|not\s+(?:clear|known|established|resolved))\b[^.;]{0,80}\b(?:whether\b[^.;]{0,48})?(?:deliver|ship|send|sent|suppl|submit|arriv)\w*/iu.test(
+      value,
+    );
+  const neverDelivered =
+    /\bnever\s+(?:been\s+)?(?:deliver(?:ed)?|shipp?ed|sen[dt]|suppl(?:y|ied)|submit(?:ted)?|arriv(?:e|ed))\b/iu.test(
+      value,
+    );
+  const notDeliveredByDeadline =
+    /\b(?:(?:did\s+not|didn['’]t|failed\s+to)\s+(?:deliver|ship|send|supply|submit)|not\s+(?:been\s+)?(?:delivered|shipped|sent|supplied|submitted))\b[^.;]{0,64}\bby\b/iu.test(
+      value,
+    );
+  const partial =
+    /\b(?:partially|partly|only\s+(?:part|some)(?:\s+of\b[^.;]{0,32})?)\b[^.;]{0,48}\b(?:deliver(?:ed)?|shipp?ed|sen[dt]|suppl(?:y|ied)|submit(?:ted)?|arriv(?:e|ed))\b|\b(?:deliver(?:ed)?|shipp?ed|sen[dt]|suppl(?:y|ied)|submit(?:ted)?|arriv(?:e|ed))\b[^.;]{0,48}\b(?:partially|partly|only\s+(?:part|some))\b/iu.test(
+      value,
+    );
+  const late =
+    /\b(?:late|overdue)\s+(?:deliver|delivery|shipment|content|copy|files?|images?|material|batch)\w*|\b(?:deliver|ship|send|sent|suppl|submit|arriv)\w*\b[^.;]{0,48}\b(?:late|overdue|after\s+(?:the\s+)?deadline)\b/iu.test(
+      value,
+    );
+  const complete =
+    /\b(?:complete|completed|full|fully)\s+(?:deliver|delivery|shipment|content|copy|files?|images?|material|batch)\w*|\b(?:deliver|delivery|shipment|ship|send|sent|suppl|submit|arriv)\w*\b[^.;]{0,40}\b(?:complete|completed|full|fully)\b/iu.test(
+      value,
+    );
+  const affirmativeDelivery = !(
+    deniedOrDisputed ||
+    unclear ||
+    neverDelivered ||
+    notDeliveredByDeadline
+  );
+
+  return {
+    delivered: affirmativeDelivery,
+    late: affirmativeDelivery && late,
+    partial: affirmativeDelivery && partial,
+    complete: affirmativeDelivery && complete && !partial,
+    notDeliveredByDeadline,
+    neverDelivered,
+    unclear,
+    deniedOrDisputed,
+  };
+}
+
+function deliveryOccurrenceProfiles(value: string): DeliveryOccurrenceState[] {
+  return deliveryOccurrenceSegments(value)
+    .map(deliveryOccurrenceState)
+    .filter((state): state is DeliveryOccurrenceState => state != null);
+}
+
+function preservesDeliveryOccurrenceState(sourceText: string, eventSummary: string): boolean {
+  const sourceProfiles = deliveryOccurrenceProfiles(sourceText);
+  if (sourceProfiles.length === 0) return true;
+  const summaryProfiles = deliveryOccurrenceProfiles(eventSummary);
+  if (summaryProfiles.length === 0) {
+    // A broad span may also ground a separately typed incident such as revisions
+    // or scope changes. That is not a delivery-state normalization. Otherwise,
+    // explicit source state plus missing summary state fails closed.
+    const summaryMeaning = canonicalAssertedMeaning([eventSummary], 'client_delay');
+    return summaryMeaning.incidents.some((incident) => incident !== 'input_delivery');
+  }
+
+  // Source occurrence polarity and completion are authoritative. Each source
+  // profile is an alternative grounded occurrence; simultaneous properties
+  // within one profile are compositional. Recovery is allowed only when the
+  // provider summary preserves every material property of at least one exact
+  // source occurrence. More cautious wording is allowed, but a non-delivery,
+  // never-delivered, partial, unclear, or disputed occurrence cannot become a
+  // definite completed delivery.
+  return sourceProfiles.some((source) =>
+    summaryProfiles.some(
+      (summary) =>
+        (!source.deniedOrDisputed || summary.deniedOrDisputed) &&
+        (!source.unclear || summary.unclear) &&
+        (!source.neverDelivered || summary.neverDelivered) &&
+        (!source.notDeliveredByDeadline || summary.notDeliveredByDeadline) &&
+        (!source.partial || summary.partial) &&
+        (!source.late || summary.late) &&
+        (!source.complete || summary.complete) &&
+        (!source.delivered || summary.delivered),
+    ),
+  );
+}
+
 function preservesSourceQualifications(eventSummary: string, spans: JsonObject[]): boolean {
   const sourceText = spans.map((span) => span.quote).join(' ');
   return (
     preservesEpistemicQualifications(sourceText, eventSummary) &&
-    preservesAlternativeTemporalMeaning(sourceText, eventSummary)
+    preservesAlternativeTemporalMeaning(sourceText, eventSummary) &&
+    preservesDeliveryOccurrenceState(sourceText, eventSummary)
   );
 }
 

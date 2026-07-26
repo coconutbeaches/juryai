@@ -622,7 +622,7 @@ describe('cl_a_003 Person A recall coverage', () => {
 
     function genericCausalEvent(personAInterpretation: string): JsonObject {
       return candidateFixture(narrative, {
-        event_summary: 'Alex says Maya caused delay.',
+        event_summary: personAInterpretation.replace('schedule delay', 'delay'),
         person_a_interpretation: personAInterpretation,
       });
     }
@@ -944,7 +944,7 @@ describe('cl_a_003 Person A recall coverage', () => {
         'Maya delivered two requested content batches and Alex says each separately caused delay.';
       const modelOutput = candidateFixture(narrative, {
         event_id: 'event_reused',
-        event_summary: 'Alex says Maya’s first content batch caused delay.',
+        event_summary: 'Alex says Maya’s first content batch was delivered and caused delay.',
         person_a_interpretation:
           'Alex says Maya’s first content batch directly caused schedule delay.',
         source_evidence_ids: ['ev_batch_a'],
@@ -952,7 +952,7 @@ describe('cl_a_003 Person A recall coverage', () => {
       modelOutput.evidence = [{ evidence_id: 'ev_batch_a' }, { evidence_id: 'ev_batch_b' }];
       modelOutput.timeline.push({
         ...structuredClone(modelOutput.timeline[0]),
-        event_summary: 'Alex says Maya’s second content batch caused delay.',
+        event_summary: 'Alex says Maya’s second content batch was delivered and caused delay.',
         person_a_interpretation:
           'Alex says Maya’s second content batch directly caused schedule delay.',
         source_evidence_ids: ['ev_batch_b'],
@@ -977,14 +977,16 @@ describe('cl_a_003 Person A recall coverage', () => {
       interpretation: string,
       claimText: string,
     ): void {
-      const modelOutput = candidateFixture(narrative, {
+      const groundedNarrative = `${narrative} ${eventSummary}`;
+      const modelOutput = candidateFixture(groundedNarrative, {
+        quote: eventSummary,
         event_summary: eventSummary,
         person_a_interpretation: interpretation,
       });
-      modelOutput.claims.push(existingClaim(narrative, { claim_text: claimText }));
-      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
-        2,
-      );
+      modelOutput.claims.push(existingClaim(groundedNarrative, { claim_text: claimText }));
+      expect(
+        applyDryRun001ClA003CompatibilityRecovery(modelOutput, groundedNarrative).claims,
+      ).toHaveLength(2);
     }
 
     it('distinguishes not delivered by May from delivered late in May', () => {
@@ -2642,6 +2644,194 @@ describe('cl_a_003 Person A recall coverage', () => {
     });
 
     it('preserves the exact frozen cl_a_003 positive cause', async () => {
+      const { narrative, modelOutput } = await frozenInputs();
+
+      expect(
+        applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims.filter(
+          (claim: JsonObject) => claim.claim_id === 'claim_event_04_major_batch_client_delay',
+        ),
+      ).toHaveLength(1);
+    });
+  });
+
+  describe('eleventh review finding 1: contracted and equivalent causal negation', () => {
+    function causalNegationCandidate(interpretation: string): {
+      narrative: string;
+      modelOutput: JsonObject;
+    } {
+      const eventSummary = 'Alex says Maya delivered the content late.';
+      const narrative = `${eventSummary} ${interpretation}`;
+      return {
+        narrative,
+        modelOutput: candidateFixture(narrative, {
+          quote: eventSummary,
+          event_summary: eventSummary,
+          person_a_interpretation: interpretation,
+        }),
+      };
+    }
+
+    it.each([
+      "Maya’s late delivery didn't cause schedule delay.",
+      'Maya’s late delivery didn’t cause schedule delay.',
+      'Maya’s late delivery doesn’t contribute to schedule delay.',
+      'Maya’s late delivery isn’t causing schedule delay.',
+      'Maya’s late delivery hasn’t caused schedule delay.',
+      'Maya’s late delivery cannot have caused schedule delay.',
+      'Maya’s late delivery cannot have contributed to schedule delay.',
+      'Maya’s late delivery can’t cause schedule delay.',
+      'Maya’s late delivery could not have caused schedule delay.',
+      'Maya’s late delivery couldn’t have contributed to schedule delay.',
+      'Maya’s late delivery wouldn’t cause schedule delay.',
+      'Maya’s late delivery failed to cause schedule delay.',
+      'Maya’s late delivery failed to contribute to schedule delay.',
+      'Maya’s late delivery did nothing to cause schedule delay.',
+      'Maya’s late delivery never managed to cause schedule delay.',
+      'The schedule delay wasn’t caused by Maya’s late delivery.',
+    ])('rejects local causal denial: %s', (interpretation) => {
+      const { narrative, modelOutput } = causalNegationCandidate(interpretation);
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toEqual([]);
+    });
+
+    it.each([
+      'Maya’s late delivery could have caused a minor schedule delay.',
+      'Maya’s late delivery wasn’t the only cause of schedule delay.',
+      'Maya’s late delivery didn’t cause the entire delay, but contributed to one day of delay.',
+    ])('preserves limited or independently positive causation: %s', (interpretation) => {
+      const { narrative, modelOutput } = causalNegationCandidate(interpretation);
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        1,
+      );
+    });
+
+    it('keeps incident negation distinct from positive causal polarity', () => {
+      const eventSummary = 'Alex says Maya did not deliver the files.';
+      const interpretation = 'Maya didn’t deliver the files, which caused schedule delay.';
+      const narrative = `${eventSummary} ${interpretation}`;
+      const modelOutput = candidateFixture(narrative, {
+        quote: eventSummary,
+        event_summary: eventSummary,
+        person_a_interpretation: interpretation,
+      });
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        1,
+      );
+    });
+
+    it('preserves the exact frozen cl_a_003 positive causal predicate', async () => {
+      const { narrative, modelOutput } = await frozenInputs();
+
+      expect(
+        applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims.filter(
+          (claim: JsonObject) => claim.claim_id === 'claim_event_04_major_batch_client_delay',
+        ),
+      ).toHaveLength(1);
+    });
+  });
+
+  describe('eleventh review finding 2: source-summary occurrence state', () => {
+    function sourceStateCandidate(
+      source: string,
+      eventSummary: string,
+      interpretation: string,
+    ): { narrative: string; modelOutput: JsonObject } {
+      const narrative = `${source} ${interpretation}`;
+      return {
+        narrative,
+        modelOutput: candidateFixture(narrative, {
+          quote: source,
+          event_summary: eventSummary,
+          person_a_interpretation: interpretation,
+        }),
+      };
+    }
+
+    it.each([
+      {
+        label: 'never delivered becomes delivered late',
+        source: 'Maya never delivered the content.',
+        summary: 'Alex says Maya delivered the content late.',
+        interpretation: 'Maya’s late content delivery caused schedule delay.',
+      },
+      {
+        label: 'missed May deadline becomes delivered in May',
+        source: 'Maya did not deliver the content by May.',
+        summary: 'Alex says Maya delivered the content in May.',
+        interpretation: 'Maya’s May content delivery caused schedule delay.',
+      },
+      {
+        label: 'partial delivery becomes full delivery',
+        source: 'Maya partially delivered the content.',
+        summary: 'Alex says Maya fully delivered the content.',
+        interpretation: 'Maya’s full content delivery caused schedule delay.',
+      },
+      {
+        label: 'unclear delivery becomes definite',
+        source: 'It is unclear whether Maya delivered the content.',
+        summary: 'Alex says Maya delivered the content.',
+        interpretation: 'Maya’s content delivery caused schedule delay.',
+      },
+      {
+        label: 'denied delivery becomes undisputed',
+        source: 'Maya denied that she delivered the content.',
+        summary: 'Alex says Maya delivered the content.',
+        interpretation: 'Maya’s content delivery caused schedule delay.',
+      },
+      {
+        label: 'explicit delivery state disappears',
+        source: 'Maya delivered the content late.',
+        summary: 'Alex says Maya’s content issue occurred.',
+        interpretation: 'Maya’s late content delivery caused schedule delay.',
+      },
+    ])('rejects when $label', ({ source, summary, interpretation }) => {
+      const { narrative, modelOutput } = sourceStateCandidate(source, summary, interpretation);
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toEqual([]);
+    });
+
+    it.each([
+      {
+        label: 'late submission normalization',
+        source: 'Maya submitted the content after the deadline.',
+        summary: 'Alex says Maya delivered the content late.',
+        interpretation: 'Maya’s late content delivery caused schedule delay.',
+      },
+      {
+        label: 'late delivery to after-deadline normalization',
+        source: 'Maya delivered the content late.',
+        summary: 'Alex says Maya submitted the content after the deadline.',
+        interpretation: 'Maya’s late content delivery caused schedule delay.',
+      },
+      {
+        label: 'missed-deadline normalization',
+        source: 'Maya failed to submit the content by the deadline.',
+        summary: 'Alex says Maya did not deliver the content by the deadline.',
+        interpretation: 'Maya’s missing content delivery caused schedule delay.',
+      },
+      {
+        label: 'partial-delivery normalization',
+        source: 'Only part of the files were delivered by Maya.',
+        summary: 'Alex says Maya partially delivered the files.',
+        interpretation: 'Maya’s partial file delivery caused schedule delay.',
+      },
+      {
+        label: 'cautious but completion-preserving summary',
+        source: 'Maya delivered the content after the deadline.',
+        summary: 'Alex says Maya appears to have delivered the content late.',
+        interpretation: 'Maya’s late content delivery caused schedule delay.',
+      },
+    ])('allows compatible $label', ({ source, summary, interpretation }) => {
+      const { narrative, modelOutput } = sourceStateCandidate(source, summary, interpretation);
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        1,
+      );
+    });
+
+    it('preserves the exact frozen cl_a_003 occurrence state', async () => {
       const { narrative, modelOutput } = await frozenInputs();
 
       expect(
