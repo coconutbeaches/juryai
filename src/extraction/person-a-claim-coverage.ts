@@ -3,12 +3,31 @@ type JsonObject = Record<string, any>;
 const DIRECT_DELAY_CAUSATION =
   /\b(?:caus(?:e|es|ed|ing)|contribut(?:e|es|ed|ing)|result(?:s|ed|ing))\b[^.]{0,96}\b(?:schedule\s+)?delay\b|\b(?:schedule\s+)?delay\b[^.]{0,96}\b(?:caus(?:e|es|ed|ing)|result(?:s|ed|ing)\s+from|came\s+from)\b/iu;
 const NON_ASSERTED_CAUSATION =
-  /\b(?:could|might|possibly|possible|perhaps|hypothetical(?:ly)?|speculat(?:e|es|ed|ing|ive)|unclear|uncertain|unknown|unresolved|ambiguous|unsure|whether|infer(?:s|red|ring)?|wonder(?:s|ed|ing)?)\b|\bmay\b(?!\s+\d{1,2}\b)|\b(?:not|isn['’]t|wasn['’]t)\s+(?:clear|known|established|resolved)\b/iu;
+  /\b(?:could|might|possibly|possible|perhaps|hypothetical(?:ly)?|speculat(?:e|es|ed|ing|ive)|unclear|uncertain|unknown|unresolved|ambiguous|unsure|whether|infer(?:s|red|ring)?|wonder(?:s|ed|ing)?)\b|\b(?:not|isn['’]t|wasn['’]t)\s+(?:clear|known|established|resolved)\b/iu;
 const DENIED_CAUSATION =
   /\b(?:den(?:y|ies|ied|ying)|disput(?:e|es|ed|ing)|did\s+not|does\s+not|do\s+not|was\s+not|were\s+not|never)\b[^.]{0,96}\b(?:caus|contribut|result|delay)\w*/iu;
 const REPORTED_BELIEF =
   /\b(?:report(?:s|ed|ing)?|describ(?:e|es|ed|ing))\b[^.]{0,96}\b(?:belief|opinion|view)\b/iu;
 const METADATA_ONLY = /\b(?:metadata|file\s*name|filename|label|index|keyword)\b/iu;
+const CALENDAR_MAY_EVENT_NOUNS = new Set([
+  'batch',
+  'change',
+  'changes',
+  'content',
+  'copy',
+  'deadline',
+  'deliverable',
+  'deliverables',
+  'delivery',
+  'image',
+  'images',
+  'launch',
+  'milestone',
+  'request',
+  'requests',
+  'shipment',
+  'work',
+]);
 
 function isJsonObject(value: unknown): value is JsonObject {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -33,11 +52,28 @@ function exactSourceSpan(span: unknown, narrative: string): span is JsonObject {
   );
 }
 
+function hasModalMay(value: string): boolean {
+  const tokens = value.match(/[\p{L}\p{N}]+/gu) ?? [];
+  for (let index = 0; index < tokens.length; index += 1) {
+    if (tokens[index]?.toLocaleLowerCase() !== 'may') continue;
+    const next = tokens[index + 1]?.toLocaleLowerCase();
+    const followsCalendarDate =
+      typeof next === 'string' &&
+      (/^\d{4}$/u.test(next) || /^(?:[1-9]|[12]\d|3[01])(?:st|nd|rd|th)?$/u.test(next));
+    if (followsCalendarDate || (next != null && CALENDAR_MAY_EVENT_NOUNS.has(next))) {
+      continue;
+    }
+    return true;
+  }
+  return false;
+}
+
 function isDirectClientDelayInterpretation(value: unknown): value is string {
   if (typeof value !== 'string' || value.length === 0) return false;
   return (
     DIRECT_DELAY_CAUSATION.test(value) &&
     !NON_ASSERTED_CAUSATION.test(value) &&
+    !hasModalMay(value) &&
     !DENIED_CAUSATION.test(value) &&
     !REPORTED_BELIEF.test(value) &&
     !METADATA_ONLY.test(value)
@@ -72,17 +108,64 @@ function spanContains(claimSpan: unknown, eventSpan: JsonObject): boolean {
   );
 }
 
-function evidenceSupportCompatible(claim: JsonObject, event: JsonObject): boolean {
-  const claimEvidence = new Set(
-    (Array.isArray(claim.supporting_evidence_ids) ? claim.supporting_evidence_ids : []).filter(
-      (value: unknown): value is string => typeof value === 'string',
-    ),
-  );
-  const eventEvidence = (
-    Array.isArray(event.source_evidence_ids) ? event.source_evidence_ids : []
-  ).filter((value: unknown): value is string => typeof value === 'string');
-  if (eventEvidence.length === 0) return claimEvidence.size === 0;
-  return eventEvidence.some((id: string) => claimEvidence.has(id));
+function normalizeAssertedMeaning(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  return value
+    .normalize('NFKC')
+    .toLocaleLowerCase()
+    .replace(/[\p{P}\p{S}]+/gu, ' ')
+    .replace(/\s+/gu, ' ')
+    .trim();
+}
+
+const ASSERTION_BOILERPLATE = new Set([
+  'a',
+  'an',
+  'and',
+  'as',
+  'assert',
+  'asserted',
+  'asserts',
+  'by',
+  'did',
+  'says',
+  'that',
+  'the',
+]);
+const ASSERTION_TOKEN_ALIASES: Record<string, string> = {
+  deadline: 'schedule',
+  deadlines: 'schedule',
+  delivered: 'deliver',
+  delivering: 'deliver',
+  delivery: 'deliver',
+  depended: 'depend',
+  depending: 'depend',
+  images: 'image',
+  sent: 'supply',
+  send: 'supply',
+  shipment: 'deliver',
+  shipments: 'deliver',
+  supplied: 'supply',
+  supplies: 'supply',
+  supplying: 'supply',
+  timeline: 'schedule',
+};
+
+function assertedMeaningTokens(value: unknown): string[] {
+  const normalized = normalizeAssertedMeaning(value);
+  if (normalized == null || normalized.length === 0) return [];
+  return normalized
+    .split(' ')
+    .map((token) => ASSERTION_TOKEN_ALIASES[token] ?? token)
+    .filter((token) => !ASSERTION_BOILERPLATE.has(token));
+}
+
+function claimCoversAssertedMeaning(claim: JsonObject, event: JsonObject): boolean {
+  const claimTokens = new Set(assertedMeaningTokens(claim.claim_text));
+  const eventTokens = assertedMeaningTokens(event.event_summary);
+  // This is deterministic token containment, not similarity scoring: the provider
+  // claim may be broader, but it must preserve every normalized event-summary token.
+  return eventTokens.length > 0 && eventTokens.every((token) => claimTokens.has(token));
 }
 
 function existingClaimCoversEvent(
@@ -90,13 +173,16 @@ function existingClaimCoversEvent(
   event: JsonObject,
   spans: JsonObject[],
 ): boolean {
+  // Existing-claim equivalence is independent of event identity and evidence support:
+  // typed claim metadata must match, its normalized text must cover the emitted event
+  // summary, and its exact source spans must ground this specific source occurrence.
   if (
     claim.party_id !== 'party_a' ||
     claim.claim_type !== 'client_delay' ||
     claim.response_status !== 'unanswered' ||
     claim.materiality !== event.materiality ||
     claim.against_asserting_party_interest !== false ||
-    !evidenceSupportCompatible(claim, event)
+    !claimCoversAssertedMeaning(claim, event)
   ) {
     return false;
   }
@@ -107,9 +193,6 @@ function existingClaimCoversEvent(
 }
 
 function eventSemanticKey(event: JsonObject, spans: JsonObject[]): string {
-  const evidenceIds = (Array.isArray(event.source_evidence_ids) ? event.source_evidence_ids : [])
-    .filter((value: unknown): value is string => typeof value === 'string')
-    .sort();
   const sourceSpans = spans
     .map((span) => ({
       submission_id: span.submission_id,
@@ -125,14 +208,17 @@ function eventSemanticKey(event: JsonObject, spans: JsonObject[]): string {
         String(left.quote).localeCompare(String(right.quote)),
     );
   return JSON.stringify({
-    event_summary: event.event_summary,
+    // Identity is the normalized asserted event, its typed relationships/date, and
+    // its exact source occurrence. Evidence IDs are support metadata and are merged
+    // separately; they never distinguish otherwise identical provider events.
+    event_summary: normalizeAssertedMeaning(event.event_summary),
     actor_party_id: event.actor_party_id,
     actor_third_party_id: event.actor_third_party_id,
-    asserted_by_party_ids: event.asserted_by_party_ids,
+    asserted_by_party_ids: [...event.asserted_by_party_ids].sort(),
     occurrence_status: event.occurrence_status,
     interpretation_status: event.interpretation_status,
-    person_a_interpretation: event.person_a_interpretation,
-    person_b_interpretation: event.person_b_interpretation,
+    person_a_interpretation: normalizeAssertedMeaning(event.person_a_interpretation),
+    person_b_interpretation: normalizeAssertedMeaning(event.person_b_interpretation),
     materiality: event.materiality,
     date: {
       start: event.date?.start,
@@ -140,9 +226,29 @@ function eventSemanticKey(event: JsonObject, spans: JsonObject[]): string {
       precision: event.date?.precision,
       approximate: event.date?.approximate,
     },
-    source_evidence_ids: evidenceIds,
     source_spans: sourceSpans,
   });
+}
+
+function eventEvidenceIds(event: JsonObject): string[] {
+  return [
+    ...new Set(
+      (Array.isArray(event.source_evidence_ids) ? event.source_evidence_ids : []).filter(
+        (value: unknown): value is string => typeof value === 'string',
+      ),
+    ),
+  ].sort();
+}
+
+function mergeRecoveredEvidence(claim: JsonObject, evidenceIds: string[]): void {
+  const current = Array.isArray(claim.supporting_evidence_ids)
+    ? claim.supporting_evidence_ids.filter(
+        (value: unknown): value is string => typeof value === 'string',
+      )
+    : [];
+  const merged = [...new Set([...current, ...evidenceIds])].sort();
+  claim.supporting_evidence_ids = merged;
+  claim.support_level = merged.length > 0 ? 'not_assessed' : 'none';
 }
 
 function collectCanonicalIds(modelOutput: JsonObject): Set<string> {
@@ -202,7 +308,7 @@ export function recoverGroundedClientDelayClaims(
   const claims: JsonObject[] = Array.isArray(normalized.claims) ? normalized.claims : [];
   const providerClaims = [...claims];
   const canonicalIds = collectCanonicalIds(normalized);
-  const representedEvents = new Set<string>();
+  const representedEvents = new Map<string, JsonObject | null>();
   normalized.claims = claims;
 
   for (const event of timeline) {
@@ -234,40 +340,37 @@ export function recoverGroundedClientDelayClaims(
       continue;
     }
     const semanticKey = eventSemanticKey(event, spans);
-    if (representedEvents.has(semanticKey)) continue;
+    const evidenceIds = eventEvidenceIds(event);
+    if (representedEvents.has(semanticKey)) {
+      const recoveredClaim = representedEvents.get(semanticKey);
+      if (recoveredClaim != null) mergeRecoveredEvidence(recoveredClaim, evidenceIds);
+      continue;
+    }
     if (providerClaims.some((claim) => existingClaimCoversEvent(claim, event, spans))) {
-      representedEvents.add(semanticKey);
+      representedEvents.set(semanticKey, null);
       continue;
     }
 
-    const supportingEvidenceIds = Array.isArray(event.source_evidence_ids)
-      ? [
-          ...new Set(
-            event.source_evidence_ids.filter(
-              (value: unknown): value is string => typeof value === 'string',
-            ),
-          ),
-        ]
-      : [];
     const claimId = uniqueClaimId(event.event_id, canonicalIds);
     canonicalIds.add(claimId);
-    representedEvents.add(semanticKey);
-    claims.push({
+    const recoveredClaim = {
       claim_id: claimId,
       party_id: 'party_a',
       claim_text: event.event_summary,
       claim_type: 'client_delay',
       response_status: 'unanswered',
       materiality: event.materiality,
-      support_level: supportingEvidenceIds.length > 0 ? 'not_assessed' : 'none',
-      supporting_evidence_ids: supportingEvidenceIds,
+      support_level: evidenceIds.length > 0 ? 'not_assessed' : 'none',
+      supporting_evidence_ids: evidenceIds,
       contradicting_evidence_ids: [],
       counterclaim_ids: [],
       requires_clarification:
         event.date?.start == null || event.date?.end == null || event.date?.precision === 'unknown',
       against_asserting_party_interest: false,
       source_spans: structuredClone(spans),
-    });
+    };
+    representedEvents.set(semanticKey, recoveredClaim);
+    claims.push(recoveredClaim);
   }
 
   return normalized;

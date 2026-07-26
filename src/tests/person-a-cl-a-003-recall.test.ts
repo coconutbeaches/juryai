@@ -116,7 +116,7 @@ function existingClaim(
   return {
     claim_id: 'claim_existing',
     party_id: 'party_a',
-    claim_text: 'Alex asserts that Maya’s late delivery directly caused schedule delay.',
+    claim_text: 'Alex says Maya delivered the material after the deadline.',
     claim_type: 'client_delay',
     response_status: 'unanswered',
     materiality: 'high',
@@ -252,6 +252,35 @@ describe('cl_a_003 Person A recall coverage', () => {
     });
   });
 
+  describe('second review finding 1: calendar-month May', () => {
+    it.each([
+      'Alex says the May delivery caused schedule delay.',
+      'Alex says the May 2024 delivery caused schedule delay.',
+      'Alex says the May shipment contributed to the delay.',
+    ])('promotes direct calendar-month causation in %s', (personAInterpretation) => {
+      const narrative = 'Maya supplied project material during May.';
+      const modelOutput = candidateFixture(narrative, {
+        person_a_interpretation: personAInterpretation,
+      });
+
+      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toHaveLength(1);
+    });
+
+    it.each([
+      'Alex says the delivery may cause delay.',
+      'Alex says the delivery may have caused delay.',
+      'Alex says it may be responsible for the delay.',
+      'May have caused schedule delay.',
+    ])('continues to reject modal uncertainty in %s', (personAInterpretation) => {
+      const narrative = 'Maya supplied project material.';
+      const modelOutput = candidateFixture(narrative, {
+        person_a_interpretation: personAInterpretation,
+      });
+
+      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toEqual([]);
+    });
+  });
+
   describe('review finding 2: typed semantic duplicate coverage', () => {
     it('does not let an unrelated deadline claim with a containing span suppress recovery', () => {
       const eventQuote = 'Maya delivered the content late and it directly contributed to delay.';
@@ -338,6 +367,233 @@ describe('cl_a_003 Person A recall coverage', () => {
       });
 
       expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toHaveLength(1);
+    });
+  });
+
+  describe('second review finding 2: event identity excludes evidence support', () => {
+    it('merges different evidence sets for duplicate semantic events into one claim', () => {
+      const narrative = 'Maya delivered the content late and it directly contributed to delay.';
+      const modelOutput = candidateFixture(narrative, {
+        source_evidence_ids: ['ev_client_content'],
+      });
+      modelOutput.evidence.push({ evidence_id: 'ev_follow_up' });
+      modelOutput.timeline.push({
+        ...structuredClone(modelOutput.timeline[0]),
+        event_id: 'event_duplicate',
+        source_evidence_ids: ['ev_follow_up'],
+      });
+
+      const corrected = recoverGroundedClientDelayClaims(modelOutput, narrative);
+      expect(corrected.claims).toHaveLength(1);
+      expect(corrected.claims[0].supporting_evidence_ids).toEqual([
+        'ev_client_content',
+        'ev_follow_up',
+      ]);
+    });
+
+    it('does not split one event when evidence IDs appear in different orders', () => {
+      const narrative = 'Maya delivered the content late and it directly contributed to delay.';
+      const modelOutput = candidateFixture(narrative, {
+        source_evidence_ids: ['ev_follow_up', 'ev_client_content'],
+      });
+      modelOutput.evidence.push({ evidence_id: 'ev_follow_up' });
+      modelOutput.timeline.push({
+        ...structuredClone(modelOutput.timeline[0]),
+        event_id: 'event_duplicate',
+        source_evidence_ids: ['ev_client_content', 'ev_follow_up'],
+      });
+
+      const corrected = recoverGroundedClientDelayClaims(modelOutput, narrative);
+      expect(corrected.claims).toHaveLength(1);
+      expect(corrected.claims[0].supporting_evidence_ids).toEqual([
+        'ev_client_content',
+        'ev_follow_up',
+      ]);
+    });
+
+    it('still distinguishes events whose asserted meaning differs', () => {
+      const narrative =
+        'Maya delivered the images late and continued changing text, and both events contributed to delay.';
+      const modelOutput = candidateFixture(narrative, {
+        event_id: 'event_images_late',
+        event_summary: 'Alex says Maya delivered the images late.',
+        person_a_interpretation:
+          'Alex treats the late image delivery as directly contributing to schedule delay.',
+      });
+      modelOutput.timeline.push({
+        ...structuredClone(modelOutput.timeline[0]),
+        event_id: 'event_text_changes',
+        event_summary: 'Alex says Maya continued changing the text.',
+        person_a_interpretation:
+          'Alex treats the continued text changes as directly contributing to schedule delay.',
+      });
+
+      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toHaveLength(2);
+    });
+
+    it('treats different exact source occurrences as distinct event identity', () => {
+      const quote = 'Maya delivered the content late and it directly contributed to delay.';
+      const narrative = `${quote}\nLater account: ${quote}`;
+      const modelOutput = candidateFixture(narrative, { quote }, 0);
+      modelOutput.timeline.push({
+        ...structuredClone(modelOutput.timeline[0]),
+        event_id: 'event_second_occurrence',
+        source_spans: [exactSpan(narrative, quote, 1)],
+      });
+
+      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toHaveLength(2);
+    });
+
+    it('treats materially different typed dates as distinct event identity', () => {
+      const narrative = 'Maya delivered the content late and it directly contributed to delay.';
+      const modelOutput = candidateFixture(narrative, {
+        event_id: 'event_may_08',
+        date: {
+          start: '2024-05-08',
+          end: '2024-05-08',
+          precision: 'day',
+          approximate: false,
+        },
+      });
+      modelOutput.timeline.push({
+        ...structuredClone(modelOutput.timeline[0]),
+        event_id: 'event_may_09',
+        date: {
+          start: '2024-05-09',
+          end: '2024-05-09',
+          precision: 'day',
+          approximate: false,
+        },
+      });
+
+      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toHaveLength(2);
+    });
+  });
+
+  describe('second review finding 3: existing-claim meaning equivalence', () => {
+    const paragraph =
+      'Maya delivered the images late and continued changing text, and both events contributed to delay.';
+    const imageSummary = 'Alex says Maya delivered the images late.';
+    const textSummary = 'Alex says Maya continued changing the text.';
+
+    function sharedParagraphEvents(): JsonObject {
+      const modelOutput = candidateFixture(paragraph, {
+        event_id: 'event_images_late',
+        event_summary: imageSummary,
+        person_a_interpretation:
+          'Alex treats the late image delivery as directly contributing to schedule delay.',
+      });
+      modelOutput.timeline.push({
+        ...structuredClone(modelOutput.timeline[0]),
+        event_id: 'event_text_changes',
+        event_summary: textSummary,
+        person_a_interpretation:
+          'Alex treats the continued text changes as directly contributing to schedule delay.',
+      });
+      return modelOutput;
+    }
+
+    it('lets two distinct events sharing one span and evidence coexist', () => {
+      const corrected = recoverGroundedClientDelayClaims(sharedParagraphEvents(), paragraph);
+      expect(corrected.claims.map((claim: JsonObject) => claim.claim_text)).toEqual([
+        imageSummary,
+        textSummary,
+      ]);
+    });
+
+    it('does not let a claim for event A suppress recovery of event B', () => {
+      const modelOutput = sharedParagraphEvents();
+      modelOutput.claims.push(existingClaim(paragraph, { claim_text: imageSummary }));
+
+      const corrected = recoverGroundedClientDelayClaims(modelOutput, paragraph);
+      expect(corrected.claims.map((claim: JsonObject) => claim.claim_text)).toEqual([
+        imageSummary,
+        textSummary,
+      ]);
+    });
+
+    it('suppresses a semantically equivalent existing claim', () => {
+      const modelOutput = sharedParagraphEvents();
+      modelOutput.timeline = [modelOutput.timeline[0]];
+      modelOutput.claims.push(existingClaim(paragraph, { claim_text: imageSummary }));
+
+      expect(recoverGroundedClientDelayClaims(modelOutput, paragraph).claims).toEqual(
+        modelOutput.claims,
+      );
+    });
+
+    it('normalizes harmless formatting when comparing existing claim meaning', () => {
+      const modelOutput = sharedParagraphEvents();
+      modelOutput.timeline = [modelOutput.timeline[0]];
+      modelOutput.claims.push(
+        existingClaim(paragraph, {
+          claim_text: '  ALEX says: Maya delivered the images late!  ',
+        }),
+      );
+
+      expect(recoverGroundedClientDelayClaims(modelOutput, paragraph).claims).toEqual(
+        modelOutput.claims,
+      );
+    });
+
+    it.each([
+      {
+        dimension: 'delayed deliverable',
+        eventSummary: imageSummary,
+        claimText: 'Alex says Maya delivered the homepage code late.',
+      },
+      {
+        dimension: 'actor',
+        eventSummary: imageSummary,
+        claimText: 'Alex says Jordan delivered the images late.',
+      },
+      {
+        dimension: 'causal incident',
+        eventSummary: imageSummary,
+        claimText: 'Alex says Maya revised the images late.',
+      },
+      {
+        dimension: 'date',
+        eventSummary: 'Alex says Maya delivered the images late on May 8.',
+        claimText: 'Alex says Maya delivered the images late on May 9.',
+      },
+      {
+        dimension: 'asserted effect',
+        eventSummary: 'Alex says Maya’s late image delivery delayed the launch.',
+        claimText: 'Alex says Maya’s late image delivery delayed payment.',
+      },
+      {
+        dimension: 'qualification',
+        eventSummary: 'Alex says Maya allegedly delivered the images late.',
+        claimText: 'Alex says Maya delivered the images late.',
+      },
+    ])('does not equate a materially different $dimension', ({ eventSummary, claimText }) => {
+      const modelOutput = sharedParagraphEvents();
+      modelOutput.timeline = [
+        {
+          ...modelOutput.timeline[0],
+          event_summary: eventSummary,
+        },
+      ];
+      modelOutput.claims.push(existingClaim(paragraph, { claim_text: claimText }));
+
+      expect(recoverGroundedClientDelayClaims(modelOutput, paragraph).claims).toHaveLength(2);
+    });
+
+    it('keeps one final claim for duplicate provider events plus one equivalent claim', () => {
+      const modelOutput = sharedParagraphEvents();
+      modelOutput.timeline = [
+        modelOutput.timeline[0],
+        {
+          ...structuredClone(modelOutput.timeline[0]),
+          event_id: 'event_images_duplicate',
+        },
+      ];
+      modelOutput.claims.push(existingClaim(paragraph, { claim_text: imageSummary }));
+
+      expect(recoverGroundedClientDelayClaims(modelOutput, paragraph).claims).toEqual(
+        modelOutput.claims,
+      );
     });
   });
 
