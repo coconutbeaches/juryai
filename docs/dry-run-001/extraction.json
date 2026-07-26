@@ -28,7 +28,10 @@
     "agreement_exists": true,
     "agreement_form": "written_contract",
     "agreement_summary": "Alex Rivera asserts that a signed agreement covered a five-page marketing website for Maya Chen’s consulting business for $2,400, with a $1,200 deposit and the balance due upon completion. Alex also describes an intended launch around May 20, a dependency on Maya supplying final copy and images by April 25, two revision rounds, and later requests communicated through WhatsApp.",
-    "source_evidence_ids": ["ev_01_signed_agreement", "ev_02_whatsapp_requests"],
+    "source_evidence_ids": [
+      "ev_01_signed_agreement",
+      "ev_02_whatsapp_requests"
+    ],
     "terms": [
       {
         "term_id": "term_01_homepage",
@@ -38,7 +41,9 @@
         "interpretation_status": "unclear",
         "person_a_interpretation": null,
         "person_b_interpretation": null,
-        "source_evidence_ids": ["ev_01_signed_agreement"],
+        "source_evidence_ids": [
+          "ev_01_signed_agreement"
+        ],
         "materiality": "high",
         "source_spans": [
           {
@@ -57,7 +62,9 @@
         "interpretation_status": "unclear",
         "person_a_interpretation": null,
         "person_b_interpretation": null,
-        "source_evidence_ids": ["ev_01_signed_agreement"],
+        "source_evidence_ids": [
+          "ev_01_signed_agreement"
+        ],
         "materiality": "medium",
         "source_spans": [
           {
@@ -76,7 +83,9 @@
         "interpretation_status": "unclear",
         "person_a_interpretation": null,
         "person_b_interpretation": null,
-        "source_evidence_ids": ["ev_01_signed_agreement"],
+        "source_evidence_ids": [
+          "ev_01_signed_agreement"
+        ],
         "materiality": "medium",
         "source_spans": [
           {
@@ -95,7 +104,9 @@
         "interpretation_status": "unclear",
         "person_a_interpretation": null,
         "person_b_interpretation": null,
-        "source_evidence_ids": ["ev_01_signed_agreement"],
+        "source_evidence_ids": [
+          "ev_01_signed_agreement"
+        ],
         "materiality": "medium",
         "source_spans": [
           {
@@ -114,7 +125,9 @@
         "interpretation_status": "unclear",
         "person_a_interpretation": null,
         "person_b_interpretation": null,
-        "source_evidence_ids": ["ev_01_signed_agreement"],
+        "source_evidence_ids": [
+          "ev_01_signed_agreement"
+        ],
         "materiality": "high",
         "source_spans": [
           {
@@ -133,7 +146,9 @@
         "interpretation_status": "unclear",
         "person_a_interpretation": "Alex treats repeated changes as one contributor to the schedule delay.",
         "person_b_interpretation": null,
-        "source_evidence_ids": ["ev_01_signed_agreement"],
+        "source_evidence_ids": [
+          "ev_01_signed_agreement"
+        ],
         "materiality": "high",
         "source_spans": [
           {
@@ -158,7 +173,9 @@
         "interpretation_status": "unclear",
         "person_a_interpretation": null,
         "person_b_interpretation": null,
-        "source_evidence_ids": ["ev_01_signed_agreement"],
+        "source_evidence_ids": [
+          "ev_01_signed_agreement"
+        ],
         "materiality": "high",
         "source_spans": [
           {
@@ -177,7 +194,9 @@
         "interpretation_status": "unclear",
         "person_a_interpretation": null,
         "person_b_interpretation": null,
-        "source_evidence_ids": ["ev_01_signed_agreement"],
+        "source_evidence_ids": [
+          "ev_01_signed_agreement"
+        ],
         "materiality": "high",
         "source_spans": [
           {
@@ -196,7 +215,9 @@
         "interpretation_status": "unclear",
         "person_a_interpretation": "Alex considers the project completed and therefore considers the remaining $1,200 due.",
         "person_b_interpretation": null,
-        "source_evidence_ids": ["ev_01_signed_agreement"],
+        "source_evidence_ids": [
+          "ev_01_signed_agreement"
+        ],
         "materiality": "high",
         "source_spans": [
           {
@@ -221,7 +242,9 @@
         "interpretation_status": "unclear",
         "person_a_interpretation": "Alex characterizes May 20 as an intended target that was linked to Maya’s timely delivery of final copy and images.",
         "person_b_interpretation": null,
-        "source_evidence_ids": ["ev_01_signed_agreement"],
+        "source_evidence_ids": [
+          "ev_01_signed_agreement"
+        ],
         "materiality": "high",
         "source_spans": [
           {
@@ -240,7 +263,10 @@
         "interpretation_status": "unclear",
         "person_a_interpretation": "Alex relies on this dependency to assert that late content caused much of the schedule delay.",
         "person_b_interpretation": null,
-        "source_evidence_ids": ["ev_01_signed_agreement", "ev_03_client_content"],
+        "source_evidence_ids": [
+          "ev_01_signed_agreement",
+          "ev_03_client_content"
+        ],
         "materiality": "high",
         "source_spans": [
           {
@@ -265,7 +291,9 @@
         "interpretation_status": "unclear",
         "person_a_interpretation": "Alex treats the later request as an added request that contributed to delay, while acknowledging that he did not clearly document which requests were outside the original scope.",
         "person_b_interpretation": null,
-        "source_evidence_ids": ["ev_02_whatsapp_requests"],
+        "source_evidence_ids": [
+          "ev_02_whatsapp_requests"
+        ],
         "materiality": "medium",
         "source_spans": [
           {
@@ -296,7 +324,9 @@
         "interpretation_status": "unclear",
         "person_a_interpretation": "Alex treats the later request as an added request that contributed to delay, while acknowledging that he did not clearly document which requests were outside the original scope.",
         "person_b_interpretation": null,
-        "source_evidence_ids": ["ev_02_whatsapp_requests"],
+        "source_evidence_ids": [
+          "ev_02_whatsapp_requests"
+        ],
         "materiality": "medium",
         "source_spans": [
           {
@@ -327,7 +357,9 @@
         "interpretation_status": "unclear",
         "person_a_interpretation": "Alex treats the later homepage changes as added requests that contributed to delay, while acknowledging that he did not clearly document which requests were outside the original scope.",
         "person_b_interpretation": null,
-        "source_evidence_ids": ["ev_02_whatsapp_requests"],
+        "source_evidence_ids": [
+          "ev_02_whatsapp_requests"
+        ],
         "materiality": "high",
         "source_spans": [
           {
@@ -412,8 +444,14 @@
       "use_status": "unknown",
       "alleged_defects": [],
       "repair_attempts": [],
-      "source_claim_ids": ["claim_01_original_scope", "claim_06_staging_complete"],
-      "source_evidence_ids": ["ev_01_signed_agreement", "ev_04_staging_version"],
+      "source_claim_ids": [
+        "claim_01_original_scope",
+        "claim_06_staging_complete"
+      ],
+      "source_evidence_ids": [
+        "ev_01_signed_agreement",
+        "ev_04_staging_version"
+      ],
       "materiality": "medium"
     },
     {
@@ -425,8 +463,14 @@
       "use_status": "unknown",
       "alleged_defects": [],
       "repair_attempts": [],
-      "source_claim_ids": ["claim_01_original_scope", "claim_06_staging_complete"],
-      "source_evidence_ids": ["ev_01_signed_agreement", "ev_04_staging_version"],
+      "source_claim_ids": [
+        "claim_01_original_scope",
+        "claim_06_staging_complete"
+      ],
+      "source_evidence_ids": [
+        "ev_01_signed_agreement",
+        "ev_04_staging_version"
+      ],
       "materiality": "medium"
     },
     {
@@ -438,8 +482,14 @@
       "use_status": "unknown",
       "alleged_defects": [],
       "repair_attempts": [],
-      "source_claim_ids": ["claim_01_original_scope", "claim_06_staging_complete"],
-      "source_evidence_ids": ["ev_01_signed_agreement", "ev_04_staging_version"],
+      "source_claim_ids": [
+        "claim_01_original_scope",
+        "claim_06_staging_complete"
+      ],
+      "source_evidence_ids": [
+        "ev_01_signed_agreement",
+        "ev_04_staging_version"
+      ],
       "materiality": "medium"
     },
     {
@@ -453,9 +503,17 @@
         "Alex acknowledges that there were some mobile issues.",
         "Alex reports that Maya characterized the mobile version as having major problems."
       ],
-      "repair_attempts": ["Alex says he fixed the mobile issues he could reproduce."],
-      "source_claim_ids": ["claim_01_original_scope", "claim_08_mobile_condition"],
-      "source_evidence_ids": ["ev_01_signed_agreement", "ev_04_staging_version"],
+      "repair_attempts": [
+        "Alex says he fixed the mobile issues he could reproduce."
+      ],
+      "source_claim_ids": [
+        "claim_01_original_scope",
+        "claim_08_mobile_condition"
+      ],
+      "source_evidence_ids": [
+        "ev_01_signed_agreement",
+        "ev_04_staging_version"
+      ],
       "materiality": "high"
     },
     {
@@ -467,8 +525,12 @@
       "use_status": "unknown",
       "alleged_defects": [],
       "repair_attempts": [],
-      "source_claim_ids": ["claim_05_added_requests"],
-      "source_evidence_ids": ["ev_02_whatsapp_requests"],
+      "source_claim_ids": [
+        "claim_05_added_requests"
+      ],
+      "source_evidence_ids": [
+        "ev_02_whatsapp_requests"
+      ],
       "materiality": "medium"
     },
     {
@@ -480,8 +542,12 @@
       "use_status": "unknown",
       "alleged_defects": [],
       "repair_attempts": [],
-      "source_claim_ids": ["claim_05_added_requests"],
-      "source_evidence_ids": ["ev_02_whatsapp_requests"],
+      "source_claim_ids": [
+        "claim_05_added_requests"
+      ],
+      "source_evidence_ids": [
+        "ev_02_whatsapp_requests"
+      ],
       "materiality": "medium"
     }
   ],
@@ -497,12 +563,16 @@
       "event_summary": "In early April, with no year stated, Alex says he agreed to build a five-page marketing website for $2,400.",
       "actor_party_id": "party_a",
       "actor_third_party_id": null,
-      "asserted_by_party_ids": ["party_a"],
+      "asserted_by_party_ids": [
+        "party_a"
+      ],
       "occurrence_status": "supported_unanswered",
       "interpretation_status": "not_applicable",
       "person_a_interpretation": null,
       "person_b_interpretation": null,
-      "source_evidence_ids": ["ev_01_signed_agreement"],
+      "source_evidence_ids": [
+        "ev_01_signed_agreement"
+      ],
       "source_spans": [
         {
           "submission_id": "sub_a_extracted",
@@ -524,12 +594,16 @@
       "event_summary": "The contract allegedly required Maya to supply final copy and images by April 25; no year is stated.",
       "actor_party_id": "party_b",
       "actor_third_party_id": null,
-      "asserted_by_party_ids": ["party_a"],
+      "asserted_by_party_ids": [
+        "party_a"
+      ],
       "occurrence_status": "supported_unanswered",
       "interpretation_status": "unclear",
       "person_a_interpretation": "Alex considers timely delivery of the content a dependency for the project timeline.",
       "person_b_interpretation": null,
-      "source_evidence_ids": ["ev_01_signed_agreement"],
+      "source_evidence_ids": [
+        "ev_01_signed_agreement"
+      ],
       "source_spans": [
         {
           "submission_id": "sub_a_extracted",
@@ -551,12 +625,16 @@
       "event_summary": "Alex says Maya did not send everything by the April 25 deadline.",
       "actor_party_id": "party_b",
       "actor_third_party_id": null,
-      "asserted_by_party_ids": ["party_a"],
+      "asserted_by_party_ids": [
+        "party_a"
+      ],
       "occurrence_status": "supported_unanswered",
       "interpretation_status": "unclear",
       "person_a_interpretation": "Alex treats the late content as a substantial cause of schedule delay.",
       "person_b_interpretation": null,
-      "source_evidence_ids": ["ev_03_client_content"],
+      "source_evidence_ids": [
+        "ev_03_client_content"
+      ],
       "source_spans": [
         {
           "submission_id": "sub_a_extracted",
@@ -578,12 +656,16 @@
       "event_summary": "Alex thinks the last major content batch arrived around May 8 or May 9, with no year stated, and says smaller text changes continued afterward.",
       "actor_party_id": "party_b",
       "actor_third_party_id": null,
-      "asserted_by_party_ids": ["party_a"],
+      "asserted_by_party_ids": [
+        "party_a"
+      ],
       "occurrence_status": "supported_unanswered",
       "interpretation_status": "unclear",
       "person_a_interpretation": "Alex treats the timing of the major batch and later text changes as contributing to delay.",
       "person_b_interpretation": null,
-      "source_evidence_ids": ["ev_03_client_content"],
+      "source_evidence_ids": [
+        "ev_03_client_content"
+      ],
       "source_spans": [
         {
           "submission_id": "sub_a_extracted",
@@ -605,12 +687,16 @@
       "event_summary": "The intended launch was around May 20, with no year stated.",
       "actor_party_id": null,
       "actor_third_party_id": null,
-      "asserted_by_party_ids": ["party_a"],
+      "asserted_by_party_ids": [
+        "party_a"
+      ],
       "occurrence_status": "supported_unanswered",
       "interpretation_status": "unclear",
       "person_a_interpretation": "Alex treats May 20 as a target linked to the timely supply of content rather than as an unconditional date.",
       "person_b_interpretation": null,
-      "source_evidence_ids": ["ev_01_signed_agreement"],
+      "source_evidence_ids": [
+        "ev_01_signed_agreement"
+      ],
       "source_spans": [
         {
           "submission_id": "sub_a_extracted",
@@ -632,12 +718,16 @@
       "event_summary": "On June 3, with no year stated, Alex sent what he considered a complete staging version.",
       "actor_party_id": "party_a",
       "actor_third_party_id": null,
-      "asserted_by_party_ids": ["party_a"],
+      "asserted_by_party_ids": [
+        "party_a"
+      ],
       "occurrence_status": "supported_unanswered",
       "interpretation_status": "unclear",
       "person_a_interpretation": "Alex considered the staging version complete.",
       "person_b_interpretation": null,
-      "source_evidence_ids": ["ev_04_staging_version"],
+      "source_evidence_ids": [
+        "ev_04_staging_version"
+      ],
       "source_spans": [
         {
           "submission_id": "sub_a_extracted",
@@ -659,12 +749,16 @@
       "event_summary": "Maya replied that the staging version “looked really good overall” and supplied a list of changes.",
       "actor_party_id": "party_b",
       "actor_third_party_id": null,
-      "asserted_by_party_ids": ["party_a"],
+      "asserted_by_party_ids": [
+        "party_a"
+      ],
       "occurrence_status": "supported_unanswered",
       "interpretation_status": "unclear",
       "person_a_interpretation": "Alex presents the positive wording as relevant to the condition and value of the staging version.",
       "person_b_interpretation": null,
-      "source_evidence_ids": ["ev_05_feedback_message"],
+      "source_evidence_ids": [
+        "ev_05_feedback_message"
+      ],
       "source_spans": [
         {
           "submission_id": "sub_a_extracted",
@@ -686,12 +780,17 @@
       "event_summary": "Alex says he made most of Maya’s listed changes during the week following her feedback.",
       "actor_party_id": "party_a",
       "actor_third_party_id": null,
-      "asserted_by_party_ids": ["party_a"],
+      "asserted_by_party_ids": [
+        "party_a"
+      ],
       "occurrence_status": "supported_unanswered",
       "interpretation_status": "not_applicable",
       "person_a_interpretation": null,
       "person_b_interpretation": null,
-      "source_evidence_ids": ["ev_04_staging_version", "ev_05_feedback_message"],
+      "source_evidence_ids": [
+        "ev_04_staging_version",
+        "ev_05_feedback_message"
+      ],
       "source_spans": [
         {
           "submission_id": "sub_a_extracted",
@@ -713,12 +812,16 @@
       "event_summary": "Alex acknowledges some mobile issues and says he fixed the issues he could reproduce.",
       "actor_party_id": "party_a",
       "actor_third_party_id": null,
-      "asserted_by_party_ids": ["party_a"],
+      "asserted_by_party_ids": [
+        "party_a"
+      ],
       "occurrence_status": "supported_unanswered",
       "interpretation_status": "unclear",
       "person_a_interpretation": "Alex does not agree that the website was unusable.",
       "person_b_interpretation": null,
-      "source_evidence_ids": ["ev_04_staging_version"],
+      "source_evidence_ids": [
+        "ev_04_staging_version"
+      ],
       "source_spans": [
         {
           "submission_id": "sub_a_extracted",
@@ -746,12 +849,16 @@
       "event_summary": "Alex says he was slower for part of one week because of a family issue but continued replying and explaining what was happening.",
       "actor_party_id": "party_a",
       "actor_third_party_id": null,
-      "asserted_by_party_ids": ["party_a"],
+      "asserted_by_party_ids": [
+        "party_a"
+      ],
       "occurrence_status": "supported_unanswered",
       "interpretation_status": "unclear",
       "person_a_interpretation": "Alex disputes the characterization that he disappeared for two weeks.",
       "person_b_interpretation": null,
-      "source_evidence_ids": ["ev_07_communication_messages"],
+      "source_evidence_ids": [
+        "ev_07_communication_messages"
+      ],
       "source_spans": [
         {
           "submission_id": "sub_a_extracted",
@@ -772,7 +879,9 @@
       "response_status": "unanswered",
       "materiality": "high",
       "support_level": "not_assessed",
-      "supporting_evidence_ids": ["ev_01_signed_agreement"],
+      "supporting_evidence_ids": [
+        "ev_01_signed_agreement"
+      ],
       "contradicting_evidence_ids": [],
       "counterclaim_ids": [],
       "requires_clarification": false,
@@ -794,7 +903,9 @@
       "response_status": "unanswered",
       "materiality": "high",
       "support_level": "not_assessed",
-      "supporting_evidence_ids": ["ev_01_signed_agreement"],
+      "supporting_evidence_ids": [
+        "ev_01_signed_agreement"
+      ],
       "contradicting_evidence_ids": [],
       "counterclaim_ids": [],
       "requires_clarification": false,
@@ -816,7 +927,9 @@
       "response_status": "unanswered",
       "materiality": "high",
       "support_level": "not_assessed",
-      "supporting_evidence_ids": ["ev_01_signed_agreement"],
+      "supporting_evidence_ids": [
+        "ev_01_signed_agreement"
+      ],
       "contradicting_evidence_ids": [],
       "counterclaim_ids": [],
       "requires_clarification": true,
@@ -838,7 +951,10 @@
       "response_status": "unanswered",
       "materiality": "high",
       "support_level": "not_assessed",
-      "supporting_evidence_ids": ["ev_01_signed_agreement", "ev_03_client_content"],
+      "supporting_evidence_ids": [
+        "ev_01_signed_agreement",
+        "ev_03_client_content"
+      ],
       "contradicting_evidence_ids": [],
       "counterclaim_ids": [],
       "requires_clarification": true,
@@ -860,7 +976,9 @@
       "response_status": "unanswered",
       "materiality": "high",
       "support_level": "not_assessed",
-      "supporting_evidence_ids": ["ev_02_whatsapp_requests"],
+      "supporting_evidence_ids": [
+        "ev_02_whatsapp_requests"
+      ],
       "contradicting_evidence_ids": [],
       "counterclaim_ids": [],
       "requires_clarification": true,
@@ -882,7 +1000,9 @@
       "response_status": "unanswered",
       "materiality": "high",
       "support_level": "not_assessed",
-      "supporting_evidence_ids": ["ev_04_staging_version"],
+      "supporting_evidence_ids": [
+        "ev_04_staging_version"
+      ],
       "contradicting_evidence_ids": [],
       "counterclaim_ids": [],
       "requires_clarification": true,
@@ -904,7 +1024,10 @@
       "response_status": "unanswered",
       "materiality": "high",
       "support_level": "not_assessed",
-      "supporting_evidence_ids": ["ev_05_feedback_message", "ev_04_staging_version"],
+      "supporting_evidence_ids": [
+        "ev_05_feedback_message",
+        "ev_04_staging_version"
+      ],
       "contradicting_evidence_ids": [],
       "counterclaim_ids": [],
       "requires_clarification": false,
@@ -926,7 +1049,9 @@
       "response_status": "unanswered",
       "materiality": "high",
       "support_level": "not_assessed",
-      "supporting_evidence_ids": ["ev_04_staging_version"],
+      "supporting_evidence_ids": [
+        "ev_04_staging_version"
+      ],
       "contradicting_evidence_ids": [],
       "counterclaim_ids": [],
       "requires_clarification": true,
@@ -970,7 +1095,9 @@
       "response_status": "unanswered",
       "materiality": "high",
       "support_level": "not_assessed",
-      "supporting_evidence_ids": ["ev_06_social_media_posts"],
+      "supporting_evidence_ids": [
+        "ev_06_social_media_posts"
+      ],
       "contradicting_evidence_ids": [],
       "counterclaim_ids": [],
       "requires_clarification": true,
@@ -1014,7 +1141,9 @@
       "response_status": "unanswered",
       "materiality": "medium",
       "support_level": "not_assessed",
-      "supporting_evidence_ids": ["ev_07_communication_messages"],
+      "supporting_evidence_ids": [
+        "ev_07_communication_messages"
+      ],
       "contradicting_evidence_ids": [],
       "counterclaim_ids": [],
       "requires_clarification": true,
@@ -1129,13 +1258,20 @@
       "visibility": "shared_with_both_parties",
       "contains_sensitive_data": false,
       "relevance": "high",
-      "claimed_to_have_existed_by_party_ids": ["party_a"],
+      "claimed_to_have_existed_by_party_ids": [
+        "party_a"
+      ],
       "unavailability_explanation": null,
       "provenance": {
         "source_system": null,
         "export_method": null,
         "metadata_present": [],
-        "metadata_missing": ["original filename", "creation date", "signing metadata", "file hash"]
+        "metadata_missing": [
+          "original filename",
+          "creation date",
+          "signing metadata",
+          "file hash"
+        ]
       },
       "extracts": [],
       "limitations": [
@@ -1167,13 +1303,19 @@
       "visibility": "shared_with_both_parties",
       "contains_sensitive_data": false,
       "relevance": "high",
-      "claimed_to_have_existed_by_party_ids": ["party_a"],
+      "claimed_to_have_existed_by_party_ids": [
+        "party_a"
+      ],
       "unavailability_explanation": null,
       "provenance": {
         "source_system": "WhatsApp",
         "export_method": null,
         "metadata_present": [],
-        "metadata_missing": ["message timestamps", "participant metadata", "complete export"]
+        "metadata_missing": [
+          "message timestamps",
+          "participant metadata",
+          "complete export"
+        ]
       },
       "extracts": [],
       "limitations": [
@@ -1205,13 +1347,19 @@
       "visibility": "shared_with_both_parties",
       "contains_sensitive_data": false,
       "relevance": "high",
-      "claimed_to_have_existed_by_party_ids": ["party_a"],
+      "claimed_to_have_existed_by_party_ids": [
+        "party_a"
+      ],
       "unavailability_explanation": null,
       "provenance": {
         "source_system": null,
         "export_method": null,
         "metadata_present": [],
-        "metadata_missing": ["delivery timestamps", "filenames", "complete content history"]
+        "metadata_missing": [
+          "delivery timestamps",
+          "filenames",
+          "complete content history"
+        ]
       },
       "extracts": [],
       "limitations": [
@@ -1244,13 +1392,20 @@
       "visibility": "shared_with_both_parties",
       "contains_sensitive_data": false,
       "relevance": "high",
-      "claimed_to_have_existed_by_party_ids": ["party_a"],
+      "claimed_to_have_existed_by_party_ids": [
+        "party_a"
+      ],
       "unavailability_explanation": null,
       "provenance": {
         "source_system": null,
         "export_method": null,
         "metadata_present": [],
-        "metadata_missing": ["URL", "deployment history", "version history", "send timestamp"]
+        "metadata_missing": [
+          "URL",
+          "deployment history",
+          "version history",
+          "send timestamp"
+        ]
       },
       "extracts": [],
       "limitations": [
@@ -1282,13 +1437,19 @@
       "visibility": "shared_with_both_parties",
       "contains_sensitive_data": false,
       "relevance": "high",
-      "claimed_to_have_existed_by_party_ids": ["party_a"],
+      "claimed_to_have_existed_by_party_ids": [
+        "party_a"
+      ],
       "unavailability_explanation": null,
       "provenance": {
         "source_system": null,
         "export_method": null,
         "metadata_present": [],
-        "metadata_missing": ["message timestamp", "message platform", "full message context"]
+        "metadata_missing": [
+          "message timestamp",
+          "message platform",
+          "full message context"
+        ]
       },
       "extracts": [
         {
@@ -1329,13 +1490,20 @@
       "visibility": "shared_with_both_parties",
       "contains_sensitive_data": false,
       "relevance": "medium",
-      "claimed_to_have_existed_by_party_ids": ["party_a"],
+      "claimed_to_have_existed_by_party_ids": [
+        "party_a"
+      ],
       "unavailability_explanation": null,
       "provenance": {
         "source_system": null,
         "export_method": null,
         "metadata_present": [],
-        "metadata_missing": ["platform", "post URLs", "post dates", "screenshots"]
+        "metadata_missing": [
+          "platform",
+          "post URLs",
+          "post dates",
+          "screenshots"
+        ]
       },
       "extracts": [],
       "limitations": [
@@ -1368,7 +1536,9 @@
       "visibility": "shared_with_both_parties",
       "contains_sensitive_data": true,
       "relevance": "medium",
-      "claimed_to_have_existed_by_party_ids": ["party_a"],
+      "claimed_to_have_existed_by_party_ids": [
+        "party_a"
+      ],
       "unavailability_explanation": null,
       "provenance": {
         "source_system": null,
@@ -1662,7 +1832,10 @@
       "issue_type": "missing_evidence",
       "severity": "minor",
       "description": "Alex believes part of the site was briefly published but states that he cannot prove exactly what was live or for how long.",
-      "affected_object_ids": ["claim_10_use", "del_01_homepage"],
+      "affected_object_ids": [
+        "claim_10_use",
+        "del_01_homepage"
+      ],
       "resolution_status": "accepted_uncertainty",
       "source_spans": [
         {
@@ -1678,7 +1851,10 @@
       "issue_type": "other",
       "severity": "major",
       "description": "Alex acknowledges mobile issues and says he fixed reproducible issues, but the narrative does not identify the specific defects, devices, browsers, or remaining problems.",
-      "affected_object_ids": ["del_05_mobile", "claim_08_mobile_condition"],
+      "affected_object_ids": [
+        "del_05_mobile",
+        "claim_08_mobile_condition"
+      ],
       "resolution_status": "clarification_requested",
       "source_spans": [
         {

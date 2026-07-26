@@ -43,8 +43,29 @@ failure: the run must be read as a `gpt-5.6-sol` result.
 
 ## 4. Schema and invariant validation
 
-Passed. The extraction is valid against case-record schema v0.1.2 and all custom Person A
+Passed. The evaluated extraction is valid against case-record schema v0.1.2 and all custom Person A
 invariants, including exact `narrative.slice(start_char, end_char)` source-span equality.
+
+**That statement is about the assembled record, not the raw model output.** Diffing the stored raw
+response against the tracked extraction shows the assembler changes exactly three leaf kinds and
+nothing else:
+
+| Leaf                           | Changes                                       |
+| ------------------------------ | --------------------------------------------- |
+| `source_spans[].submission_id` | rewritten `submission_01` → `sub_a_extracted` |
+| `source_spans[].start_char`    | 8 corrections                                 |
+| `source_spans[].end_char`      | 10 corrections                                |
+
+Every other field — all object IDs, wording, enums, and structure — is passed through untouched.
+
+The offset corrections matter: **10 of the model's 58 raw source spans (17%) failed the exact-slice
+invariant**, and `person-a-extractor.ts:68-71` silently re-located each quote with `indexOf` when
+that quote occurs exactly once in the narrative. The assembled record then scores 0/58 failures.
+
+This is deliberate assembler behaviour, not a defect, and it is not a rule relaxation — the repair
+predates this run and was not touched. But it means the evaluation never observes the model's real
+offset accuracy, and a quote appearing more than once would not be repaired at all. Raw span
+accuracy is a distinct metric that nothing in the pipeline currently reports.
 
 ## 5. Evaluation result
 
@@ -140,11 +161,15 @@ evidence whose defining details appear nowhere in the Person A narrative:
 | `ev_008` June 8 mobile recording             | "recording"                                      | 0                        |
 | `ev_009` two unrecorded video calls          | "video call"                                     | 0                        |
 
-Those strings occur only in the full golden case record (`dry_run_001.golden.json`) — not in the
-Person A narrative and not in the Person B narrative. The golden was authored from a richer intake
-than the input the extractor is given. No golden evidence object carries `source_spans` (0/9),
-unlike claims (13/13), timeline (10/10), and agreement terms (8/8), so the gap is invisible to
-span-grounding checks.
+Every one of those strings occurs zero times in the Person A narrative — the extractor's only
+input — and they are concentrated in the full golden case record (`dry_run_001.golden.json`), which
+contains them 1–23 times each. Person B's narrative contains none of them either, with one
+exception: "recording" appears there once. The golden was therefore authored from a richer intake
+than the input the extractor is given.
+
+No golden evidence object carries `source_spans` (0/9), unlike claims (13/13), timeline (10/10),
+and agreement terms (8/8), so the gap is invisible to span-grounding checks. Golden deliverable
+assessments (0/7) are ungrounded the same way.
 
 Prompt rule 27 forbids creating an evidence object without an explicitly described artifact. The
 golden penalizes the model for obeying it. The rubric is internally contradictory, and the evidence
@@ -227,9 +252,29 @@ defects, so the extraction is not passing either. Neither half can be waived.
 
 ## 9. Reproducing this run
 
-Artifacts are tracked in [`dry-run-001/`](dry-run-001/): the sanitized extraction, the evaluator
-report, the alignment, and a run manifest with byte hashes. Raw Responses payloads, response IDs,
-token usage, and credentials are excluded.
+Artifacts are tracked in [`dry-run-001/`](dry-run-001/):
+
+| File                            | Contents                                                   |
+| ------------------------------- | ---------------------------------------------------------- |
+| `raw-response.json`             | the exact Responses API payload, byte-for-byte as returned |
+| `request-metadata.json`         | the parameters as requested                                |
+| `run-manifest.json`             | hashes, requested-vs-served split, provenance, corpus hash |
+| `extraction.json`               | the assembled record that was evaluated                    |
+| `golden-projection.json`        | the golden it was compared against                         |
+| `alignment.json`, `report.json` | evaluator output                                           |
+
+Only credentials are excluded. The raw payload is retained in full — response ID, token usage,
+reasoning items, and the `instructions` string included. Every file in this directory is tracked as
+the exact bytes the tool emitted, and the directory is listed in `.prettierignore` so formatting
+cannot alter them; that one-line config entry is the only change in this PR outside `docs/`.
+
+This is intentionally stricter than the acceptance-corpus sanitization policy, which excludes raw
+payloads. That policy governs corpus candidates in `src/fixtures/`; this is an audit record, not a
+candidate.
+
+Two provenance facts are checkable from the payload alone: the `instructions` string it echoes is
+**byte-identical** to the repo's locked `PERSON_A_EXTRACTION_INSTRUCTIONS`, proving prompt v0.1.4
+was sent unmodified; and `metadata.input_hash` in the extraction equals the narrative SHA-256.
 
 Re-evaluation requires no API call and reproduces the report byte-for-byte:
 
@@ -244,6 +289,107 @@ npm run extract:person-a -- \
 The extraction is deliberately **not** registered in the acceptance manifest. Its typed origin enum
 admits only `historical_saved_output` and `hand_authored_control`; a fresh live run is neither, and
 labelling it as either would misrepresent it. Adding a `live_run` origin is fix-PR scope.
+
+### Claim traceability
+
+Every quantitative claim above regenerates from tracked artifacts. None depends on a number typed
+by hand.
+
+**7 of 8 criticals are rule 23 agreement terms** (Finding A):
+
+```bash
+node -e "const r=require('./docs/dry-run-001/report.json');const h={};for(const e of r.errors.filter(x=>x.severity==='critical'))h[e.family+'/'+e.code]=(h[e.family+'/'+e.code]||0)+1;console.log(h)"
+# { 'agreement_terms/unsupported_extra_object': 7, 'claims/missing_golden_object': 1 }
+```
+
+**Those terms carry the golden's own span** (Finding A, "overlap 1.00"):
+
+```bash
+node -e "
+const e=require('./docs/dry-run-001/extraction.json'),g=require('./docs/dry-run-001/golden-projection.json');
+const gs=g.agreement.terms.find(t=>t.term_id==='term_scope').source_spans[0];
+for(const id of ['term_01_homepage','term_02_about_page','term_03_services_page','term_04_contact_page']){
+  const s=e.agreement.terms.find(t=>t.term_id===id).source_spans[0];
+  console.log(id, s.start_char===gs.start_char&&s.end_char===gs.end_char&&s.quote===gs.quote);
+}"
+# all four: true
+```
+
+**No granularity or source-grounded tier is available to agreement terms** (Finding A):
+
+```bash
+node -e "const r=require('./docs/dry-run-001/report.json');console.log('granularity_split:',r.errors.filter(e=>e.code==='granularity_split').length,'| source_grounded in agreement_terms:',r.errors.filter(e=>e.code==='source_grounded_extra_object'&&e.family==='agreement_terms').length)"
+# granularity_split: 0 | source_grounded in agreement_terms: 0
+```
+
+**Golden-only evidence detail is absent from the narrative** (Finding B):
+
+```bash
+for t in invoice receipt "version history" recording "video call" "changed phones"; do
+  printf '%-18s personA=%s personB=%s golden=%s\n' "$t" \
+    "$(grep -ic "$t" src/fixtures/dry_run_001.person_a.txt)" \
+    "$(grep -ic "$t" src/fixtures/dry_run_001.person_b.txt)" \
+    "$(grep -ic "$t" src/fixtures/dry_run_001.golden.json)"
+done
+# personA=0 for all six; personB=0 except recording=1; golden 1-23
+```
+
+**Golden span coverage by family** (Finding B):
+
+```bash
+node -e "
+const g=require('./docs/dry-run-001/golden-projection.json');
+for(const [k,a] of Object.entries({evidence:g.evidence,claims:g.claims,timeline:g.timeline,terms:g.agreement.terms,deliverables:g.deliverable_assessments}))
+  console.log(k.padEnd(14), a.filter(o=>Array.isArray(o.source_spans)&&o.source_spans.length).length+'/'+a.length);"
+# evidence 0/9 · claims 13/13 · timeline 10/10 · terms 8/8 · deliverables 0/7
+```
+
+**All 7 evidence misses are `evidence_type`-blocked** (Finding C):
+
+```bash
+node -e "
+const g=require('./docs/dry-run-001/golden-projection.json'),e=require('./docs/dry-run-001/extraction.json'),a=require('./docs/dry-run-001/alignment.json');
+const mg=new Set(a.families.evidence.pairs.map(p=>p.golden_index)), et=new Set(e.evidence.map(x=>x.evidence_type));
+const miss=g.evidence.filter((o,i)=>!mg.has(i));
+console.log('unmatched:',miss.length,'| no extracted object of that type:',miss.filter(o=>!et.has(o.evidence_type)).length);"
+# unmatched: 7 | no extracted object of that type: 7
+```
+
+**Major counts by code**, covering Finding D (`party_interpretation` 5) and §6.2 (`completion_status`
+6, `scope_status` 1):
+
+```bash
+node -e "const r=require('./docs/dry-run-001/report.json');const h={};for(const e of r.errors.filter(x=>x.severity==='major'))h[e.code]=(h[e.code]||0)+1;console.log(h)"
+```
+
+**Baseline comparison table and canonical corpus hash** (§5):
+
+```bash
+npm run gate:person-a-acceptance
+npx tsx src/commands/evaluate-person-a-extraction-acceptance.ts | shasum -a 256
+# a8c74e78ac9d209d4127f8efb3217004f3e3e1cd7cc6a3e1a9f367af442d070b
+```
+
+**Prompt provenance and the 10/58 raw span repairs** (§4) are recorded as machine-readable fields in
+`run-manifest.json` under `provenance`, and regenerate with:
+
+```bash
+npx tsx /dev/stdin <<'SCRIPT'
+import { readFileSync } from 'node:fs';
+const { extractResponseText } = await import(`${process.cwd()}/src/extraction/openai-responses.ts`);
+const { PERSON_A_EXTRACTION_INSTRUCTIONS } = await import(`${process.cwd()}/src/extraction/person-a-prompt.ts`);
+const raw = JSON.parse(readFileSync('docs/dry-run-001/raw-response.json','utf8'));
+const narrative = readFileSync('src/fixtures/dry_run_001.person_a.txt','utf8');
+const count = (o) => { let b=0,t=0; const rec=(x)=>{ if(!x||typeof x!=='object')return;
+  if(Array.isArray(x)){x.forEach(rec);return;}
+  if(Array.isArray(x.source_spans)) for(const s of x.source_spans){t++; if(narrative.slice(s.start_char,s.end_char)!==s.quote)b++;}
+  for(const v of Object.values(x)) rec(v); }; rec(o); return `${b}/${t}`; };
+console.log('instructions === locked prompt :', raw.instructions === PERSON_A_EXTRACTION_INSTRUCTIONS);
+console.log('raw model spans failing        :', count(JSON.parse(extractResponseText(raw))));
+console.log('assembled spans failing        :', count(JSON.parse(readFileSync('docs/dry-run-001/extraction.json','utf8'))));
+SCRIPT
+# true · 10/58 · 0/58
+```
 
 ## 10. Scope for the fix PR
 
