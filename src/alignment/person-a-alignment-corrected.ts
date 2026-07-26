@@ -1,8 +1,12 @@
 import {
   alignPersonAForCase as alignBase,
   DRY_RUN_001_COMPATIBILITY_ALIASES,
+  evidenceIdentityCorrespondence,
   evidenceTypesCompatible,
   familyItems,
+  isMessageEvidenceType,
+  normalizeMeaning,
+  requirePersonAEvaluationContractVersion,
   semanticSimilarity,
   type AlignmentPair,
   type PersonAAlignmentOptions,
@@ -376,35 +380,13 @@ function recoverUniqueEvidenceBlocks(
     const left = extractedItems[extra.index] ?? {};
     const compatibleGolden = family.unmatched_golden.filter((missing) => {
       const right = goldenItems[missing.index] ?? {};
-      const leftExtracts = joinStrings(
-        Array.isArray(left.extracts)
-          ? left.extracts.map((extract: JsonObject) => extract?.text)
-          : [],
-      );
-      const rightExtracts = joinStrings(
-        Array.isArray(right.extracts)
-          ? right.extracts.map((extract: JsonObject) => extract?.text)
-          : [],
-      );
-      const extractSupport =
-        leftExtracts.length > 0 && rightExtracts.length > 0
-          ? semanticSimilarity(leftExtracts, rightExtracts, aliases)
-          : 0;
-      const identitySupport = Math.max(
-        semanticSimilarity(left.title, right.title, aliases),
-        semanticSimilarity(
-          left.description_from_submitter,
-          right.description_from_submitter,
-          aliases,
-        ),
-        extractSupport,
-      );
+      const sameType = left.evidence_type === right.evidence_type;
+      const correspondence = evidenceIdentityCorrespondence(left, right, aliases);
       return (
         left.submitted_by_party_id === right.submitted_by_party_id &&
         (contractVersion === 'locked_acceptance_v1'
-          ? left.evidence_type === right.evidence_type
-          : evidenceTypesCompatible(left.evidence_type, right.evidence_type)) &&
-        (left.evidence_type === right.evidence_type || identitySupport >= 0.25)
+          ? sameType
+          : (sameType && !isMessageEvidenceType(left.evidence_type)) || correspondence.matches)
       );
     });
     const compatibleExtracted = family.unmatched_extracted.filter((other) => {
@@ -420,13 +402,19 @@ function recoverUniqueEvidenceBlocks(
     const missing = compatibleGolden[0]!;
     const right = goldenItems[missing.index] ?? {};
     const sameSourceSystem =
-      typeof left.source_system === 'string' &&
-      left.source_system.length > 0 &&
-      left.source_system === right.source_system;
+      typeof left.provenance?.source_system === 'string' &&
+      left.provenance.source_system.length > 0 &&
+      left.provenance.source_system === right.provenance?.source_system;
+    const correspondence = evidenceIdentityCorrespondence(left, right, aliases);
     candidates.push({
       extractedIndex: extra.index,
       goldenIndex: missing.index,
-      score: sameSourceSystem ? 0.8 : 0.55,
+      score:
+        left.evidence_type === right.evidence_type
+          ? sameSourceSystem
+            ? 0.8
+            : 0.55
+          : 0.52 + 0.25 * correspondence.strength + 0.05 * Number(sameSourceSystem),
     });
   }
 
@@ -500,8 +488,9 @@ function recoverOutcomeTransferReversals(
 export function alignPersonAForCase(
   extracted: JsonObject,
   golden: JsonObject,
-  options: PersonAAlignmentOptions = {},
+  options: PersonAAlignmentOptions,
 ): PersonAAlignment {
+  requirePersonAEvaluationContractVersion(options.contractVersion);
   const aliases = options.aliases ?? {};
   const alignment = alignBase(extracted, golden, options);
   removeAmbiguousDuplicates(alignment);
@@ -518,13 +507,18 @@ export function alignPersonAForCase(
 export function alignPersonA(extracted: JsonObject, golden: JsonObject): PersonAAlignment {
   return alignPersonAForCase(extracted, golden, {
     aliases: DRY_RUN_001_COMPATIBILITY_ALIASES,
+    contractVersion: 'calibrated_live_v2',
   });
 }
 
 export {
   DRY_RUN_001_COMPATIBILITY_ALIASES,
+  evidenceIdentityCorrespondence,
   evidenceTypesCompatible,
   familyItems,
+  isMessageEvidenceType,
+  normalizeMeaning,
+  requirePersonAEvaluationContractVersion,
   semanticSimilarity,
 } from './person-a-alignment.js';
 export type {

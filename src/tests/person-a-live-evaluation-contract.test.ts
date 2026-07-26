@@ -32,10 +32,12 @@ async function frozenRun() {
   ]);
   const alignment = alignPersonAForCase(extraction, golden, {
     aliases: DRY_RUN_001_COMPATIBILITY_ALIASES,
+    contractVersion: 'calibrated_live_v2',
   });
   const report = evaluatePersonAForCase(extraction, golden, alignment, {
     aliases: DRY_RUN_001_COMPATIBILITY_ALIASES,
     narrative,
+    contractVersion: 'calibrated_live_v2',
   });
   return { narrative, extraction, golden, rawResponse, alignment, report };
 }
@@ -44,7 +46,27 @@ function emptyRecordWithEvidence(evidence: JsonObject[]): JsonObject {
   return { evidence };
 }
 
+const calibratedAlignmentOptions = {
+  aliases: DRY_RUN_001_COMPATIBILITY_ALIASES,
+  contractVersion: 'calibrated_live_v2' as const,
+};
+
 describe('Dry Run 001 frozen live-evaluation contract', () => {
+  it('rejects omitted contract-version selection at runtime', async () => {
+    const { extraction, golden, alignment } = await frozenRun();
+    expect(() =>
+      alignPersonAForCase(extraction, golden, {} as typeof calibratedAlignmentOptions),
+    ).toThrow(/explicit contractVersion/u);
+    expect(() =>
+      evaluatePersonAForCase(
+        extraction,
+        golden,
+        alignment,
+        {} as typeof calibratedAlignmentOptions,
+      ),
+    ).toThrow(/explicit contractVersion/u);
+  });
+
   it('classifies all seven grounded Rule 23 components without fabrication criticals', async () => {
     const { extraction, golden, report } = await frozenRun();
     const decompositions = report.errors.filter(
@@ -73,48 +95,125 @@ describe('Dry Run 001 frozen live-evaluation contract', () => {
     }
   });
 
-  it('uses the agreement-term grounded-surplus tier without excusing invention', async () => {
+  it('keeps span- and token-piggybacked agreement inventions critical', async () => {
     const { extraction, golden, narrative } = await frozenRun();
-    const grounded = clone(extraction) as JsonObject;
-    const groundedTerm = (grounded.agreement.terms as JsonObject[]).find(
-      (term) => term.term_id === 'term_12_pricing_section',
-    )!;
-    groundedTerm.term_type = 'other';
-    const groundedAlignment = alignPersonAForCase(grounded, golden, {
-      aliases: DRY_RUN_001_COMPATIBILITY_ALIASES,
-    });
-    const groundedReport = evaluatePersonAForCase(grounded, golden, groundedAlignment, {
-      aliases: DRY_RUN_001_COMPATIBILITY_ALIASES,
-      narrative,
-    });
-    expect(
-      groundedReport.errors.find(
-        (error) =>
-          error.extracted_id === groundedTerm.term_id &&
-          error.code === 'source_grounded_extra_object',
-      ),
-    ).toMatchObject({ severity: 'major' });
+    const probes = [
+      {
+        id: 'term_02_about_page',
+        wording: 'The homepage carries a $500 per day penalty clause.',
+        interpretation: 'Maya owes Alex $500 for every day of delay.',
+      },
+      {
+        id: 'term_13_newsletter_signup',
+        wording: 'The newsletter clause requires Maya to indemnify Alex.',
+        interpretation: 'Maya accepted unlimited indemnification liability.',
+      },
+      {
+        id: 'term_02_about_page',
+        wording: 'Maya waived all delay claims.',
+        interpretation: 'Maya permanently surrendered every remedy for delay.',
+        spansFrom: 'term_06_revision_limit',
+      },
+      {
+        id: 'term_02_about_page',
+        wording: 'All disputes require binding arbitration in Singapore.',
+        interpretation: 'Maya waived court proceedings.',
+      },
+    ];
 
-    const invented = clone(extraction) as JsonObject;
-    const inventedTerm = (invented.agreement.terms as JsonObject[]).find(
-      (term) => term.term_id === 'term_12_pricing_section',
-    )!;
-    inventedTerm.term_type = 'other';
-    inventedTerm.wording = 'Maya accepted a criminal penalty clause.';
-    inventedTerm.person_a_interpretation = 'Alex says the clause guarantees punitive damages.';
-    const inventedAlignment = alignPersonAForCase(invented, golden, {
-      aliases: DRY_RUN_001_COMPATIBILITY_ALIASES,
-    });
-    const inventedReport = evaluatePersonAForCase(invented, golden, inventedAlignment, {
-      aliases: DRY_RUN_001_COMPATIBILITY_ALIASES,
-      narrative,
-    });
-    expect(
-      inventedReport.errors.find(
-        (error) =>
-          error.extracted_id === inventedTerm.term_id && error.code === 'unsupported_extra_object',
+    for (const probe of probes) {
+      const candidate = clone(extraction) as JsonObject;
+      const term = (candidate.agreement.terms as JsonObject[]).find(
+        (item) => item.term_id === probe.id,
+      )!;
+      term.wording = probe.wording;
+      term.person_a_interpretation = probe.interpretation;
+      if (probe.spansFrom) {
+        term.source_spans = clone(
+          (candidate.agreement.terms as JsonObject[]).find(
+            (item) => item.term_id === probe.spansFrom,
+          )!.source_spans,
+        );
+      }
+      const alignment = alignPersonAForCase(candidate, golden, calibratedAlignmentOptions);
+      const report = evaluatePersonAForCase(candidate, golden, alignment, {
+        ...calibratedAlignmentOptions,
+        narrative,
+      });
+      expect(
+        report.errors.find(
+          (error) => error.extracted_id === probe.id && error.code === 'unsupported_extra_object',
+        ),
+        probe.wording,
+      ).toMatchObject({ severity: 'critical' });
+    }
+  });
+
+  it('requires assertion and category support for agreement-term surplus', async () => {
+    const { extraction, narrative } = await frozenRun();
+    const source = clone(
+      (extraction.agreement.terms as JsonObject[]).find(
+        (term) => term.term_id === 'term_13_newsletter_signup',
       ),
-    ).toMatchObject({ severity: 'critical' });
+    );
+    const cases = [
+      {
+        label: 'supported',
+        termType: 'scope',
+        wording: 'Maya later requested a newsletter signup.',
+        interpretation: null,
+        expectedCode: 'source_grounded_extra_object',
+        expectedSeverity: 'major',
+      },
+      {
+        label: 'mislabeled',
+        termType: 'deadline',
+        wording: 'Maya later requested a newsletter signup.',
+        interpretation: null,
+        expectedCode: 'unsupported_extra_object',
+        expectedSeverity: 'critical',
+      },
+      {
+        label: 'stronger',
+        termType: 'scope',
+        wording: 'The newsletter signup carried a $500 daily penalty.',
+        interpretation: 'Maya owed Alex a penalty for every day of delay.',
+        expectedCode: 'unsupported_extra_object',
+        expectedSeverity: 'critical',
+      },
+      {
+        label: 'unsupported',
+        termType: 'scope',
+        wording: 'The parties agreed to binding arbitration.',
+        interpretation: null,
+        expectedCode: 'unsupported_extra_object',
+        expectedSeverity: 'critical',
+      },
+    ];
+
+    for (const probe of cases) {
+      const term = {
+        ...clone(source),
+        term_id: `surplus_${probe.label}`,
+        term_type: probe.termType,
+        wording: probe.wording,
+        person_a_interpretation: probe.interpretation,
+      };
+      const candidate = { agreement: { terms: [term] } };
+      const golden = { agreement: { terms: [] } };
+      const alignment = alignPersonAForCase(candidate, golden, calibratedAlignmentOptions);
+      const report = evaluatePersonAForCase(candidate, golden, alignment, {
+        ...calibratedAlignmentOptions,
+        narrative,
+      });
+      expect(
+        report.errors.find((error) => error.extracted_id === term.term_id),
+        probe.label,
+      ).toMatchObject({
+        code: probe.expectedCode,
+        severity: probe.expectedSeverity,
+      });
+    }
   });
 
   it('scores observable evidence recall separately from the full golden diagnostic', async () => {
@@ -132,8 +231,8 @@ describe('Dry Run 001 frozen live-evaluation contract', () => {
       unobservable_golden_evidence: 6,
       matched_observable_evidence: 3,
       observable_recall: 1,
-      full_golden_matched_evidence: 4,
-      full_golden_recall: 4 / 9,
+      full_golden_matched_evidence: 3,
+      full_golden_recall: 3 / 9,
     });
     expect(
       report.evidence_recall?.excluded_from_extractor_recall.map((item) => item.golden_id),
@@ -143,6 +242,16 @@ describe('Dry Run 001 frozen live-evaluation contract', () => {
         item.reason.includes('Person A narrative'),
       ),
     ).toBe(true);
+    expect(report.evidence_recall?.matched_unobservable_evidence).toEqual([]);
+    expect(report.evidence_recall?.representation_differences).toEqual([
+      expect.objectContaining({
+        extracted_id: 'ev_05_feedback_message',
+        golden_id: 'ev_005',
+        extracted_type: 'message_history',
+        golden_type: 'message_screenshot',
+        basis: 'quoted_content',
+      }),
+    ]);
   });
 
   it('normalizes only supported message representations before alignment', async () => {
@@ -150,40 +259,61 @@ describe('Dry Run 001 frozen live-evaluation contract', () => {
     expect(evidenceTypesCompatible('message_export', 'message_history')).toBe(true);
     expect(evidenceTypesCompatible('message_history', 'message_screenshot')).toBe(true);
     expect(evidenceTypesCompatible('message_history', 'contract')).toBe(false);
-    expect(alignment.families.evidence.pairs).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          extracted_id: 'ev_02_whatsapp_requests',
-          golden_id: 'ev_003',
-        }),
-        expect.objectContaining({
-          extracted_id: 'ev_05_feedback_message',
-          golden_id: 'ev_005',
-        }),
-      ]),
+    expect(
+      alignment.families.evidence.pairs.find(
+        (pair) => pair.extracted_id === 'ev_02_whatsapp_requests',
+      ),
+    ).toBeUndefined();
+    expect(alignment.families.evidence.pairs).toContainEqual(
+      expect.objectContaining({
+        extracted_id: 'ev_05_feedback_message',
+        golden_id: 'ev_005',
+      }),
     );
 
-    const unrelatedMessage = {
+    const targetExport = clone(
+      golden.evidence.find((item: JsonObject) => item.evidence_id === 'ev_003'),
+    );
+    const carSale = {
       ...clone(
         extraction.evidence.find(
-          (item: JsonObject) => item.evidence_id === 'ev_05_feedback_message',
+          (item: JsonObject) => item.evidence_id === 'ev_02_whatsapp_requests',
         ),
       ),
-      title: 'Unrelated payroll chat',
-      description_from_submitter: 'A conversation about staff scheduling and payroll.',
+      evidence_id: 'ev_car_sale',
+      title: 'WhatsApp messages about an unrelated car sale',
+      description_from_submitter: 'Alex says Maya discussed selling a car over WhatsApp.',
       extracts: [],
-      provenance: { source_system: 'Slack' },
+      provenance: { source_system: 'WhatsApp', export_method: null },
     };
+    const sameSystemAndPeople = {
+      ...clone(carSale),
+      evidence_id: 'ev_shared_people',
+      title: 'WhatsApp messages between Alex and Maya',
+      description_from_submitter: 'Alex and Maya discussed an unrelated personal matter.',
+    };
+    const sameTypeTarget = {
+      ...clone(targetExport),
+      evidence_type: 'message_history',
+    };
+    for (const unrelated of [carSale, sameSystemAndPeople]) {
+      for (const target of [targetExport, sameTypeTarget]) {
+        const superficial = alignPersonAForCase(
+          emptyRecordWithEvidence([unrelated]),
+          emptyRecordWithEvidence([target]),
+          calibratedAlignmentOptions,
+        );
+        expect(
+          superficial.families.evidence.pairs,
+          `${unrelated.evidence_id}/${target.evidence_type}`,
+        ).toEqual([]);
+      }
+    }
+
     const targetMessage = clone(
       golden.evidence.find((item: JsonObject) => item.evidence_id === 'ev_005'),
     );
-    const superficial = alignPersonAForCase(
-      emptyRecordWithEvidence([unrelatedMessage]),
-      emptyRecordWithEvidence([targetMessage]),
-    );
-    expect(superficial.families.evidence.pairs).toEqual([]);
-
-    const incompatible = clone(unrelatedMessage);
+    const incompatible = clone(carSale);
     incompatible.evidence_type = 'contract';
     incompatible.title = targetMessage.title;
     incompatible.description_from_submitter = targetMessage.description_from_submitter;
@@ -191,6 +321,7 @@ describe('Dry Run 001 frozen live-evaluation contract', () => {
     const blocked = alignPersonAForCase(
       emptyRecordWithEvidence([incompatible]),
       emptyRecordWithEvidence([targetMessage]),
+      calibratedAlignmentOptions,
     );
     expect(blocked.families.evidence.pairs).toEqual([]);
   });
@@ -287,6 +418,6 @@ describe('Dry Run 001 frozen live-evaluation contract', () => {
           error.severity === 'critical',
       ),
     ).toBeTruthy();
-    expect(report.summary).toMatchObject({ critical: 1, major: 44, minor: 20 });
+    expect(report.summary).toMatchObject({ critical: 1, major: 45, minor: 20 });
   });
 });

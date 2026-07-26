@@ -1,7 +1,9 @@
 import {
   DRY_RUN_001_COMPATIBILITY_ALIASES,
+  evidenceIdentityCorrespondence,
   evidenceTypesCompatible,
   familyItems,
+  requirePersonAEvaluationContractVersion,
   semanticSimilarity,
   type PersonAAlignmentOptions,
   type PersonAAlignment,
@@ -53,6 +55,19 @@ export type EvidenceRecallDiagnostics = {
   observable_recall: number | null;
   full_golden_matched_evidence: number;
   full_golden_recall: number;
+  matched_unobservable_evidence: Array<{
+    extracted_id: string;
+    golden_id: string;
+    reason: string;
+  }>;
+  representation_differences: Array<{
+    extracted_id: string;
+    golden_id: string;
+    extracted_type: string;
+    golden_type: string;
+    basis: 'quoted_content' | 'artifact_identity';
+    reason: string;
+  }>;
   excluded_from_extractor_recall: Array<{
     golden_id: string;
     reason: string;
@@ -92,15 +107,6 @@ function transferDirection(item: JsonObject): string {
 function sourceCoverage(item: JsonObject): number {
   const spans = Array.isArray(item.source_spans) ? item.source_spans : [];
   return spans.length;
-}
-
-function evidenceExtractText(item: JsonObject): string {
-  return Array.isArray(item.extracts)
-    ? item.extracts
-        .map((extract: JsonObject) => extract?.text)
-        .filter((text: unknown): text is string => typeof text === 'string' && text.length > 0)
-        .join(' ')
-    : '';
 }
 
 function comparePair(
@@ -258,22 +264,12 @@ function comparePair(
           extractedId,
           goldenId,
         );
-      const extractedExtractText = evidenceExtractText(extracted);
-      const goldenExtractText = evidenceExtractText(golden);
+      const identityCorrespondence = evidenceIdentityCorrespondence(extracted, golden, aliases);
       const compatibleRepresentationSupport =
         contractVersion !== 'locked_acceptance_v1' &&
         extracted.evidence_type !== golden.evidence_type &&
         evidenceTypesCompatible(extracted.evidence_type, golden.evidence_type) &&
-        ((extractedExtractText.length > 0 &&
-          goldenExtractText.length > 0 &&
-          similarity(extractedExtractText, goldenExtractText) >= 0.4) ||
-          (typeof extracted.provenance?.source_system === 'string' &&
-            extracted.provenance.source_system.length > 0 &&
-            extracted.provenance.source_system === golden.provenance?.source_system &&
-            Math.max(
-              similarity(extracted.title, golden.title),
-              similarity(extracted.description_from_submitter, golden.description_from_submitter),
-            ) >= 0.25));
+        identityCorrespondence.matches;
       if (similarity(extracted.title, golden.title) < 0.45 && !compatibleRepresentationSupport)
         add(
           errors,
@@ -461,8 +457,9 @@ export function evaluatePersonAForCase(
   extracted: JsonObject,
   golden: JsonObject,
   alignment: PersonAAlignment,
-  options: PersonAAlignmentOptions = {},
+  options: PersonAAlignmentOptions,
 ): PersonAEvaluationReport {
+  requirePersonAEvaluationContractVersion(options.contractVersion);
   const errors: EvaluationError[] = [];
   const metrics = {} as Record<PersonAFamily, FamilyMetrics>;
   let goldenObjectTotal = 0;
@@ -567,6 +564,7 @@ export function evaluatePersonA(
 ): PersonAEvaluationReport {
   return evaluatePersonAForCase(extracted, golden, alignment, {
     aliases: DRY_RUN_001_COMPATIBILITY_ALIASES,
+    contractVersion: 'calibrated_live_v2',
   });
 }
 
@@ -609,6 +607,27 @@ export function reportMarkdown(report: PersonAEvaluationReport): string {
         '',
         ...evidence.excluded_from_extractor_recall.map(
           (entry) => `- \`${entry.golden_id}\`: ${entry.reason}`,
+        ),
+      );
+    }
+    if (evidence.matched_unobservable_evidence.length > 0) {
+      lines.push(
+        '',
+        '### Valid full-golden matches excluded from observable recall',
+        '',
+        ...evidence.matched_unobservable_evidence.map(
+          (entry) => `- \`${entry.extracted_id}\` → \`${entry.golden_id}\`: ${entry.reason}`,
+        ),
+      );
+    }
+    if (evidence.representation_differences.length > 0) {
+      lines.push(
+        '',
+        '### Informational evidence-representation differences',
+        '',
+        ...evidence.representation_differences.map(
+          (entry) =>
+            `- \`${entry.extracted_id}\` (${entry.extracted_type}) → \`${entry.golden_id}\` (${entry.golden_type}): ${entry.reason}`,
         ),
       );
     }

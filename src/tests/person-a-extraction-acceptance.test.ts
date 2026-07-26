@@ -316,7 +316,10 @@ describe('Person A extraction acceptance corpus', () => {
 
     const golden = buildPersonAGoldenProjection();
     expect(alignPersonA(golden, golden)).toEqual(
-      alignPersonAForCase(golden, golden, { aliases: DRY_RUN_001_COMPATIBILITY_ALIASES }),
+      alignPersonAForCase(golden, golden, {
+        aliases: DRY_RUN_001_COMPATIBILITY_ALIASES,
+        contractVersion: 'calibrated_live_v2',
+      }),
     );
   });
 

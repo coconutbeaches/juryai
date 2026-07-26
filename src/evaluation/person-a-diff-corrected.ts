@@ -5,7 +5,9 @@ import {
 } from './person-a-diff.js';
 import {
   DRY_RUN_001_COMPATIBILITY_ALIASES,
+  evidenceIdentityCorrespondence,
   familyItems,
+  normalizeMeaning,
   semanticSimilarity,
   sourceSpanOverlap,
   type PersonAAlignmentOptions,
@@ -17,74 +19,202 @@ import type { EvidenceRecallDiagnostics } from './person-a-diff.js';
 
 type JsonObject = Record<string, any>;
 
-const agreementTermStopwords = new Set([
+const agreementTermFunctionWords = new Set([
   'a',
   'an',
   'and',
   'as',
   'at',
-  'accepted',
+  'be',
+  'been',
+  'by',
   'for',
+  'from',
+  'had',
+  'has',
+  'have',
   'he',
   'her',
   'his',
   'i',
   'in',
-  'included',
   'is',
   'it',
-  'job',
-  'later',
-  'most',
+  'its',
   'of',
-  'original',
-  'requested',
+  'on',
+  'or',
   'says',
   'she',
-  'term',
   'that',
   'the',
+  'their',
+  'them',
+  'they',
+  'this',
   'through',
   'to',
   'was',
+  'were',
+  'when',
+  'which',
+  'while',
   'with',
 ]);
 
-function distinctiveTermTokens(value: unknown): Set<string> {
-  return new Set(
-    meaningTokens(value).filter((token) => token.length >= 3 && !agreementTermStopwords.has(token)),
-  );
-}
+const agreementTokenAliases: Record<string, string> = {
+  accepted: 'accept',
+  accepts: 'accept',
+  added: 'addition',
+  additions: 'addition',
+  asked: 'request',
+  changes: 'change',
+  changed: 'change',
+  contributed: 'contribute',
+  contributor: 'contribute',
+  documented: 'document',
+  documenting: 'document',
+  requested: 'request',
+  requests: 'request',
+  rounds: 'round',
+};
 
-function sourceQuotes(item: JsonObject): string[] {
-  return Array.isArray(item.source_spans)
-    ? item.source_spans
-        .map((span: JsonObject) => span?.quote)
-        .filter((quote: unknown): quote is string => typeof quote === 'string' && quote.length > 0)
-    : [];
-}
+const materialLegalConcepts = new Set([
+  'arbitration',
+  'damages',
+  'indemnification',
+  'indemnify',
+  'interest',
+  'liability',
+  'liable',
+  'penalty',
+  'remedy',
+  'surrender',
+  'terminate',
+  'termination',
+  'waive',
+  'waiver',
+  'warranty',
+]);
 
-function termHasNarrativeSupport(item: JsonObject, aliases: PersonASemanticAliases): boolean {
+function distinctiveTermTokens(value: unknown, aliases: PersonASemanticAliases): Set<string> {
   const identityTokens = new Set([
     ...Object.keys(aliases).map((token) => token.toLocaleLowerCase()),
     ...Object.values(aliases).map((token) => token.toLocaleLowerCase()),
   ]);
-  const wordingTokens = new Set(
-    [...distinctiveTermTokens(item.wording)].filter((token) => !identityTokens.has(token)),
+  return new Set(
+    normalizeMeaning(value, aliases)
+      .split(' ')
+      .map((token) => agreementTokenAliases[token] ?? token)
+      .filter(
+        (token) =>
+          token.length >= 2 && !agreementTermFunctionWords.has(token) && !identityTokens.has(token),
+      ),
   );
-  if (wordingTokens.size === 0) return false;
-  return sourceQuotes(item).some((quote) => {
-    const quoteTokens = new Set(meaningTokens(quote));
-    const shared = [...wordingTokens].filter((token) => quoteTokens.has(token)).length;
-    return (
-      shared > 0 ||
-      semanticSimilarity(
-        `${item.wording ?? ''} ${item.person_a_interpretation ?? ''}`,
-        quote,
-        aliases,
-      ) >= 0.32
-    );
-  });
+}
+
+function exactSourceQuotes(item: JsonObject, narrative: string | undefined): string[] {
+  if (narrative === undefined) return [];
+  return Array.isArray(item.source_spans)
+    ? item.source_spans
+        .filter(
+          (span: JsonObject) =>
+            typeof span?.quote === 'string' &&
+            Number.isInteger(span?.start_char) &&
+            Number.isInteger(span?.end_char) &&
+            narrative.slice(span.start_char, span.end_char) === span.quote,
+        )
+        .map((span: JsonObject) => span.quote as string)
+    : [];
+}
+
+function sharedTokenCount(left: Set<string>, right: Set<string>): number {
+  return [...left].filter((token) => right.has(token)).length;
+}
+
+function agreementTermTypeSupported(
+  item: JsonObject,
+  quotes: string[],
+  aliases: PersonASemanticAliases,
+): boolean {
+  const text = `${item.wording ?? ''} ${quotes.join(' ')}`;
+  const tokens = distinctiveTermTokens(text, aliases);
+  const hasAny = (...values: string[]): boolean => values.some((value) => tokens.has(value));
+  switch (item.term_type) {
+    case 'scope':
+      return hasAny(
+        'change',
+        'design',
+        'homepage',
+        'included',
+        'job',
+        'layout',
+        'newsletter',
+        'page',
+        'request',
+        'scope',
+        'section',
+        'services',
+        'signup',
+        'website',
+      );
+    case 'price':
+      return /\$\s*\d/u.test(text) || hasAny('cost', 'fee', 'price', 'rate');
+    case 'deposit':
+      return hasAny('deposit', 'upfront');
+    case 'payment_trigger':
+      return hasAny('balance', 'due', 'paid', 'payment');
+    case 'deadline':
+      return hasAny('deadline', 'launch', 'timeline');
+    case 'client_dependency':
+      return hasAny('access', 'content', 'copy', 'depend', 'images', 'supply');
+    case 'revision_limit':
+      return hasAny('limit', 'revision', 'round');
+    case 'credentials':
+      return hasAny('administrator', 'credential', 'credentials', 'source');
+    default:
+      return false;
+  }
+}
+
+function termAssertionSupportedByNarrative(
+  item: JsonObject,
+  aliases: PersonASemanticAliases,
+  narrative: string | undefined,
+): boolean {
+  const quotes = exactSourceQuotes(item, narrative);
+  if (quotes.length === 0) return false;
+  const wordingTokens = distinctiveTermTokens(item.wording, aliases);
+  const quoteTokens = distinctiveTermTokens(quotes.join(' '), aliases);
+  const shared = sharedTokenCount(wordingTokens, quoteTokens);
+  const coverage = wordingTokens.size === 0 ? 0 : shared / wordingTokens.size;
+  if (wordingTokens.size < 2 || shared < 2 || coverage < 0.65) return false;
+  if (!agreementTermTypeSupported(item, quotes, aliases)) return false;
+
+  const assertedLegalConcepts = [
+    ...distinctiveTermTokens(
+      `${item.wording ?? ''} ${item.person_a_interpretation ?? ''}`,
+      aliases,
+    ),
+  ].filter((token) => materialLegalConcepts.has(token));
+  const narrativeTokens = distinctiveTermTokens(narrative, aliases);
+  return assertedLegalConcepts.every((token) => narrativeTokens.has(token));
+}
+
+function termCorrespondsToBroaderGolden(
+  extractedItem: JsonObject,
+  goldenItem: JsonObject,
+  aliases: PersonASemanticAliases,
+): boolean {
+  if (!agreementTermCategoriesCompatible(extractedItem.term_type, goldenItem.term_type)) {
+    return false;
+  }
+  const extractedTokens = distinctiveTermTokens(extractedItem.wording, aliases);
+  const goldenTokens = distinctiveTermTokens(
+    `${goldenItem.wording ?? ''} ${goldenItem.person_a_interpretation ?? ''}`,
+    aliases,
+  );
+  return sharedTokenCount(extractedTokens, goldenTokens) >= 2;
 }
 
 const scopeComponentTermTypes = new Set([
@@ -107,35 +237,19 @@ function agreementTermCategoriesCompatible(extractedType: unknown, goldenType: u
   );
 }
 
-function termCorrespondsToBroaderGolden(
-  extractedItem: JsonObject,
-  goldenItem: JsonObject,
-): boolean {
-  if (!agreementTermCategoriesCompatible(extractedItem.term_type, goldenItem.term_type)) {
-    return false;
-  }
-  const extractedTokens = distinctiveTermTokens(
-    `${extractedItem.wording ?? ''} ${extractedItem.person_a_interpretation ?? ''}`,
-  );
-  const goldenTokens = distinctiveTermTokens(
-    `${goldenItem.wording ?? ''} ${goldenItem.person_a_interpretation ?? ''}`,
-  );
-  return [...extractedTokens].some((token) => goldenTokens.has(token));
-}
-
 function isAgreementTermDecomposition(
   extractedItem: JsonObject,
   goldenItems: JsonObject[],
   alignment: PersonAAlignment['families']['agreement_terms'],
   aliases: PersonASemanticAliases,
+  narrative: string | undefined,
 ): boolean {
-  if (!termHasNarrativeSupport(extractedItem, aliases)) return false;
+  if (!termAssertionSupportedByNarrative(extractedItem, aliases, narrative)) return false;
   return alignment.pairs.some((pair) => {
     const goldenItem = goldenItems[pair.golden_index] ?? {};
     return (
       agreementTermCategoriesCompatible(extractedItem.term_type, goldenItem.term_type) &&
-      (sourceSpanOverlap(extractedItem, goldenItem) >= 0.8 ||
-        termCorrespondsToBroaderGolden(extractedItem, goldenItem))
+      termCorrespondsToBroaderGolden(extractedItem, goldenItem, aliases)
     );
   });
 }
@@ -230,9 +344,12 @@ function isSourceGroundedExtra(
   alignment: PersonAAlignment,
   aliases: PersonASemanticAliases,
   allowAgreementTermCalibration: boolean,
+  narrative: string | undefined,
 ): boolean {
   if (family === 'agreement_terms') {
-    return allowAgreementTermCalibration && termHasNarrativeSupport(item, aliases);
+    return (
+      allowAgreementTermCalibration && termAssertionSupportedByNarrative(item, aliases, narrative)
+    );
   }
   if (family === 'claims')
     return item.party_id === 'party_a' && hasQuotedMeaning(family, item, aliases);
@@ -372,16 +489,41 @@ export function classifyGoldenEvidenceObservability(
 }
 
 function evidenceRecallDiagnostics(
+  extractedItems: JsonObject[],
   goldenItems: JsonObject[],
   alignment: PersonAAlignment['families']['evidence'],
+  aliases: PersonASemanticAliases,
   narrative: string | undefined,
 ): EvidenceRecallDiagnostics {
   const fullMatched = new Set(alignment.pairs.map((pair) => pair.golden_index));
-  for (const ambiguous of alignment.ambiguous) {
-    const first = ambiguous.candidates[0];
-    if (first) fullMatched.add(first.golden_index);
-  }
   const fullMatchedCount = fullMatched.size;
+  const representationDifferences: EvidenceRecallDiagnostics['representation_differences'] =
+    alignment.pairs.flatMap((pair) => {
+      const extracted = extractedItems[pair.extracted_index] ?? {};
+      const golden = goldenItems[pair.golden_index] ?? {};
+      if (
+        typeof extracted.evidence_type !== 'string' ||
+        typeof golden.evidence_type !== 'string' ||
+        extracted.evidence_type === golden.evidence_type
+      ) {
+        return [];
+      }
+      const correspondence = evidenceIdentityCorrespondence(extracted, golden, aliases);
+      if (!correspondence.matches || correspondence.basis === null) return [];
+      return [
+        {
+          extracted_id: pair.extracted_id,
+          golden_id: pair.golden_id,
+          extracted_type: extracted.evidence_type,
+          golden_type: golden.evidence_type,
+          basis: correspondence.basis,
+          reason:
+            correspondence.basis === 'quoted_content'
+              ? 'Substantively corresponding quoted message content identifies the same evidence despite different representations.'
+              : 'Substantively corresponding artifact identity identifies the same message record despite different representations.',
+        },
+      ];
+    });
   if (narrative === undefined) {
     return {
       observability_basis: 'unavailable',
@@ -392,6 +534,8 @@ function evidenceRecallDiagnostics(
       observable_recall: null,
       full_golden_matched_evidence: fullMatchedCount,
       full_golden_recall: goldenItems.length === 0 ? 1 : fullMatchedCount / goldenItems.length,
+      matched_unobservable_evidence: [],
+      representation_differences: representationDifferences,
       excluded_from_extractor_recall: [],
     };
   }
@@ -405,6 +549,19 @@ function evidenceRecallDiagnostics(
     else excluded.push({ golden_id: goldenId, reason: classification.reason });
   });
   const matchedObservable = [...observableIndexes].filter((index) => fullMatched.has(index)).length;
+  const matchedUnobservable: EvidenceRecallDiagnostics['matched_unobservable_evidence'] =
+    alignment.pairs.flatMap((pair) =>
+      observableIndexes.has(pair.golden_index)
+        ? []
+        : [
+            {
+              extracted_id: pair.extracted_id,
+              golden_id: pair.golden_id,
+              reason:
+                'Counted only in the full-golden diagnostic because substantive artifact identity aligned; it remains excluded from observable extractor recall.',
+            },
+          ],
+    );
   return {
     observability_basis: 'person_a_narrative',
     total_golden_evidence: goldenItems.length,
@@ -415,6 +572,8 @@ function evidenceRecallDiagnostics(
       observableIndexes.size === 0 ? 1 : matchedObservable / observableIndexes.size,
     full_golden_matched_evidence: fullMatchedCount,
     full_golden_recall: goldenItems.length === 0 ? 1 : fullMatchedCount / goldenItems.length,
+    matched_unobservable_evidence: matchedUnobservable,
+    representation_differences: representationDifferences,
     excluded_from_extractor_recall: excluded,
   };
 }
@@ -476,11 +635,12 @@ export function evaluatePersonAForCase(
   extracted: JsonObject,
   golden: JsonObject,
   alignment: PersonAAlignment,
-  options: PersonAAlignmentOptions = {},
+  options: PersonAAlignmentOptions,
 ): PersonAEvaluationReport {
   const aliases = options.aliases ?? {};
-  const calibrated = options.contractVersion !== 'locked_acceptance_v1';
+  const calibrated = options.contractVersion === 'calibrated_live_v2';
   const report = evaluateBase(extracted, golden, alignment, options);
+  const extractedEvidence = familyItems(extracted, 'evidence');
   const goldenEvidence = familyItems(golden, 'evidence');
   const narrative =
     options.narrative ??
@@ -488,8 +648,10 @@ export function evaluatePersonAForCase(
       ? extracted.submission.raw_text
       : undefined);
   const evidenceRecall = evidenceRecallDiagnostics(
+    extractedEvidence,
     goldenEvidence,
     alignment.families.evidence,
+    aliases,
     calibrated ? narrative : undefined,
   );
   const unobservableGoldenIds = new Set(
@@ -560,7 +722,13 @@ export function evaluatePersonAForCase(
         unmatched &&
         calibrated &&
         error.family === 'agreement_terms' &&
-        isAgreementTermDecomposition(extractedItem, goldenItems, familyAlignment, aliases)
+        isAgreementTermDecomposition(
+          extractedItem,
+          goldenItems,
+          familyAlignment,
+          aliases,
+          narrative,
+        )
       ) {
         error.severity = 'minor';
         error.code = 'agreement_term_decomposition';
@@ -588,12 +756,15 @@ export function evaluatePersonAForCase(
           alignment,
           aliases,
           calibrated,
+          narrative,
         )
       ) {
         error.severity = 'major';
         error.code = 'source_grounded_extra_object';
         error.message =
-          'Extracted object is grounded in an exact source quote but has no golden match and requires review for granularity or unsupported inference.';
+          error.family === 'agreement_terms'
+            ? 'Extracted assertion and category are supported by exact source slices but have no golden match and require review for granularity or a golden omission.'
+            : 'Extracted object is source-grounded but has no golden match and requires review for granularity or unsupported inference.';
       } else if (!['clarification_questions', 'extraction_issues'].includes(error.family)) {
         error.severity = 'critical';
         error.code = 'unsupported_extra_object';
@@ -624,6 +795,7 @@ export function evaluatePersonA(
 ): PersonAEvaluationReport {
   return evaluatePersonAForCase(extracted, golden, alignment, {
     aliases: DRY_RUN_001_COMPATIBILITY_ALIASES,
+    contractVersion: 'calibrated_live_v2',
     ...(typeof extracted.submission?.raw_text === 'string'
       ? { narrative: extracted.submission.raw_text }
       : {}),

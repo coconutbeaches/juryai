@@ -69,6 +69,11 @@ acceptance threshold: both paths still require valid schema/invariants and zero 
 findings. The origin selects which measurement contract is historically truthful for that fixture;
 it never changes a finding into an acceptance waiver.
 
+The case-aware alignment and evaluation functions require `contractVersion` at every call site.
+Canonical acceptance explicitly selects `locked_acceptance_v1`; the ordinary `alignPersonA` and
+`evaluatePersonA` wrappers explicitly select `calibrated_live_v2`. There is no silent omitted-version
+fallback.
+
 Controls are reported separately and never contribute to historical model acceptance. The tracked
 saved outputs reproduce a historical result of **0/3 accepted**. This is an offline replay, not a
 newly executed live/model result.
@@ -79,16 +84,19 @@ Rule 23 requires separately named agreement components to remain separate even w
 uses one broader term. The evaluator therefore recognizes a compatible one-to-many decomposition
 only when deterministic support exists: equal `term_type`, or a named Rule 23 component
 (`price`, `deposit`, `payment_trigger`, `deadline`, `client_dependency`, `revision_limit`, or
-`credentials`) under a broader golden `scope`; plus an exact or contained source span, or a
-separately named component that occurs in both an exact source quote and the wording or
-interpretation of the broader matched golden term. It records the mismatch as the non-blocking
-`agreement_term_decomposition` diagnostic. It does not lower the generic semantic thresholds.
+`credentials`) under a broader golden `scope`; at least two substantive wording concepts supported
+by exact source slices; category cues expressed by those slices; and at least two substantive
+concepts shared with the broader matched golden term. Span overlap corroborates provenance but does
+not establish semantic correspondence. A single shared token cannot qualify. The evaluator records
+a valid split as the non-blocking `agreement_term_decomposition` diagnostic without lowering the
+generic semantic thresholds.
 
 An unmatched agreement term outside a broader matched term has a separate
-`source_grounded_extra_object` path when its own wording is supported by an exact narrative quote.
-That path remains major because the evaluator cannot prove whether the difference is intentional
-granularity or a golden omission. A term whose substantive wording is not supported by its cited
-quote remains an `unsupported_extra_object` critical.
+`source_grounded_extra_object` path only when its substantive assertion and category are supported
+by exact narrative slices and the claim is not materially stronger than the narrative. That path
+remains major because the evaluator cannot prove whether the difference is intentional granularity
+or a golden omission. A mislabeled term, invented legal consequence, or assertion supported only by
+the location of a real quote remains an `unsupported_extra_object` critical.
 
 ### Evidence observability and type compatibility
 
@@ -106,8 +114,12 @@ diagnostic; they are not silently deleted.
 
 Evidence types are exact by default. Only `message_export`, `message_history`, and
 `message_screenshot` form a compatibility group. A compatible type is necessary but insufficient:
-the title, submitter description, quoted extract, or non-empty source system must also identify the
-same message source. A superficially related message type with unrelated wording is not aligned.
+cross-type alignment requires either substantively corresponding quoted content, or two actual
+artifact descriptions with substantive subject correspondence. A communication channel, shared
+source system, or shared participant never proves possession of an export, history, screenshot,
+full record, or partial record. Legitimate unequal representations produce an informational
+diagnostic without changing critical, major, or minor counts. A superficially related message type
+with unrelated wording is not aligned.
 Contracts, email threads, payment records, project histories, recordings, videos, deliverables,
 and every other category remain incompatible unless their enum values are exact.
 

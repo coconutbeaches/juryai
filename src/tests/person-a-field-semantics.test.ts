@@ -172,8 +172,9 @@ function syntheticGolden(): JsonObject {
 }
 
 function evaluate(candidate: JsonObject, golden: JsonObject): PersonAEvaluationReport {
-  const alignment: PersonAAlignment = alignPersonAForCase(candidate, golden, { aliases: {} });
-  return evaluatePersonAForCase(candidate, golden, alignment, { aliases: {} });
+  const options = { aliases: {}, contractVersion: 'calibrated_live_v2' as const };
+  const alignment: PersonAAlignment = alignPersonAForCase(candidate, golden, options);
+  return evaluatePersonAForCase(candidate, golden, alignment, options);
 }
 
 function errors(report: PersonAEvaluationReport, code: string, family?: string) {

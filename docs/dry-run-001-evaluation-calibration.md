@@ -1,27 +1,31 @@
 # Dry Run 001 — evaluation calibration replay
 
-Status: **Rejected.** The corrected instrument still reports one critical and 44 major findings,
+Status: **Rejected.** The corrected instrument still reports one critical and 45 major findings,
 so the unchanged zero-critical/zero-major acceptance rule does not pass.
 
 This is an offline replay of the exact artifacts preserved by PR #12. It made no model call and did
 not rewrite the narrative, raw response, assembled extraction, historical alignment, historical
 report, golden projection, or run manifest.
 
-## Before and after
+## Before, reviewed head, and corrected head
 
-| Metric                                   | PR #12 historical evaluator |  Calibrated evaluator |
-| ---------------------------------------- | --------------------------: | --------------------: |
-| Critical                                 |                           8 |                     1 |
-| Major                                    |                          53 |                    44 |
-| Minor                                    |                          13 |                    20 |
-| Human edit rate                          |                       74.5% |                 61.8% |
-| Weighted error rate                      |                       65.1% |                 45.5% |
-| Evidence recall reported by evaluator    |     2/9 (22.2%) full golden | 3/3 (100%) observable |
-| Retrospective observable evidence recall |                 2/3 (66.7%) |            3/3 (100%) |
-| Full-golden evidence diagnostic          |                 2/9 (22.2%) |           4/9 (44.4%) |
+| Metric                                   | PR #12 historical | Reviewed `d256781` | Corrected evaluator |
+| ---------------------------------------- | ----------------: | -----------------: | ------------------: |
+| Critical                                 |                 8 |                  1 |                   1 |
+| Major                                    |                53 |                 44 |                  45 |
+| Minor                                    |                13 |                 20 |                  20 |
+| Human edit rate                          |             74.5% |              61.8% |               61.8% |
+| Weighted error rate                      |             65.1% |              45.5% |               46.4% |
+| Evidence recall reported by evaluator    |   2/9 full golden |     3/3 observable |      3/3 observable |
+| Retrospective observable evidence recall |       2/3 (66.7%) |         3/3 (100%) |          3/3 (100%) |
+| Full-golden evidence diagnostic          |       2/9 (22.2%) |        4/9 (44.4%) |         3/9 (33.3%) |
 
 The retrospective pre-calibration observable value applies the new, fixed observability set to the
 old tracked alignment. It was not a metric emitted by the PR #12 report.
+
+The delta from `d256781` removes the invalid
+`ev_02_whatsapp_requests` → `ev_003` pairing. The extracted object remains a grounded surplus
+major, so major findings increase by one while the false full-golden credit decreases by one.
 
 ## Findings removed or reclassified
 
@@ -32,9 +36,12 @@ old tracked alignment. It was not a metric emitted by the PR #12 report.
 - Seven `evidence/missing_golden_object` majors were removed from extractor-recall error scoring.
   Six golden objects are unobservable from the Person A narrative; one observable feedback message
   now aligns through the narrow message-representation compatibility rule.
-- Two grounded extracted messages no longer appear as unmatched surplus evidence. They align to
-  `message_export` or `message_screenshot` goldens only because their wording, quoted detail, or
-  WhatsApp source also matches.
+- The feedback message no longer appears as unmatched surplus evidence because its quoted content
+  substantively identifies the same selected-message artifact as the golden screenshot. The
+  representation difference remains visible as an informational diagnostic.
+- `ev_02_whatsapp_requests` remains an unmatched grounded surplus major. A description that project
+  requests occurred through WhatsApp does not establish possession of the unobservable `ev_003`
+  export artifact.
 
 No generic semantic threshold changed.
 
