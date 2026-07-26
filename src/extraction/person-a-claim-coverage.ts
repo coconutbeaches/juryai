@@ -91,10 +91,32 @@ function deniesCausalRelation(value: string): boolean {
   );
 }
 
+function preserveAttachedRelativeCausalParentheticals(value: string): string {
+  let depth = 0;
+  for (const character of value) {
+    if (character === '(') {
+      depth += 1;
+      if (depth > 1) return value;
+    } else if (character === ')') {
+      depth -= 1;
+      if (depth < 0) return value;
+    }
+  }
+  if (depth !== 0) return value;
+
+  const attachedRelative =
+    /([^.;()\r\n—–]+?)\s*\(\s*((?:which\s+(?:caus\w*|contribut\w*)|resulting\s+in|thereby\s+causing)\b[^()]*)\)/giu;
+  return value.replace(attachedRelative, (full, antecedent: string, relative: string) => {
+    const coordinatedNewSubject =
+      /\b(?:and|but|while|whereas)\s+(?:an?|the)\s+[\p{L}\p{N}'’_-]+(?:\s+[\p{L}\p{N}'’_-]+){0,5}\s*$/iu;
+    return coordinatedNewSubject.test(antecedent) ? full : `${antecedent}, ${relative}`;
+  });
+}
+
 function causalUnits(value: string): string[] {
   const coordinatedSubjectBoundary =
-    /,\s+(?:and|but|while|whereas)\s+(?=(?:an?|the|[\p{L}\p{N}'’_-]+)(?:\s+[\p{L}\p{N}'’_-]+){0,5}\s+(?:caus|contribut|result)\w*\b)/giu;
-  return value
+    /(?:,\s*)?\b(?:and|but|while|whereas)\b\s+(?!(?:directly|also|separately|then|together)\s+(?:caus|contribut|result)\w*\b)(?=(?:an?|the|[\p{L}\p{N}'’_-]+)(?:\s+[\p{L}\p{N}'’_-]+){0,5}\s+(?:caus|contribut|result)\w*\b)/giu;
+  return preserveAttachedRelativeCausalParentheticals(value)
     .replace(coordinatedSubjectBoundary, '\n')
     .split(/[.;()\r\n]|[—–]/u)
     .map((unit) => unit.trim())
@@ -108,12 +130,15 @@ function localForwardCause(prefix: string): string {
   const participial = prefix.match(/^(.*?),\s*$/u);
   if (participial?.[1] != null) return participial[1].trim();
 
-  const connectors = /\b(?:although|because|but|while|whereas)\b|,\s*(?:and|but)\s+|\band\b/giu;
+  const connectors = /\b(?:although|because|while|whereas)\b/giu;
   let localStart = 0;
   for (const match of prefix.matchAll(connectors)) {
     localStart = (match.index ?? 0) + match[0].length;
   }
-  return prefix.slice(localStart).trim();
+  return prefix
+    .slice(localStart)
+    .replace(/\b(?:and|but)\s*$/iu, '')
+    .trim();
 }
 
 function assertedCausePhrases(unit: string): string[] {
@@ -139,15 +164,38 @@ function overlaps(values: string[], candidates: string[]): boolean {
   return values.some((value) => candidateSet.has(value));
 }
 
-function causeBindsToCandidateIncident(cause: string, eventSummary: string): boolean {
+function specificIncidentObjects(values: unknown[]): string[] {
+  const text = values.filter((value): value is string => typeof value === 'string').join(' ');
+  const objects = new Set<string>();
+  const patterns: Array<[string, RegExp]> = [
+    ['batch', /\bbatch(?:es)?\b/iu],
+    ['content', /\b(?:content|copy|material|text)\b/iu],
+    ['files', /\bfiles?\b/iu],
+    ['images', /\bimages?\b/iu],
+  ];
+  for (const [object, pattern] of patterns) {
+    if (pattern.test(text)) objects.add(object);
+  }
+  return [...objects].sort();
+}
+
+function causeBindsToCandidateIncident(cause: string, event: JsonObject): boolean {
   // A causal predicate is usable only when its local cause phrase names a
-  // recognized incident and, when the event summary names an incident or actor,
-  // overlaps those anchors. Merely sharing a sentence or source span is not
-  // causal binding.
-  const candidate = canonicalAssertedMeaning([eventSummary], 'client_delay');
+  // recognized incident and is compatible with this specific provider event.
+  // Broad family, actor, or source overlap cannot override a conflicting
+  // occurrence state, object, calendar anchor, deadline relation, or occurrence
+  // qualifier. Missing cause detail is tolerated only when no known field
+  // conflicts; the causal predicate has already been confined to its local unit.
+  const candidate = canonicalAssertedMeaning(
+    [event.event_summary, event.date?.start, event.date?.end],
+    'client_delay',
+  );
   const assertedCause = canonicalAssertedMeaning([cause], 'client_delay');
   if (assertedCause.incidents.length === 0) return false;
-  if (candidate.incidents.length > 0 && !overlaps(candidate.incidents, assertedCause.incidents)) {
+  if (
+    candidate.incidents.length > 0 &&
+    JSON.stringify(candidate.incidents) !== JSON.stringify(assertedCause.incidents)
+  ) {
     return false;
   }
   if (
@@ -157,10 +205,37 @@ function causeBindsToCandidateIncident(cause: string, eventSummary: string): boo
   ) {
     return false;
   }
+  const candidateSpecificObjects = candidate.objects.filter((object) => object !== 'delivery');
+  const causeSpecificObjects = assertedCause.objects.filter((object) => object !== 'delivery');
+  if (
+    candidateSpecificObjects.length > 0 &&
+    causeSpecificObjects.length > 0 &&
+    !overlaps(candidateSpecificObjects, causeSpecificObjects)
+  ) {
+    return false;
+  }
+  const candidateOccurrenceObjects = specificIncidentObjects([event.event_summary]);
+  const causeOccurrenceObjects = specificIncidentObjects([cause]);
+  if (
+    candidateOccurrenceObjects.length > 0 &&
+    causeOccurrenceObjects.length > 0 &&
+    !overlaps(candidateOccurrenceObjects, causeOccurrenceObjects)
+  ) {
+    return false;
+  }
+  if (hasConflictingOccurrenceState(candidate, assertedCause)) return false;
+  if (hasConflictingTemporalIdentity(candidate, assertedCause)) return false;
+  if (
+    candidate.occurrenceQualifiers.length > 0 &&
+    assertedCause.occurrenceQualifiers.length > 0 &&
+    !overlaps(candidate.occurrenceQualifiers, assertedCause.occurrenceQualifiers)
+  ) {
+    return false;
+  }
   return true;
 }
 
-function isDirectClientDelayInterpretation(value: unknown, eventSummary: string): value is string {
+function isDirectClientDelayInterpretation(value: unknown, event: JsonObject): value is string {
   if (typeof value !== 'string' || value.length === 0) return false;
   return causalUnits(value).some((unit) => {
     if (
@@ -172,9 +247,7 @@ function isDirectClientDelayInterpretation(value: unknown, eventSummary: string)
     ) {
       return false;
     }
-    return assertedCausePhrases(unit).some((cause) =>
-      causeBindsToCandidateIncident(cause, eventSummary),
-    );
+    return assertedCausePhrases(unit).some((cause) => causeBindsToCandidateIncident(cause, event));
   });
 }
 
@@ -261,7 +334,9 @@ type CanonicalAssertedMeaning = {
   objects: string[];
   effects: string[];
   temporal: string[];
+  temporalAnchors: string[];
   temporalRelations: string[];
+  occurrenceQualifiers: string[];
   causalPolarity: string;
   qualifications: string[];
 };
@@ -280,6 +355,170 @@ const MONTH_TOKENS = new Set([
   'november',
   'december',
 ]);
+
+const MONTH_NUMBERS = new Map(
+  [...MONTH_TOKENS].map((month, index) => [month, String(index + 1).padStart(2, '0')]),
+);
+
+function temporalAnchorKey(year: string | null, month: string | null, day: string | null): string {
+  return `${year ?? '*'}-${month ?? '*'}-${day ?? '*'}`;
+}
+
+function temporalAnchors(values: unknown[]): string[] {
+  const anchors = new Set<string>();
+  const text = values.filter((value): value is string => typeof value === 'string').join(' ');
+
+  for (const match of text.matchAll(/\b(\d{4})-(\d{2})-(\d{2})\b/gu)) {
+    anchors.add(temporalAnchorKey(match[1] ?? null, match[2] ?? null, match[3] ?? null));
+  }
+
+  const months = [...MONTH_TOKENS].join('|');
+  const monthPattern = new RegExp(
+    String.raw`\b(${months})(?:\s+(\d{1,4})(?:st|nd|rd|th)?(?:,?\s+(\d{4}))?)?\b`,
+    'giu',
+  );
+  for (const match of text.matchAll(monthPattern)) {
+    const month = MONTH_NUMBERS.get((match[1] ?? '').toLocaleLowerCase()) ?? null;
+    const firstNumber = match[2] ?? null;
+    const trailingYear = match[3] ?? null;
+    const firstNumeric = firstNumber == null ? null : Number(firstNumber);
+    const year = trailingYear ?? (firstNumeric != null && firstNumeric > 31 ? firstNumber : null);
+    const day =
+      firstNumeric != null && firstNumeric >= 1 && firstNumeric <= 31 ? firstNumber : null;
+    anchors.add(
+      temporalAnchorKey(year, month, day == null ? null : String(Number(day)).padStart(2, '0')),
+    );
+  }
+
+  return [...anchors].sort();
+}
+
+function temporalAnchorParts(anchor: string): [string, string, string] {
+  const [year = '*', month = '*', day = '*'] = anchor.split('-');
+  return [year, month, day];
+}
+
+function temporalAnchorPairCompatible(left: string, right: string): boolean {
+  return temporalAnchorParts(left).every(
+    (part, index) =>
+      part === '*' ||
+      temporalAnchorParts(right)[index] === '*' ||
+      part === temporalAnchorParts(right)[index],
+  );
+}
+
+function hasConflictingOccurrenceState(
+  candidate: CanonicalAssertedMeaning,
+  assertedCause: CanonicalAssertedMeaning,
+): boolean {
+  const candidateStates = new Set([...candidate.occurrencePolarity, ...candidate.completionState]);
+  const causeStates = new Set([
+    ...assertedCause.occurrencePolarity,
+    ...assertedCause.completionState,
+  ]);
+  if (candidateStates.size === 0 || causeStates.size === 0) return false;
+
+  const hasAnyState = (states: Set<string>, names: string[]): boolean =>
+    names.some((name) => states.has(name));
+  const deliveredStates = [
+    'partially_delivered',
+    'delivered_late',
+    'partial',
+    'completed_late',
+    'complete',
+  ];
+  const nonDeliveryStates = [
+    'never_delivered',
+    'not_delivered_by_deadline',
+    'never_completed',
+    'not_completed_by_deadline',
+  ];
+  const unresolvedStates = [
+    'delivery_denied_or_disputed',
+    'delivery_status_unclear',
+    'denied_or_disputed',
+    'unclear',
+  ];
+
+  if (
+    (hasAnyState(candidateStates, nonDeliveryStates) &&
+      hasAnyState(causeStates, deliveredStates)) ||
+    (hasAnyState(causeStates, nonDeliveryStates) && hasAnyState(candidateStates, deliveredStates))
+  ) {
+    return true;
+  }
+  if (
+    (candidateStates.has('partial') && causeStates.has('complete')) ||
+    (causeStates.has('partial') && candidateStates.has('complete'))
+  ) {
+    return true;
+  }
+  return (
+    (hasAnyState(candidateStates, unresolvedStates) &&
+      hasAnyState(causeStates, [...deliveredStates, ...nonDeliveryStates])) ||
+    (hasAnyState(causeStates, unresolvedStates) &&
+      hasAnyState(candidateStates, [...deliveredStates, ...nonDeliveryStates]))
+  );
+}
+
+function hasConflictingTemporalIdentity(
+  candidate: CanonicalAssertedMeaning,
+  assertedCause: CanonicalAssertedMeaning,
+): boolean {
+  if (
+    candidate.temporalAnchors.length > 0 &&
+    assertedCause.temporalAnchors.length > 0 &&
+    !candidate.temporalAnchors.some((candidateAnchor) =>
+      assertedCause.temporalAnchors.some((causeAnchor) =>
+        temporalAnchorPairCompatible(candidateAnchor, causeAnchor),
+      ),
+    )
+  ) {
+    return true;
+  }
+
+  const candidateRelations = new Set(candidate.temporalRelations);
+  const causeRelations = new Set(assertedCause.temporalRelations);
+  const candidateDeadline = candidateRelations.has('before_deadline')
+    ? 'before'
+    : candidateRelations.has('by_deadline')
+      ? 'by'
+      : candidateRelations.has('after_deadline')
+        ? 'after'
+        : null;
+  const causeDeadline = causeRelations.has('before_deadline')
+    ? 'before'
+    : causeRelations.has('by_deadline')
+      ? 'by'
+      : causeRelations.has('after_deadline')
+        ? 'after'
+        : null;
+  if (candidateDeadline != null && causeDeadline != null && candidateDeadline !== causeDeadline) {
+    return true;
+  }
+
+  const namedRelations = (relations: Set<string>): Map<string, Set<string>> => {
+    const byAnchor = new Map<string, Set<string>>();
+    for (const relation of relations) {
+      const match = /^(by|after|in):(.+)$/u.exec(relation);
+      if (match == null) continue;
+      const [, kind, anchor] = match;
+      const kinds = byAnchor.get(anchor ?? '') ?? new Set<string>();
+      kinds.add(kind ?? '');
+      byAnchor.set(anchor ?? '', kinds);
+    }
+    return byAnchor;
+  };
+  const candidateNamed = namedRelations(candidateRelations);
+  const causeNamed = namedRelations(causeRelations);
+  for (const [anchor, candidateKinds] of candidateNamed) {
+    const causeKinds = causeNamed.get(anchor);
+    if (causeKinds != null && ![...candidateKinds].some((kind) => causeKinds.has(kind))) {
+      return true;
+    }
+  }
+  return false;
+}
 
 type CanonicalRelationships = {
   asserters: string[];
@@ -374,6 +613,7 @@ function canonicalAssertedMeaning(
   const effects = new Set<string>([effectFamily]);
   const temporal = new Set<string>();
   const temporalRelations = new Set<string>();
+  const occurrenceQualifiers = new Set<string>();
   const qualifications = new Set<string>();
 
   const hasContentObject = hasAny(
@@ -406,6 +646,10 @@ function canonicalAssertedMeaning(
     /\b(?:late|overdue)\s+(?:deliver|shipment|content|copy|image|material|batch)\w*|\b(?:deliver|send|supply|arriv)\w*\b[^.]{0,48}\b(?:late|overdue)\b|\b(?:deliver|send|supply|arriv)\w*\b[^.]{0,48}\bafter\s+(?:the\s+)?deadline\b/iu.test(
       text,
     );
+  const deliveryComplete =
+    /\b(?:complete|completed|full|fully)\s+(?:deliver|delivery|shipment|content|copy|image|material|batch)\w*|\b(?:deliver|delivery|shipment)\w*\b[^.]{0,32}\b(?:complete|completed|full|fully)\b/iu.test(
+      text,
+    );
   const deliveryMeaningPresent = hasContentObject || hasDeliveryObject;
 
   if (deliveryMeaningPresent) {
@@ -432,10 +676,11 @@ function canonicalAssertedMeaning(
         occurrencePolarity.add('partially_delivered');
         completionState.add('partial');
       }
-      if (deliveredLate || hasAny('late', 'later', 'overdue')) {
+      if (deliveredLate || hasAny('late', 'overdue')) {
         occurrencePolarity.add('delivered_late');
         completionState.add('completed_late');
       }
+      if (deliveryComplete && !partiallyDelivered) completionState.add('complete');
     }
   }
   const hasScopeChange = hasAny('scope') && hasAny('add', 'added', 'change', 'request');
@@ -456,6 +701,9 @@ function canonicalAssertedMeaning(
 
   for (const token of tokens) {
     if (MONTH_TOKENS.has(token) || /^\d{1,4}$/u.test(token)) temporal.add(token);
+  }
+  for (const qualifier of ['first', 'second', 'third', 'initial', 'original', 'revised', 'final']) {
+    if (hasAny(qualifier)) occurrenceQualifiers.add(qualifier);
   }
   for (const relation of ['by', 'after', 'in'] as const) {
     const pattern = new RegExp(
@@ -506,7 +754,9 @@ function canonicalAssertedMeaning(
     objects: sorted(objects),
     effects: sorted(effects),
     temporal: sorted(temporal),
+    temporalAnchors: temporalAnchors(values),
     temporalRelations: sorted(temporalRelations),
+    occurrenceQualifiers: sorted(occurrenceQualifiers),
     causalPolarity,
     qualifications: sorted(qualifications),
   };
@@ -697,7 +947,7 @@ export function recoverGroundedClientDelayClaims(
       event.interpretation_status !== 'unclear' ||
       event.person_b_interpretation !== null ||
       event.materiality !== 'high' ||
-      !isDirectClientDelayInterpretation(event.person_a_interpretation, event.event_summary)
+      !isDirectClientDelayInterpretation(event.person_a_interpretation, event)
     ) {
       continue;
     }

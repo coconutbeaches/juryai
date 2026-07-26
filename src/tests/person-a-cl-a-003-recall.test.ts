@@ -9,8 +9,10 @@ import { evaluatePersonAForCase } from '../evaluation/person-a-diff-corrected.js
 import { buildPersonAGoldenProjection } from '../evaluation/person-a-golden.js';
 import { parsePersonAModelOutputFromRawResponse } from '../evaluation/person-a-span-diagnostics.js';
 import { recoverGroundedClientDelayClaims } from '../extraction/person-a-claim-coverage.js';
+import { assembleDryRun001ClA003CompatibilityProjection } from '../extraction/person-a-frozen-compatibility.js';
 import {
   assemblePersonAExtraction,
+  extractPersonA,
   PERSON_A_EXTRACTOR_VERSION,
 } from '../extraction/person-a-extractor.js';
 import { PERSON_A_PROMPT_VERSION } from '../extraction/person-a-prompt.js';
@@ -166,7 +168,7 @@ describe('cl_a_003 Person A recall coverage', () => {
     expect(coverageOnly.timeline).toEqual(modelOutput.timeline);
     expect(coverageOnly.evidence).toEqual(modelOutput.evidence);
 
-    const corrected = assemblePersonAExtraction(modelOutput, {
+    const corrected = assembleDryRun001ClA003CompatibilityProjection(modelOutput, {
       narrative,
       submittedAt,
       model,
@@ -818,7 +820,7 @@ describe('cl_a_003 Person A recall coverage', () => {
       );
       modelOutput.timeline.push(structuredClone(sourceEvent));
 
-      const corrected = assemblePersonAExtraction(modelOutput, {
+      const corrected = assembleDryRun001ClA003CompatibilityProjection(modelOutput, {
         narrative,
         submittedAt,
         model,
@@ -845,7 +847,7 @@ describe('cl_a_003 Person A recall coverage', () => {
       duplicate.source_evidence_ids.reverse();
       modelOutput.timeline.push(duplicate);
 
-      const corrected = assemblePersonAExtraction(modelOutput, {
+      const corrected = assembleDryRun001ClA003CompatibilityProjection(modelOutput, {
         narrative,
         submittedAt,
         model,
@@ -1335,7 +1337,7 @@ describe('cl_a_003 Person A recall coverage', () => {
       duplicate.source_spans.reverse();
       modelOutput.timeline.push(duplicate);
 
-      const corrected = assemblePersonAExtraction(modelOutput, {
+      const corrected = assembleDryRun001ClA003CompatibilityProjection(modelOutput, {
         narrative: frozenNarrative,
         submittedAt,
         model,
@@ -1526,7 +1528,7 @@ describe('cl_a_003 Person A recall coverage', () => {
       const frozenStem = 'claim_event_04_major_batch_client_delay';
       modelOutput.clarification_questions[0].question_id = frozenStem;
 
-      const corrected = assemblePersonAExtraction(modelOutput, {
+      const corrected = assembleDryRun001ClA003CompatibilityProjection(modelOutput, {
         narrative,
         submittedAt,
         model,
@@ -1537,6 +1539,258 @@ describe('cl_a_003 Person A recall coverage', () => {
       ).toBe(true);
       expect(validatePersonAExtraction(corrected, narrative).valid).toBe(true);
     });
+  });
+
+  describe('sixth review finding 1: frozen compatibility boundary', () => {
+    it('keeps recovery unreachable from the production extractor module', async () => {
+      const productionExtractor = await readFile(
+        resolve(root, 'src/extraction/person-a-extractor.ts'),
+        'utf8',
+      );
+
+      expect(productionExtractor).not.toMatch(
+        /recoverGroundedClientDelayClaims|person-a-frozen-compatibility/u,
+      );
+    });
+
+    it('leaves the frozen provider omission visible in ordinary production assembly', async () => {
+      const { narrative, modelOutput } = await frozenInputs();
+
+      const assembled = assemblePersonAExtraction(modelOutput, {
+        narrative,
+        submittedAt,
+        model,
+        generatedAt,
+      });
+
+      expect(
+        assembled.claims.some(
+          (claim: JsonObject) => claim.claim_id === 'claim_event_04_major_batch_client_delay',
+        ),
+      ).toBe(false);
+    });
+
+    it('does not promote the frozen omission through the fresh extraction entrypoint', async () => {
+      const { narrative, modelOutput } = await frozenInputs();
+      const generated = await extractPersonA({
+        narrative,
+        submittedAt,
+        model,
+        generatedAt,
+        client: {
+          generate: async () => ({
+            output: structuredClone(modelOutput),
+            rawResponse: { id: 'offline-test-response' },
+          }),
+        },
+      });
+
+      expect(
+        generated.extraction.claims.some(
+          (claim: JsonObject) => claim.claim_id === 'claim_event_04_major_batch_client_delay',
+        ),
+      ).toBe(false);
+      expect(generated.modelOutput).toEqual(modelOutput);
+    });
+
+    it('applies the compatibility projection only when explicitly invoked and does not mutate input', async () => {
+      const { narrative, modelOutput } = await frozenInputs();
+      const before = structuredClone(modelOutput);
+
+      const projected = assembleDryRun001ClA003CompatibilityProjection(modelOutput, {
+        narrative,
+        submittedAt,
+        model,
+        generatedAt,
+      });
+      const replayed = assembleDryRun001ClA003CompatibilityProjection(modelOutput, {
+        narrative,
+        submittedAt,
+        model,
+        generatedAt,
+      });
+
+      expect(
+        projected.claims.filter(
+          (claim: JsonObject) => claim.claim_id === 'claim_event_04_major_batch_client_delay',
+        ),
+      ).toHaveLength(1);
+      expect(JSON.stringify(replayed)).toBe(JSON.stringify(projected));
+      expect(modelOutput).toEqual(before);
+    });
+
+    it('keeps exact duplicate provider timeline IDs as an honest production validation failure', async () => {
+      const { narrative, modelOutput } = await frozenInputs();
+      const sourceEvent = modelOutput.timeline.find(
+        (event: JsonObject) => event.event_id === 'event_04_major_batch',
+      );
+      modelOutput.timeline.push(structuredClone(sourceEvent));
+
+      expect(() =>
+        assemblePersonAExtraction(modelOutput, {
+          narrative,
+          submittedAt,
+          model,
+          generatedAt,
+        }),
+      ).toThrow(/duplicate|unique|event_04_major_batch/iu);
+    });
+  });
+
+  describe('sixth review finding 2: attached parenthetical causation', () => {
+    it.each([
+      'Maya’s late delivery (which caused schedule delay).',
+      'Maya’s late delivery (which contributed to schedule delay).',
+      'Maya’s late delivery (resulting in schedule delay).',
+      'Maya’s late delivery (thereby causing schedule delay).',
+    ])('binds an attached relative causal clause in %s', (interpretation) => {
+      const narrative = interpretation;
+      const modelOutput = candidateFixture(narrative, {
+        event_summary: 'Alex says Maya delivered the content late.',
+        person_a_interpretation: interpretation,
+      });
+
+      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toHaveLength(1);
+    });
+
+    it.each([
+      'Maya delivered late (a server outage caused schedule delay).',
+      'Maya delivered late (Alex’s revisions contributed to schedule delay).',
+      'Maya delivered late and a server outage (which caused schedule delay).',
+      'Maya delivered late ((which caused schedule delay).',
+      'Maya delivered late (which caused schedule delay)).',
+    ])('does not bind an independent or malformed parenthetical in %s', (interpretation) => {
+      const narrative = interpretation;
+      const modelOutput = candidateFixture(narrative, {
+        event_summary: 'Alex says Maya delivered the content late.',
+        person_a_interpretation: interpretation,
+      });
+
+      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toEqual([]);
+    });
+  });
+
+  describe('sixth review finding 3: coordinated-predicate subject continuity', () => {
+    it.each([
+      'Maya delivered the content late and caused schedule delay.',
+      'Maya delivered the content late and directly caused schedule delay.',
+      'Maya failed to deliver the content and caused schedule delay.',
+      'Maya delivered the content late and contributed to schedule delay.',
+      'Maya delivered the files late, contributing to schedule delay.',
+      'Maya did not send the content and caused schedule delay.',
+    ])('preserves a shared incident subject in %s', (interpretation) => {
+      const narrative = interpretation;
+      const modelOutput = candidateFixture(narrative, {
+        event_summary: interpretation,
+        person_a_interpretation: interpretation,
+      });
+
+      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toHaveLength(1);
+    });
+
+    it.each([
+      'Maya delivered late, and the server outage caused schedule delay.',
+      'Maya delivered late, but Alex’s revisions caused schedule delay.',
+    ])(
+      'does not carry the subject into a new-subject coordinated clause in %s',
+      (interpretation) => {
+        const narrative = interpretation;
+        const modelOutput = candidateFixture(narrative, {
+          event_summary: 'Alex says Maya delivered the content late.',
+          person_a_interpretation: interpretation,
+        });
+
+        expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toEqual([]);
+      },
+    );
+  });
+
+  describe('sixth review finding 4: specific occurrence binding', () => {
+    it.each([
+      {
+        label: 'May versus June delivery',
+        eventSummary: 'Alex says Maya delivered the content late in June.',
+        interpretation: 'Alex says Maya’s delivery of the content in May caused schedule delay.',
+      },
+      {
+        label: 'first versus revised delivery',
+        eventSummary: 'Alex says Maya’s first content delivery was late.',
+        interpretation: 'Alex says Maya’s revised content delivery caused schedule delay.',
+      },
+      {
+        label: 'partial versus later complete delivery',
+        eventSummary: 'Alex says Maya partially delivered the content.',
+        interpretation: 'Alex says Maya’s later complete delivery caused schedule delay.',
+      },
+      {
+        label: 'missed May deadline versus late June submission',
+        eventSummary: 'Alex says Maya did not deliver the content by May.',
+        interpretation: 'Alex says Maya’s late June submission caused schedule delay.',
+      },
+      {
+        label: 'same actor and object with conflicting dates',
+        eventSummary: 'Alex says Maya delivered the content on May 8.',
+        interpretation: 'Alex says Maya’s content delivery on May 9 caused schedule delay.',
+      },
+      {
+        label: 'different deliverables',
+        eventSummary: 'Alex says Maya delivered the content late.',
+        interpretation: 'Alex says Maya’s image delivery caused schedule delay.',
+      },
+    ])(
+      'rejects causation attached to another occurrence: $label',
+      ({ eventSummary, interpretation }) => {
+        const narrative = `${eventSummary} ${interpretation}`;
+        const modelOutput = candidateFixture(narrative, {
+          event_summary: eventSummary,
+          person_a_interpretation: interpretation,
+        });
+
+        expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toEqual([]);
+      },
+    );
+
+    it('rejects an interpretation that conflicts with the typed event date', () => {
+      const eventSummary = 'Alex says Maya delivered the content late.';
+      const interpretation = 'Alex says Maya’s May content delivery caused schedule delay.';
+      const narrative = `${eventSummary} ${interpretation}`;
+      const modelOutput = candidateFixture(narrative, {
+        event_summary: eventSummary,
+        person_a_interpretation: interpretation,
+        date: {
+          start: '2024-06-08',
+          end: '2024-06-08',
+          precision: 'day',
+          approximate: false,
+        },
+      });
+
+      expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toEqual([]);
+    });
+
+    it.each([
+      {
+        label: 'equivalent dated paraphrase',
+        eventSummary: 'Alex says Maya delivered the content late in May.',
+        interpretation: 'Alex says Maya’s May content delivery caused schedule delay.',
+      },
+      {
+        label: 'exact local incident without temporal data',
+        eventSummary: 'Alex says Maya’s late content delivery affected the schedule.',
+        interpretation: 'Alex says Maya’s late content delivery caused schedule delay.',
+      },
+    ])(
+      'accepts causation bound to the same occurrence: $label',
+      ({ eventSummary, interpretation }) => {
+        const narrative = `${eventSummary} ${interpretation}`;
+        const modelOutput = candidateFixture(narrative, {
+          event_summary: eventSummary,
+          person_a_interpretation: interpretation,
+        });
+
+        expect(recoverGroundedClientDelayClaims(modelOutput, narrative).claims).toHaveLength(1);
+      },
+    );
   });
 
   it('preserves the selected occurrence when identical source text repeats', () => {
@@ -1637,7 +1891,7 @@ describe('cl_a_003 Person A recall coverage', () => {
     }
   });
 
-  it('keeps runtime claim coverage independent of case identities and comparison fixtures', async () => {
+  it('keeps compatibility claim coverage independent of case identities and comparison fixtures', async () => {
     const source = await readFile(
       resolve(root, 'src/extraction/person-a-claim-coverage.ts'),
       'utf8',

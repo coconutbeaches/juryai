@@ -178,8 +178,8 @@ describe('Person A extraction validation', () => {
     expect(result.valid).toBe(true);
     expect(result.schemaErrors).toEqual([]);
     expect(result.invariantErrors).toEqual([]);
-    // PR #14 changes deterministic claim coverage in the assembler while keeping the
-    // provider-facing prompt contract locked at v0.1.4.
+    // Normal production assembly remains independent of the opt-in frozen
+    // compatibility projection while the provider contract stays locked.
     expect(extraction.extractor_version).toBe('person-a-v0.1.4');
     expect(extraction.metadata.prompt_version).toBe('person-a-v0.1.4');
   });
