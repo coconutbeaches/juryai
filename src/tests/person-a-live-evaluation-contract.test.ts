@@ -4,7 +4,9 @@ import { describe, expect, it } from 'vitest';
 import {
   DRY_RUN_001_COMPATIBILITY_ALIASES,
   alignPersonAForCase,
+  evidenceIdentityCorrespondence,
   evidenceTypesCompatible,
+  semanticSimilarity,
   sourceSpanOverlap,
 } from '../alignment/person-a-alignment-corrected.js';
 import { evaluatePersonAForCase } from '../evaluation/person-a-diff-corrected.js';
@@ -44,6 +46,40 @@ async function frozenRun() {
 
 function emptyRecordWithEvidence(evidence: JsonObject[]): JsonObject {
   return { evidence };
+}
+
+function exactSpan(narrative: string, quote = narrative): JsonObject {
+  const start = narrative.indexOf(quote);
+  if (start < 0) throw new Error('Test quote must occur in its narrative.');
+  return {
+    start_char: start,
+    end_char: start + quote.length,
+    quote,
+  };
+}
+
+function agreementSurplusReport(
+  term: JsonObject,
+  narrative: string,
+): ReturnType<typeof evaluatePersonAForCase> {
+  const candidate = { agreement: { terms: [term] } };
+  const golden = { agreement: { terms: [] } };
+  const alignment = alignPersonAForCase(candidate, golden, calibratedAlignmentOptions);
+  return evaluatePersonAForCase(candidate, golden, alignment, {
+    ...calibratedAlignmentOptions,
+    narrative,
+  });
+}
+
+function expectAgreementSurplus(
+  term: JsonObject,
+  narrative: string,
+  expected: { code: string; severity: string },
+): void {
+  const report = agreementSurplusReport(term, narrative);
+  expect(report.errors.find((error) => error.extracted_id === term.term_id)).toMatchObject(
+    expected,
+  );
 }
 
 const calibratedAlignmentOptions = {
@@ -324,6 +360,192 @@ describe('Dry Run 001 frozen live-evaluation contract', () => {
       calibratedAlignmentOptions,
     );
     expect(blocked.families.evidence.pairs).toEqual([]);
+  });
+
+  it('requires semantic similarity after quoted-content token and coverage gates', () => {
+    const extractedText = 'pricing deadline chairs invoice';
+    const unrelatedText = 'pricing deadline automobile title engine tires registration seller';
+    const extracted = {
+      evidence_id: 'ev_quote_negative',
+      evidence_type: 'message_history',
+      title: 'Saved project message history',
+      provenance: { source_system: 'WhatsApp', export_method: 'manual export' },
+      extracts: [{ text: extractedText }],
+    };
+    const unrelated = {
+      evidence_id: 'ev_quote_unrelated',
+      evidence_type: 'message_screenshot',
+      title: 'Screenshot of a different record',
+      provenance: { source_system: 'WhatsApp', export_method: 'screenshot' },
+      extracts: [
+        {
+          text: unrelatedText,
+        },
+      ],
+    };
+    const corresponding = {
+      ...clone(unrelated),
+      evidence_id: 'ev_quote_positive',
+      extracts: [{ text: 'pricing deadline chairs invoice approved' }],
+    };
+
+    const quotedSimilarity = semanticSimilarity(
+      extractedText,
+      unrelatedText,
+      DRY_RUN_001_COMPATIBILITY_ALIASES,
+    );
+    expect(quotedSimilarity).toBeGreaterThan(0.3);
+    expect(quotedSimilarity).toBeLessThan(0.35);
+    expect(
+      evidenceIdentityCorrespondence(extracted, unrelated, DRY_RUN_001_COMPATIBILITY_ALIASES),
+    ).toEqual({ matches: false, basis: null, strength: 0 });
+    expect(
+      evidenceIdentityCorrespondence(extracted, corresponding, DRY_RUN_001_COMPATIBILITY_ALIASES),
+    ).toMatchObject({ matches: true, basis: 'quoted_content' });
+  });
+
+  it('requires semantic similarity after message-artifact identity gates', () => {
+    const extracted = {
+      evidence_id: 'ev_artifact_negative',
+      evidence_type: 'message_export',
+      title: 'Project launch approval archive',
+      description_from_submitter: 'Project launch approval archive.',
+      provenance: { source_system: 'WhatsApp', export_method: 'native export' },
+      extracts: [],
+    };
+    const unrelated = {
+      evidence_id: 'ev_artifact_unrelated',
+      evidence_type: 'message_history',
+      title: 'Project launch vehicle registration seller mileage',
+      description_from_submitter: 'Project launch vehicle registration seller mileage.',
+      provenance: { source_system: 'WhatsApp', export_method: 'downloaded history' },
+      extracts: [],
+    };
+    const corresponding = {
+      ...clone(unrelated),
+      evidence_id: 'ev_artifact_positive',
+      title: 'Project launch approval archive history',
+      description_from_submitter: 'Saved project launch approval archive history.',
+    };
+
+    const artifactSimilarity = semanticSimilarity(
+      extracted.title,
+      unrelated.title,
+      DRY_RUN_001_COMPATIBILITY_ALIASES,
+    );
+    expect(artifactSimilarity).toBeGreaterThan(0.35);
+    expect(artifactSimilarity).toBeLessThan(0.45);
+    expect(
+      evidenceIdentityCorrespondence(extracted, unrelated, DRY_RUN_001_COMPATIBILITY_ALIASES),
+    ).toEqual({ matches: false, basis: null, strength: 0 });
+    expect(
+      evidenceIdentityCorrespondence(extracted, corresponding, DRY_RUN_001_COMPATIBILITY_ALIASES),
+    ).toMatchObject({ matches: true, basis: 'artifact_identity' });
+  });
+
+  it('requires substantial narrative coverage for a source-grounded agreement surplus', () => {
+    const narrative = 'Maya requested a newsletter signup for the website.';
+    const weak = {
+      term_id: 'term_coverage_negative',
+      term_type: 'scope',
+      wording: 'Newsletter signup imposed weekly approval.',
+      person_a_interpretation: null,
+      source_spans: [exactSpan(narrative)],
+    };
+    const supported = {
+      ...clone(weak),
+      term_id: 'term_coverage_positive',
+      wording: 'Maya requested a newsletter signup.',
+    };
+
+    expectAgreementSurplus(weak, narrative, {
+      code: 'unsupported_extra_object',
+      severity: 'critical',
+    });
+    expectAgreementSurplus(supported, narrative, {
+      code: 'source_grounded_extra_object',
+      severity: 'major',
+    });
+  });
+
+  it('requires at least two source-supported agreement tokens', () => {
+    const narrative = 'Maya requested a newsletter signup for the website.';
+    const oneSharedToken = {
+      term_id: 'term_shared_token_negative',
+      term_type: 'scope',
+      wording: 'Newsletter obligation.',
+      person_a_interpretation: null,
+      source_spans: [exactSpan(narrative)],
+    };
+
+    expectAgreementSurplus(oneSharedToken, narrative, {
+      code: 'unsupported_extra_object',
+      severity: 'critical',
+    });
+  });
+
+  it('requires every asserted material legal concept to appear in the narrative', () => {
+    const narrative = 'Maya requested a newsletter signup for the website.';
+    const inventedLegalConsequence = {
+      term_id: 'term_legal_negative',
+      term_type: 'scope',
+      wording: 'Maya requested newsletter signup website indemnification.',
+      person_a_interpretation: null,
+      source_spans: [exactSpan(narrative)],
+    };
+    const supportedNarrative = `${narrative} Maya also accepted indemnification.`;
+
+    expectAgreementSurplus(inventedLegalConsequence, narrative, {
+      code: 'unsupported_extra_object',
+      severity: 'critical',
+    });
+    expectAgreementSurplus(
+      {
+        ...clone(inventedLegalConsequence),
+        term_id: 'term_legal_positive',
+      },
+      supportedNarrative,
+      {
+        code: 'source_grounded_extra_object',
+        severity: 'major',
+      },
+    );
+  });
+
+  it('requires source-span offsets to identify the exact quoted narrative slice', () => {
+    const narrative = 'Maya requested a newsletter signup for the website.';
+    const quote = 'Maya requested a newsletter signup';
+    const validSpan = exactSpan(narrative, quote);
+    const invalidOffsets = {
+      term_id: 'term_slice_negative',
+      term_type: 'scope',
+      wording: 'Maya requested a newsletter signup.',
+      person_a_interpretation: null,
+      source_spans: [
+        {
+          ...validSpan,
+          start_char: validSpan.start_char + 1,
+          end_char: validSpan.end_char + 1,
+        },
+      ],
+    };
+
+    expectAgreementSurplus(invalidOffsets, narrative, {
+      code: 'unsupported_extra_object',
+      severity: 'critical',
+    });
+    expectAgreementSurplus(
+      {
+        ...clone(invalidOffsets),
+        term_id: 'term_slice_positive',
+        source_spans: [validSpan],
+      },
+      narrative,
+      {
+        code: 'source_grounded_extra_object',
+        severity: 'major',
+      },
+    );
   });
 
   it('reproduces raw, repaired, and final span validity from frozen artifacts', async () => {
