@@ -2161,6 +2161,8 @@ describe('cl_a_003 Person A recall coverage', () => {
       'Maya’s late content delivery did not necessarily cause schedule delay.',
       'Maya’s late content delivery did not actually contribute to schedule delay.',
       'Maya’s late content delivery did not materially result in schedule delay.',
+      'Maya’s late content delivery did not in any way cause schedule delay.',
+      'Maya’s late content delivery did not at all contribute to schedule delay.',
     ])('rejects a negated causal result: %s', (interpretation) => {
       const eventSummary = 'Alex says Maya delivered the content late.';
       const narrative = `${eventSummary} ${interpretation}`;
@@ -2230,11 +2232,6 @@ describe('cl_a_003 Person A recall coverage', () => {
         summary: 'Alex thinks Maya’s content arrived around May 8 or May 9.',
       },
       {
-        label: 'normalized adjacent-date range',
-        source: 'I think Maya’s content arrived around May 8 or May 9.',
-        summary: 'Alex thinks Maya’s content arrived around May 8–9.',
-      },
-      {
         label: 'named-period alternative',
         source: 'I think Maya’s content arrived in late May or early June.',
         summary: 'Alex thinks Maya’s content arrived in late May or early June.',
@@ -2277,6 +2274,11 @@ describe('cl_a_003 Person A recall coverage', () => {
         label: 'changes or into and',
         source: 'I think Maya’s content arrived around May 8 or May 9.',
         summary: 'Alex thinks Maya’s content arrived around May 8 and May 9.',
+      },
+      {
+        label: 'flattens an or alternative into an inclusive range',
+        source: 'I think Maya’s content arrived around May 8 or May 9.',
+        summary: 'Alex thinks Maya’s content arrived around May 8–9.',
       },
       {
         label: 'drops early June',
@@ -2475,7 +2477,7 @@ describe('cl_a_003 Person A recall coverage', () => {
       {
         label: 'approximation and alternatives',
         source: 'I think Maya delivered the content around May 8 or May 9.',
-        summary: 'Alex thinks Maya delivered the content around May 8–9.',
+        summary: 'Alex thinks Maya delivered the content around May 8 or May 9.',
       },
       {
         label: 'probability with normalized wording',
