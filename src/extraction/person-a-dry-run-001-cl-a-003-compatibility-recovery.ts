@@ -155,7 +155,13 @@ function hasForeignCausalReportingSubject(value: string, typedPartyADisplayName:
   const causalRemainderAfter = (end: number): string => {
     const hardBounded = value.slice(end).split(/[.;()—–\r\n]/u, 1)[0] ?? '';
     const nextReporter = CAUSAL_REPORTING_CLAUSE_BOUNDARY.exec(hardBounded);
-    return nextReporter?.index == null ? hardBounded : hardBounded.slice(0, nextReporter.index);
+    if (nextReporter?.index == null) return hardBounded;
+
+    const afterReporter = hardBounded.slice(nextReporter.index + nextReporter[0].length);
+    if (/^\s*,\s*(?:directly\s+)?(?:caus|contribut|result)\w*\b/iu.test(afterReporter)) {
+      return hardBounded;
+    }
+    return hardBounded.slice(0, nextReporter.index);
   };
   const remainderAssertsCausation = (end: number): boolean =>
     /\b(?:caus|contribut|result|delay)\w*\b/iu.test(causalRemainderAfter(end));
