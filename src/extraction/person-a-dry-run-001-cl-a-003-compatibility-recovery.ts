@@ -143,7 +143,7 @@ function hasForeignCausalReportingSubject(value: string, typedPartyADisplayName:
   const remainderAssertsCausation = (end: number): boolean =>
     /\b(?:caus|contribut|result|delay)\w*\b/iu.test(causalRemainderAfter(end));
   const reportingSubject = new RegExp(
-    String.raw`\b(${PROPER_SUBJECT})(?:['’]s)?\s+(?:says?|states?|claims?|asserts?|reports?)\b`,
+    String.raw`\b(${PROPER_SUBJECT})(?:['’]s)?\s+(?:says?|said|states?|stated|claims?|claimed|asserts?|asserted|reports?|reported)\b`,
     'gu',
   );
 
@@ -154,7 +154,7 @@ function hasForeignCausalReportingSubject(value: string, typedPartyADisplayName:
   }
 
   const articleLedReportingSubject =
-    /\b((?:the|an?|this|that)\s+[\p{L}\p{N}&.'’_-]+(?:\s+[\p{L}\p{N}&.'’_-]+){0,3})\s+(?:says?|states?|claims?|asserts?|reports|reported|reporting)\b/giu;
+    /\b((?:the|an?|this|that)\s+[\p{L}\p{N}&.'’_-]+(?:\s+[\p{L}\p{N}&.'’_-]+){0,3})\s+(?:says?|said|states?|stated|claims?|claimed|asserts?|asserted|reports|reported|reporting)\b/giu;
   for (const match of value.matchAll(articleLedReportingSubject)) {
     if (match.index == null || match[1] == null) continue;
     if (!remainderAssertsCausation(match.index + match[0].length)) continue;
