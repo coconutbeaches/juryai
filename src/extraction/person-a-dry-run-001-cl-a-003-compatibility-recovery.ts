@@ -134,6 +134,14 @@ function hasForeignCausalReportingSubject(value: string, typedPartyADisplayName:
     typeof typedPartyADisplayName === 'string'
       ? normalizedSubjectName(typedPartyADisplayName)
       : null;
+  const isTypedPartyA = (subject: string): boolean => {
+    const reportingName = normalizedSubjectName(subject);
+    return typedPartyA != null && reportingName != null && reportingName === typedPartyA;
+  };
+  const causalRemainderAfter = (end: number): string =>
+    value.slice(end).split(/[.;()—–\r\n]/u, 1)[0] ?? '';
+  const remainderAssertsCausation = (end: number): boolean =>
+    /\b(?:caus|contribut|result|delay)\w*\b/iu.test(causalRemainderAfter(end));
   const reportingSubject = new RegExp(
     String.raw`\b(${PROPER_SUBJECT})(?:['’]s)?\s+(?:says?|states?|claims?|asserts?|reports?)\b`,
     'gu',
@@ -141,14 +149,27 @@ function hasForeignCausalReportingSubject(value: string, typedPartyADisplayName:
 
   for (const match of value.matchAll(reportingSubject)) {
     if (match.index == null || match[1] == null) continue;
-    const localRemainder =
-      value.slice(match.index + match[0].length).split(/[.;()—–\r\n]/u, 1)[0] ?? '';
-    if (!/\b(?:caus|contribut|result|delay)\w*\b/iu.test(localRemainder)) continue;
+    if (!remainderAssertsCausation(match.index + match[0].length)) continue;
+    if (!isTypedPartyA(match[1])) return true;
+  }
 
-    const reportingName = normalizedSubjectName(match[1]);
-    if (typedPartyA == null || reportingName == null || reportingName !== typedPartyA) {
-      return true;
-    }
+  const articleLedReportingSubject =
+    /\b((?:the|an?|this|that)\s+[\p{L}\p{N}&.'’_-]+(?:\s+[\p{L}\p{N}&.'’_-]+){0,3})\s+(?:says?|states?|claims?|asserts?|reports|reported|reporting)\b/giu;
+  for (const match of value.matchAll(articleLedReportingSubject)) {
+    if (match.index == null || match[1] == null) continue;
+    if (!remainderAssertsCausation(match.index + match[0].length)) continue;
+    if (!isTypedPartyA(match[1])) return true;
+  }
+
+  for (const match of value.matchAll(/\baccording\s+to\s+/giu)) {
+    if (match.index == null) continue;
+    const attributionStart = match.index + match[0].length;
+    if (!remainderAssertsCausation(attributionStart)) continue;
+    const attribution = causalRemainderAfter(attributionStart);
+    const namedSubject = new RegExp(String.raw`^(${PROPER_SUBJECT})(?:['’]s)?\b`, 'u').exec(
+      attribution,
+    );
+    if (namedSubject?.[1] == null || !isTypedPartyA(namedSubject[1])) return true;
   }
   return false;
 }
@@ -970,7 +991,17 @@ function preservesDeliveryOccurrenceState(sourceText: string, eventSummary: stri
   // one profile remain compositional in either case.
   const hasExplicitOccurrenceTransition =
     /(?:[,;.]|\band\b)\s*(?:and\s+)?(?:later|then|subsequently)\b/iu.test(sourceText);
-  return hasExplicitOccurrenceTransition
+  const sourcePolarities = new Set(
+    sourceProfiles.map((profile) => {
+      if (profile.neverDelivered || profile.notDelivered || profile.notDeliveredByDeadline) {
+        return 'negative';
+      }
+      if (profile.unclear || profile.deniedOrDisputed) return 'qualified';
+      return 'affirmative';
+    }),
+  );
+  const hasDistinctOccurrencePolarity = sourcePolarities.size > 1;
+  return hasExplicitOccurrenceTransition || hasDistinctOccurrencePolarity
     ? sourceProfiles.every(summaryPreserves)
     : sourceProfiles.some(summaryPreserves);
 }

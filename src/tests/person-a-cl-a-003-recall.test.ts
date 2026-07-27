@@ -3472,6 +3472,8 @@ describe('cl_a_003 Person A recall coverage', () => {
       'Maya denied — in writing — that her late delivery caused schedule delay.',
       'Alex reports that Maya says her late delivery caused schedule delay.',
       'Maya says her late delivery caused schedule delay.',
+      'The client says her late delivery caused schedule delay.',
+      'According to Maya, her late delivery caused schedule delay.',
     ])('rejects a belief-qualified causal clause: %s', (interpretation) => {
       const { narrative, modelOutput } = beliefQualifiedCandidate(interpretation);
 
@@ -3569,6 +3571,20 @@ describe('cl_a_003 Person A recall coverage', () => {
       expect(
         applyDryRun001ClA003CompatibilityRecovery(modelOutput, sourceText).claims,
       ).toHaveLength(1);
+    });
+
+    it.each([
+      'Maya partially delivered the content. Maya never delivered the remaining files.',
+      'Maya partially delivered the content; Maya never delivered the remaining files.',
+    ])('rejects a summary that drops a separately grounded non-delivery: %s', (source) => {
+      const modelOutput = candidateFixture(source, {
+        quote: source,
+        event_summary: 'Maya partially delivered the content.',
+        person_a_interpretation:
+          'Maya’s partial delivery and later non-delivery caused schedule delay.',
+      });
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, source).claims).toEqual([]);
     });
 
     it('preserves the exact frozen cl_a_003 occurrence state', async () => {
