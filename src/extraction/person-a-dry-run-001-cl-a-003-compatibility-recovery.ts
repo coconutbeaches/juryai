@@ -126,6 +126,7 @@ const COORDINATOR = /\b(?:and|but|while|whereas)\b/giu;
 const PROPER_SUBJECT = String.raw`\p{Lu}[\p{L}\p{N}&.'’_-]*(?:\s+\p{Lu}[\p{L}\p{N}&.'’_-]*){0,2}`;
 const POSSESSIVE_SUBJECT_OWNER = String.raw`\p{Lu}[\p{L}\p{N}&._-]*(?:\s+\p{Lu}[\p{L}\p{N}&._-]*){0,2}`;
 const CAUSAL_REPORTING_VERB = String.raw`(?:says?|said|states?|stated|claims?|claimed|asserts?|asserted|reports|reported|reporting|tells?|telling|told|writes?|writing|wrote|notes?|noted|noting|maintains?|maintained|maintaining)`;
+const CAUSAL_REPORTING_ROLE = String.raw`(?:advisers?|advisors?|agents?|attorneys?|consultants?|counsels?|lawyers?|managers?|representatives?|spokespersons?)`;
 
 function normalizedSubjectName(value: string): string | null {
   return normalizeAssertedMeaning(value.replace(/['’]s$/u, ''));
@@ -163,7 +164,7 @@ function hasForeignCausalReportingSubject(value: string, typedPartyADisplayName:
   }
 
   const possessiveRoleReportingSubject = new RegExp(
-    String.raw`\b${POSSESSIVE_SUBJECT_OWNER}['’]s\s+(?:(?:project|legal)\s+)?(?:adviser|advisor|agent|attorney|consultant|counsel|lawyer|manager|representative|spokesperson)\s+${CAUSAL_REPORTING_VERB}\b`,
+    String.raw`\b${POSSESSIVE_SUBJECT_OWNER}['’]s\s+(?:(?:project|legal)\s+)?${CAUSAL_REPORTING_ROLE}\s+${CAUSAL_REPORTING_VERB}\b`,
     'gu',
   );
   for (const match of value.matchAll(possessiveRoleReportingSubject)) {
@@ -172,7 +173,7 @@ function hasForeignCausalReportingSubject(value: string, typedPartyADisplayName:
   }
 
   const possessiveDeterminerRoleReportingSubject = new RegExp(
-    String.raw`\b(?:her|his|their|our|my|your|its)\s+(?:(?:project|legal)\s+)?(?:adviser|advisor|agent|attorney|consultant|counsel|lawyer|manager|representative|spokesperson)\s+${CAUSAL_REPORTING_VERB}\b`,
+    String.raw`\b(?:her|his|their|our|my|your|its)\s+(?:(?:project|legal)\s+)?${CAUSAL_REPORTING_ROLE}\s+${CAUSAL_REPORTING_VERB}\b`,
     'giu',
   );
   for (const match of value.matchAll(possessiveDeterminerRoleReportingSubject)) {
