@@ -171,6 +171,15 @@ function hasForeignCausalReportingSubject(value: string, typedPartyADisplayName:
     if (remainderAssertsCausation(match.index + match[0].length)) return true;
   }
 
+  const possessiveDeterminerRoleReportingSubject = new RegExp(
+    String.raw`\b(?:her|his|their|our|my|your|its)\s+(?:(?:project|legal)\s+)?(?:adviser|advisor|agent|attorney|consultant|counsel|lawyer|manager|representative|spokesperson)\s+${CAUSAL_REPORTING_VERB}\b`,
+    'giu',
+  );
+  for (const match of value.matchAll(possessiveDeterminerRoleReportingSubject)) {
+    if (match.index == null) continue;
+    if (remainderAssertsCausation(match.index + match[0].length)) return true;
+  }
+
   const articleLedReportingSubject = new RegExp(
     String.raw`\b((?:the|an?|this|that)\s+[\p{L}\p{N}&.'’_-]+(?:\s+[\p{L}\p{N}&.'’_-]+){0,3})\s+${CAUSAL_REPORTING_VERB}\b`,
     'giu',
