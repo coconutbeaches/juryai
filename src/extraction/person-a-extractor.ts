@@ -5,7 +5,7 @@ import { validatePersonAExtraction } from './validate-person-a-corrected.js';
 
 type JsonObject = Record<string, any>;
 
-export const PERSON_A_EXTRACTOR_VERSION = 'person-a-v0.1.3';
+export const PERSON_A_EXTRACTOR_VERSION = 'person-a-v0.1.4';
 
 export type ExtractPersonAOptions = {
   narrative: string;
@@ -15,6 +15,11 @@ export type ExtractPersonAOptions = {
   generatedAt?: string;
   reasoningEffort?: 'low' | 'medium' | 'high';
 };
+
+export type AssemblePersonAExtractionOptions = Omit<
+  ExtractPersonAOptions,
+  'client' | 'reasoningEffort'
+>;
 
 export type PersonAExtractionResult = {
   extraction: JsonObject;
@@ -77,7 +82,7 @@ function normalizeUniqueExactSourceSpanOffsets(value: unknown, narrative: string
 
 export function assemblePersonAExtraction(
   modelOutput: JsonObject,
-  options: Omit<ExtractPersonAOptions, 'client' | 'reasoningEffort'>,
+  options: AssemblePersonAExtractionOptions,
 ): JsonObject {
   const submissionId = 'sub_a_extracted';
   const inputHash = sha256(options.narrative);

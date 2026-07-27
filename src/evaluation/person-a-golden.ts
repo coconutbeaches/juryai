@@ -1,8 +1,9 @@
 import goldenRecord from '../fixtures/dry_run_001.golden.json';
-import { PERSON_A_EXTRACTOR_VERSION, sha256 } from '../extraction/person-a-extractor.js';
+import { sha256 } from '../extraction/person-a-extractor.js';
 
 type JsonObject = Record<string, any>;
 
+const FROZEN_PERSON_A_GOLDEN_PROJECTION_VERSION = 'person-a-v0.1.3';
 const clone = <T>(value: T): T => structuredClone(value);
 const array = (value: unknown): any[] => (Array.isArray(value) ? value : []);
 
@@ -253,7 +254,7 @@ export function buildPersonAGoldenProjection(): JsonObject {
 
   const projection: JsonObject = {
     schema_version: '0.1.2',
-    extractor_version: PERSON_A_EXTRACTOR_VERSION,
+    extractor_version: FROZEN_PERSON_A_GOLDEN_PROJECTION_VERSION,
     party: clone(party),
     submission: clone(submission),
     third_parties: thirdParties,
@@ -282,7 +283,7 @@ export function buildPersonAGoldenProjection(): JsonObject {
     clarification_questions: clarificationQuestions,
     metadata: {
       model: 'manual-golden-projection',
-      prompt_version: PERSON_A_EXTRACTOR_VERSION,
+      prompt_version: FROZEN_PERSON_A_GOLDEN_PROJECTION_VERSION,
       input_hash: sha256(submission.raw_text),
       generated_at: '2026-07-18T12:30:00Z',
     },

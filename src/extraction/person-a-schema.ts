@@ -165,7 +165,7 @@ const extractionProperties: Record<string, JsonSchema> = {
   schema_version: { type: 'string', const: '0.1.2' },
   extractor_version: {
     type: 'string',
-    enum: ['person-a-v0.1.1', 'person-a-v0.1.2', 'person-a-v0.1.3'],
+    enum: ['person-a-v0.1.1', 'person-a-v0.1.2', 'person-a-v0.1.3', 'person-a-v0.1.4'],
   },
   party: { $ref: '#/$defs/party' },
   submission: { $ref: '#/$defs/submission' },
