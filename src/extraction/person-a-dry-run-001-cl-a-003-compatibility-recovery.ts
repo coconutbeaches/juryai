@@ -5,7 +5,7 @@ const NON_ASSERTED_CAUSATION =
 const REPORTED_BELIEF =
   /\b(?:report(?:s|ed|ing)?|describ(?:e|es|ed|ing))\b[^.]{0,96}\b(?:belief|opinion|view)\b|\b(?:believ(?:e|es|ed|ing)|think(?:s|ing)?|thought|suspect(?:s|ed|ing)?)\b[^.;()—–\r\n]{0,128}\b(?:caus|contribut|result|delay)\w*/iu;
 const NOUN_LED_BELIEF_ATTRIBUTION =
-  /\b(?:in|from)\s+[^,.;()—–\r\n]{0,48}\b(?:opinion|view|perspective)\b/iu;
+  /\b(?:in|from)\s+[^,.;()—–\r\n]{0,48}\b(?:opinion|view|perspective)\b|\b(?:opinion|view|perspective)\s+(?:(?:is|was)\s+)?that\b/iu;
 const PROBABILISTIC_CAUSATION =
   /\b(?:probabl(?:e|y)|apparently|allegedly|presumably|reportedly|seemingly|likely|unlikely|potentially)\b/iu;
 const METADATA_ONLY = /\b(?:metadata|file\s*name|filename|label|index|keyword)\b/iu;

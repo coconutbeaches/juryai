@@ -3449,6 +3449,10 @@ describe('cl_a_003 Person A recall coverage', () => {
       'In Maya’s opinion, her late delivery caused schedule delay.',
       'In Maya’s view, her late delivery contributed to schedule delay.',
       'From Maya’s perspective, her late delivery resulted in schedule delay.',
+      'Maya’s opinion is that her late delivery caused schedule delay.',
+      'Maya’s view was that her late delivery contributed to schedule delay.',
+      'It is Maya’s opinion that her late delivery caused schedule delay.',
+      'It was Maya’s view that her late delivery resulted in schedule delay.',
     ])('rejects a belief-qualified causal clause: %s', (interpretation) => {
       const { narrative, modelOutput } = beliefQualifiedCandidate(interpretation);
 
@@ -3467,6 +3471,17 @@ describe('cl_a_003 Person A recall coverage', () => {
 
     it('rejects an unqualified summary that drops a noun-led source attribution', () => {
       const sourceText = 'In Maya’s opinion, her late delivery caused schedule delay.';
+      const modelOutput = candidateFixture(sourceText, {
+        quote: sourceText,
+        event_summary: 'Maya delivered the content late.',
+        person_a_interpretation: 'Maya’s late delivery caused schedule delay.',
+      });
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, sourceText).claims).toEqual([]);
+    });
+
+    it('rejects a summary that drops a possessive/copular source attribution', () => {
+      const sourceText = 'Maya’s opinion is that her late delivery caused schedule delay.';
       const modelOutput = candidateFixture(sourceText, {
         quote: sourceText,
         event_summary: 'Maya delivered the content late.',
