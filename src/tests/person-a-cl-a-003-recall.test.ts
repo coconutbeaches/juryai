@@ -3136,6 +3136,105 @@ describe('cl_a_003 Person A recall coverage', () => {
     });
   });
 
+  describe('fourteenth review finding: predicate-local causal certainty', () => {
+    function certaintyCandidate(interpretation: string): {
+      narrative: string;
+      modelOutput: JsonObject;
+    } {
+      const eventSummary = 'Alex says Maya delivered the content late.';
+      const narrative = `${eventSummary} ${interpretation}`;
+      return {
+        narrative,
+        modelOutput: candidateFixture(narrative, {
+          quote: eventSummary,
+          event_summary: eventSummary,
+          person_a_interpretation: interpretation,
+        }),
+      };
+    }
+
+    it.each([
+      'Maya’s late delivery would cause schedule delay.',
+      'Maya’s late delivery would contribute to schedule delay.',
+      'Maya’s late delivery would result in schedule delay.',
+      'Maya’s late delivery should cause schedule delay.',
+      'Maya’s late delivery should contribute to schedule delay.',
+      'Maya’s late delivery should result in schedule delay.',
+      'Maya’s late delivery can cause schedule delay.',
+      'Maya’s late delivery can contribute to schedule delay.',
+      'Maya’s late delivery can result in schedule delay.',
+      'Maya’s late delivery could cause a minor schedule delay.',
+      'Maya’s late delivery could contribute to schedule delay.',
+      'Maya’s late delivery could result in schedule delay.',
+      'Maya’s late delivery is expected to cause schedule delay.',
+      'Maya’s late delivery was expected to contribute to schedule delay.',
+      'Maya’s late delivery is likely to result in schedule delay.',
+      'Maya’s late delivery was likely to cause schedule delay.',
+      'Maya’s late delivery is predicted to cause schedule delay.',
+      'Maya’s late delivery was predicted to cause schedule delay.',
+      'Maya’s late delivery is projected to cause schedule delay.',
+      'Maya’s late delivery was projected to cause schedule delay.',
+    ])('rejects non-asserted causal predicate: %s', (interpretation) => {
+      const { narrative, modelOutput } = certaintyCandidate(interpretation);
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toEqual([]);
+    });
+
+    it.each([
+      'Maya’s late delivery caused schedule delay.',
+      'Maya’s late delivery contributed to schedule delay.',
+      'Maya’s late delivery resulted in schedule delay.',
+      'The schedule delay resulted from Maya’s late delivery.',
+    ])('allows directly asserted causal predicate: %s', (interpretation) => {
+      const { narrative, modelOutput } = certaintyCandidate(interpretation);
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        1,
+      );
+    });
+
+    it('allows only the independently definite predicate after a modal predicate', () => {
+      const { narrative, modelOutput } = certaintyCandidate(
+        'Maya’s late delivery could have caused more delay, but it definitely contributed to one day of delay.',
+      );
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        1,
+      );
+    });
+
+    it.each([
+      'Maya’s late delivery was expected, and ultimately caused schedule delay.',
+      'Maya’s late delivery was expected to cause delay, and ultimately caused one day of schedule delay.',
+    ])('allows a separate direct predicate after a past expectation: %s', (interpretation) => {
+      const { narrative, modelOutput } = certaintyCandidate(interpretation);
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        1,
+      );
+    });
+
+    it('does not let unrelated capability language taint a separate direct predicate', () => {
+      const { narrative, modelOutput } = certaintyCandidate(
+        'Maya can explain the timeline, but Maya’s late delivery caused schedule delay.',
+      );
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        1,
+      );
+    });
+
+    it('preserves the exact frozen cl_a_003 direct causal assertion', async () => {
+      const { narrative, modelOutput } = await frozenInputs();
+
+      expect(
+        applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims.filter(
+          (claim: JsonObject) => claim.claim_id === 'claim_event_04_major_batch_client_delay',
+        ),
+      ).toHaveLength(1);
+    });
+  });
+
   it('preserves the selected occurrence when identical source text repeats', () => {
     const quote = 'Maya delivered the content late and it directly contributed to delay.';
     const narrative = `${quote}\nUnrelated separator.\n${quote}`;

@@ -398,17 +398,67 @@ function causalRelationIsNegated(unit: string, relation: AssertedCausalRelation)
 
 function causalCertaintyContext(unit: string, relation: AssertedCausalRelation): string {
   const prefix = unit.slice(0, relation.predicateIndex);
-  const contrastive = /\bbut\b/giu;
+  const independentAssertionTransition =
+    /\bbut\b|\band\s+(?:ultimately|actually|definitely|in\s+fact)\b/giu;
   let localStart = 0;
-  for (const match of prefix.matchAll(contrastive)) {
+  for (const match of prefix.matchAll(independentAssertionTransition)) {
     localStart = (match.index ?? 0) + match[0].length;
   }
   return prefix.slice(localStart);
 }
 
-function causalRelationIsUncertain(unit: string, relation: AssertedCausalRelation): boolean {
+type CausalCertainty =
+  | 'direct_asserted'
+  | 'modal_possibility_or_capability'
+  | 'conditional'
+  | 'predicted_or_expected'
+  | 'normative'
+  | 'uncertain_or_speculative';
+
+function causalRelationCertainty(unit: string, relation: AssertedCausalRelation): CausalCertainty {
   const context = causalCertaintyContext(unit, relation);
-  return NON_ASSERTED_CAUSATION.test(context) || hasModalMay(context);
+  const predicatePrefix = context.trimEnd();
+
+  // Certainty is classified for each causal predicate, never for the whole
+  // interpretation:
+  // 1. direct asserted causation is the only promotable category;
+  // 2. can/could/may/might describe possibility or capability;
+  // 3. would describes conditional causation;
+  // 4. expected/likely/predicted/projected/will describe prediction;
+  // 5. should/ought/must describe normative or inferred necessity; and
+  // 6. unresolved, hypothetical, or speculative wording remains uncertain.
+  // A contrastive or explicit factual transition such as "but definitely" or
+  // "and ultimately" starts a new local assertion, so an earlier modal cannot
+  // taint a later independently direct predicate.
+  if (
+    /\b(?:can|could|might)(?:\s+have)?(?:\s+(?:directly|possibly|potentially))?\s*$/iu.test(
+      predicatePrefix,
+    ) ||
+    hasModalMay(context)
+  ) {
+    return 'modal_possibility_or_capability';
+  }
+  if (/\bwould(?:\s+have)?(?:\s+(?:directly|possibly|potentially))?\s*$/iu.test(predicatePrefix)) {
+    return 'conditional';
+  }
+  if (
+    /\b(?:will(?:\s+have)?|(?:(?:is|are|was|were|be|been|being)\s+)?(?:expected|likely|predicted|projected|anticipated|forecast)\s+to)(?:\s+(?:directly|probably|ultimately))?\s*$/iu.test(
+      predicatePrefix,
+    )
+  ) {
+    return 'predicted_or_expected';
+  }
+  if (
+    /\b(?:should|must)(?:\s+have)?(?:\s+directly)?\s*$|\bought\s+to(?:\s+have)?(?:\s+directly)?\s*$/iu.test(
+      predicatePrefix,
+    )
+  ) {
+    return 'normative';
+  }
+  if (NON_ASSERTED_CAUSATION.test(context)) {
+    return 'uncertain_or_speculative';
+  }
+  return 'direct_asserted';
 }
 
 function overlaps(values: string[], candidates: string[]): boolean {
@@ -514,7 +564,7 @@ function isDirectClientDelayInterpretation(value: unknown, event: JsonObject): v
     return relations.some(
       (relation) =>
         !causalRelationIsNegated(unit, relation) &&
-        !causalRelationIsUncertain(unit, relation) &&
+        causalRelationCertainty(unit, relation) === 'direct_asserted' &&
         causeBindsToCandidateIncident(relation.cause, event) &&
         !relation.excludedCauses.some((cause) => causeBindsToCandidateIncident(cause, event)),
     );
