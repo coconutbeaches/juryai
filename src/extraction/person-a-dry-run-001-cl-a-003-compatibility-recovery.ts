@@ -3,7 +3,9 @@ type JsonObject = Record<string, any>;
 const NON_ASSERTED_CAUSATION =
   /\b(?:could|might|possibly|possible|perhaps|hypothetical(?:ly)?|speculat(?:e|es|ed|ing|ive)|unclear|uncertain|unknown|unresolved|ambiguous|unsure|whether|infer(?:s|red|ring)?|wonder(?:s|ed|ing)?)\b|\b(?:not|isn['’]t|wasn['’]t)\s+(?:clear|known|established|resolved)\b/iu;
 const REPORTED_BELIEF =
-  /\b(?:report(?:s|ed|ing)?|describ(?:e|es|ed|ing))\b[^.]{0,96}\b(?:belief|opinion|view)\b/iu;
+  /\b(?:report(?:s|ed|ing)?|describ(?:e|es|ed|ing))\b[^.]{0,96}\b(?:belief|opinion|view)\b|\b(?:believ(?:e|es|ed|ing)|think(?:s|ing)?|thought|suspect(?:s|ed|ing)?)\b[^.;()—–\r\n]{0,128}\b(?:caus|contribut|result|delay)\w*/iu;
+const PROBABILISTIC_CAUSATION =
+  /\b(?:probabl(?:e|y)|apparently|allegedly|presumably|reportedly|seemingly|likely|unlikely|potentially)\b/iu;
 const METADATA_ONLY = /\b(?:metadata|file\s*name|filename|label|index|keyword)\b/iu;
 const CALENDAR_MAY_NOUNS = new Set([
   'changes',
@@ -492,14 +494,11 @@ function causalRelationCertainty(unit: string, relation: AssertedCausalRelation)
   ) {
     return 'normative';
   }
-  if (
-    /\b(?:probably|apparently|allegedly|presumably|reportedly|seemingly)(?:\s+(?:directly|ultimately|actually))?\s*$/iu.test(
-      predicatePrefix,
-    ) ||
-    /\b(?:(?:is|are|was|were|be|been|being)\s+)?unlikely(?:\s+to)?(?:\s+have)?(?:\s+been)?(?:\s+(?:directly|ultimately|actually))?\s*$/iu.test(
-      predicatePrefix,
-    )
-  ) {
+  // The context is already bounded to this clause and reset at independently
+  // asserted transitions. Within that boundary, an explicit probability,
+  // appearance, or allegation qualifier remains governing even when arbitrary
+  // grammatical auxiliaries or modifiers intervene before the predicate.
+  if (PROBABILISTIC_CAUSATION.test(context)) {
     return 'uncertain_or_speculative';
   }
   if (NON_ASSERTED_CAUSATION.test(context)) {

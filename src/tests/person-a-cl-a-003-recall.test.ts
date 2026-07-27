@@ -3387,12 +3387,15 @@ describe('cl_a_003 Person A recall coverage', () => {
     it.each([
       'Maya’s late delivery probably caused schedule delay.',
       'Maya’s late delivery probably directly caused schedule delay.',
+      'Maya’s late delivery probably eventually caused schedule delay.',
       'Maya’s late delivery apparently caused schedule delay.',
       'Maya’s late delivery apparently directly contributed to schedule delay.',
+      'Maya’s late delivery apparently eventually contributed to schedule delay.',
       'Maya’s late delivery allegedly caused schedule delay.',
       'Maya’s late delivery was unlikely to cause schedule delay.',
       'Maya’s late delivery was likely to have caused schedule delay.',
       'Schedule delay probably resulted from Maya’s late delivery.',
+      'Schedule delay probably eventually resulted from Maya’s late delivery.',
       'Schedule delay was likely to have resulted from Maya’s late delivery.',
     ])('rejects a probabilistic or qualified causal predicate: %s', (interpretation) => {
       const { narrative, modelOutput } = probabilisticCertaintyCandidate(interpretation);
@@ -3403,6 +3406,55 @@ describe('cl_a_003 Person A recall coverage', () => {
     it('does not confuse factual emphasis with probabilistic qualification', () => {
       const { narrative, modelOutput } = probabilisticCertaintyCandidate(
         'Maya’s late delivery actually caused schedule delay.',
+      );
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        1,
+      );
+    });
+
+    it('preserves the exact frozen cl_a_003 direct causal assertion', async () => {
+      const { narrative, modelOutput } = await frozenInputs();
+
+      expect(
+        applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims.filter(
+          (claim: JsonObject) => claim.claim_id === 'claim_event_04_major_batch_client_delay',
+        ),
+      ).toHaveLength(1);
+    });
+  });
+
+  describe('exact-head review finding: direct belief-qualified causation', () => {
+    function beliefQualifiedCandidate(interpretation: string): {
+      narrative: string;
+      modelOutput: JsonObject;
+    } {
+      const eventSummary = 'Alex says Maya delivered the content late.';
+      const narrative = `${eventSummary} ${interpretation}`;
+      return {
+        narrative,
+        modelOutput: candidateFixture(narrative, {
+          quote: eventSummary,
+          event_summary: eventSummary,
+          person_a_interpretation: interpretation,
+        }),
+      };
+    }
+
+    it.each([
+      'Maya believes her late delivery caused schedule delay.',
+      'Maya thinks her late delivery contributed to schedule delay.',
+      'Maya suspects her late delivery resulted in schedule delay.',
+      'Alex reports that Maya believes her late delivery caused schedule delay.',
+    ])('rejects a belief-qualified causal clause: %s', (interpretation) => {
+      const { narrative, modelOutput } = beliefQualifiedCandidate(interpretation);
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toEqual([]);
+    });
+
+    it('preserves a direct Person A causal assertion', () => {
+      const { narrative, modelOutput } = beliefQualifiedCandidate(
+        'Alex says Maya’s late delivery caused schedule delay.',
       );
 
       expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
