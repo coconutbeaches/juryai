@@ -136,10 +136,13 @@ function hasForeignCausalReportingSubject(value: string, typedPartyADisplayName:
       : null;
   const isTypedPartyA = (subject: string): boolean => {
     const reportingName = normalizedSubjectName(subject);
-    return (
-      typedPartyA != null &&
-      reportingName != null &&
-      (reportingName === typedPartyA || reportingName.endsWith(` ${typedPartyA}`))
+    if (typedPartyA == null || reportingName == null) return false;
+    if (reportingName === typedPartyA) return true;
+    if (!reportingName.endsWith(` ${typedPartyA}`)) return false;
+
+    const prefix = reportingName.slice(0, -(typedPartyA.length + 1));
+    return /^(?:(?:in|during|before|after|since|through|until)\s+(?:(?:early|mid|late|last|next)\s+)?(?:january|february|march|april|may|june|july|august|september|october|november|december)|then|later|subsequently|finally|ultimately)$/iu.test(
+      prefix,
     );
   };
   const causalRemainderAfter = (end: number): string =>
@@ -1010,10 +1013,43 @@ function preservesDeliveryOccurrenceState(sourceText: string, eventSummary: stri
     : sourceProfiles.some(summaryPreserves);
 }
 
+function sourceGroundsCandidateIncident(sourceText: string, eventSummary: string): boolean {
+  const sourceMeaning = canonicalAssertedMeaning([sourceText], 'client_delay');
+  const candidateMeaning = canonicalAssertedMeaning([eventSummary], 'client_delay');
+  const groundedIncidents = new Set<string>();
+  if (
+    deliveryOccurrenceProfiles(sourceText).length > 0 ||
+    /\b(?:late|missing|delayed|overdue)\s+(?:batch|content|copy|files?|images?|material|shipment)\b/iu.test(
+      sourceText,
+    )
+  ) {
+    groundedIncidents.add('input_delivery');
+  }
+  if (/\b(?:change|changes|changed|revision|revisions|rework|repeated)\b/iu.test(sourceText)) {
+    groundedIncidents.add('revision_change');
+  }
+  if (
+    /\b(?:scope|added|additional)\b[^.;]{0,48}\b(?:change|changes|request|requests)\b/iu.test(
+      sourceText,
+    )
+  ) {
+    groundedIncidents.add('scope_change');
+  }
+
+  // Exact coordinates establish provenance, not semantic support. This
+  // compatibility repair additionally requires a source-local incident
+  // predicate or qualified incident noun and the same typed incident family
+  // as the provider event. A bare object keyword is not semantic grounding.
+  return sourceMeaning.incidents.some(
+    (incident) => groundedIncidents.has(incident) && candidateMeaning.incidents.includes(incident),
+  );
+}
+
 function preservesSourceQualifications(eventSummary: string, spans: JsonObject[]): boolean {
   const sourceText = spans.map((span) => span.quote).join(' ');
   return (
     !NOUN_LED_BELIEF_ATTRIBUTION.test(sourceText) &&
+    sourceGroundsCandidateIncident(sourceText, eventSummary) &&
     preservesEpistemicQualifications(sourceText, eventSummary) &&
     preservesAlternativeTemporalMeaning(sourceText, eventSummary) &&
     preservesDeliveryOccurrenceState(sourceText, eventSummary)

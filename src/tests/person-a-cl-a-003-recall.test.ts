@@ -3479,6 +3479,7 @@ describe('cl_a_003 Person A recall coverage', () => {
       'Maya claimed her late delivery caused schedule delay.',
       'Maya asserted her late delivery caused schedule delay.',
       'In May Maya said her late delivery caused schedule delay.',
+      'Maya Alex said Maya’s late delivery caused schedule delay.',
     ])('rejects a belief-qualified causal clause: %s', (interpretation) => {
       const { narrative, modelOutput } = beliefQualifiedCandidate(interpretation);
 
@@ -3693,6 +3694,18 @@ describe('cl_a_003 Person A recall coverage', () => {
     const corrected = applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative);
     expect(corrected.claims).toEqual([]);
   });
+
+  it.each(['The weather was pleasant.', 'The payment deadline was May 8.'])(
+    'rejects an exact source slice that does not ground the candidate delivery: %s',
+    (narrative) => {
+      const modelOutput = candidateFixture(narrative, {
+        event_summary: 'Alex says Maya delivered the content late.',
+        person_a_interpretation: 'Alex says Maya’s late delivery caused schedule delay.',
+      });
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toEqual([]);
+    },
+  );
 
   it('rejects a causal candidate whose source span is not an exact narrative slice', () => {
     const narrative = 'Maya delivered the content late and it directly contributed to delay.';
