@@ -372,6 +372,17 @@ function causalRelationIsNegated(unit: string, relation: AssertedCausalRelation)
     return true;
   }
 
+  // Nominal/copular denial is distinct from verbal predicate negation. The
+  // noun "cause" is not affirmative when its local copula excludes causal
+  // status. Role-limited wording ("not the only/primary cause") is deliberately
+  // excluded here because it does not deny all causal contribution.
+  if (
+    /\b(?:is|are|was|were)\s+(?:not\s+(?:an?|the)|no)\s*$/iu.test(leftContext) ||
+    /\b(?:did|does|do)\s+not\s+constitute\s+(?:an?|the)\s*$/iu.test(leftContext)
+  ) {
+    return true;
+  }
+
   // Result polarity is clause-local. Bare "no/zero [qualified] delay" denies
   // any delay result; "not a major delay", "no more than two days", and
   // "only minor delay" remain limited positive assertions.
@@ -385,16 +396,19 @@ function causalRelationIsNegated(unit: string, relation: AssertedCausalRelation)
   );
 }
 
-function relationAssertsLimitedPositiveDelay(
-  unit: string,
-  relation: AssertedCausalRelation,
-): boolean {
-  const localRelation = unit.slice(relation.predicateIndex, relation.relationEnd);
-  return (
-    /\b(?:caus(?:e|es|ed|ing)|contribut(?:e|es|ed|ing)|result(?:s|ed|ing))\b[^,.;]{0,64}\b(?:(?:an?|only\s+an?)\s+)?(?:minor|limited|small|brief|short|one[-\s]day|\d+\s*[- ]?\s*(?:day|hour|week)s?)\s+(?:schedule\s+)?delay\b/iu.test(
-      localRelation,
-    ) && !causalRelationIsNegated(unit, relation)
-  );
+function causalCertaintyContext(unit: string, relation: AssertedCausalRelation): string {
+  const prefix = unit.slice(0, relation.predicateIndex);
+  const contrastive = /\bbut\b/giu;
+  let localStart = 0;
+  for (const match of prefix.matchAll(contrastive)) {
+    localStart = (match.index ?? 0) + match[0].length;
+  }
+  return prefix.slice(localStart);
+}
+
+function causalRelationIsUncertain(unit: string, relation: AssertedCausalRelation): boolean {
+  const context = causalCertaintyContext(unit, relation);
+  return NON_ASSERTED_CAUSATION.test(context) || hasModalMay(context);
 }
 
 function overlaps(values: string[], candidates: string[]): boolean {
@@ -490,14 +504,17 @@ function isDirectClientDelayInterpretation(value: unknown, event: JsonObject): v
   if (typeof value !== 'string' || value.length === 0) return false;
   return causalUnits(value, event).some((unit) => {
     const relations = assertedCausalRelations(unit);
-    const hasUncertainLanguage = NON_ASSERTED_CAUSATION.test(unit) || hasModalMay(unit);
     if (reportsCausalDenial(unit) || REPORTED_BELIEF.test(unit) || METADATA_ONLY.test(unit)) {
       return false;
     }
+    // Decision order is fixed: direction was established while extracting the
+    // relation; then polarity and certainty are checked for that local
+    // predicate. Delay magnitude never changes an uncertain relation into an
+    // asserted one.
     return relations.some(
       (relation) =>
-        (!hasUncertainLanguage || relationAssertsLimitedPositiveDelay(unit, relation)) &&
         !causalRelationIsNegated(unit, relation) &&
+        !causalRelationIsUncertain(unit, relation) &&
         causeBindsToCandidateIncident(relation.cause, event) &&
         !relation.excludedCauses.some((cause) => causeBindsToCandidateIncident(cause, event)),
     );
@@ -669,11 +686,28 @@ type DeliveryOccurrenceState = {
   late: boolean;
   partial: boolean;
   complete: boolean;
+  notDelivered: boolean;
   notDeliveredByDeadline: boolean;
   neverDelivered: boolean;
   unclear: boolean;
   deniedOrDisputed: boolean;
 };
+
+function statesPlainNonDelivery(value: string): boolean {
+  const active =
+    /\b(?:did\s+not|didn['’]t|does\s+not|doesn['’]t|failed\s+to)\s+(?:deliver|ship|send|supply|submit)\b/iu;
+  const passive =
+    /\b(?:(?:is|are|was|were)\s+not|(?:isn|aren|wasn|weren)['’]t)\s+(?:delivered|shipped|sent|supplied|submitted)\b|\b(?:(?:has|have|had)\s+not|(?:hasn|haven|hadn)['’]t)\s+been\s+(?:delivered|shipped|sent|supplied|submitted)\b/iu;
+  const noOccurrence =
+    /\bno\s+(?:content\s+|file\s+|material\s+)?delivery\s+(?:occurred|happened|took\s+place)\b/iu;
+  return active.test(value) || passive.test(value) || noOccurrence.test(value);
+}
+
+function statesNonDeliveryByDeadline(value: string): boolean {
+  const deadlineAnchor =
+    /\bby\s+(?:the\s+)?(?:deadline|due\s+date|january|february|march|april|may|june|july|august|september|october|november|december|\d{1,4})\b/iu;
+  return statesPlainNonDelivery(value) && deadlineAnchor.test(value);
+}
 
 function deliveryOccurrenceSegments(value: string): string[] {
   // Exact spans sometimes ground several explicitly separate occurrences. Keep
@@ -705,10 +739,8 @@ function deliveryOccurrenceState(value: string): DeliveryOccurrenceState | null 
     /\bnever\s+(?:been\s+)?(?:deliver(?:ed)?|shipp?ed|sen[dt]|suppl(?:y|ied)|submit(?:ted)?|arriv(?:e|ed))\b/iu.test(
       value,
     );
-  const notDeliveredByDeadline =
-    /\b(?:(?:did\s+not|didn['’]t|failed\s+to)\s+(?:deliver|ship|send|supply|submit)|not\s+(?:been\s+)?(?:delivered|shipped|sent|supplied|submitted))\b[^.;]{0,64}\bby\b/iu.test(
-      value,
-    );
+  const notDelivered = statesPlainNonDelivery(value);
+  const notDeliveredByDeadline = statesNonDeliveryByDeadline(value);
   const partial =
     /\b(?:partially|partly|only\s+(?:part|some)(?:\s+of\b[^.;]{0,32})?)\b[^.;]{0,48}\b(?:deliver(?:ed)?|shipp?ed|sen[dt]|suppl(?:y|ied)|submit(?:ted)?|arriv(?:e|ed))\b|\b(?:deliver(?:ed)?|shipp?ed|sen[dt]|suppl(?:y|ied)|submit(?:ted)?|arriv(?:e|ed))\b[^.;]{0,48}\b(?:partially|partly|only\s+(?:part|some))\b/iu.test(
       value,
@@ -721,10 +753,15 @@ function deliveryOccurrenceState(value: string): DeliveryOccurrenceState | null 
     /\b(?:complete|completed|full|fully)\s+(?:deliver|delivery|shipment|content|copy|files?|images?|material|batch)\w*|\b(?:deliver|delivery|shipment|ship|send|sent|suppl|submit|arriv)\w*\b[^.;]{0,40}\b(?:complete|completed|full|fully)\b/iu.test(
       value,
     );
+  // Precedence is fail-closed: denied/disputed, unclear, never-delivered,
+  // plain non-delivery, and deadline-qualified non-delivery all block
+  // affirmative delivery. The deadline flag adds temporal detail to the plain
+  // negative state; it is never required to establish non-delivery.
   const affirmativeDelivery = !(
     deniedOrDisputed ||
     unclear ||
     neverDelivered ||
+    notDelivered ||
     notDeliveredByDeadline
   );
 
@@ -733,6 +770,7 @@ function deliveryOccurrenceState(value: string): DeliveryOccurrenceState | null 
     late: affirmativeDelivery && late,
     partial: affirmativeDelivery && partial,
     complete: affirmativeDelivery && complete && !partial,
+    notDelivered,
     notDeliveredByDeadline,
     neverDelivered,
     unclear,
@@ -771,6 +809,7 @@ function preservesDeliveryOccurrenceState(sourceText: string, eventSummary: stri
         (!source.deniedOrDisputed || summary.deniedOrDisputed) &&
         (!source.unclear || summary.unclear) &&
         (!source.neverDelivered || summary.neverDelivered) &&
+        (!source.notDelivered || summary.notDelivered) &&
         (!source.notDeliveredByDeadline || summary.notDeliveredByDeadline) &&
         (!source.partial || summary.partial) &&
         (!source.late || summary.late) &&
@@ -954,8 +993,10 @@ function hasConflictingOccurrenceState(
   ];
   const nonDeliveryStates = [
     'never_delivered',
+    'not_delivered',
     'not_delivered_by_deadline',
     'never_completed',
+    'not_completed',
     'not_completed_by_deadline',
   ];
   const unresolvedStates = [
@@ -1149,8 +1190,8 @@ function canonicalAssertedMeaning(
   const hasDeliveryObject = hasAny('deliver', 'supply');
   const neverDelivered =
     /\bnever\s+(?:deliver(?:ed)?|sen[dt]|suppl(?:y|ied)|arriv(?:e|ed))\b/iu.test(text);
-  const notDeliveredByDeadline =
-    /\b(?:did\s+not|didn['’]t|failed\s+to)\s+(?:deliver|send|supply)[^.]{0,64}\bby\b/iu.test(text);
+  const notDelivered = statesPlainNonDelivery(text);
+  const notDeliveredByDeadline = statesNonDeliveryByDeadline(text);
   const partiallyDelivered =
     /\b(?:partially|partly|only\s+(?:part|some))\s+(?:deliver(?:ed)?|sen[dt]|suppl(?:y|ied))\b|\b(?:deliver(?:ed)?|sen[dt]|suppl(?:y|ied))\s+(?:partially|partly|only\s+(?:part|some)(?:\s+of)?)\b/iu.test(
       text,
@@ -1192,6 +1233,9 @@ function canonicalAssertedMeaning(
     } else if (notDeliveredByDeadline) {
       occurrencePolarity.add('not_delivered_by_deadline');
       completionState.add('not_completed_by_deadline');
+    } else if (notDelivered) {
+      occurrencePolarity.add('not_delivered');
+      completionState.add('not_completed');
     } else {
       if (partiallyDelivered) {
         occurrencePolarity.add('partially_delivered');
