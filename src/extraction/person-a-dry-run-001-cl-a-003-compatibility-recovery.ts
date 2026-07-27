@@ -452,7 +452,9 @@ function causalRelationCertainty(unit: string, relation: AssertedCausalRelation)
   // 3. would describes conditional causation;
   // 4. expected/likely/predicted/projected/will describe prediction;
   // 5. should/ought/must describe normative or inferred necessity; and
-  // 6. unresolved, hypothetical, or speculative wording remains uncertain.
+  // 6. predicate-local probability, appearance, or allegation qualifiers are
+  //    not direct assertions; and
+  // 7. unresolved, hypothetical, or speculative wording remains uncertain.
   //
   // Certainty binds to the stored lexical predicate span. Emphasis does not
   // reset modality: a shared-subject predicate after "and ultimately/actually/
@@ -489,6 +491,14 @@ function causalRelationCertainty(unit: string, relation: AssertedCausalRelation)
     )
   ) {
     return 'normative';
+  }
+  if (
+    /\b(?:probably|apparently|allegedly|presumably|reportedly|seemingly)\s*$/iu.test(
+      predicatePrefix,
+    ) ||
+    /\b(?:(?:is|are|was|were|be|been|being)\s+)?unlikely\s+to\s*$/iu.test(predicatePrefix)
+  ) {
+    return 'uncertain_or_speculative';
   }
   if (NON_ASSERTED_CAUSATION.test(context)) {
     return 'uncertain_or_speculative';

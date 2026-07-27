@@ -3367,6 +3367,56 @@ describe('cl_a_003 Person A recall coverage', () => {
     });
   });
 
+  describe('exact-head review finding: probabilistic causal assertions', () => {
+    function probabilisticCertaintyCandidate(interpretation: string): {
+      narrative: string;
+      modelOutput: JsonObject;
+    } {
+      const eventSummary = 'Alex says Maya delivered the content late.';
+      const narrative = `${eventSummary} ${interpretation}`;
+      return {
+        narrative,
+        modelOutput: candidateFixture(narrative, {
+          quote: eventSummary,
+          event_summary: eventSummary,
+          person_a_interpretation: interpretation,
+        }),
+      };
+    }
+
+    it.each([
+      'Maya’s late delivery probably caused schedule delay.',
+      'Maya’s late delivery apparently caused schedule delay.',
+      'Maya’s late delivery allegedly caused schedule delay.',
+      'Maya’s late delivery was unlikely to cause schedule delay.',
+      'Schedule delay probably resulted from Maya’s late delivery.',
+    ])('rejects a probabilistic or qualified causal predicate: %s', (interpretation) => {
+      const { narrative, modelOutput } = probabilisticCertaintyCandidate(interpretation);
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toEqual([]);
+    });
+
+    it('does not confuse factual emphasis with probabilistic qualification', () => {
+      const { narrative, modelOutput } = probabilisticCertaintyCandidate(
+        'Maya’s late delivery actually caused schedule delay.',
+      );
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        1,
+      );
+    });
+
+    it('preserves the exact frozen cl_a_003 direct causal assertion', async () => {
+      const { narrative, modelOutput } = await frozenInputs();
+
+      expect(
+        applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims.filter(
+          (claim: JsonObject) => claim.claim_id === 'claim_event_04_major_batch_client_delay',
+        ),
+      ).toHaveLength(1);
+    });
+  });
+
   it('preserves the selected occurrence when identical source text repeats', () => {
     const quote = 'Maya delivered the content late and it directly contributed to delay.';
     const narrative = `${quote}\nUnrelated separator.\n${quote}`;
