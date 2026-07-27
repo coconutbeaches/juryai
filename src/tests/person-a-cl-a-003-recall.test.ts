@@ -2163,6 +2163,8 @@ describe('cl_a_003 Person A recall coverage', () => {
       'Maya’s late content delivery did not materially result in schedule delay.',
       'Maya’s late content delivery did not in any way cause schedule delay.',
       'Maya’s late content delivery did not at all contribute to schedule delay.',
+      'Maya’s late content delivery did not, in any way, cause schedule delay.',
+      'Maya’s late content delivery did not, at all, contribute to schedule delay.',
     ])('rejects a negated causal result: %s', (interpretation) => {
       const eventSummary = 'Alex says Maya delivered the content late.';
       const narrative = `${eventSummary} ${interpretation}`;

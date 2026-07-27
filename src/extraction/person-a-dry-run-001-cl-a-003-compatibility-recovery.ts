@@ -450,14 +450,18 @@ function causalRelationIsNegated(unit: string, relation: AssertedCausalRelation)
   // 3. "cannot/could not/would not" is modal impossibility, not uncertainty.
   // 4. "failed/did nothing/never managed to cause" is lexical causal failure.
   // 5. Limited non-zero effects are positive and are handled separately below.
+  const causalNegationContext = leftContext.replace(
+    /(\b(?:(?:did|does|do|is|are|was|were|has|have|had|could|would|can)\s+not|(?:didn|doesn|isn|aren|wasn|weren|hasn|haven|hadn|couldn|wouldn|can)['’]t|cannot))\s*,\s*(?:(?!\b(?:deliver|ship|send|sent|supply|submit|arriv)\w*\b)[^,.;()—–\r\n]){1,48}\s*,\s*$/iu,
+    '$1 ',
+  );
   const roleLimitedNegation =
     /\b(?:(?:is|are|was|were|did|does|do)\s+not|(?:isn|aren|wasn|weren|didn|doesn)['’]t)\s+(?:the\s+)?(?:main|only|primary|sole)\s*$/iu.test(
-      leftContext,
+      causalNegationContext,
     );
   if (
     (!roleLimitedNegation &&
       /\b(?:(?:did|does|do|is|are|was|were|has|have|had|could|would|can)\s+not|(?:didn|doesn|isn|aren|wasn|weren|hasn|haven|hadn|couldn|wouldn|can)['’]t|cannot)\s+(?:(?!\b(?:and|but|however|yet|deliver|ship|send|sent|supply|submit|arriv)\w*\b)[^,.;()—–\r\n]){0,64}$/iu.test(
-        leftContext,
+        causalNegationContext,
       )) ||
     /\b(?:never\s+(?:(?:managed|served)\s+to\s+)?|failed\s+to\s+|did\s+nothing\s+to\s+)(?:directly\s+)?$/iu.test(
       leftContext,
