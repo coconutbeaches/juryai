@@ -227,8 +227,23 @@ function splitCoordinatedSubjects(value: string, event: JsonObject): string[] {
   return units;
 }
 
+function preserveInterruptedCausalAttributions(value: string): string {
+  const interruptedAttribution =
+    /\b(believ(?:e|es|ed|ing)|think(?:s|ing)?|thought|suspect(?:s|ed|ing)?|den(?:y|ies|ied|ying)|disput(?:e|es|ed|ing))\b\s*(?:\([^()]{0,96}\)|[—–][^—–\r\n]{0,96}[—–])\s*((?:that|whether)\b)/giu;
+
+  // Parentheses and paired dashes normally remain hard causal-unit boundaries.
+  // For a bounded reporting/belief/denial interruption, remove only the
+  // interrupting modifier so the governing predicate stays attached to its
+  // "that/whether" causal complement. Independent later sentences still form
+  // separate units and may be evaluated on their own.
+  return value.replace(interruptedAttribution, '$1 $2');
+}
+
 function causalUnits(value: string, event: JsonObject): string[] {
-  return preserveAttachedRelativeCausalParentheticals(value, event)
+  return preserveAttachedRelativeCausalParentheticals(
+    preserveInterruptedCausalAttributions(value),
+    event,
+  )
     .split(/[.;()\r\n]|[—–]/u)
     .map((unit) => unit.trim())
     .filter((unit) => unit.length > 0)

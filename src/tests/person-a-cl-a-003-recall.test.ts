@@ -3453,6 +3453,10 @@ describe('cl_a_003 Person A recall coverage', () => {
       'Maya’s view was that her late delivery contributed to schedule delay.',
       'It is Maya’s opinion that her late delivery caused schedule delay.',
       'It was Maya’s view that her late delivery resulted in schedule delay.',
+      'Maya believes (based on her estimate) that her late delivery caused schedule delay.',
+      'Maya denied (in writing) that her late delivery caused schedule delay.',
+      'Maya believes — based on her estimate — that her late delivery caused schedule delay.',
+      'Maya denied — in writing — that her late delivery caused schedule delay.',
     ])('rejects a belief-qualified causal clause: %s', (interpretation) => {
       const { narrative, modelOutput } = beliefQualifiedCandidate(interpretation);
 
@@ -3462,6 +3466,16 @@ describe('cl_a_003 Person A recall coverage', () => {
     it('preserves a direct Person A causal assertion', () => {
       const { narrative, modelOutput } = beliefQualifiedCandidate(
         'Alex says Maya’s late delivery caused schedule delay.',
+      );
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        1,
+      );
+    });
+
+    it('allows an independent direct assertion after a completed belief sentence', () => {
+      const { narrative, modelOutput } = beliefQualifiedCandidate(
+        'Maya believes the timing was unfortunate. Alex says Maya’s late delivery caused schedule delay.',
       );
 
       expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
