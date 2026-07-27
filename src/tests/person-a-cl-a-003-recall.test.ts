@@ -3523,6 +3523,10 @@ describe('cl_a_003 Person A recall coverage', () => {
       'Maya asserted her late delivery caused schedule delay.',
       'In May Maya said her late delivery caused schedule delay.',
       'Maya Alex said Maya’s late delivery caused schedule delay.',
+      'Maya told Alex that her late delivery caused schedule delay.',
+      'Maya wrote that her late delivery caused schedule delay.',
+      'Maya noted that her late delivery caused schedule delay.',
+      'Maya maintained that her late delivery caused schedule delay.',
     ])('rejects a belief-qualified causal clause: %s', (interpretation) => {
       const { narrative, modelOutput } = beliefQualifiedCandidate(interpretation);
 
@@ -3542,6 +3546,7 @@ describe('cl_a_003 Person A recall coverage', () => {
     it.each([
       'In May Alex said Maya’s late delivery caused schedule delay.',
       'During May Alex stated Maya’s late delivery caused schedule delay.',
+      'Alex told the panel that Maya’s late delivery caused schedule delay.',
     ])('preserves typed Person A after a capitalized sentence prefix: %s', (interpretation) => {
       const { narrative, modelOutput } = beliefQualifiedCandidate(interpretation);
 

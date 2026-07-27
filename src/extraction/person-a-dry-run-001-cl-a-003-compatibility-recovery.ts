@@ -124,6 +124,7 @@ function reportsCausalDenial(value: string): boolean {
 
 const COORDINATOR = /\b(?:and|but|while|whereas)\b/giu;
 const PROPER_SUBJECT = String.raw`\p{Lu}[\p{L}\p{N}&.'’_-]*(?:\s+\p{Lu}[\p{L}\p{N}&.'’_-]*){0,2}`;
+const CAUSAL_REPORTING_VERB = String.raw`(?:says?|said|states?|stated|claims?|claimed|asserts?|asserted|reports|reported|reporting|tells?|telling|told|writes?|writing|wrote|notes?|noted|noting|maintains?|maintained|maintaining)`;
 
 function normalizedSubjectName(value: string): string | null {
   return normalizeAssertedMeaning(value.replace(/['’]s$/u, ''));
@@ -150,7 +151,7 @@ function hasForeignCausalReportingSubject(value: string, typedPartyADisplayName:
   const remainderAssertsCausation = (end: number): boolean =>
     /\b(?:caus|contribut|result|delay)\w*\b/iu.test(causalRemainderAfter(end));
   const reportingSubject = new RegExp(
-    String.raw`\b(${PROPER_SUBJECT})(?:['’]s)?\s+(?:says?|said|states?|stated|claims?|claimed|asserts?|asserted|reports?|reported)\b`,
+    String.raw`\b(${PROPER_SUBJECT})(?:['’]s)?\s+${CAUSAL_REPORTING_VERB}\b`,
     'gu',
   );
 
@@ -160,8 +161,10 @@ function hasForeignCausalReportingSubject(value: string, typedPartyADisplayName:
     if (!isTypedPartyA(match[1])) return true;
   }
 
-  const articleLedReportingSubject =
-    /\b((?:the|an?|this|that)\s+[\p{L}\p{N}&.'’_-]+(?:\s+[\p{L}\p{N}&.'’_-]+){0,3})\s+(?:says?|said|states?|stated|claims?|claimed|asserts?|asserted|reports|reported|reporting)\b/giu;
+  const articleLedReportingSubject = new RegExp(
+    String.raw`\b((?:the|an?|this|that)\s+[\p{L}\p{N}&.'’_-]+(?:\s+[\p{L}\p{N}&.'’_-]+){0,3})\s+${CAUSAL_REPORTING_VERB}\b`,
+    'giu',
+  );
   for (const match of value.matchAll(articleLedReportingSubject)) {
     if (match.index == null || match[1] == null) continue;
     if (!remainderAssertsCausation(match.index + match[0].length)) continue;
