@@ -74,7 +74,6 @@ function hasModalMay(value: string): boolean {
         'next',
         'on',
         'since',
-        'that',
         'the',
         'this',
         'through',
@@ -128,6 +127,30 @@ const PROPER_SUBJECT = String.raw`\p{Lu}[\p{L}\p{N}&.'’_-]*(?:\s+\p{Lu}[\p{L}\
 
 function normalizedSubjectName(value: string): string | null {
   return normalizeAssertedMeaning(value.replace(/['’]s$/u, ''));
+}
+
+function hasForeignCausalReportingSubject(value: string, typedPartyADisplayName: unknown): boolean {
+  const typedPartyA =
+    typeof typedPartyADisplayName === 'string'
+      ? normalizedSubjectName(typedPartyADisplayName)
+      : null;
+  const reportingSubject = new RegExp(
+    String.raw`\b(${PROPER_SUBJECT})(?:['’]s)?\s+(?:says?|states?|claims?|asserts?|reports?)\b`,
+    'gu',
+  );
+
+  for (const match of value.matchAll(reportingSubject)) {
+    if (match.index == null || match[1] == null) continue;
+    const localRemainder =
+      value.slice(match.index + match[0].length).split(/[.;()—–\r\n]/u, 1)[0] ?? '';
+    if (!/\b(?:caus|contribut|result|delay)\w*\b/iu.test(localRemainder)) continue;
+
+    const reportingName = normalizedSubjectName(match[1]);
+    if (typedPartyA == null || reportingName == null || reportingName !== typedPartyA) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function candidateActorNames(event: JsonObject): string[] {
@@ -613,7 +636,11 @@ function causeBindsToCandidateIncident(cause: string, event: JsonObject): boolea
   return true;
 }
 
-function isDirectClientDelayInterpretation(value: unknown, event: JsonObject): value is string {
+function isDirectClientDelayInterpretation(
+  value: unknown,
+  event: JsonObject,
+  typedPartyADisplayName: unknown,
+): value is string {
   if (typeof value !== 'string' || value.length === 0) return false;
   return causalUnits(value, event).some((unit) => {
     const relations = assertedCausalRelations(unit);
@@ -621,6 +648,7 @@ function isDirectClientDelayInterpretation(value: unknown, event: JsonObject): v
       reportsCausalDenial(unit) ||
       REPORTED_BELIEF.test(unit) ||
       NOUN_LED_BELIEF_ATTRIBUTION.test(unit) ||
+      hasForeignCausalReportingSubject(unit, typedPartyADisplayName) ||
       METADATA_ONLY.test(unit)
     ) {
       return false;
@@ -919,14 +947,7 @@ function preservesDeliveryOccurrenceState(sourceText: string, eventSummary: stri
     return summaryMeaning.incidents.some((incident) => incident !== 'input_delivery');
   }
 
-  // Source occurrence polarity and completion are authoritative. Each source
-  // profile is an alternative grounded occurrence; simultaneous properties
-  // within one profile are compositional. Recovery is allowed only when the
-  // provider summary preserves every material property of at least one exact
-  // source occurrence. More cautious wording is allowed, but a non-delivery,
-  // never-delivered, partial, unclear, or disputed occurrence cannot become a
-  // definite completed delivery.
-  return sourceProfiles.some((source) =>
+  const summaryPreserves = (source: DeliveryOccurrenceState): boolean =>
     summaryProfiles.some(
       (summary) =>
         (!source.deniedOrDisputed || summary.deniedOrDisputed) &&
@@ -938,8 +959,20 @@ function preservesDeliveryOccurrenceState(sourceText: string, eventSummary: stri
         (!source.late || summary.late) &&
         (!source.complete || summary.complete) &&
         (!source.delivered || summary.delivered),
-    ),
-  );
+    );
+
+  // Source occurrence polarity and completion are authoritative. An explicit
+  // transition ("then", "later", or "subsequently") proves that separately
+  // parsed profiles are separate occurrences, so every one must survive.
+  // Without that signal, repeated prose may restate one occurrence (for
+  // example, a narrative sentence followed by its causal interpretation), and
+  // a compatible source profile is sufficient. Simultaneous properties within
+  // one profile remain compositional in either case.
+  const hasExplicitOccurrenceTransition =
+    /(?:[,;.]|\band\b)\s*(?:and\s+)?(?:later|then|subsequently)\b/iu.test(sourceText);
+  return hasExplicitOccurrenceTransition
+    ? sourceProfiles.every(summaryPreserves)
+    : sourceProfiles.some(summaryPreserves);
 }
 
 function preservesSourceQualifications(eventSummary: string, spans: JsonObject[]): boolean {
@@ -1654,7 +1687,11 @@ export function applyDryRun001ClA003CompatibilityRecovery(
       event.interpretation_status !== 'unclear' ||
       event.person_b_interpretation !== null ||
       event.materiality !== 'high' ||
-      !isDirectClientDelayInterpretation(event.person_a_interpretation, event)
+      !isDirectClientDelayInterpretation(
+        event.person_a_interpretation,
+        event,
+        normalized.party_profile?.display_name,
+      )
     ) {
       continue;
     }

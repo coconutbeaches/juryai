@@ -104,6 +104,7 @@ function candidateFixture(
   };
   delete event.quote;
   return {
+    party_profile: { display_name: 'Alex' },
     timeline: [event],
     claims: [],
     evidence: [{ evidence_id: 'ev_client_content' }],
@@ -3257,6 +3258,8 @@ describe('cl_a_003 Person A recall coverage', () => {
       'Maya’s late delivery would disrupt the work and actually contribute to schedule delay.',
       'Maya’s late delivery may affect the delivery and definitely result in schedule delay.',
       'Maya’s late delivery should delay the work and in fact cause schedule delay.',
+      'Maya’s late delivery was the incident that may have caused schedule delay.',
+      'Maya’s late delivery was the incident which may have contributed to schedule delay.',
     ])('inherits the governing modal across a coordinated predicate: %s', (interpretation) => {
       const { narrative, modelOutput } = coordinatedCertaintyCandidate(interpretation);
 
@@ -3286,6 +3289,16 @@ describe('cl_a_003 Person A recall coverage', () => {
     it('allows direct coordinated predicates without a governing modal', () => {
       const { narrative, modelOutput } = coordinatedCertaintyCandidate(
         'Maya’s late delivery caused schedule delay and ultimately resulted in further schedule delay.',
+      );
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        1,
+      );
+    });
+
+    it('preserves calendar-month May in a relative incident noun phrase', () => {
+      const { narrative, modelOutput } = coordinatedCertaintyCandidate(
+        'Maya’s late delivery was that May delivery which caused schedule delay.',
       );
 
       expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
@@ -3457,6 +3470,8 @@ describe('cl_a_003 Person A recall coverage', () => {
       'Maya denied (in writing) that her late delivery caused schedule delay.',
       'Maya believes — based on her estimate — that her late delivery caused schedule delay.',
       'Maya denied — in writing — that her late delivery caused schedule delay.',
+      'Alex reports that Maya says her late delivery caused schedule delay.',
+      'Maya says her late delivery caused schedule delay.',
     ])('rejects a belief-qualified causal clause: %s', (interpretation) => {
       const { narrative, modelOutput } = beliefQualifiedCandidate(interpretation);
 
@@ -3517,6 +3532,46 @@ describe('cl_a_003 Person A recall coverage', () => {
     });
 
     it('preserves the exact frozen cl_a_003 direct causal assertion', async () => {
+      const { narrative, modelOutput } = await frozenInputs();
+
+      expect(
+        applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims.filter(
+          (claim: JsonObject) => claim.claim_id === 'claim_event_04_major_batch_client_delay',
+        ),
+      ).toHaveLength(1);
+    });
+  });
+
+  describe('exact-head review finding: preserve every grounded occurrence state', () => {
+    const sourceText =
+      'Maya partially delivered the content, then never delivered the remaining files.';
+
+    it('rejects a summary that drops the later non-delivery occurrence', () => {
+      const modelOutput = candidateFixture(sourceText, {
+        quote: sourceText,
+        event_summary: 'Maya partially delivered the content.',
+        person_a_interpretation:
+          'Maya’s partial delivery and later non-delivery caused schedule delay.',
+      });
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, sourceText).claims).toEqual([]);
+    });
+
+    it('allows a summary that preserves both grounded occurrence profiles', () => {
+      const modelOutput = candidateFixture(sourceText, {
+        quote: sourceText,
+        event_summary:
+          'Maya partially delivered the content, then never delivered the remaining files.',
+        person_a_interpretation:
+          'Maya’s partial delivery and later non-delivery caused schedule delay.',
+      });
+
+      expect(
+        applyDryRun001ClA003CompatibilityRecovery(modelOutput, sourceText).claims,
+      ).toHaveLength(1);
+    });
+
+    it('preserves the exact frozen cl_a_003 occurrence state', async () => {
       const { narrative, modelOutput } = await frozenInputs();
 
       expect(
