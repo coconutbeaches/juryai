@@ -3527,6 +3527,8 @@ describe('cl_a_003 Person A recall coverage', () => {
       'Maya wrote that her late delivery caused schedule delay.',
       'Maya noted that her late delivery caused schedule delay.',
       'Maya maintained that her late delivery caused schedule delay.',
+      'Maya’s lawyer said Maya’s late delivery caused schedule delay.',
+      'Alex’s lawyer said Maya’s late delivery caused schedule delay.',
     ])('rejects a belief-qualified causal clause: %s', (interpretation) => {
       const { narrative, modelOutput } = beliefQualifiedCandidate(interpretation);
 
