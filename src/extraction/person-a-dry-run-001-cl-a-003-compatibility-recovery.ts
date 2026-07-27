@@ -1473,6 +1473,21 @@ function uniqueClaimId(eventId: string, ids: Set<string>): string {
   return `${stem}_${suffix}`;
 }
 
+function requireCompatibilityCanonicalArrays(modelOutput: JsonObject): void {
+  // This projection may consolidate timeline rows and append one claim, so both
+  // canonical arrays must already have their provider-schema container shape.
+  // Check both before cloning or transforming anything. Nested row validity and
+  // every other canonical field remain the responsibility of ordinary assembly
+  // validation; this compatibility boundary never coerces malformed input.
+  for (const field of ['timeline', 'claims'] as const) {
+    if (!Array.isArray(modelOutput[field])) {
+      throw new Error(
+        `Dry Run 001 client-delay compatibility projection requires ${field} to be an array.`,
+      );
+    }
+  }
+}
+
 /**
  * Internal pure transform used by the focused compatibility regression suite
  * and the explicit projection entrypoint. This case-specific name is
@@ -1491,12 +1506,11 @@ export function applyDryRun001ClA003CompatibilityRecovery(
   modelOutput: JsonObject,
   narrative: string,
 ): JsonObject {
+  requireCompatibilityCanonicalArrays(modelOutput);
   const normalized = structuredClone(modelOutput);
-  const timeline = Array.isArray(normalized.timeline)
-    ? consolidateExactDuplicateTimelineRows(normalized.timeline)
-    : [];
+  const timeline = consolidateExactDuplicateTimelineRows(normalized.timeline);
   normalized.timeline = timeline;
-  const claims: JsonObject[] = Array.isArray(normalized.claims) ? normalized.claims : [];
+  const claims: JsonObject[] = normalized.claims;
   const providerClaims = [...claims];
   const canonicalIds = collectCanonicalIds(normalized);
   normalized.claims = claims;

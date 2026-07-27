@@ -3054,6 +3054,88 @@ describe('cl_a_003 Person A recall coverage', () => {
     });
   });
 
+  describe('thirteenth review finding: malformed compatibility arrays', () => {
+    const malformedArrays = [
+      { field: 'timeline', label: 'missing', value: undefined, missing: true },
+      { field: 'timeline', label: 'null', value: null, missing: false },
+      {
+        field: 'timeline',
+        label: 'an object',
+        value: { event_id: 'event_corrupt' },
+        missing: false,
+      },
+      { field: 'timeline', label: 'a string', value: 'event_corrupt', missing: false },
+      { field: 'claims', label: 'missing', value: undefined, missing: true },
+      { field: 'claims', label: 'null', value: null, missing: false },
+      {
+        field: 'claims',
+        label: 'an object',
+        value: { claim_id: 'claim_corrupt' },
+        missing: false,
+      },
+      { field: 'claims', label: 'a string', value: 'claim_corrupt', missing: false },
+    ] as const;
+
+    it.each(malformedArrays)(
+      'fails before projection when $field is $label and preserves the original input',
+      async ({ field, value, missing }) => {
+        const { narrative, modelOutput } = await frozenInputs();
+        if (missing) delete modelOutput[field];
+        else modelOutput[field] = value;
+        const before = JSON.stringify(modelOutput);
+
+        expect(() =>
+          assembleDryRun001ClA003CompatibilityProjection(modelOutput, {
+            narrative,
+            submittedAt,
+            model,
+            generatedAt,
+          }),
+        ).toThrow(
+          new RegExp(
+            `Dry Run 001 client-delay compatibility projection requires ${field} to be an array`,
+            'iu',
+          ),
+        );
+        expect(JSON.stringify(modelOutput)).toBe(before);
+        if (missing) expect(Object.hasOwn(modelOutput, field)).toBe(false);
+        else expect(modelOutput[field]).toEqual(value);
+      },
+    );
+
+    it('does not partially recover or consolidate malformed compatibility input', async () => {
+      const { narrative, modelOutput } = await frozenInputs();
+      const duplicate = structuredClone(modelOutput.timeline[0]);
+      modelOutput.timeline.push(duplicate);
+      modelOutput.claims = null;
+      const before = JSON.stringify(modelOutput);
+
+      expect(() => applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative)).toThrow(
+        /Dry Run 001 client-delay compatibility projection requires claims to be an array/iu,
+      );
+      expect(JSON.stringify(modelOutput)).toBe(before);
+      expect(modelOutput.timeline).toHaveLength((JSON.parse(before) as JsonObject).timeline.length);
+      expect(modelOutput.claims).toBeNull();
+    });
+
+    it('still projects the valid frozen provider object to the corrected 0/45/20 result', async () => {
+      const { narrative, golden, modelOutput } = await frozenInputs();
+
+      const projected = assembleDryRun001ClA003CompatibilityProjection(modelOutput, {
+        narrative,
+        submittedAt,
+        model,
+        generatedAt,
+      });
+
+      expect(evaluate(projected, golden, narrative).summary).toMatchObject({
+        critical: 0,
+        major: 45,
+        minor: 20,
+      });
+    });
+  });
+
   it('preserves the selected occurrence when identical source text repeats', () => {
     const quote = 'Maya delivered the content late and it directly contributed to delay.';
     const narrative = `${quote}\nUnrelated separator.\n${quote}`;
