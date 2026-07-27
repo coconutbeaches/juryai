@@ -2067,6 +2067,42 @@ describe('cl_a_003 Person A recall coverage', () => {
 
       expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toEqual([]);
     });
+
+    it.each([
+      {
+        label: 'matching textual alternatives',
+        eventSummary: 'Alex says Maya delivered the content around May 8 or May 9.',
+        interpretation: 'Alex says Maya’s May 8 or May 9 content delivery caused schedule delay.',
+        date: {
+          start: null,
+          end: null,
+          precision: 'unknown',
+          approximate: true,
+        },
+      },
+      {
+        label: 'matching typed date range and textual alternatives',
+        eventSummary: 'Alex says Maya delivered the content around May 8 or May 9.',
+        interpretation: 'Alex says Maya’s May 8 or May 9 content delivery caused schedule delay.',
+        date: {
+          start: '2024-05-08',
+          end: '2024-05-09',
+          precision: 'day',
+          approximate: true,
+        },
+      },
+    ])('accepts $label', ({ eventSummary, interpretation, date }) => {
+      const narrative = `${eventSummary} ${interpretation}`;
+      const modelOutput = candidateFixture(narrative, {
+        event_summary: eventSummary,
+        person_a_interpretation: interpretation,
+        date,
+      });
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        1,
+      );
+    });
   });
 
   describe('seventh review finding 4: frozen compatibility API boundary', () => {
@@ -2122,6 +2158,9 @@ describe('cl_a_003 Person A recall coverage', () => {
       'Maya’s late content delivery contributed to zero delay.',
       'Maya’s late content delivery ended without causing delay.',
       'Maya’s late content delivery did not result in any delay.',
+      'Maya’s late content delivery did not necessarily cause schedule delay.',
+      'Maya’s late content delivery did not actually contribute to schedule delay.',
+      'Maya’s late content delivery did not materially result in schedule delay.',
     ])('rejects a negated causal result: %s', (interpretation) => {
       const eventSummary = 'Alex says Maya delivered the content late.';
       const narrative = `${eventSummary} ${interpretation}`;

@@ -451,7 +451,7 @@ function causalRelationIsNegated(unit: string, relation: AssertedCausalRelation)
   // 4. "failed/did nothing/never managed to cause" is lexical causal failure.
   // 5. Limited non-zero effects are positive and are handled separately below.
   if (
-    /\b(?:(?:did|does|do|is|are|was|were|has|have|had|could|would|can)\s+not|(?:didn|doesn|isn|aren|wasn|weren|hasn|haven|hadn|couldn|wouldn|can)['’]t|cannot)\s+(?:have\s+)?(?:directly\s+)?$/iu.test(
+    /\b(?:(?:did|does|do|is|are|was|were|has|have|had|could|would|can)\s+not|(?:didn|doesn|isn|aren|wasn|weren|hasn|haven|hadn|couldn|wouldn|can)['’]t|cannot)\s+(?:have\s+)?(?:(?:actually|directly|materially|meaningfully|necessarily|really|substantially)\s+){0,3}$/iu.test(
       leftContext,
     ) ||
     /\b(?:never\s+(?:(?:managed|served)\s+to\s+)?|failed\s+to\s+|did\s+nothing\s+to\s+)(?:directly\s+)?$/iu.test(
@@ -611,7 +611,7 @@ function causeBindsToCandidateIncident(cause: string, event: JsonObject): boolea
   if (
     candidateText.temporalAnchors.length > 0 &&
     typedTemporalAnchors.length > 0 &&
-    anyTemporalAnchorConflict(candidateText.temporalAnchors, typedTemporalAnchors)
+    temporalAnchorCollectionsConflict(candidateText.temporalAnchors, typedTemporalAnchors)
   ) {
     return false;
   }
@@ -1193,10 +1193,16 @@ function temporalAnchorPairConflicts(left: string, right: string): boolean {
   );
 }
 
-function anyTemporalAnchorConflict(left: string[], right: string[]): boolean {
-  return left.some((leftAnchor) =>
-    right.some((rightAnchor) => temporalAnchorPairConflicts(leftAnchor, rightAnchor)),
-  );
+function temporalAnchorCollectionsConflict(left: string[], right: string[]): boolean {
+  const everyAnchorHasCompatibleMatch = (values: string[], candidates: string[]): boolean =>
+    values.every((value) =>
+      candidates.some((candidate) => !temporalAnchorPairConflicts(value, candidate)),
+    );
+
+  // Alternatives and ranges are sets, not cross-products. Matching May 8/May 9
+  // collections are compatible even though their opposite endpoints differ,
+  // while any unmatched reliable anchor remains a fail-closed contradiction.
+  return !everyAnchorHasCompatibleMatch(left, right) || !everyAnchorHasCompatibleMatch(right, left);
 }
 
 function hasConflictingOccurrenceState(
@@ -1262,7 +1268,7 @@ function hasConflictingTemporalIdentity(
   if (
     candidate.temporalAnchors.length > 0 &&
     assertedCause.temporalAnchors.length > 0 &&
-    anyTemporalAnchorConflict(candidate.temporalAnchors, assertedCause.temporalAnchors)
+    temporalAnchorCollectionsConflict(candidate.temporalAnchors, assertedCause.temporalAnchors)
   ) {
     return true;
   }
