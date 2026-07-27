@@ -3235,6 +3235,138 @@ describe('cl_a_003 Person A recall coverage', () => {
     });
   });
 
+  describe('fifteenth review finding 1: governing modals across coordinated predicates', () => {
+    function coordinatedCertaintyCandidate(interpretation: string): {
+      narrative: string;
+      modelOutput: JsonObject;
+    } {
+      const eventSummary = 'Alex says Maya delivered the content late.';
+      const narrative = `${eventSummary} ${interpretation}`;
+      return {
+        narrative,
+        modelOutput: candidateFixture(narrative, {
+          quote: eventSummary,
+          event_summary: eventSummary,
+          person_a_interpretation: interpretation,
+        }),
+      };
+    }
+
+    it.each([
+      'Maya’s late delivery could worsen the schedule and ultimately cause delay.',
+      'Maya’s late delivery would disrupt the work and actually contribute to schedule delay.',
+      'Maya’s late delivery may affect the delivery and definitely result in schedule delay.',
+      'Maya’s late delivery should delay the work and in fact cause schedule delay.',
+    ])('inherits the governing modal across a coordinated predicate: %s', (interpretation) => {
+      const { narrative, modelOutput } = coordinatedCertaintyCandidate(interpretation);
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toEqual([]);
+    });
+
+    it('allows a direct assertion after a contrastive clause with a new explicit subject', () => {
+      const { narrative, modelOutput } = coordinatedCertaintyCandidate(
+        'It could have caused more disruption, but Maya’s late delivery definitely caused one day of schedule delay.',
+      );
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        1,
+      );
+    });
+
+    it('allows a new reporting clause that independently confirms causation', () => {
+      const { narrative, modelOutput } = coordinatedCertaintyCandidate(
+        'The delivery might have affected progress, and Alex later confirmed that it caused schedule delay.',
+      );
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        1,
+      );
+    });
+
+    it('allows direct coordinated predicates without a governing modal', () => {
+      const { narrative, modelOutput } = coordinatedCertaintyCandidate(
+        'Maya’s late delivery caused schedule delay and ultimately resulted in further schedule delay.',
+      );
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        1,
+      );
+    });
+
+    it('preserves the exact frozen cl_a_003 direct causal assertion', async () => {
+      const { narrative, modelOutput } = await frozenInputs();
+
+      expect(
+        applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims.filter(
+          (claim: JsonObject) => claim.claim_id === 'claim_event_04_major_batch_client_delay',
+        ),
+      ).toHaveLength(1);
+    });
+  });
+
+  describe('fifteenth review finding 2: reverse-form causal certainty', () => {
+    function reverseCertaintyCandidate(interpretation: string): {
+      narrative: string;
+      modelOutput: JsonObject;
+    } {
+      const eventSummary = 'Alex says Maya delivered the content late.';
+      const narrative = `${eventSummary} ${interpretation}`;
+      return {
+        narrative,
+        modelOutput: candidateFixture(narrative, {
+          quote: eventSummary,
+          event_summary: eventSummary,
+          person_a_interpretation: interpretation,
+        }),
+      };
+    }
+
+    it.each([
+      'Schedule delay could result from Maya’s late delivery.',
+      'Schedule delay would result from Maya’s late delivery.',
+      'Schedule delay may have resulted from Maya’s late delivery.',
+      'Schedule delay was expected to result from Maya’s late delivery.',
+      'Schedule delay could have been caused by Maya’s late delivery.',
+      'Schedule delay was likely caused by Maya’s late delivery.',
+    ])('rejects a modal or predicted reverse causal predicate: %s', (interpretation) => {
+      const { narrative, modelOutput } = reverseCertaintyCandidate(interpretation);
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toEqual([]);
+    });
+
+    it.each([
+      'Schedule delay resulted from Maya’s late delivery.',
+      'Schedule delay was caused by Maya’s late delivery.',
+      'The delay came from Maya’s late delivery.',
+    ])('allows a directly asserted reverse causal predicate: %s', (interpretation) => {
+      const { narrative, modelOutput } = reverseCertaintyCandidate(interpretation);
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        1,
+      );
+    });
+
+    it('allows only an independently confirmed reverse relation after an uncertain one', () => {
+      const { narrative, modelOutput } = reverseCertaintyCandidate(
+        'The delay could have resulted from several causes, but the final report established that it resulted from Maya’s late delivery.',
+      );
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        1,
+      );
+    });
+
+    it('preserves the exact frozen cl_a_003 direct causal assertion', async () => {
+      const { narrative, modelOutput } = await frozenInputs();
+
+      expect(
+        applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims.filter(
+          (claim: JsonObject) => claim.claim_id === 'claim_event_04_major_batch_client_delay',
+        ),
+      ).toHaveLength(1);
+    });
+  });
+
   it('preserves the selected occurrence when identical source text repeats', () => {
     const quote = 'Maya delivered the content late and it directly contributed to delay.';
     const narrative = `${quote}\nUnrelated separator.\n${quote}`;

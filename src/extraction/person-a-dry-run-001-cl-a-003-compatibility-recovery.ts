@@ -179,6 +179,16 @@ function preserveAttachedRelativeCausalParentheticals(value: string, event: Json
 function introducesDifferentCoordinatedSubject(followingText: string, event: JsonObject): boolean {
   const causalPredicate = /\b(?:caus|contribut|result)\w*\b/iu.exec(followingText);
   if (causalPredicate?.index == null) return false;
+  if (
+    /\b(?:confirm(?:s|ed|ing)?|establish(?:es|ed|ing)?|conclud(?:e|es|ed|ing)|finds?|found|report(?:s|ed|ing)?|stat(?:e|es|ed|ing))\s+that\s+it\b[^,.;]{0,32}\b(?:caus|contribut|result)\w*\b/iu.test(
+      followingText,
+    )
+  ) {
+    // Keep a reporting clause with an explicit "that it" anaphor beside its
+    // antecedent. Certainty resets at the reporting predicate below, while
+    // cause binding retains the incident that "it" identifies.
+    return false;
+  }
   const subjectAndModifiers = followingText
     .slice(0, causalPredicate.index)
     .trim()
@@ -250,7 +260,8 @@ type AssertedCausalRelation = {
   cause: string;
   direction: 'cause_to_delay' | 'delay_from_cause';
   excludedCauses: string[];
-  predicateIndex: number;
+  predicateStart: number;
+  predicateEnd: number;
   relationEnd: number;
 };
 
@@ -296,11 +307,12 @@ function assertedCausalRelations(unit: string): AssertedCausalRelation[] {
   // Direction is part of the compatibility contract, independently of
   // polarity. Forward forms admit only predicates whose grammatical subject
   // is the cause and whose delay complement is the effect. In particular,
-  // "resulted from" and passive "caused by" never enter this branch.
+  // "resulted from" and passive "caused by" never enter this branch, and one
+  // predicate cannot consume a later independent predicate's delay object.
   const forwardPredicates = [
-    /\bcaus(?:e|es|ed|ing)\b(?!\s+(?:directly\s+)?by\b)[^.;()—–\r\n]{0,96}?\b(?:schedule\s+)?delay\b/giu,
-    /\bcontribut(?:e|es|ed|ing)\b[^.;()—–\r\n]{0,24}?\bto\b[^.;()—–\r\n]{0,96}?\b(?:schedule\s+)?delay\b/giu,
-    /\bresult(?:s|ed|ing)\s+in\b[^.;()—–\r\n]{0,96}?\b(?:schedule\s+)?delay\b/giu,
+    /\bcaus(?:e|es|ed|ing)\b(?!\s+(?:directly\s+)?by\b)(?:(?!\b(?:caus|contribut|result)\w*\b)[^.;()—–\r\n]){0,96}?\b(?:schedule\s+)?delay\b/giu,
+    /\bcontribut(?:e|es|ed|ing)\b(?:(?!\b(?:caus|contribut|result)\w*\b)[^.;()—–\r\n]){0,24}?\bto\b(?:(?!\b(?:caus|contribut|result)\w*\b)[^.;()—–\r\n]){0,96}?\b(?:schedule\s+)?delay\b/giu,
+    /\bresult(?:s|ed|ing)\s+in\b(?:(?!\b(?:caus|contribut|result)\w*\b)[^.;()—–\r\n]){0,96}?\b(?:schedule\s+)?delay\b/giu,
   ];
   for (const forward of forwardPredicates) {
     for (const match of unit.matchAll(forward)) {
@@ -314,11 +326,13 @@ function assertedCausalRelations(unit: string): AssertedCausalRelation[] {
       }
       const cause = localForwardCause(prefix);
       if (cause.length > 0) {
+        const predicateSurface = /^\p{L}+(?:\s+(?:directly|in|to))?/iu.exec(match[0])?.[0] ?? '';
         relations.push({
           cause,
           direction: 'cause_to_delay',
           excludedCauses: [],
-          predicateIndex: match.index,
+          predicateStart: match.index,
+          predicateEnd: match.index + predicateSurface.length,
           relationEnd: match.index + match[0].length,
         });
       }
@@ -326,18 +340,24 @@ function assertedCausalRelations(unit: string): AssertedCausalRelation[] {
   }
 
   // Reverse surface forms are accepted only when delay is the grammatical
-  // effect and the post-predicate complement is therefore the cause.
+  // effect and the post-predicate complement is therefore the cause. The
+  // lexical predicate is captured separately from the effect phrase so its
+  // governing auxiliaries remain inside the certainty window.
   const reverse =
-    /\b(?:schedule\s+)?delay\b[^.;()—–\r\n]{0,48}\b(?:result(?:s|ed|ing)\s+from|came\s+from|was\s+(?:directly\s+)?caused\s+by)\s+(.+)$/giu;
+    /\b(?:(?:schedule\s+)?delay|(?:confirm(?:s|ed|ing)?|establish(?:es|ed|ing)?|conclud(?:e|es|ed|ing)|finds?|found|report(?:s|ed|ing)?|stat(?:e|es|ed|ing))\s+that\s+it)\b[^.;()—–\r\n]{0,64}?\b(result(?:s|ed|ing)\s+from|came\s+from|caused\s+by)\s+(.+?)(?=,\s*but\b|$)/giu;
   for (const match of unit.matchAll(reverse)) {
     if (match.index == null) continue;
-    const complement = reverseCauseComplement(match[1] ?? '');
+    const predicateSurface = match[1] ?? '';
+    const predicateOffset = match[0].indexOf(predicateSurface);
+    if (predicateSurface.length === 0 || predicateOffset < 0) continue;
+    const complement = reverseCauseComplement(match[2] ?? '');
     if (complement.positiveCause.length > 0) {
       relations.push({
         cause: complement.positiveCause,
         direction: 'delay_from_cause',
         excludedCauses: complement.excludedCauses,
-        predicateIndex: match.index,
+        predicateStart: match.index + predicateOffset,
+        predicateEnd: match.index + predicateOffset + predicateSurface.length,
         relationEnd: match.index + match[0].length,
       });
     }
@@ -347,10 +367,10 @@ function assertedCausalRelations(unit: string): AssertedCausalRelation[] {
 
 function causalRelationIsNegated(unit: string, relation: AssertedCausalRelation): boolean {
   const leftContext = unit.slice(
-    Math.max(0, relation.predicateIndex - 48),
-    relation.predicateIndex,
+    Math.max(0, relation.predicateStart - 48),
+    relation.predicateStart,
   );
-  const localRelation = unit.slice(Math.max(0, relation.predicateIndex - 24), relation.relationEnd);
+  const localRelation = unit.slice(Math.max(0, relation.predicateStart - 24), relation.relationEnd);
 
   // Causal-polarity taxonomy is predicate-local:
   // 1. Incident negation is independent: "did not send, which caused delay"
@@ -397,9 +417,9 @@ function causalRelationIsNegated(unit: string, relation: AssertedCausalRelation)
 }
 
 function causalCertaintyContext(unit: string, relation: AssertedCausalRelation): string {
-  const prefix = unit.slice(0, relation.predicateIndex);
+  const prefix = unit.slice(0, relation.predicateStart);
   const independentAssertionTransition =
-    /\bbut\b|\band\s+(?:ultimately|actually|definitely|in\s+fact)\b/giu;
+    /\bbut\b|\band\b[^,.;]{0,64}\b(?:confirm(?:s|ed|ing)?|establish(?:es|ed|ing)?|conclud(?:e|es|ed|ing)|finds?|found|report(?:s|ed|ing)?|stat(?:e|es|ed|ing))\s+that\b/giu;
   let localStart = 0;
   for (const match of prefix.matchAll(independentAssertionTransition)) {
     localStart = (match.index ?? 0) + match[0].length;
@@ -418,6 +438,12 @@ type CausalCertainty =
 function causalRelationCertainty(unit: string, relation: AssertedCausalRelation): CausalCertainty {
   const context = causalCertaintyContext(unit, relation);
   const predicatePrefix = context.trimEnd();
+  const coordinatedModal =
+    /\b(can|could|may|might|would|should|must)\b[^,.;()]{0,96}\band(?:\s+(?:ultimately|actually|definitely|in\s+fact))?\s*$/iu
+      .exec(predicatePrefix)?.[1]
+      ?.toLocaleLowerCase();
+  const governingModal =
+    coordinatedModal === 'may' && !hasModalMay(context) ? undefined : coordinatedModal;
 
   // Certainty is classified for each causal predicate, never for the whole
   // interpretation:
@@ -427,28 +453,37 @@ function causalRelationCertainty(unit: string, relation: AssertedCausalRelation)
   // 4. expected/likely/predicted/projected/will describe prediction;
   // 5. should/ought/must describe normative or inferred necessity; and
   // 6. unresolved, hypothetical, or speculative wording remains uncertain.
-  // A contrastive or explicit factual transition such as "but definitely" or
-  // "and ultimately" starts a new local assertion, so an earlier modal cannot
-  // taint a later independently direct predicate.
+  //
+  // Certainty binds to the stored lexical predicate span. Emphasis does not
+  // reset modality: a shared-subject predicate after "and ultimately/actually/
+  // definitely/in fact" inherits its governing auxiliary. Only a contrastive
+  // clause or new reporting predicate creates an independent certainty context.
   if (
-    /\b(?:can|could|might)(?:\s+have)?(?:\s+(?:directly|possibly|potentially))?\s*$/iu.test(
+    ['can', 'could', 'may', 'might'].includes(governingModal ?? '') ||
+    /\b(?:can|could|might)(?:\s+have)?(?:\s+been)?(?:\s+(?:directly|possibly|potentially))?\s*$/iu.test(
       predicatePrefix,
     ) ||
     hasModalMay(context)
   ) {
     return 'modal_possibility_or_capability';
   }
-  if (/\bwould(?:\s+have)?(?:\s+(?:directly|possibly|potentially))?\s*$/iu.test(predicatePrefix)) {
+  if (
+    governingModal === 'would' ||
+    /\bwould(?:\s+have)?(?:\s+been)?(?:\s+(?:directly|possibly|potentially))?\s*$/iu.test(
+      predicatePrefix,
+    )
+  ) {
     return 'conditional';
   }
   if (
-    /\b(?:will(?:\s+have)?|(?:(?:is|are|was|were|be|been|being)\s+)?(?:expected|likely|predicted|projected|anticipated|forecast)\s+to)(?:\s+(?:directly|probably|ultimately))?\s*$/iu.test(
+    /\b(?:will(?:\s+have)?|(?:(?:is|are|was|were|be|been|being)\s+)?(?:expected|likely|predicted|projected|anticipated|forecast)(?:\s+to)?)(?:\s+(?:directly|probably|ultimately))?\s*$/iu.test(
       predicatePrefix,
     )
   ) {
     return 'predicted_or_expected';
   }
   if (
+    ['should', 'must'].includes(governingModal ?? '') ||
     /\b(?:should|must)(?:\s+have)?(?:\s+directly)?\s*$|\bought\s+to(?:\s+have)?(?:\s+directly)?\s*$/iu.test(
       predicatePrefix,
     )
