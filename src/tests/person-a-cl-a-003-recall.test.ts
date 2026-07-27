@@ -3446,6 +3446,9 @@ describe('cl_a_003 Person A recall coverage', () => {
       'Maya thinks her late delivery contributed to schedule delay.',
       'Maya suspects her late delivery resulted in schedule delay.',
       'Alex reports that Maya believes her late delivery caused schedule delay.',
+      'In Maya’s opinion, her late delivery caused schedule delay.',
+      'In Maya’s view, her late delivery contributed to schedule delay.',
+      'From Maya’s perspective, her late delivery resulted in schedule delay.',
     ])('rejects a belief-qualified causal clause: %s', (interpretation) => {
       const { narrative, modelOutput } = beliefQualifiedCandidate(interpretation);
 
@@ -3460,6 +3463,28 @@ describe('cl_a_003 Person A recall coverage', () => {
       expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
         1,
       );
+    });
+
+    it('rejects an unqualified summary that drops a noun-led source attribution', () => {
+      const sourceText = 'In Maya’s opinion, her late delivery caused schedule delay.';
+      const modelOutput = candidateFixture(sourceText, {
+        quote: sourceText,
+        event_summary: 'Maya delivered the content late.',
+        person_a_interpretation: 'Maya’s late delivery caused schedule delay.',
+      });
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, sourceText).claims).toEqual([]);
+    });
+
+    it('does not promote a noun-led source attribution even when the summary preserves it', () => {
+      const sourceText = 'In Maya’s opinion, her late delivery caused schedule delay.';
+      const modelOutput = candidateFixture(sourceText, {
+        quote: sourceText,
+        event_summary: 'In Maya’s opinion, she delivered the content late.',
+        person_a_interpretation: 'Maya’s late delivery caused schedule delay.',
+      });
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, sourceText).claims).toEqual([]);
     });
 
     it('preserves the exact frozen cl_a_003 direct causal assertion', async () => {

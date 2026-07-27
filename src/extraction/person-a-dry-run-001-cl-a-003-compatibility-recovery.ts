@@ -4,6 +4,8 @@ const NON_ASSERTED_CAUSATION =
   /\b(?:could|might|possibly|possible|perhaps|hypothetical(?:ly)?|speculat(?:e|es|ed|ing|ive)|unclear|uncertain|unknown|unresolved|ambiguous|unsure|whether|infer(?:s|red|ring)?|wonder(?:s|ed|ing)?)\b|\b(?:not|isn['’]t|wasn['’]t)\s+(?:clear|known|established|resolved)\b/iu;
 const REPORTED_BELIEF =
   /\b(?:report(?:s|ed|ing)?|describ(?:e|es|ed|ing))\b[^.]{0,96}\b(?:belief|opinion|view)\b|\b(?:believ(?:e|es|ed|ing)|think(?:s|ing)?|thought|suspect(?:s|ed|ing)?)\b[^.;()—–\r\n]{0,128}\b(?:caus|contribut|result|delay)\w*/iu;
+const NOUN_LED_BELIEF_ATTRIBUTION =
+  /\b(?:in|from)\s+[^,.;()—–\r\n]{0,48}\b(?:opinion|view|perspective)\b/iu;
 const PROBABILISTIC_CAUSATION =
   /\b(?:probabl(?:e|y)|apparently|allegedly|presumably|reportedly|seemingly|likely|unlikely|potentially)\b/iu;
 const METADATA_ONLY = /\b(?:metadata|file\s*name|filename|label|index|keyword)\b/iu;
@@ -600,7 +602,12 @@ function isDirectClientDelayInterpretation(value: unknown, event: JsonObject): v
   if (typeof value !== 'string' || value.length === 0) return false;
   return causalUnits(value, event).some((unit) => {
     const relations = assertedCausalRelations(unit);
-    if (reportsCausalDenial(unit) || REPORTED_BELIEF.test(unit) || METADATA_ONLY.test(unit)) {
+    if (
+      reportsCausalDenial(unit) ||
+      REPORTED_BELIEF.test(unit) ||
+      NOUN_LED_BELIEF_ATTRIBUTION.test(unit) ||
+      METADATA_ONLY.test(unit)
+    ) {
       return false;
     }
     // Decision order is fixed: direction was established while extracting the
@@ -740,7 +747,12 @@ function materialEpistemicQualifications(value: string): Set<MaterialEpistemicQu
   }
   add('probability_likely', /\b(?:likely|probably|probable)\b/iu);
   add('probability_unlikely', /\b(?:unlikely|improbably|improbable)\b/iu);
-  add('belief', /\b(?:think|thinks|thought|believ(?:e|es|ed|ing))\b/iu);
+  if (
+    /\b(?:think|thinks|thought|believ(?:e|es|ed|ing))\b/iu.test(value) ||
+    NOUN_LED_BELIEF_ATTRIBUTION.test(value)
+  ) {
+    qualifications.add('belief');
+  }
   add('suspicion', /\b(?:suspect|suspects|suspected|suspecting|suspicion)\b/iu);
   add('inference', /\b(?:infer|infers|inferred|inferring|inference|deduc\w*|conclud\w*)\b/iu);
   add(
@@ -918,6 +930,7 @@ function preservesDeliveryOccurrenceState(sourceText: string, eventSummary: stri
 function preservesSourceQualifications(eventSummary: string, spans: JsonObject[]): boolean {
   const sourceText = spans.map((span) => span.quote).join(' ');
   return (
+    !NOUN_LED_BELIEF_ATTRIBUTION.test(sourceText) &&
     preservesEpistemicQualifications(sourceText, eventSummary) &&
     preservesAlternativeTemporalMeaning(sourceText, eventSummary) &&
     preservesDeliveryOccurrenceState(sourceText, eventSummary)
