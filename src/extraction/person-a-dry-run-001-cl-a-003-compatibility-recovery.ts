@@ -127,6 +127,10 @@ const PROPER_SUBJECT = String.raw`\p{Lu}[\p{L}\p{N}&.'’_-]*(?:\s+\p{Lu}[\p{L}\
 const POSSESSIVE_SUBJECT_OWNER = String.raw`\p{Lu}[\p{L}\p{N}&._-]*(?:\s+\p{Lu}[\p{L}\p{N}&._-]*){0,2}`;
 const CAUSAL_REPORTING_VERB = String.raw`(?:says?|said|states?|stated|claims?|claimed|asserts?|asserted|reports|reported|reporting|tells?|telling|told|writes?|writing|wrote|notes?|noted|noting|maintains?|maintained|maintaining)`;
 const CAUSAL_REPORTING_ROLE = String.raw`(?:advisers?|advisors?|agents?|attorneys?|consultants?|counsels?|lawyers?|managers?|representatives?|spokespersons?)`;
+const CAUSAL_REPORTING_CLAUSE_BOUNDARY = new RegExp(
+  String.raw`,\s+(?:(?:${PROPER_SUBJECT})(?:['’]s)?|(?:her|his|their|our|my|your|its)\s+(?:(?:project|legal)\s+)?${CAUSAL_REPORTING_ROLE}|(?:the|an?|this|that)\s+[\p{L}\p{N}&.'’_-]+)\s+${CAUSAL_REPORTING_VERB}\b`,
+  'iu',
+);
 
 function normalizedSubjectName(value: string): string | null {
   return normalizeAssertedMeaning(value.replace(/['’]s$/u, ''));
@@ -148,8 +152,11 @@ function hasForeignCausalReportingSubject(value: string, typedPartyADisplayName:
       prefix,
     );
   };
-  const causalRemainderAfter = (end: number): string =>
-    value.slice(end).split(/[.;()—–\r\n]/u, 1)[0] ?? '';
+  const causalRemainderAfter = (end: number): string => {
+    const hardBounded = value.slice(end).split(/[.;()—–\r\n]/u, 1)[0] ?? '';
+    const nextReporter = CAUSAL_REPORTING_CLAUSE_BOUNDARY.exec(hardBounded);
+    return nextReporter?.index == null ? hardBounded : hardBounded.slice(0, nextReporter.index);
+  };
   const remainderAssertsCausation = (end: number): boolean =>
     /\b(?:caus|contribut|result|delay)\w*\b/iu.test(causalRemainderAfter(end));
   const reportingSubject = new RegExp(

@@ -3572,6 +3572,16 @@ describe('cl_a_003 Person A recall coverage', () => {
       );
     });
 
+    it('allows an independent typed Person A assertion after a non-causal plural-role report', () => {
+      const { narrative, modelOutput } = beliefQualifiedCandidate(
+        'Although her lawyers said the timeline was feasible, Alex said Maya’s late delivery caused schedule delay.',
+      );
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        1,
+      );
+    });
+
     it('rejects an unqualified summary that drops a noun-led source attribution', () => {
       const sourceText = 'In Maya’s opinion, her late delivery caused schedule delay.';
       const modelOutput = candidateFixture(sourceText, {
