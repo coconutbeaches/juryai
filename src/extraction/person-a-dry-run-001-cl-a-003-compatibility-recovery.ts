@@ -478,7 +478,7 @@ function causalRelationCertainty(unit: string, relation: AssertedCausalRelation)
     return 'conditional';
   }
   if (
-    /\b(?:will(?:\s+have)?|(?:(?:is|are|was|were|be|been|being)\s+)?(?:expected|likely|predicted|projected|anticipated|forecast)(?:\s+to)?)(?:\s+(?:directly|probably|ultimately))?\s*$/iu.test(
+    /\b(?:will(?:\s+have)?|(?:(?:is|are|was|were|be|been|being)\s+)?(?:expected|likely|predicted|projected|anticipated|forecast)(?:\s+to)?(?:\s+have)?(?:\s+been)?)(?:\s+(?:directly|probably|ultimately))?\s*$/iu.test(
       predicatePrefix,
     )
   ) {
@@ -493,10 +493,12 @@ function causalRelationCertainty(unit: string, relation: AssertedCausalRelation)
     return 'normative';
   }
   if (
-    /\b(?:probably|apparently|allegedly|presumably|reportedly|seemingly)\s*$/iu.test(
+    /\b(?:probably|apparently|allegedly|presumably|reportedly|seemingly)(?:\s+(?:directly|ultimately|actually))?\s*$/iu.test(
       predicatePrefix,
     ) ||
-    /\b(?:(?:is|are|was|were|be|been|being)\s+)?unlikely\s+to\s*$/iu.test(predicatePrefix)
+    /\b(?:(?:is|are|was|were|be|been|being)\s+)?unlikely(?:\s+to)?(?:\s+have)?(?:\s+been)?(?:\s+(?:directly|ultimately|actually))?\s*$/iu.test(
+      predicatePrefix,
+    )
   ) {
     return 'uncertain_or_speculative';
   }

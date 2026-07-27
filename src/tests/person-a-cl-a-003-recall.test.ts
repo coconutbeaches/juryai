@@ -3386,10 +3386,14 @@ describe('cl_a_003 Person A recall coverage', () => {
 
     it.each([
       'Maya’s late delivery probably caused schedule delay.',
+      'Maya’s late delivery probably directly caused schedule delay.',
       'Maya’s late delivery apparently caused schedule delay.',
+      'Maya’s late delivery apparently directly contributed to schedule delay.',
       'Maya’s late delivery allegedly caused schedule delay.',
       'Maya’s late delivery was unlikely to cause schedule delay.',
+      'Maya’s late delivery was likely to have caused schedule delay.',
       'Schedule delay probably resulted from Maya’s late delivery.',
+      'Schedule delay was likely to have resulted from Maya’s late delivery.',
     ])('rejects a probabilistic or qualified causal predicate: %s', (interpretation) => {
       const { narrative, modelOutput } = probabilisticCertaintyCandidate(interpretation);
 
