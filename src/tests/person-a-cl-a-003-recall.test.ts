@@ -3478,6 +3478,7 @@ describe('cl_a_003 Person A recall coverage', () => {
       'Maya stated her late delivery caused schedule delay.',
       'Maya claimed her late delivery caused schedule delay.',
       'Maya asserted her late delivery caused schedule delay.',
+      'In May Maya said her late delivery caused schedule delay.',
     ])('rejects a belief-qualified causal clause: %s', (interpretation) => {
       const { narrative, modelOutput } = beliefQualifiedCandidate(interpretation);
 
@@ -3488,6 +3489,17 @@ describe('cl_a_003 Person A recall coverage', () => {
       const { narrative, modelOutput } = beliefQualifiedCandidate(
         'Alex says Maya’s late delivery caused schedule delay.',
       );
+
+      expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
+        1,
+      );
+    });
+
+    it.each([
+      'In May Alex said Maya’s late delivery caused schedule delay.',
+      'During May Alex stated Maya’s late delivery caused schedule delay.',
+    ])('preserves typed Person A after a capitalized sentence prefix: %s', (interpretation) => {
+      const { narrative, modelOutput } = beliefQualifiedCandidate(interpretation);
 
       expect(applyDryRun001ClA003CompatibilityRecovery(modelOutput, narrative).claims).toHaveLength(
         1,

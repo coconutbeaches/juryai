@@ -136,7 +136,11 @@ function hasForeignCausalReportingSubject(value: string, typedPartyADisplayName:
       : null;
   const isTypedPartyA = (subject: string): boolean => {
     const reportingName = normalizedSubjectName(subject);
-    return typedPartyA != null && reportingName != null && reportingName === typedPartyA;
+    return (
+      typedPartyA != null &&
+      reportingName != null &&
+      (reportingName === typedPartyA || reportingName.endsWith(` ${typedPartyA}`))
+    );
   };
   const causalRemainderAfter = (end: number): string =>
     value.slice(end).split(/[.;()—–\r\n]/u, 1)[0] ?? '';
