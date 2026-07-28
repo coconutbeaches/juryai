@@ -250,6 +250,9 @@ describe('Person A completion-state compatibility', () => {
     expect(projectedStatus('The booking page is complete. Not all pages are complete.')).toBe(
       'complete',
     );
+    expect(projectedStatus('The booking page is complete. All other pages are incomplete.')).toBe(
+      'complete',
+    );
   });
 
   it.each([
@@ -356,6 +359,13 @@ describe('Person A completion-state compatibility', () => {
   });
 
   it.each([
+    "I don't doubt that the booking page is complete.",
+    'I did not question whether the booking page was complete.',
+  ])('preserves completion under negated uncertainty: %s', (narrative) => {
+    expect(projectedStatus(narrative)).toBe('complete');
+  });
+
+  it.each([
     ['Completion of the booking page is scheduled for next week.', 'unknown'],
     ['I am completing the booking page.', 'partially_complete'],
   ])('does not treat future or in-progress work as complete: %s', (narrative, expected) => {
@@ -389,6 +399,12 @@ describe('Person A completion-state compatibility', () => {
         .completion_status_person_a,
     ).toBe('complete');
     expect(fixture).toEqual(before);
+  });
+
+  it("does not apply another deliverable's completion state to the target", () => {
+    expect(projectedStatus('The booking page was in scope. The homepage was incomplete.')).toBe(
+      'complete',
+    );
   });
 
   it('rejects exact-looking source spans with an oversized end offset', () => {

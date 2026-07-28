@@ -65,13 +65,33 @@ function isCoreferentialCompletionContinuation(clause: string): boolean {
   );
 }
 
-function isAggregateCompletionClause(clause: string): boolean {
-  if (/\bnot\s+(?:all|each|every)\b/iu.test(clause)) return false;
+function isAnyAggregateCompletionClause(clause: string): boolean {
   return (
     hasCompletionLanguage(clause) &&
     /\b(?:all|each|entire|every|whole|no|none\s+of\s+the)\b[^.;]{0,48}\b(?:deliverables?|pages?|project|site|website)\b/iu.test(
       clause,
     )
+  );
+}
+
+function isAggregateCompletionClause(clause: string): boolean {
+  return (
+    isAnyAggregateCompletionClause(clause) &&
+    !/\bnot\s+(?:all|each|every)\b/iu.test(clause) &&
+    !/\b(?:all|each|every|no|none\s+of\s+the)\s+other\b/iu.test(clause)
+  );
+}
+
+function namesSpecificPageDeliverable(clause: string): boolean {
+  return /\b(?:homepage|home\s+page|about\s+page|services?\s+page|contact\s+page|booking\s+page)\b/iu.test(
+    clause,
+  );
+}
+
+function isProjectLevelProvisionalCompletionClause(clause: string): boolean {
+  return (
+    hasCompletionLanguage(clause) &&
+    /\b(?:staging(?:\s+version)?|draft|prototype|mock[- ]?up|preview|beta)\b/iu.test(clause)
   );
 }
 
@@ -105,7 +125,19 @@ function scopedCompletionText(deliverableName: string, quotes: string[]): string
     return [{ index: scopedIndex, text: scopedClause }];
   });
   const lastNamed = namedCompletionClauses[namedCompletionClauses.length - 1];
-  if (lastNamed === undefined) return clauses.join(' ');
+  if (lastNamed === undefined) {
+    const targetIsInScope = clauses.some((clause) => namePattern.test(clause));
+    const applicableFallbacks = clauses.filter(
+      (clause) =>
+        namePattern.test(clause) ||
+        isAnyAggregateCompletionClause(clause) ||
+        (targetIsInScope &&
+          (isProjectLevelProvisionalCompletionClause(clause) ||
+            isCoreferentialCompletionContinuation(clause))) ||
+        (!targetIsInScope && !namesSpecificPageDeliverable(clause)),
+    );
+    return applicableFallbacks[applicableFallbacks.length - 1] ?? '';
+  }
   const laterAggregate = clauses.flatMap((clause, index) =>
     index > lastNamed.index && isAggregateCompletionClause(clause) ? [{ index, text: clause }] : [],
   );
@@ -114,7 +146,7 @@ function scopedCompletionText(deliverableName: string, quotes: string[]): string
 
 function removeNegatedReportingPrefixes(text: string): string {
   return text.replace(
-    /\b(?:did\s+not|didn't|do\s+not|don't|does\s+not|doesn't|never)\s+(?:(?:actually|explicitly|necessarily|really)\s+)?(?:deny|dispute|contest)\s+(?:that\s+)?/giu,
+    /\b(?:did\s+not|didn't|do\s+not|don't|does\s+not|doesn't|never)\s+(?:(?:actually|explicitly|necessarily|really)\s+)?(?:deny|dispute|contest|doubt|question)\s+(?:(?:that|whether|if)\s+)?/giu,
     '',
   );
 }
