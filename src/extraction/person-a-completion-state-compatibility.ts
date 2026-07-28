@@ -108,9 +108,13 @@ function isProjectLevelProvisionalCompletionClause(clause: string): boolean {
   );
 }
 
+function hasProvisionalStateLanguage(text: string): boolean {
+  return /\b(?:beta|draft|mock[- ]?up|preview|prototype|staging(?:\s+version)?)\b/iu.test(text);
+}
+
 function splitCompletionClauses(quote: string): string[] {
   const contrastClauses = quote.split(
-    /[.!?;\r\n]+|\s+(?:although|but|while)\s+|,\s+(?:currently|later|now|subsequently|today)\s+|,\s+(?=(?:it|this)\s+(?:is|was|has|had|will|would|can|could|may|might|became|becomes|remained|remains)\b)/iu,
+    /[.!?;\r\n]+|\s+(?:although|but|however|while)\s+|,\s+(?:currently|later|now|subsequently|today)\s+|,\s+(?=(?:it|this)\s+(?:is|was|has|had|will|would|can|could|may|might|became|becomes|remained|remains)\b)/iu,
   );
   return contrastClauses.flatMap((contrastClause) => {
     const coordinatedParts = contrastClause.split(/\s+and\s+/iu);
@@ -186,7 +190,11 @@ function scopedCompletionText(deliverableName: string, quotes: string[]): string
     return applicableFallbacks[applicableFallbacks.length - 1] ?? '';
   }
   const laterAggregate = clauses.flatMap((clause, index) =>
-    index > lastNamed.index && isAggregateCompletionClause(clause) ? [{ index, text: clause }] : [],
+    index > lastNamed.index &&
+    isAggregateCompletionClause(clause) &&
+    !isThirdPartyAttributedCompletionClause(clause)
+      ? [{ index, text: clause }]
+      : [],
   );
   return laterAggregate[laterAggregate.length - 1]?.text ?? lastNamed.text;
 }
@@ -216,6 +224,23 @@ function sourceSupportedStatus(
 
   if (/\b(?:not\s+started|never\s+started|work\s+had\s+not\s+begun)\b/iu.test(text)) {
     return 'not_complete';
+  }
+
+  if (
+    hasProvisionalStateLanguage(text) &&
+    /\b(?:dispute|disputes|disputed|disputing|contest|contests|contested|contesting)\b/iu.test(text)
+  ) {
+    return 'disputed';
+  }
+
+  if (
+    hasProvisionalStateLanguage(text) &&
+    (/\b(?:am|is|are|was|were)\s+not\s+sure\b/iu.test(text) ||
+      /\b(?:doubt|doubts|doubted|doubting|question|questions|questioned|questioning|unsure|uncertain)\b/iu.test(
+        text,
+      ))
+  ) {
+    return 'unknown';
   }
 
   if (

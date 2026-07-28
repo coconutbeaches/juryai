@@ -367,6 +367,10 @@ describe('Person A completion-state compatibility', () => {
     ['The booking page and the shopping cart page are complete.', 'complete'],
     ["I didn't complete the booking page until Friday.", 'complete'],
     ['The booking page is still a draft.', 'substantially_complete'],
+    ['The booking page is complete. The client says no pages are complete.', 'complete'],
+    ['I am not sure whether the booking page is still a draft.', 'unknown'],
+    ['I dispute that the booking page is still a draft.', 'disputed'],
+    ['The booking page was incomplete yesterday, however it is complete now.', 'complete'],
   ])('handles scoped completion polarity: %s', (narrative, expected) => {
     expect(projectedStatus(narrative)).toBe(expected);
   });
