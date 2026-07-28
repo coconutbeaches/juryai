@@ -265,6 +265,43 @@ describe('Person A completion-state compatibility', () => {
     },
   );
 
+  it('orders linked completion evidence by exact narrative position', () => {
+    const earlier = 'The booking page was incomplete yesterday.';
+    const later = 'I completed the booking page today.';
+    const narrative = `${earlier} ${later}`;
+    const fixture = providerFixture(narrative);
+    fixture.deliverable_assessments[0].source_claim_ids = ['claim_later', 'claim_earlier'];
+    fixture.claims = [
+      {
+        claim_id: 'claim_later',
+        source_spans: [
+          {
+            submission_id: 'submission_test',
+            quote: later,
+            start_char: earlier.length + 1,
+            end_char: narrative.length,
+          },
+        ],
+      },
+      {
+        claim_id: 'claim_earlier',
+        source_spans: [
+          {
+            submission_id: 'submission_test',
+            quote: earlier,
+            start_char: 0,
+            end_char: earlier.length,
+          },
+        ],
+      },
+    ];
+
+    expect(
+      applyPersonACompletionStateCompatibility(fixture, narrative).deliverable_assessments[0]
+        .completion_status_person_a,
+    ).toBe('complete');
+  });
+
   it.each([
     'I completed the booking page.',
     'The booking page is complete and I delivered it.',

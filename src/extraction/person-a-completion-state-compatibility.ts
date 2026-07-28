@@ -8,11 +8,16 @@ type CompletionStatus =
   | 'disputed'
   | 'unknown';
 
+type ExactSourceQuote = {
+  quote: string;
+  startChar: number;
+};
+
 function isJsonObject(value: unknown): value is JsonObject {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
-function exactSourceQuotes(value: unknown, narrative: string): string[] {
+function exactSourceQuotes(value: unknown, narrative: string): ExactSourceQuote[] {
   if (!isJsonObject(value) || !Array.isArray(value.source_spans)) return [];
   return value.source_spans.flatMap((span: unknown) => {
     if (
@@ -26,7 +31,7 @@ function exactSourceQuotes(value: unknown, narrative: string): string[] {
     ) {
       return [];
     }
-    return [span.quote];
+    return [{ quote: span.quote, startChar: span.start_char }];
   });
 }
 
@@ -84,14 +89,16 @@ function removeNegatedReportingPrefixes(text: string): string {
 
 function sourceSupportedStatus(
   deliverableName: unknown,
-  quotes: string[],
+  quotes: ExactSourceQuote[],
 ): CompletionStatus | null {
   if (quotes.length === 0) return null;
   const normalizedName =
     typeof deliverableName === 'string'
       ? deliverableName.trim().replace(/\s+/gu, ' ').toLocaleLowerCase()
       : '';
-  const normalizedQuotes = quotes.map((quote) => quote.replace(/[’‘]/gu, "'").toLocaleLowerCase());
+  const normalizedQuotes = [...quotes]
+    .sort((left, right) => left.startChar - right.startChar)
+    .map(({ quote }) => quote.replace(/[’‘]/gu, "'").toLocaleLowerCase());
   const text = removeNegatedReportingPrefixes(
     scopedCompletionText(normalizedName, normalizedQuotes),
   );
