@@ -195,10 +195,13 @@ function namesSpecificPageDeliverable(clause: string): boolean {
 
 function isThirdPartyAttributedCompletionClause(clause: string): boolean {
   return (
+    /^(?:i|we)\s+(?:(?:had|has|have)\s+been|was|were)\s+(?:advised|informed|notified|told)\b/iu.test(
+      clause,
+    ) ||
     /^(?:according\s+to|per)\s+(?!me\b|mine\b|my\b|our\b|ours\b|us\b)[^,.;]{1,64}[,:]?\s+/iu.test(
       clause,
     ) ||
-    /^(?:the\s+)?(?!i\b|we\b)[\p{L}\p{N}'’-]+(?:\s+[\p{L}\p{N}'’-]+){0,3}\s+(?:believes?|claims?|considers?|contests?|denies?|disputes?|doubts?|maintains?|questions?|reports?|says?|said|states?|stated|tells?|thinks?|told)\b/iu.test(
+    /^(?:the\s+)?(?!i\b|we\b)[\p{L}\p{N}'’-]+(?:\s+[\p{L}\p{N}'’-]+){0,3}\s+(?:advises?|advised|believes?|claims?|considers?|contests?|denies?|disputes?|doubts?|informs?|informed|maintains?|notifies?|notified|questions?|reports?|says?|said|states?|stated|tells?|thinks?|told)\b/iu.test(
       clause,
     ) ||
     /(?:,|—|-)\s*(?:according\s+to|per)\s+(?!me\b|mine\b|my\b|our\b|ours\b|us\b)/iu.test(clause)
@@ -271,7 +274,18 @@ function scopedCompletionText(deliverableName: string, quotes: string[]): string
     }
     return [{ index: scopedIndex, text: scopedClause }];
   });
-  const lastNamed = namedCompletionClauses[namedCompletionClauses.length - 1];
+  const lastNamed = namedCompletionClauses.reduce<{ index: number; text: string } | undefined>(
+    (selected, candidate) => {
+      if (
+        selected === undefined ||
+        completionTemporalPriority(candidate.text) >= completionTemporalPriority(selected.text)
+      ) {
+        return candidate;
+      }
+      return selected;
+    },
+    undefined,
+  );
   if (lastNamed === undefined) {
     const targetIsInScope = clauses.some((clause) =>
       namesTargetDeliverable(clause, deliverableName),
