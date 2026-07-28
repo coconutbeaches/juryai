@@ -41,6 +41,36 @@ function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
 }
 
+function namesTargetDeliverable(clause: string, deliverableName: string): boolean {
+  if (deliverableName.length === 0) return false;
+  const pattern = new RegExp(`\\b${escapeRegex(deliverableName)}\\b`, 'giu');
+  const allowedPrecedingWords = new Set([
+    'a',
+    'an',
+    'about',
+    'completed',
+    'delivered',
+    'finalised',
+    'finalized',
+    'finished',
+    'for',
+    'my',
+    'on',
+    'our',
+    'regarding',
+    'that',
+    'the',
+    'their',
+    'this',
+  ]);
+  for (const match of clause.matchAll(pattern)) {
+    const prefix = clause.slice(0, match.index);
+    const precedingWord = prefix.match(/([\p{L}\p{N}'’-]+)\s+$/u)?.[1]?.toLocaleLowerCase();
+    if (precedingWord === undefined || allowedPrecedingWords.has(precedingWord)) return true;
+  }
+  return false;
+}
+
 function hasCompletionLanguage(text: string): boolean {
   return /\b(?:complet(?:e|ed|ing|ion)|incomplete|done|finish(?:ed|ing)?|unfinished|finali[sz](?:e|ed|ing)|deliver(?:ed|ing|y)?)\b/iu.test(
     text,
@@ -140,10 +170,9 @@ function scopedCompletionText(deliverableName: string, quotes: string[]): string
       .filter((clause) => clause.length > 0),
   );
   if (deliverableName.length === 0) return clauses.join(' ');
-  const namePattern = new RegExp(`\\b${escapeRegex(deliverableName)}\\b`, 'iu');
   const namedCompletionClauses = clauses.flatMap((clause, index) => {
     if (
-      !namePattern.test(clause) ||
+      !namesTargetDeliverable(clause, deliverableName) ||
       !hasCompletionLanguage(clause) ||
       isThirdPartyAttributedCompletionClause(clause)
     ) {
@@ -155,7 +184,7 @@ function scopedCompletionText(deliverableName: string, quotes: string[]): string
       const nextClause = clauses[next];
       if (
         nextClause === undefined ||
-        namePattern.test(nextClause) ||
+        namesTargetDeliverable(nextClause, deliverableName) ||
         !isCoreferentialCompletionContinuation(nextClause)
       ) {
         break;
@@ -167,10 +196,17 @@ function scopedCompletionText(deliverableName: string, quotes: string[]): string
   });
   const lastNamed = namedCompletionClauses[namedCompletionClauses.length - 1];
   if (lastNamed === undefined) {
-    const targetIsInScope = clauses.some((clause) => namePattern.test(clause));
+    const targetIsInScope = clauses.some((clause) =>
+      namesTargetDeliverable(clause, deliverableName),
+    );
     const applicableFallbacks = clauses.flatMap((clause) => {
       if (isThirdPartyAttributedCompletionClause(clause)) return [];
-      if (namePattern.test(clause) || isAnyAggregateCompletionClause(clause)) return [clause];
+      if (
+        namesTargetDeliverable(clause, deliverableName) ||
+        isAnyAggregateCompletionClause(clause)
+      ) {
+        return [clause];
+      }
       if (
         targetIsInScope &&
         isCoreferentialCompletionContinuation(clause) &&
@@ -333,6 +369,9 @@ function sourceSupportedStatus(
   if (
     /\b(?:did\s+not|didn't)\s+(?:complete|finish|deliver|finali[sz]e)\b[^.;]{0,64}\buntil\b/iu.test(
       text,
+    ) ||
+    /\b(?:(?:was|were)\s+not|wasn't|weren't)\s+(?:completed|delivered|finali[sz]ed|finished)\b[^.;]{0,64}\buntil\b/iu.test(
+      text,
     )
   ) {
     return 'complete';
@@ -428,9 +467,7 @@ function sourceSupportedStatus(
     return 'unknown';
   }
 
-  const namesSpecificDeliverable =
-    normalizedName.length > 0 &&
-    new RegExp(`\\b${escapeRegex(normalizedName)}\\b`, 'iu').test(text);
+  const namesSpecificDeliverable = namesTargetDeliverable(text, normalizedName);
   const namesAggregate =
     /\b(?:all|each|entire|every|whole)\b[^.;]{0,32}\b(?:deliverables?|pages?|project|site|website)\b|\b(?:entire|whole)\s+(?:project|site|website)\b/iu.test(
       text,
@@ -440,7 +477,7 @@ function sourceSupportedStatus(
   const hasAffirmativeCompletedState =
     (namesSpecificDeliverable &&
       (new RegExp(
-        `${targetName}[^.;]{0,16}\\b(?:is|are|was|were|remains?)\\s+(?:fully\\s+)?(?:complete|completed|done|finished)\\b`,
+        `${targetName}[^.;]{0,16}\\b(?:is|are|was|were|remains?)\\s+(?:fully\\s+)?(?:complete|completed|delivered|done|finali[sz]ed|finished)\\b`,
         'iu',
       ).test(text) ||
         new RegExp(
