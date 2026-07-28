@@ -640,6 +640,6 @@ describe('Dry Run 001 frozen live-evaluation contract', () => {
           error.severity === 'critical',
       ),
     ).toBeTruthy();
-    expect(report.summary).toMatchObject({ critical: 1, major: 45, minor: 20 });
+    expect(report.summary).toMatchObject({ critical: 1, major: 44, minor: 20 });
   });
 });

@@ -208,7 +208,7 @@ describe('cl_a_003 Person A recall coverage', () => {
     expect(PERSON_A_EXTRACTOR_VERSION).toBe('person-a-v0.1.4');
 
     const historicalReport = evaluate(historicalExtraction, golden, narrative);
-    expect(historicalReport.summary).toMatchObject({ critical: 1, major: 45, minor: 20 });
+    expect(historicalReport.summary).toMatchObject({ critical: 1, major: 44, minor: 20 });
     expect(historicalReport.errors.find((error) => error.golden_id === 'cl_a_003')).toMatchObject({
       severity: 'critical',
       family: 'claims',
@@ -216,7 +216,7 @@ describe('cl_a_003 Person A recall coverage', () => {
     });
 
     const correctedReport = evaluate(corrected, golden, narrative);
-    expect(correctedReport.summary).toMatchObject({ critical: 0, major: 45, minor: 20 });
+    expect(correctedReport.summary).toMatchObject({ critical: 0, major: 44, minor: 20 });
     expect(correctedReport.errors.some((error) => error.golden_id === 'cl_a_003')).toBe(false);
     expect(correctedReport.errors.some((error) => error.golden_id === 'cl_a_013')).toBe(true);
   });
@@ -3162,7 +3162,7 @@ describe('cl_a_003 Person A recall coverage', () => {
       expect(modelOutput.claims).toBeNull();
     });
 
-    it('still projects the valid frozen provider object to the corrected 0/45/20 result', async () => {
+    it('still projects the valid frozen provider object to the corrected 0/44/20 result', async () => {
       const { narrative, golden, modelOutput } = await frozenInputs();
 
       const projected = assembleDryRun001ClA003CompatibilityProjection(modelOutput, {
@@ -3174,7 +3174,7 @@ describe('cl_a_003 Person A recall coverage', () => {
 
       expect(evaluate(projected, golden, narrative).summary).toMatchObject({
         critical: 0,
-        major: 45,
+        major: 44,
         minor: 20,
       });
     });

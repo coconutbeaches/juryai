@@ -1,3 +1,4 @@
+import { types as utilTypes } from 'node:util';
 import {
   evaluatePersonAForCase as evaluateBase,
   reportMarkdown,
@@ -18,6 +19,216 @@ import {
 import type { EvidenceRecallDiagnostics } from './person-a-diff.js';
 
 type JsonObject = Record<string, any>;
+
+type ExactSourceSpan = {
+  submissionId: string;
+  quote: string;
+  startChar: number;
+  endChar: number;
+};
+
+const supportedUsdLiteral = /\$(0|[1-9]\d{0,2}(?:,\d{3})+|[1-9]\d{0,2})(?![\d,]|\.\d)/gu;
+const unsupportedCurrencyMarker = /(?:USD|EUR|GBP|THB)\b|[€£¥฿₹]/iu;
+const declarativeTotalPriceShape =
+  /^(?:for <amount>|the (?:stated )?(?:total )?(?:project )?price (?:was|is) <amount>)\.?$/iu;
+
+function plainDataObject(value: unknown): JsonObject | null {
+  if (value === null || typeof value !== 'object') return null;
+  if (utilTypes.isProxy(value)) return null;
+  if (Array.isArray(value)) return null;
+  try {
+    if (Object.getPrototypeOf(value) !== Object.prototype) return null;
+    for (const key of Reflect.ownKeys(value)) {
+      if (typeof key === 'symbol') return null;
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      if (descriptor === undefined || !descriptor.enumerable || !('value' in descriptor)) {
+        return null;
+      }
+    }
+    return value as JsonObject;
+  } catch {
+    return null;
+  }
+}
+
+function ownDataValue(record: JsonObject, key: string): unknown {
+  const descriptor = Object.getOwnPropertyDescriptor(record, key);
+  return descriptor !== undefined && 'value' in descriptor ? descriptor.value : undefined;
+}
+
+function denseDataArray(value: unknown): unknown[] | null {
+  if (value === null || typeof value !== 'object' || utilTypes.isProxy(value)) return null;
+  if (!Array.isArray(value)) return null;
+  try {
+    if (Object.getPrototypeOf(value) !== Array.prototype) return null;
+    const expectedKeys = new Set(['length']);
+    for (let index = 0; index < value.length; index += 1) expectedKeys.add(String(index));
+    const keys = Reflect.ownKeys(value);
+    if (
+      keys.some((key) => typeof key !== 'string' || !expectedKeys.has(key)) ||
+      keys.length !== expectedKeys.size
+    ) {
+      return null;
+    }
+    const entries: unknown[] = [];
+    for (let index = 0; index < value.length; index += 1) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+      if (descriptor === undefined || !descriptor.enumerable || !('value' in descriptor)) {
+        return null;
+      }
+      entries.push(descriptor.value);
+    }
+    return entries;
+  } catch {
+    return null;
+  }
+}
+
+function supportedUsdMinorUnits(value: unknown): bigint | null {
+  if (typeof value !== 'string' || unsupportedCurrencyMarker.test(value)) return null;
+  const matches = [...value.matchAll(supportedUsdLiteral)];
+  if (matches.length !== 1) return null;
+  const wholeDigits = matches[0]![1]!.replaceAll(',', '');
+  if (wholeDigits.length > 15) return null;
+  try {
+    return BigInt(wholeDigits) * 100n;
+  } catch {
+    return null;
+  }
+}
+
+function declarativeTotalPrice(value: unknown): bigint | null {
+  const minorUnits = supportedUsdMinorUnits(value);
+  if (minorUnits === null || typeof value !== 'string') return null;
+  const shape = value.replace(supportedUsdLiteral, '<amount>');
+  return declarativeTotalPriceShape.test(shape) ? minorUnits : null;
+}
+
+function exactSourceSpans(record: JsonObject, narrative: string): ExactSourceSpan[] | null {
+  const rawSpans = denseDataArray(ownDataValue(record, 'source_spans'));
+  if (rawSpans === null || rawSpans.length === 0) return null;
+  const spans: ExactSourceSpan[] = [];
+  for (const rawSpan of rawSpans) {
+    const span = plainDataObject(rawSpan);
+    if (span === null) return null;
+    const submissionId = ownDataValue(span, 'submission_id');
+    const quote = ownDataValue(span, 'quote');
+    const startChar = ownDataValue(span, 'start_char');
+    const endChar = ownDataValue(span, 'end_char');
+    if (
+      typeof submissionId !== 'string' ||
+      submissionId.length === 0 ||
+      typeof quote !== 'string' ||
+      quote.length === 0 ||
+      !Number.isInteger(startChar) ||
+      !Number.isInteger(endChar) ||
+      (startChar as number) < 0 ||
+      (endChar as number) <= (startChar as number) ||
+      (endChar as number) > narrative.length ||
+      (endChar as number) - (startChar as number) !== quote.length ||
+      narrative.slice(startChar as number, endChar as number) !== quote
+    ) {
+      return null;
+    }
+    spans.push({
+      submissionId,
+      quote,
+      startChar: startChar as number,
+      endChar: endChar as number,
+    });
+  }
+  return spans;
+}
+
+function spansProveContainedPrice(
+  extractedSpans: ExactSourceSpan[],
+  goldenSpans: ExactSourceSpan[],
+  minorUnits: bigint,
+): boolean {
+  return extractedSpans.some((extractedSpan) => {
+    if (supportedUsdMinorUnits(extractedSpan.quote) !== minorUnits) return false;
+    return goldenSpans.some((goldenSpan) => {
+      if (supportedUsdMinorUnits(goldenSpan.quote) !== minorUnits) return false;
+      return (
+        (extractedSpan.startChar <= goldenSpan.startChar &&
+          extractedSpan.endChar >= goldenSpan.endChar) ||
+        (goldenSpan.startChar <= extractedSpan.startChar &&
+          goldenSpan.endChar >= extractedSpan.endChar)
+      );
+    });
+  });
+}
+
+export function isExactContainedPriceTermWordingDiagnostic(
+  diagnosticValue: unknown,
+  extractedValue: unknown,
+  goldenValue: unknown,
+  narrative: unknown,
+  contractVersion: PersonAAlignmentOptions['contractVersion'],
+): boolean {
+  if (contractVersion !== 'calibrated_live_v2' || typeof narrative !== 'string') return false;
+  const diagnostic = plainDataObject(diagnosticValue);
+  const extracted = plainDataObject(extractedValue);
+  const golden = plainDataObject(goldenValue);
+  if (diagnostic === null || extracted === null || golden === null) return false;
+  if (
+    ownDataValue(diagnostic, 'severity') !== 'major' ||
+    ownDataValue(diagnostic, 'family') !== 'agreement_terms' ||
+    ownDataValue(diagnostic, 'code') !== 'term_wording' ||
+    ownDataValue(extracted, 'term_type') !== 'price' ||
+    ownDataValue(golden, 'term_type') !== 'price'
+  ) {
+    return false;
+  }
+
+  const extractedPrice = declarativeTotalPrice(ownDataValue(extracted, 'wording'));
+  const goldenPrice = declarativeTotalPrice(ownDataValue(golden, 'wording'));
+  if (extractedPrice === null || goldenPrice === null || extractedPrice !== goldenPrice) {
+    return false;
+  }
+  const extractedSpans = exactSourceSpans(extracted, narrative);
+  const goldenSpans = exactSourceSpans(golden, narrative);
+  return (
+    extractedSpans !== null &&
+    goldenSpans !== null &&
+    spansProveContainedPrice(extractedSpans, goldenSpans, extractedPrice)
+  );
+}
+
+function suppressExactContainedPriceTermWordingDiagnostics(
+  report: PersonAEvaluationReport,
+  extracted: JsonObject,
+  golden: JsonObject,
+  alignment: PersonAAlignment,
+  narrative: string,
+  contractVersion: PersonAAlignmentOptions['contractVersion'],
+): void {
+  const extractedTerms = familyItems(extracted, 'agreement_terms');
+  const goldenTerms = familyItems(golden, 'agreement_terms');
+  report.errors = report.errors.filter((diagnostic) => {
+    if (
+      diagnostic.family !== 'agreement_terms' ||
+      diagnostic.code !== 'term_wording' ||
+      typeof diagnostic.extracted_id !== 'string' ||
+      typeof diagnostic.golden_id !== 'string'
+    ) {
+      return true;
+    }
+    const pairs = alignment.families.agreement_terms.pairs.filter(
+      (pair) =>
+        pair.extracted_id === diagnostic.extracted_id && pair.golden_id === diagnostic.golden_id,
+    );
+    if (pairs.length !== 1) return true;
+    const pair = pairs[0]!;
+    return !isExactContainedPriceTermWordingDiagnostic(
+      diagnostic,
+      extractedTerms[pair.extracted_index],
+      goldenTerms[pair.golden_index],
+      narrative,
+      contractVersion,
+    );
+  });
+}
 
 const agreementTermFunctionWords = new Set([
   'a',
@@ -668,6 +879,16 @@ export function evaluatePersonAForCase(
         ),
     );
     report.evidence_recall = evidenceRecall;
+    if (typeof narrative === 'string') {
+      suppressExactContainedPriceTermWordingDiagnostics(
+        report,
+        extracted,
+        golden,
+        alignment,
+        narrative,
+        options.contractVersion,
+      );
+    }
   }
   compareEvidenceExtractAuthors(extracted, golden, alignment, report, aliases);
 

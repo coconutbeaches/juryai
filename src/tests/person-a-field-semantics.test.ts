@@ -8,8 +8,10 @@ import {
 } from '../alignment/person-a-alignment-corrected.js';
 import {
   evaluatePersonAForCase,
+  isExactContainedPriceTermWordingDiagnostic,
   type PersonAEvaluationReport,
 } from '../evaluation/person-a-diff-corrected.js';
+import { evaluatePersonAForCase as evaluateBasePersonAForCase } from '../evaluation/person-a-diff.js';
 import {
   personAExtractionSchema,
   buildOpenAIResponseSchema,
@@ -177,6 +179,68 @@ function evaluate(candidate: JsonObject, golden: JsonObject): PersonAEvaluationR
   return evaluatePersonAForCase(candidate, golden, alignment, options);
 }
 
+function exactPriceCase() {
+  const narrative = readFileSync(resolve(fixturesDir, 'dry_run_001.person_a.txt'), 'utf8');
+  const candidate = syntheticGolden();
+  const golden = clone(candidate);
+  const extractedTerm = {
+    term_id: 'term_07_price',
+    term_type: 'price',
+    wording: 'The stated project price was $2,400.',
+    wording_status: 'not_inspected',
+    interpretation_status: 'unclear',
+    person_a_interpretation: null,
+    person_b_interpretation: null,
+    source_evidence_ids: ['ev_01_signed_agreement'],
+    materiality: 'high',
+    source_spans: [
+      {
+        submission_id: 'sub_a_extracted',
+        quote:
+          'In early April I agreed to build a five-page marketing website for Maya Chen’s consulting business for $2,400.',
+        start_char: 57,
+        end_char: 167,
+      },
+    ],
+  };
+  const goldenTerm = {
+    term_id: 'term_price',
+    term_type: 'price',
+    wording: 'for $2,400.',
+    wording_status: 'not_inspected',
+    interpretation_status: 'not_applicable',
+    person_a_interpretation: null,
+    person_b_interpretation: null,
+    source_evidence_ids: ['ev_001', 'ev_002'],
+    materiality: 'high',
+    source_spans: [
+      {
+        submission_id: 'sub_a_001',
+        quote: 'for $2,400.',
+        start_char: 156,
+        end_char: 167,
+      },
+    ],
+  };
+  candidate.agreement.terms = [extractedTerm];
+  golden.agreement.terms = [goldenTerm];
+  return {
+    candidate,
+    golden,
+    narrative,
+    extractedTerm,
+    goldenTerm,
+    diagnostic: {
+      severity: 'major',
+      family: 'agreement_terms',
+      code: 'term_wording',
+      message: 'Agreement-term wording differs materially.',
+      extracted_id: 'term_07_price',
+      golden_id: 'term_price',
+    },
+  };
+}
+
 function errors(report: PersonAEvaluationReport, code: string, family?: string) {
   return report.errors.filter((e) => e.code === code && (family ? e.family === family : true));
 }
@@ -188,6 +252,280 @@ describe('Person A judgment-field and epistemic contract (v0.1.4)', () => {
     expect(report.summary.critical).toBe(0);
     expect(report.summary.major).toBe(0);
     expect(report.summary.minor).toBe(0);
+  });
+
+  describe('calibrated exact-price agreement-term wording equivalence', () => {
+    it('removes only the proven exact-contained $2,400 wording diagnostic', () => {
+      const { candidate, golden, narrative, diagnostic } = exactPriceCase();
+      const options = { aliases: {}, narrative, contractVersion: 'calibrated_live_v2' as const };
+      const alignment = alignPersonAForCase(candidate, golden, options);
+      const before = evaluateBasePersonAForCase(candidate, golden, alignment, options);
+      const after = evaluatePersonAForCase(candidate, golden, alignment, options);
+      const target = before.errors.find(
+        (error) =>
+          error.family === 'agreement_terms' &&
+          error.code === 'term_wording' &&
+          error.extracted_id === 'term_07_price' &&
+          error.golden_id === 'term_price',
+      );
+
+      expect(target).toEqual(diagnostic);
+      expect(after.errors).toEqual(before.errors.filter((error) => error !== target));
+      expect(after.errors).not.toContainEqual(diagnostic);
+      expect(after.summary).toMatchObject({ critical: 0, major: 0, minor: 0 });
+      expect(alignment.families.agreement_terms.pairs).toContainEqual(
+        expect.objectContaining({
+          extracted_id: 'term_07_price',
+          golden_id: 'term_price',
+        }),
+      );
+    });
+
+    it('directly proves the exact structural predicate without record identities', () => {
+      const { narrative, extractedTerm, goldenTerm, diagnostic } = exactPriceCase();
+      const generatedExtracted = { ...clone(extractedTerm), term_id: 'generated_price_a' };
+      const generatedGolden = { ...clone(goldenTerm), term_id: 'generated_price_b' };
+      expect(
+        isExactContainedPriceTermWordingDiagnostic(
+          diagnostic,
+          generatedExtracted,
+          generatedGolden,
+          narrative,
+          'calibrated_live_v2',
+        ),
+      ).toBe(true);
+    });
+
+    it.each([
+      ['different amount', 'The stated project price was $2,500.'],
+      ['deposit semantics', 'A $2,400 deposit was required.'],
+      ['balance semantics', 'The remaining balance was $2,400.'],
+      ['conditional payment', '$2,400 was payable if the site launched.'],
+      ['installment semantics', '$2,400 was payable in installments.'],
+      ['partial-payment semantics', '$2,400 was a partial payment.'],
+      ['multiple amounts', '$1,200 upfront and $1,200 on completion.'],
+      ['mismatched currency', 'The stated project price was €2,400.'],
+      ['unsupported decimal format', 'The stated project price was $2,400.00.'],
+      ['refund semantics', 'A $2,400 refund was available.'],
+      ['discount semantics', 'The discounted project price was $2,400.'],
+      ['credit semantics', 'A $2,400 credit was available.'],
+      ['penalty semantics', 'A $2,400 penalty applied.'],
+      ['negation', 'The stated project price was not $2,400.'],
+      ['price range', 'The project price was $2,400–$2,500.'],
+      ['minimum amount', 'The project price was at least $2,400.'],
+      ['maximum amount', 'The project price was no more than $2,400.'],
+      ['approximation', 'The project price was about $2,400.'],
+      ['separate fee', 'A separate fee was $2,400.'],
+    ])('rejects %s', (_label, wording) => {
+      const { narrative, extractedTerm, goldenTerm, diagnostic } = exactPriceCase();
+      const mutated = { ...clone(extractedTerm), wording };
+      expect(
+        isExactContainedPriceTermWordingDiagnostic(
+          diagnostic,
+          mutated,
+          goldenTerm,
+          narrative,
+          'calibrated_live_v2',
+        ),
+      ).toBe(false);
+    });
+
+    it('rejects exact but noncontained source occurrences', () => {
+      const narrative =
+        'The stated project price was $2,400. A separate project was offered for $2,400.';
+      const { extractedTerm, goldenTerm, diagnostic } = exactPriceCase();
+      const extractedQuote = 'The stated project price was $2,400.';
+      const goldenQuote = 'for $2,400.';
+      const extractedStart = narrative.indexOf(extractedQuote);
+      const goldenStart = narrative.indexOf(goldenQuote);
+      const separatedExtracted = {
+        ...clone(extractedTerm),
+        source_spans: [
+          {
+            submission_id: 'sub_a_extracted',
+            quote: extractedQuote,
+            start_char: extractedStart,
+            end_char: extractedStart + extractedQuote.length,
+          },
+        ],
+      };
+      const separatedGolden = {
+        ...clone(goldenTerm),
+        source_spans: [
+          {
+            submission_id: 'sub_a_001',
+            quote: goldenQuote,
+            start_char: goldenStart,
+            end_char: goldenStart + goldenQuote.length,
+          },
+        ],
+      };
+      expect(
+        isExactContainedPriceTermWordingDiagnostic(
+          diagnostic,
+          separatedExtracted,
+          separatedGolden,
+          narrative,
+          'calibrated_live_v2',
+        ),
+      ).toBe(false);
+    });
+
+    it.each([
+      [
+        'tampered quote',
+        (term: JsonObject) => {
+          term.source_spans[0].quote = 'tampered';
+        },
+      ],
+      [
+        'missing source reference',
+        (term: JsonObject) => {
+          delete term.source_spans;
+        },
+      ],
+      [
+        'malformed source reference',
+        (term: JsonObject) => {
+          term.source_spans[0].end_char += 1;
+        },
+      ],
+      [
+        'sparse source array',
+        (term: JsonObject) => {
+          term.source_spans.length = 2;
+        },
+      ],
+      [
+        'source array with an extra property',
+        (term: JsonObject) => {
+          term.source_spans.extra = true;
+        },
+      ],
+    ])('rejects %s', (_label, mutate) => {
+      const { narrative, extractedTerm, goldenTerm, diagnostic } = exactPriceCase();
+      const mutated = clone(extractedTerm);
+      mutate(mutated);
+      expect(
+        isExactContainedPriceTermWordingDiagnostic(
+          diagnostic,
+          mutated,
+          goldenTerm,
+          narrative,
+          'calibrated_live_v2',
+        ),
+      ).toBe(false);
+    });
+
+    it('rejects non-price types, other diagnostics, and non-calibrated evaluation', () => {
+      const { narrative, extractedTerm, goldenTerm, diagnostic } = exactPriceCase();
+      expect(
+        isExactContainedPriceTermWordingDiagnostic(
+          diagnostic,
+          { ...clone(extractedTerm), term_type: 'deposit' },
+          { ...clone(goldenTerm), term_type: 'deposit' },
+          narrative,
+          'calibrated_live_v2',
+        ),
+      ).toBe(false);
+      expect(
+        isExactContainedPriceTermWordingDiagnostic(
+          { ...diagnostic, code: 'party_interpretation' },
+          extractedTerm,
+          goldenTerm,
+          narrative,
+          'calibrated_live_v2',
+        ),
+      ).toBe(false);
+      expect(
+        isExactContainedPriceTermWordingDiagnostic(
+          diagnostic,
+          extractedTerm,
+          goldenTerm,
+          narrative,
+          'locked_acceptance_v1',
+        ),
+      ).toBe(false);
+    });
+
+    it('keeps the exact diagnostic in the non-calibrated evaluator path', () => {
+      const { candidate, golden, narrative, diagnostic } = exactPriceCase();
+      const options = { aliases: {}, narrative, contractVersion: 'locked_acceptance_v1' as const };
+      const alignment = alignPersonAForCase(candidate, golden, options);
+      const report = evaluatePersonAForCase(candidate, golden, alignment, options);
+      expect(report.errors).toContainEqual(diagnostic);
+    });
+
+    it('rejects proxies, accessors, and non-plain prototypes without invoking traps', () => {
+      const { narrative, extractedTerm, goldenTerm, diagnostic } = exactPriceCase();
+      let proxyTraps = 0;
+      const proxied = new Proxy(clone(extractedTerm), {
+        getOwnPropertyDescriptor(target, property) {
+          proxyTraps += 1;
+          return Reflect.getOwnPropertyDescriptor(target, property);
+        },
+      });
+      expect(
+        isExactContainedPriceTermWordingDiagnostic(
+          diagnostic,
+          proxied,
+          goldenTerm,
+          narrative,
+          'calibrated_live_v2',
+        ),
+      ).toBe(false);
+      expect(proxyTraps).toBe(0);
+
+      let spanProxyTraps = 0;
+      const proxiedSpans = clone(extractedTerm);
+      proxiedSpans.source_spans = new Proxy(proxiedSpans.source_spans, {
+        getOwnPropertyDescriptor(target, property) {
+          spanProxyTraps += 1;
+          return Reflect.getOwnPropertyDescriptor(target, property);
+        },
+      });
+      expect(
+        isExactContainedPriceTermWordingDiagnostic(
+          diagnostic,
+          proxiedSpans,
+          goldenTerm,
+          narrative,
+          'calibrated_live_v2',
+        ),
+      ).toBe(false);
+      expect(spanProxyTraps).toBe(0);
+
+      let accessorReads = 0;
+      const accessorBacked = clone(extractedTerm);
+      Object.defineProperty(accessorBacked, 'wording', {
+        enumerable: true,
+        get() {
+          accessorReads += 1;
+          return 'The stated project price was $2,400.';
+        },
+      });
+      expect(
+        isExactContainedPriceTermWordingDiagnostic(
+          diagnostic,
+          accessorBacked,
+          goldenTerm,
+          narrative,
+          'calibrated_live_v2',
+        ),
+      ).toBe(false);
+      expect(accessorReads).toBe(0);
+
+      const prototypeMutated = Object.assign(Object.create({ inherited: true }), extractedTerm);
+      expect(
+        isExactContainedPriceTermWordingDiagnostic(
+          diagnostic,
+          prototypeMutated,
+          goldenTerm,
+          narrative,
+          'calibrated_live_v2',
+        ),
+      ).toBe(false);
+    });
   });
 
   describe('person_a_interpretation', () => {
