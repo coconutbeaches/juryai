@@ -271,6 +271,12 @@ describe('Person A completion-state compatibility', () => {
     },
   );
 
+  it('preserves predicates shared by coordinated deliverables', () => {
+    expect(projectedStatus('The booking page and checkout page are incomplete.')).toBe(
+      'partially_complete',
+    );
+  });
+
   it.each([
     ['I completed the homepage, and I did not complete the booking page.', 'Homepage', 'complete'],
     [
@@ -343,6 +349,7 @@ describe('Person A completion-state compatibility', () => {
 
   it('recognizes completion-first passive dispute language', () => {
     expect(projectedStatus('Completion of the booking page is disputed.')).toBe('disputed');
+    expect(projectedStatus('I dispute that the booking page is incomplete.')).toBe('disputed');
   });
 
   it('preserves uncertainty around possible incomplete states', () => {
@@ -411,6 +418,7 @@ describe('Person A completion-state compatibility', () => {
     expect(
       projectedStatus('The booking page was in scope. I sent a complete draft of the homepage.'),
     ).toBe('complete');
+    expect(projectedStatus('The checkout page is incomplete.')).toBe('complete');
   });
 
   it('rejects exact-looking source spans with an oversized end offset', () => {

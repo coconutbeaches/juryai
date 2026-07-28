@@ -83,7 +83,7 @@ function isAggregateCompletionClause(clause: string): boolean {
 }
 
 function namesSpecificPageDeliverable(clause: string): boolean {
-  return /\b(?:homepage|home\s+page|about\s+page|services?\s+page|contact\s+page|booking\s+page)\b/iu.test(
+  return /\b(?:[\p{L}\p{N}'’-]*page|(?:[\p{L}\p{N}][\p{L}\p{N}'’-]*\s+){1,4}pages?)\b/iu.test(
     clause,
   );
 }
@@ -95,12 +95,30 @@ function isProjectLevelProvisionalCompletionClause(clause: string): boolean {
   );
 }
 
+function splitCompletionClauses(quote: string): string[] {
+  const contrastClauses = quote.split(
+    /[.!?;\r\n]+|\s+(?:although|but|while)\s+|,\s+(?:currently|later|now|subsequently|today)\s+|,\s+(?=(?:it|this)\s+(?:is|was|has|had|will|would|can|could|may|might|became|becomes|remained|remains)\b)/iu,
+  );
+  return contrastClauses.flatMap((contrastClause) => {
+    const coordinatedParts = contrastClause.split(/\s+and\s+/iu);
+    const clauses: string[] = [];
+    let current = coordinatedParts[0] ?? '';
+    for (const next of coordinatedParts.slice(1)) {
+      if (hasCompletionLanguage(current) && hasCompletionLanguage(next)) {
+        clauses.push(current);
+        current = next;
+      } else {
+        current = `${current} and ${next}`;
+      }
+    }
+    clauses.push(current);
+    return clauses;
+  });
+}
+
 function scopedCompletionText(deliverableName: string, quotes: string[]): string {
   const clauses = quotes.flatMap((quote) =>
-    quote
-      .split(
-        /[.!?;\r\n]+|\s+(?:although|and|but|while)\s+|,\s+(?:currently|later|now|subsequently|today)\s+|,\s+(?=(?:it|this)\s+(?:is|was|has|had|will|would|can|could|may|might|became|becomes|remained|remains)\b)/iu,
-      )
+    splitCompletionClauses(quote)
       .map((clause) => clause.trim())
       .filter((clause) => clause.length > 0),
   );
@@ -238,10 +256,10 @@ function sourceSupportedStatus(
   }
 
   if (
-    /\b(?:dispute|disputes|disputed|disputing|contest|contests|contested|contesting)\b[^.;]{0,56}\b(?:complete|completed|completion|done|finished)\b/iu.test(
+    /\b(?:dispute|disputes|disputed|disputing|contest|contests|contested|contesting)\b[^.;]{0,56}\b(?:complete|completed|completion|incomplete|done|finished|unfinished)\b/iu.test(
       text,
     ) ||
-    /\b(?:complete|completed|completion|done|finished)\b[^.;]{0,56}\b(?:(?:is|was|remains?)\s+|(?:has|had)\s+been\s+)(?:disputed|contested)\b/iu.test(
+    /\b(?:complete|completed|completion|incomplete|done|finished|unfinished)\b[^.;]{0,56}\b(?:(?:is|was|remains?)\s+|(?:has|had)\s+been\s+)(?:disputed|contested)\b/iu.test(
       text,
     )
   ) {
