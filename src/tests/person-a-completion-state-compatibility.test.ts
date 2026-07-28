@@ -272,8 +272,10 @@ describe('Person A completion-state compatibility', () => {
   it.each([
     ['The booking page was incomplete yesterday but is complete now.', 'complete'],
     ['The booking page was incomplete yesterday, now it is complete.', 'complete'],
+    ['The booking page was incomplete yesterday, it is complete now.', 'complete'],
     ['The booking page was incomplete yesterday. I completed the booking page today.', 'complete'],
     ['The booking page was incomplete yesterday, but I finished it today.', 'complete'],
+    ['The booking page was complete. It became incomplete after feedback.', 'partially_complete'],
     ["I don't deny that the booking page is complete.", 'complete'],
   ])(
     'preserves a supported completion after review-sensitive phrasing: %s',
@@ -321,6 +323,10 @@ describe('Person A completion-state compatibility', () => {
 
   it('recognizes completion-first passive dispute language', () => {
     expect(projectedStatus('Completion of the booking page is disputed.')).toBe('disputed');
+  });
+
+  it('preserves uncertainty around possible incomplete states', () => {
+    expect(projectedStatus('The booking page may be incomplete.')).toBe('unknown');
   });
 
   it.each([

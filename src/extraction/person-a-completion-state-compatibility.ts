@@ -50,7 +50,9 @@ function hasCompletionLanguage(text: string): boolean {
 function isCoreferentialCompletionContinuation(clause: string): boolean {
   return (
     hasCompletionLanguage(clause) &&
-    (/^(?:(?:it|this)\s+)?(?:is|was|has|had|will|would|can|could|may|might)\b/iu.test(clause) ||
+    (/^(?:(?:it|this)\s+)?(?:is|was|has|had|will|would|can|could|may|might|became|becomes|remained|remains)\b/iu.test(
+      clause,
+    ) ||
       /^(?:i|we)\s+(?:(?:did|do|have|had|will|would|can|could|may|might)\s+)?(?:not\s+)?(?:complet(?:e|ed)|finish(?:ed)?|deliver(?:ed)?|finali[sz](?:e|ed))\s+(?:it|this)\b/iu.test(
         clause,
       ))
@@ -60,7 +62,9 @@ function isCoreferentialCompletionContinuation(clause: string): boolean {
 function scopedCompletionText(deliverableName: string, quotes: string[]): string {
   const clauses = quotes.flatMap((quote) =>
     quote
-      .split(/[.!?;\r\n]+|\s+(?:although|and|but|while)\s+|,\s+(?:currently|now|today)\s+/iu)
+      .split(
+        /[.!?;\r\n]+|\s+(?:although|and|but|while)\s+|,\s+(?:currently|now|today)\s+|,\s+(?=(?:it|this)\s+(?:is|was|has|had|will|would|can|could|may|might|became|becomes|remained|remains)\b)/iu,
+      )
       .map((clause) => clause.trim())
       .filter((clause) => clause.length > 0),
   );
@@ -156,6 +160,14 @@ function sourceSupportedStatus(
     )
   ) {
     return 'disputed';
+  }
+
+  if (
+    /\b(?:could|might|may|would|perhaps|possibly|hypothetically)\b[^.;]{0,48}\b(?:be\s+)?(?:incomplete|unfinished)\b/iu.test(
+      text,
+    )
+  ) {
+    return 'unknown';
   }
 
   if (
