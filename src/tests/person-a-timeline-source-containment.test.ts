@@ -347,6 +347,76 @@ describe('Dry Run 001 exact-source timeline containment', () => {
     ).toBeNull();
   });
 
+  it('requires the dependency predicate to govern the nested date and agree with its source', async () => {
+    const { extraction, golden } = await frozenProjection();
+    const extracted = structuredClone(
+      extraction.timeline.find((item: JsonObject) => item.event_id === 'event_02_content_deadline'),
+    );
+    const expected = structuredClone(
+      golden.timeline.find((item: JsonObject) => item.event_id === 'tl_content_due'),
+    );
+    expected.person_a_interpretation =
+      'Maya was required to supply final copy and images by April 25.';
+
+    const unrelatedNarrative =
+      'The agreement required a deposit; the target launch was by April 25.';
+    extracted.event_summary =
+      'The agreement required a deposit; the target launch was by April 25.';
+    extracted.source_spans = [
+      {
+        submission_id: 'sub_a_extracted',
+        quote: unrelatedNarrative,
+        start_char: 0,
+        end_char: unrelatedNarrative.length,
+      },
+    ];
+    expected.source_spans = [
+      {
+        submission_id: 'sub_a_001',
+        quote: 'by April 25.',
+        start_char: unrelatedNarrative.indexOf('by April 25.'),
+        end_char: unrelatedNarrative.length,
+      },
+    ];
+
+    expect(
+      proveExactSourceTimelineContainment(
+        extracted,
+        expected,
+        unrelatedNarrative,
+        DRY_RUN_001_COMPATIBILITY_ALIASES,
+      ),
+    ).toBeNull();
+
+    const negatedNarrative = 'The timeline did not depend on content delivery by April 25.';
+    extracted.event_summary = 'The timeline depended on content delivery by April 25.';
+    extracted.source_spans = [
+      {
+        submission_id: 'sub_a_extracted',
+        quote: negatedNarrative,
+        start_char: 0,
+        end_char: negatedNarrative.length,
+      },
+    ];
+    expected.source_spans = [
+      {
+        submission_id: 'sub_a_001',
+        quote: 'by April 25.',
+        start_char: negatedNarrative.indexOf('by April 25.'),
+        end_char: negatedNarrative.length,
+      },
+    ];
+
+    expect(
+      proveExactSourceTimelineContainment(
+        extracted,
+        expected,
+        negatedNarrative,
+        DRY_RUN_001_COMPATIBILITY_ALIASES,
+      ),
+    ).toBeNull();
+  });
+
   it('rejects competing containment candidates instead of forcing an alignment', async () => {
     const { extraction, golden, evaluationOptions } = await frozenProjection();
     const ambiguousGolden = structuredClone(golden);

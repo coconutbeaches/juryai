@@ -143,6 +143,51 @@ function contradictsTimelineDependency(value: unknown): boolean {
   );
 }
 
+const timelineClauseBoundary = /[;.!?](?:\s|$)|,\s+(?:although|but|whereas|while)\b/giu;
+
+function timelineClauses(value: string): string[] {
+  return value
+    .split(timelineClauseBoundary)
+    .map((clause) => clause.trim())
+    .filter((clause) => clause.length > 0);
+}
+
+function dependencyGovernsSummaryDate(
+  summary: unknown,
+  materialTokens: string[],
+  aliases: PersonASemanticAliases,
+): boolean {
+  if (typeof summary !== 'string' || contradictsTimelineDependency(summary)) return false;
+  return timelineClauses(summary).some((clause) => {
+    const tokens = new Set(materialTimelineTokens(clause, aliases));
+    return (
+      materialTokens.every((token) => tokens.has(token)) &&
+      assertsTimelineDependency(clause) &&
+      !contradictsTimelineDependency(clause)
+    );
+  });
+}
+
+function dependencyGovernsNestedLeaf(extractedSpan: ExactSpan, goldenSpan: ExactSpan): boolean {
+  const leafStart = goldenSpan.start_char - extractedSpan.start_char;
+  const leafEnd = goldenSpan.end_char - extractedSpan.start_char;
+  if (leafStart < 0 || leafEnd > extractedSpan.quote.length || leafEnd <= leafStart) return false;
+
+  let clauseStart = 0;
+  const prefix = extractedSpan.quote.slice(0, leafStart);
+  for (const boundary of prefix.matchAll(
+    new RegExp(timelineClauseBoundary.source, timelineClauseBoundary.flags),
+  )) {
+    clauseStart = (boundary.index ?? 0) + boundary[0].length;
+  }
+  const containingClause = extractedSpan.quote.slice(clauseStart, leafEnd);
+  return (
+    assertsTimelineDependency(containingClause) &&
+    !contradictsTimelineDependency(containingClause) &&
+    !contradictsTimelineDependency(extractedSpan.quote)
+  );
+}
+
 /**
  * Prove exact containment without lowering semantic thresholds or using IDs.
  */
@@ -183,10 +228,10 @@ export function proveExactSourceTimelineContainment(
           goldenSpan.end_char < extractedSpan.end_char);
       if (!nested) continue;
       if (
-        !assertsTimelineDependency(extracted.event_summary) ||
-        !assertsTimelineDependency(extractedSpan.quote) ||
+        !dependencyGovernsSummaryDate(extracted.event_summary, materialTokens, aliases) ||
+        !dependencyGovernsNestedLeaf(extractedSpan, goldenSpan) ||
         !assertsTimelineDependency(golden.person_a_interpretation) ||
-        contradictsTimelineDependency(extracted.event_summary)
+        contradictsTimelineDependency(golden.person_a_interpretation)
       ) {
         return null;
       }

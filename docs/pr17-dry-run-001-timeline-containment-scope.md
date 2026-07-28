@@ -71,9 +71,10 @@ projection. The entrypoint:
 5. requires the golden summary to equal a verbatim golden source leaf strictly nested in an exact
    extracted source span;
 6. requires every material golden-summary token to remain in the extracted summary;
-7. requires the containing source, extracted summary, and golden interpretation to express the
-   same timeline dependency/obligation and rejects nonperformance or deadline-modification
-   predicates such as missed, superseded, waived, cancelled, or extended;
+7. requires the dependency/obligation predicate to govern the same clause as the nested date in
+   both the containing source and extracted summary, and rejects contradictions,
+   nonperformance, or deadline-modification predicates such as missed, superseded, waived,
+   cancelled, or extended in every asserted source;
 8. requires exactly one mutually unique candidate and fails closed otherwise;
 9. records the exact spans, material tokens, IDs, and `exact_source_containment` reason;
 10. independently re-proves the invariant during evaluation; and
@@ -125,9 +126,9 @@ validation, near-match and ambiguity rejection, actor preservation, legitimate e
 exclusions, and ordinary extraction/assembly isolation. The test is registered in the explicit CI
 matrix. Local verification passed:
 
-- focused PR #17 regression: `11/11`;
-- timeline/evaluator/extractor/validation/repair/projection set: `723/723`;
-- full suite: `1311/1311` across 23 files;
+- focused PR #17 regression: `12/12`;
+- timeline/evaluator/extractor/validation/repair/projection set: `724/724`;
+- full suite: `1312/1312` across 23 files;
 - typecheck, formatting, CI matrix coverage, and golden schema/custom validation;
 - Person A acceptance gate with historical outputs still `0/3` and controls `3/3`;
 - dependency audit with zero vulnerabilities.
