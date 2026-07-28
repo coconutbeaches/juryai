@@ -4,6 +4,7 @@ import {
   assemblePersonAExtraction,
   type AssemblePersonAExtractionOptions,
 } from './person-a-extractor.js';
+import { repairPersonAExtraction } from '../repair/person-a-record-repair.js';
 
 type JsonObject = Record<string, any>;
 
@@ -48,4 +49,32 @@ export function assembleDryRun001CompletionStateCompatibilityProjection(
     options.narrative,
   );
   return assembleDryRun001ClA003CompatibilityProjection(completionCorrected, options);
+}
+
+/**
+ * Apply the existing exact-source claim-type repair to the PR #15 projection.
+ * This entrypoint fails closed if the general repair compiler would apply any
+ * other rule, preserving a one-defect-class projection boundary.
+ */
+export function assembleDryRun001DeterministicClaimTypeProjection(
+  frozenModelOutput: JsonObject,
+  options: AssemblePersonAExtractionOptions,
+): JsonObject {
+  const priorProjection = assembleDryRun001CompletionStateCompatibilityProjection(
+    frozenModelOutput,
+    options,
+  );
+  const repair = repairPersonAExtraction({
+    extraction: priorProjection,
+    narrative: options.narrative,
+  });
+  const unexpected = repair.applied_repairs.filter(
+    (item) => item.rule_id !== 'deterministic_claim_type_normalization',
+  );
+  if (unexpected.length > 0) {
+    throw new Error(
+      'Dry Run 001 claim-type projection permits only deterministic_claim_type_normalization repairs.',
+    );
+  }
+  return repair.repaired_extraction;
 }
