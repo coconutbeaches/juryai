@@ -127,7 +127,8 @@ function isThirdPartyAttributedCompletionClause(clause: string): boolean {
     /^(?:according\s+to|per)\s+(?!me\b|us\b)[^,.;]{1,64}[,:]?\s+/iu.test(clause) ||
     /^(?:the\s+)?(?!i\b|we\b)[\p{L}\p{N}'’-]+(?:\s+[\p{L}\p{N}'’-]+){0,3}\s+(?:believes?|claims?|considers?|maintains?|reports?|says?|said|states?|stated|thinks?)\b/iu.test(
       clause,
-    )
+    ) ||
+    /(?:,|—|-)\s*(?:according\s+to|per)\s+(?!me\b|us\b)/iu.test(clause)
   );
 }
 
@@ -378,7 +379,7 @@ function sourceSupportedStatus(
   }
 
   if (
-    /\b(?:did\s+not|didn't|do\s+not|don't|has\s+not|hasn't|have\s+not|haven't|is\s+not|isn't|never|was\s+not|wasn't)\b[^.;]{0,48}\b(?:complet(?:e|ed|ing|ion)|done|finish(?:ed|ing)?|finali[sz](?:e|ed|ing)|deliver(?:ed|ing|y)?)\b/iu.test(
+    /\b(?:are\s+not|aren't|did\s+not|didn't|do\s+not|don't|has\s+not|hasn't|have\s+not|haven't|is\s+not|isn't|never|was\s+not|wasn't|were\s+not|weren't)\b[^.;]{0,48}\b(?:complet(?:e|ed|ing|ion)|done|finish(?:ed|ing)?|finali[sz](?:e|ed|ing)|deliver(?:ed|ing|y)?)\b/iu.test(
       text,
     ) ||
     /\b(?:deny|denies|denied|denying)\b[^.;]{0,56}\b(?:complete|completed|completion|done|finished)\b/iu.test(
