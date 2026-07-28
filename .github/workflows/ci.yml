@@ -39,6 +39,7 @@ jobs:
           - src/tests/person-a-cl-a-003-recall.test.ts
           - src/tests/person-a-completion-state-compatibility.test.ts
           - src/tests/person-a-deterministic-claim-type-projection.test.ts
+          - src/tests/person-a-timeline-source-containment.test.ts
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
