@@ -71,6 +71,68 @@ function namesTargetDeliverable(clause: string, deliverableName: string): boolea
   return false;
 }
 
+function targetNameIsCompoundModifier(text: string, deliverableName: string): boolean {
+  if (deliverableName.length === 0) return false;
+  const pattern = new RegExp(`\\b${escapeRegex(deliverableName)}\\b`, 'giu');
+  const allowedFollowingWords = new Set([
+    'after',
+    'almost',
+    'although',
+    'already',
+    'and',
+    'are',
+    'at',
+    'became',
+    'becomes',
+    'before',
+    'but',
+    'can',
+    'could',
+    'currently',
+    'except',
+    'fully',
+    'had',
+    'has',
+    'have',
+    'however',
+    'i',
+    'is',
+    'it',
+    'itself',
+    'later',
+    'may',
+    'might',
+    'must',
+    'nearly',
+    'now',
+    'or',
+    'partially',
+    'partly',
+    'remained',
+    'remains',
+    'should',
+    'subsequently',
+    'then',
+    'this',
+    'today',
+    'until',
+    'was',
+    'were',
+    'while',
+    'we',
+    'will',
+    'would',
+    'yesterday',
+  ]);
+  for (const match of text.matchAll(pattern)) {
+    const suffix = text.slice((match.index ?? 0) + match[0].length);
+    if (/^['’]s?\b/u.test(suffix)) return true;
+    const followingWord = suffix.match(/^\s+([\p{L}\p{N}'’-]+)\b/u)?.[1]?.toLocaleLowerCase();
+    if (followingWord !== undefined && !allowedFollowingWords.has(followingWord)) return true;
+  }
+  return false;
+}
+
 function hasCompletionLanguage(text: string): boolean {
   return /\b(?:complet(?:e|ed|ing|ion)|incomplete|done|finish(?:ed|ing)?|unfinished|finali[sz](?:e|ed|ing)|deliver(?:ed|ing|y)?)\b/iu.test(
     text,
@@ -89,6 +151,9 @@ function isCoreferentialCompletionContinuation(clause: string): boolean {
         ) ||
         /^(?:i|we)\s+(?:believe|consider|maintain|regard|say|think)\b[^.;]{0,32}\b(?:it|this)\b/iu.test(
           continuation,
+        ) ||
+        /^(?:complete|completed|delivered|done|finali[sz]ed|finished|incomplete|unfinished)\b/iu.test(
+          continuation,
         ))) ||
     /^(?:i|we)\s+(?:cannot|can't|could\s+not|couldn't|did\s+not|didn't|do\s+not|don't|has\s+not|hasn't|have\s+not|haven't|had\s+not|hadn't)\s+(?:know|recall|remember|determine|confirm|tell)\b[^.;]{0,48}\b(?:it|this)\b/iu.test(
       continuation,
@@ -97,6 +162,12 @@ function isCoreferentialCompletionContinuation(clause: string): boolean {
       continuation,
     )
   );
+}
+
+function completionTemporalPriority(clause: string): number {
+  if (/\b(?:at\s+present|currently|now|today)\b/iu.test(clause)) return 1;
+  if (/\b(?:earlier|formerly|previously|yesterday)\b/iu.test(clause)) return -1;
+  return 0;
 }
 
 function isAnyAggregateCompletionClause(clause: string): boolean {
@@ -190,6 +261,9 @@ function scopedCompletionText(deliverableName: string, quotes: string[]): string
         namesTargetDeliverable(nextClause, deliverableName) ||
         !isCoreferentialCompletionContinuation(nextClause)
       ) {
+        break;
+      }
+      if (completionTemporalPriority(nextClause) < completionTemporalPriority(scopedClause)) {
         break;
       }
       scopedClause = `${deliverableName} ${nextClause}`;
@@ -492,6 +566,9 @@ function sourceSupportedStatus(
     );
   const escapedName = escapeRegex(normalizedName);
   const targetName = `\\b${escapedName}\\b(?!['’]s?\\b)`;
+  if (namesSpecificDeliverable && targetNameIsCompoundModifier(text, normalizedName)) {
+    return 'unknown';
+  }
   const hasAffirmativeCompletedState =
     (namesSpecificDeliverable &&
       (new RegExp(
@@ -508,6 +585,10 @@ function sourceSupportedStatus(
         ).test(text) ||
         new RegExp(
           `${targetName}[^.;]{0,96}(?:\\s+and\\s+|,\\s*)[^.;]{0,80}\\b(?:are|were|remain)\\s+(?:fully\\s+)?(?:complete|completed|done|finished)\\b`,
+          'iu',
+        ).test(text) ||
+        new RegExp(
+          `${targetName}(?:\\s+(?:already|currently|later|now|subsequently|then|today))?\\s+(?:completed|delivered|finali[sz]ed|finished)\\b`,
           'iu',
         ).test(text) ||
         /\b(?:completed|finished|delivered|finali[sz]ed)\s+(?:it|this)\b/iu.test(text) ||
