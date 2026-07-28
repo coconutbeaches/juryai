@@ -60,7 +60,7 @@ function isCoreferentialCompletionContinuation(clause: string): boolean {
 function scopedCompletionText(deliverableName: string, quotes: string[]): string {
   const clauses = quotes.flatMap((quote) =>
     quote
-      .split(/[.!?;\r\n]+|\s+(?:although|and|but|while)\s+/iu)
+      .split(/[.!?;\r\n]+|\s+(?:although|and|but|while)\s+|,\s+(?:currently|now|today)\s+/iu)
       .map((clause) => clause.trim())
       .filter((clause) => clause.length > 0),
   );
