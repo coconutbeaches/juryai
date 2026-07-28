@@ -133,6 +133,14 @@ function targetNameIsCompoundModifier(text: string, deliverableName: string): bo
   return false;
 }
 
+function targetNameIsExcluded(text: string, deliverableName: string): boolean {
+  if (deliverableName.length === 0) return false;
+  return new RegExp(
+    `\\b(?:except(?:\\s+for)?|not|rather\\s+than)\\s+(?:the\\s+)?${escapeRegex(deliverableName)}\\b`,
+    'iu',
+  ).test(text);
+}
+
 function hasCompletionLanguage(text: string): boolean {
   return /\b(?:complet(?:e|ed|ing|ion)|incomplete|done|finish(?:ed|ing)?|unfinished|finali[sz](?:e|ed|ing)|deliver(?:ed|ing|y)?)\b/iu.test(
     text,
@@ -195,6 +203,9 @@ function namesSpecificPageDeliverable(clause: string): boolean {
 
 function isThirdPartyAttributedCompletionClause(clause: string): boolean {
   return (
+    /^(?!i\b|we\b)[^,.;]{1,48},\s+(?:the\s+)?[^,.;]{1,48},\s+(?:advises?|advised|believes?|claims?|considers?|contests?|denies?|disputes?|doubts?|informs?|informed|maintains?|notifies?|notified|questions?|reports?|says?|said|states?|stated|tells?|thinks?|told)\b/iu.test(
+      clause,
+    ) ||
     /^(?:i|we)\s+(?:(?:had|has|have)\s+been|was|were)\s+(?:advised|informed|notified|told)\b/iu.test(
       clause,
     ) ||
@@ -474,6 +485,10 @@ function sourceSupportedStatus(
     return 'complete';
   }
 
+  if (/\b(?:is|are|was|were)\s+not\s+only\s+(?:complete|completed|done|finished)\b/iu.test(text)) {
+    return 'complete';
+  }
+
   if (
     /\b(?:anything\s+but|far\s+from|nowhere\s+near)\s+(?:complete|completed|done|finished)\b/iu.test(
       text,
@@ -580,6 +595,9 @@ function sourceSupportedStatus(
     );
   const escapedName = escapeRegex(normalizedName);
   const targetName = `\\b${escapedName}\\b(?!['’]s?\\b)`;
+  if (namesSpecificDeliverable && targetNameIsExcluded(text, normalizedName)) {
+    return 'unknown';
+  }
   if (namesSpecificDeliverable && targetNameIsCompoundModifier(text, normalizedName)) {
     return 'unknown';
   }
