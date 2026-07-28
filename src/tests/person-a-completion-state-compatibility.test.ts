@@ -256,6 +256,7 @@ describe('Person A completion-state compatibility', () => {
 
   it.each([
     ['The booking page was incomplete yesterday but is complete now.', 'complete'],
+    ['The booking page was incomplete yesterday. I completed the booking page today.', 'complete'],
     ["I don't deny that the booking page is complete.", 'complete'],
   ])(
     'preserves a supported completion after review-sensitive phrasing: %s',

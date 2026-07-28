@@ -72,7 +72,7 @@ function scopedCompletionText(deliverableName: string, quotes: string[]): string
     }
     return [scopedClause];
   });
-  return (namedCompletionClauses.length > 0 ? namedCompletionClauses : clauses).join(' ');
+  return namedCompletionClauses[namedCompletionClauses.length - 1] ?? clauses.join(' ');
 }
 
 function removeNegatedReportingPrefixes(text: string): string {
