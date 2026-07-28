@@ -56,6 +56,9 @@ function isCoreferentialCompletionContinuation(clause: string): boolean {
       ) ||
         /^(?:i|we)\s+(?:(?:did|do|have|had|will|would|can|could|may|might|didn't|don't|hasn't|haven't|hadn't|can't|couldn't)\s+)?(?:not\s+)?(?:complet(?:e|ed)|finish(?:ed)?|deliver(?:ed)?|finali[sz](?:e|ed))\s+(?:it|this)\b/iu.test(
           continuation,
+        ) ||
+        /^(?:i|we)\s+(?:believe|consider|maintain|regard|say|think)\b[^.;]{0,32}\b(?:it|this)\b/iu.test(
+          continuation,
         ))) ||
     /^(?:i|we)\s+(?:cannot|can't|could\s+not|couldn't|did\s+not|didn't|do\s+not|don't|has\s+not|hasn't|have\s+not|haven't|had\s+not|hadn't)\s+(?:know|recall|remember|determine|confirm|tell)\b[^.;]{0,48}\b(?:it|this)\b/iu.test(
       continuation,
@@ -86,6 +89,15 @@ function isAggregateCompletionClause(clause: string): boolean {
 function namesSpecificPageDeliverable(clause: string): boolean {
   return /\b(?:[\p{L}\p{N}'’-]*page|(?:[\p{L}\p{N}][\p{L}\p{N}'’-]*\s+){1,4}pages?)\b/iu.test(
     clause,
+  );
+}
+
+function isThirdPartyAttributedCompletionClause(clause: string): boolean {
+  return (
+    /^(?:according\s+to|per)\s+(?!me\b|us\b)[^,.;]{1,64}[,:]?\s+/iu.test(clause) ||
+    /^(?:the\s+)?(?!i\b|we\b)[\p{L}\p{N}'’-]+(?:\s+[\p{L}\p{N}'’-]+){0,3}\s+(?:believes?|claims?|considers?|maintains?|reports?|says?|said|states?|stated|thinks?)\b/iu.test(
+      clause,
+    )
   );
 }
 
@@ -126,7 +138,13 @@ function scopedCompletionText(deliverableName: string, quotes: string[]): string
   if (deliverableName.length === 0) return clauses.join(' ');
   const namePattern = new RegExp(`\\b${escapeRegex(deliverableName)}\\b`, 'iu');
   const namedCompletionClauses = clauses.flatMap((clause, index) => {
-    if (!namePattern.test(clause) || !hasCompletionLanguage(clause)) return [];
+    if (
+      !namePattern.test(clause) ||
+      !hasCompletionLanguage(clause) ||
+      isThirdPartyAttributedCompletionClause(clause)
+    ) {
+      return [];
+    }
     let scopedClause = clause;
     let scopedIndex = index;
     for (let next = index + 1; next < clauses.length; next += 1) {
@@ -146,16 +164,25 @@ function scopedCompletionText(deliverableName: string, quotes: string[]): string
   const lastNamed = namedCompletionClauses[namedCompletionClauses.length - 1];
   if (lastNamed === undefined) {
     const targetIsInScope = clauses.some((clause) => namePattern.test(clause));
-    const applicableFallbacks = clauses.filter(
-      (clause) =>
-        namePattern.test(clause) ||
-        isAnyAggregateCompletionClause(clause) ||
-        (targetIsInScope &&
-          (isProjectLevelProvisionalCompletionClause(clause) ||
-            isCoreferentialCompletionContinuation(clause)) &&
-          !namesSpecificPageDeliverable(clause)) ||
-        (!targetIsInScope && !namesSpecificPageDeliverable(clause)),
-    );
+    const applicableFallbacks = clauses.flatMap((clause) => {
+      if (isThirdPartyAttributedCompletionClause(clause)) return [];
+      if (namePattern.test(clause) || isAnyAggregateCompletionClause(clause)) return [clause];
+      if (
+        targetIsInScope &&
+        isCoreferentialCompletionContinuation(clause) &&
+        !namesSpecificPageDeliverable(clause)
+      ) {
+        return [`${deliverableName} ${clause}`];
+      }
+      if (
+        targetIsInScope &&
+        isProjectLevelProvisionalCompletionClause(clause) &&
+        !namesSpecificPageDeliverable(clause)
+      ) {
+        return [clause];
+      }
+      return !targetIsInScope && !namesSpecificPageDeliverable(clause) ? [clause] : [];
+    });
     return applicableFallbacks[applicableFallbacks.length - 1] ?? '';
   }
   const laterAggregate = clauses.flatMap((clause, index) =>
@@ -189,6 +216,14 @@ function sourceSupportedStatus(
 
   if (/\b(?:not\s+started|never\s+started|work\s+had\s+not\s+begun)\b/iu.test(text)) {
     return 'not_complete';
+  }
+
+  if (
+    /\b(?:is|was|remains?)\s+(?:still\s+)?(?:an?\s+)?(?:beta|draft|mock[- ]?up|preview|prototype|staging(?:\s+version)?)\b/iu.test(
+      text,
+    )
+  ) {
+    return 'substantially_complete';
   }
 
   if (
@@ -268,6 +303,14 @@ function sourceSupportedStatus(
     )
   ) {
     return 'disputed';
+  }
+
+  if (
+    /\b(?:did\s+not|didn't)\s+(?:complete|finish|deliver|finali[sz]e)\b[^.;]{0,64}\buntil\b/iu.test(
+      text,
+    )
+  ) {
+    return 'complete';
   }
 
   if (
@@ -383,7 +426,14 @@ function sourceSupportedStatus(
           `\\b(?:completed|finished|delivered|finali[sz]ed)\\s+(?:the\\s+)?${targetName}`,
           'iu',
         ).test(text) ||
-        /\b(?:completed|finished|delivered|finali[sz]ed)\s+(?:it|this)\b/iu.test(text))) ||
+        new RegExp(
+          `${targetName}[^.;]{0,96}(?:\\s+and\\s+|,\\s*)[^.;]{0,80}\\b(?:are|were|remain)\\s+(?:fully\\s+)?(?:complete|completed|done|finished)\\b`,
+          'iu',
+        ).test(text) ||
+        /\b(?:completed|finished|delivered|finali[sz]ed)\s+(?:it|this)\b/iu.test(text) ||
+        /\b(?:believe|consider|maintain|regard|say|think)\s+(?:it|this)\s+(?:to\s+be\s+)?(?:complete|completed|done|finished)\b/iu.test(
+          text,
+        ))) ||
     (namesAggregate &&
       (/\b(?:is|are|was|were|remains?)\s+(?:fully\s+)?(?:complete|completed|done|finished)\b/iu.test(
         text,
