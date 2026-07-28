@@ -255,6 +255,16 @@ describe('Person A completion-state compatibility', () => {
   });
 
   it.each([
+    ['The booking page was incomplete yesterday but is complete now.', 'complete'],
+    ["I don't deny that the booking page is complete.", 'complete'],
+  ])(
+    'preserves a supported completion after review-sensitive phrasing: %s',
+    (narrative, expected) => {
+      expect(projectedStatus(narrative)).toBe(expected);
+    },
+  );
+
+  it.each([
     'I completed the booking page.',
     'The booking page is complete and I delivered it.',
     'I finished and delivered the booking page.',

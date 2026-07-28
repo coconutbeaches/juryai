@@ -40,6 +40,13 @@ function hasCompletionLanguage(text: string): boolean {
   );
 }
 
+function isCoreferentialCompletionContinuation(clause: string): boolean {
+  return (
+    hasCompletionLanguage(clause) &&
+    /^(?:(?:it|this)\s+)?(?:is|was|has|had|will|would|can|could|may|might)\b/iu.test(clause)
+  );
+}
+
 function scopedCompletionText(deliverableName: string, quotes: string[]): string {
   const clauses = quotes.flatMap((quote) =>
     quote
@@ -49,10 +56,30 @@ function scopedCompletionText(deliverableName: string, quotes: string[]): string
   );
   if (deliverableName.length === 0) return clauses.join(' ');
   const namePattern = new RegExp(`\\b${escapeRegex(deliverableName)}\\b`, 'iu');
-  const namedCompletionClauses = clauses.filter(
-    (clause) => namePattern.test(clause) && hasCompletionLanguage(clause),
-  );
+  const namedCompletionClauses = clauses.flatMap((clause, index) => {
+    if (!namePattern.test(clause) || !hasCompletionLanguage(clause)) return [];
+    let scopedClause = clause;
+    for (let next = index + 1; next < clauses.length; next += 1) {
+      const nextClause = clauses[next];
+      if (
+        nextClause === undefined ||
+        namePattern.test(nextClause) ||
+        !isCoreferentialCompletionContinuation(nextClause)
+      ) {
+        break;
+      }
+      scopedClause = `${deliverableName} ${nextClause}`;
+    }
+    return [scopedClause];
+  });
   return (namedCompletionClauses.length > 0 ? namedCompletionClauses : clauses).join(' ');
+}
+
+function removeNegatedReportingPrefixes(text: string): string {
+  return text.replace(
+    /\b(?:did\s+not|didn't|do\s+not|don't|does\s+not|doesn't|never)\s+(?:(?:actually|explicitly|necessarily|really)\s+)?(?:deny|dispute|contest)\s+(?:that\s+)?/giu,
+    '',
+  );
 }
 
 function sourceSupportedStatus(
@@ -65,7 +92,9 @@ function sourceSupportedStatus(
       ? deliverableName.trim().replace(/\s+/gu, ' ').toLocaleLowerCase()
       : '';
   const normalizedQuotes = quotes.map((quote) => quote.replace(/[’‘]/gu, "'").toLocaleLowerCase());
-  const text = scopedCompletionText(normalizedName, normalizedQuotes);
+  const text = removeNegatedReportingPrefixes(
+    scopedCompletionText(normalizedName, normalizedQuotes),
+  );
 
   if (/\b(?:not\s+started|never\s+started|work\s+had\s+not\s+begun)\b/iu.test(text)) {
     return 'not_complete';
