@@ -203,7 +203,7 @@ function namesSpecificPageDeliverable(clause: string): boolean {
 
 function isThirdPartyAttributedCompletionClause(clause: string): boolean {
   return (
-    /^(?!i\b|we\b)[^,.;]{1,48},\s+(?:the\s+)?[^,.;]{1,48},\s+(?:advises?|advised|believes?|claims?|considers?|contests?|denies?|disputes?|doubts?|informs?|informed|maintains?|notifies?|notified|questions?|reports?|says?|said|states?|stated|tells?|thinks?|told)\b/iu.test(
+    /^(?!i\b|my\b|our\b|we\b)[^,.;]{1,48},\s+(?:the\s+)?[^,.;]{1,48},\s+(?:advises?|advised|believes?|claims?|considers?|contests?|denies?|disputes?|doubts?|informs?|informed|maintains?|notifies?|notified|questions?|reports?|says?|said|states?|stated|tells?|thinks?|told)\b/iu.test(
       clause,
     ) ||
     /^(?:i|we)\s+(?:(?:had|has|have)\s+been|was|were)\s+(?:advised|informed|notified|told)\b/iu.test(
@@ -212,7 +212,10 @@ function isThirdPartyAttributedCompletionClause(clause: string): boolean {
     /^(?:according\s+to|per)\s+(?!me\b|mine\b|my\b|our\b|ours\b|us\b)[^,.;]{1,64}[,:]?\s+/iu.test(
       clause,
     ) ||
-    /^(?:the\s+)?(?!i\b|we\b)[\p{L}\p{N}'’-]+(?:\s+[\p{L}\p{N}'’-]+){0,3}\s+(?:advises?|advised|believes?|claims?|considers?|contests?|denies?|disputes?|doubts?|informs?|informed|maintains?|notifies?|notified|questions?|reports?|says?|said|states?|stated|tells?|thinks?|told)\b/iu.test(
+    /^(?:the\s+)?(?!i\b|my\b|our\b|we\b)[\p{L}\p{N}'’-]+(?:\s+[\p{L}\p{N}'’-]+){0,3}\s+(?:advises?|advised|believes?|claims?|considers?|contests?|denies?|disputes?|doubts?|informs?|informed|maintains?|notifies?|notified|questions?|reports?|says?|said|states?|stated|tells?|thinks?|told)\b/iu.test(
+      clause,
+    ) ||
+    /,\s+(?:the\s+)?(?!i\b|my\b|our\b|we\b)[^,.;]{1,48}\s+(?:advises?|advised|believes?|claims?|considers?|contests?|denies?|disputes?|doubts?|informs?|informed|maintains?|notifies?|notified|questions?|reports?|says?|said|states?|stated|tells?|thinks?|told)\s*$/iu.test(
       clause,
     ) ||
     /(?:,|—|-)\s*(?:according\s+to|per)\s+(?!me\b|mine\b|my\b|our\b|ours\b|us\b)/iu.test(clause)
