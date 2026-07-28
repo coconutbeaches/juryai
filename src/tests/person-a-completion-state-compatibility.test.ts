@@ -409,6 +409,11 @@ describe('Person A completion-state compatibility', () => {
     ['The booking page is incomplete, the client says.', 'complete'],
     ['The booking page is incomplete according to the client.', 'complete'],
     ['The booking page is unfinished per the client.', 'complete'],
+    ['No one completed the booking page.', 'not_complete'],
+    ['Nobody finished the booking page.', 'not_complete'],
+    ['None of us delivered the booking page.', 'not_complete'],
+    ['Neither Alex nor I completed the booking page.', 'not_complete'],
+    ['The booking page is complete now. All pages were incomplete yesterday.', 'complete'],
   ])('handles scoped completion polarity: %s', (narrative, expected) => {
     expect(projectedStatus(narrative)).toBe(expected);
   });

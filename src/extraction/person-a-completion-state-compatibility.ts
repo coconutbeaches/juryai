@@ -336,7 +336,23 @@ function scopedCompletionText(deliverableName: string, quotes: string[]): string
       ? [{ index, text: clause }]
       : [],
   );
-  return laterAggregate[laterAggregate.length - 1]?.text ?? lastNamed.text;
+  const preferredAggregate = laterAggregate.reduce<{ index: number; text: string } | undefined>(
+    (selected, candidate) => {
+      if (
+        selected === undefined ||
+        completionTemporalPriority(candidate.text) >= completionTemporalPriority(selected.text)
+      ) {
+        return candidate;
+      }
+      return selected;
+    },
+    undefined,
+  );
+  return preferredAggregate !== undefined &&
+    completionTemporalPriority(preferredAggregate.text) >=
+      completionTemporalPriority(lastNamed.text)
+    ? preferredAggregate.text
+    : lastNamed.text;
 }
 
 function removeNegatedReportingPrefixes(text: string): string {
@@ -415,6 +431,14 @@ function sourceSupportedStatus(
   }
 
   if (!hasCompletionLanguage(text)) return null;
+
+  if (
+    /\b(?:neither|no\s+one|nobody|none\s+of\s+us)\b[^.;]{0,64}\b(?:complete|completed|deliver|delivered|finali[sz]e|finali[sz]ed|finish|finished)\b/iu.test(
+      text,
+    )
+  ) {
+    return 'not_complete';
+  }
 
   if (
     normalizedName.length > 0 &&
