@@ -504,6 +504,14 @@ describe('Dry Run 001 exact-source timeline containment', () => {
     addedSpan.source_spans.push(structuredClone(addedSpan.source_spans[0]));
     mutations.push([addedSpan, structuredClone(expected)]);
 
+    const nonFiniteValue = structuredClone(extracted);
+    nonFiniteValue.person_b_interpretation = Number.NaN;
+    mutations.push([nonFiniteValue, structuredClone(expected)]);
+
+    const omittedValue = structuredClone(extracted);
+    omittedValue.unrelated = undefined;
+    mutations.push([omittedValue, structuredClone(expected)]);
+
     for (const [left, right] of mutations) {
       expect(
         proveExactSourceTimelineContainment(

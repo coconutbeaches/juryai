@@ -144,23 +144,63 @@ const dryRun001TimelineContainmentRepresentation = {
   },
 } as const;
 
-function canonicalize(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(canonicalize);
-  if (value !== null && typeof value === 'object') {
-    const object = value as JsonObject;
-    return Object.fromEntries(
-      Object.keys(object)
-        .sort()
-        .map((key) => [key, canonicalize(object[key])]),
-    );
+function canonicalizeJsonSafe(value: unknown, seen = new WeakSet<object>()): unknown {
+  if (value === null || typeof value === 'string' || typeof value === 'boolean') return value;
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value) || Object.is(value, -0)) {
+      throw new Error('Frozen timeline records must contain lossless JSON numbers.');
+    }
+    return value;
   }
-  return value;
+  if (typeof value !== 'object') {
+    throw new Error('Frozen timeline records must contain JSON-safe values.');
+  }
+  if (seen.has(value)) {
+    throw new Error('Frozen timeline records must not contain cycles.');
+  }
+  seen.add(value);
+
+  if (Array.isArray(value)) {
+    const keys = Object.keys(value);
+    if (
+      keys.length !== value.length ||
+      keys.some((key, index) => key !== String(index)) ||
+      Reflect.ownKeys(value).length !== value.length + 1
+    ) {
+      throw new Error('Frozen timeline arrays must not be sparse or contain extra properties.');
+    }
+    const result = value.map((item) => canonicalizeJsonSafe(item, seen));
+    seen.delete(value);
+    return result;
+  }
+
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) {
+    throw new Error('Frozen timeline records must contain plain JSON objects.');
+  }
+  const entries: Array<[string, unknown]> = [];
+  for (const key of Reflect.ownKeys(value)) {
+    if (typeof key !== 'string') {
+      throw new Error('Frozen timeline records must not contain symbol keys.');
+    }
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    if (descriptor === undefined || !descriptor.enumerable || !Object.hasOwn(descriptor, 'value')) {
+      throw new Error('Frozen timeline records must contain enumerable data properties.');
+    }
+    entries.push([key, canonicalizeJsonSafe(descriptor.value, seen)]);
+  }
+  seen.delete(value);
+  return Object.fromEntries(entries.sort(([left], [right]) => left.localeCompare(right)));
 }
 
-function recordFingerprint(value: JsonObject): string {
-  return createHash('sha256')
-    .update(JSON.stringify(canonicalize(value)), 'utf8')
-    .digest('hex');
+function recordFingerprint(value: JsonObject): string | null {
+  try {
+    return createHash('sha256')
+      .update(JSON.stringify(canonicalizeJsonSafe(value)), 'utf8')
+      .digest('hex');
+  } catch {
+    return null;
+  }
 }
 
 function matchesFrozenTimelineContainmentRepresentation(
