@@ -48,20 +48,21 @@ function hasCompletionLanguage(text: string): boolean {
 }
 
 function isCoreferentialCompletionContinuation(clause: string): boolean {
+  const continuation = clause.replace(/^(?:currently|later|now|subsequently|then|today)\s+/iu, '');
   return (
-    hasCompletionLanguage(clause) &&
-    (/^(?:(?:it|this)\s+)?(?:is|was|has|had|will|would|can|could|may|might|became|becomes|remained|remains)\b/iu.test(
-      clause,
+    (hasCompletionLanguage(continuation) &&
+      (/^(?:(?:it|this)\s+)?(?:is|was|has|had|will|would|can|could|may|might|became|becomes|remained|remains)\b/iu.test(
+        continuation,
+      ) ||
+        /^(?:i|we)\s+(?:(?:did|do|have|had|will|would|can|could|may|might|didn't|don't|hasn't|haven't|hadn't|can't|couldn't)\s+)?(?:not\s+)?(?:complet(?:e|ed)|finish(?:ed)?|deliver(?:ed)?|finali[sz](?:e|ed))\s+(?:it|this)\b/iu.test(
+          continuation,
+        ))) ||
+    /^(?:i|we)\s+(?:cannot|can't|could\s+not|couldn't|did\s+not|didn't|do\s+not|don't|has\s+not|hasn't|have\s+not|haven't|had\s+not|hadn't)\s+(?:know|recall|remember|determine|confirm|tell)\b[^.;]{0,48}\b(?:it|this)\b/iu.test(
+      continuation,
     ) ||
-      /^(?:i|we)\s+(?:(?:did|do|have|had|will|would|can|could|may|might|didn't|don't|hasn't|haven't|hadn't|can't|couldn't)\s+)?(?:not\s+)?(?:complet(?:e|ed)|finish(?:ed)?|deliver(?:ed)?|finali[sz](?:e|ed))\s+(?:it|this)\b/iu.test(
-        clause,
-      ) ||
-      /^(?:i|we)\s+(?:cannot|can't|could\s+not|couldn't|did\s+not|didn't|do\s+not|don't|has\s+not|hasn't|have\s+not|haven't|had\s+not|hadn't)\s+(?:know|recall|remember|determine|confirm|tell)\b[^.;]{0,48}\b(?:it|this)\b/iu.test(
-        clause,
-      ) ||
-      /^(?:i|we)\s+(?:deny|dispute|contest|doubt|question)\b[^.;]{0,48}\b(?:it|this)\b/iu.test(
-        clause,
-      ))
+    /^(?:i|we)\s+(?:deny|dispute|contest|doubt|question)\b[^.;]{0,48}\b(?:it|this)\b/iu.test(
+      continuation,
+    )
   );
 }
 
@@ -190,6 +191,25 @@ function sourceSupportedStatus(
     return 'not_complete';
   }
 
+  if (
+    /\b(?:dispute|disputes|disputed|disputing|contest|contests|contested|contesting)\s+(?:it|this)\b/iu.test(
+      text,
+    )
+  ) {
+    return 'disputed';
+  }
+
+  if (
+    /\b(?:doubt|doubts|doubted|doubting|question|questions|questioned|questioning)\s+(?:it|this)\b/iu.test(
+      text,
+    ) ||
+    /\b(?:cannot|can't|could\s+not|couldn't|did\s+not|didn't|do\s+not|don't|has\s+not|hasn't|have\s+not|haven't|had\s+not|hadn't)\s+(?:know|recall|remember|determine|confirm|tell)\b[^.;]{0,48}\b(?:it|this)\b/iu.test(
+      text,
+    )
+  ) {
+    return 'unknown';
+  }
+
   if (!hasCompletionLanguage(text)) return null;
 
   if (
@@ -267,6 +287,16 @@ function sourceSupportedStatus(
   }
 
   if (
+    /\b(?:is|are|was|were)\s+(?:not|never)\s+(?:incomplete|unfinished)\b/iu.test(text) ||
+    /\b(?:isn't|aren't|wasn't|weren't)\s+(?:incomplete|unfinished)\b/iu.test(text) ||
+    /\b(?:no|none\s+of\s+the)\s+(?:deliverables?|pages?)\b[^.;]{0,24}\b(?:incomplete|unfinished)\b/iu.test(
+      text,
+    )
+  ) {
+    return 'complete';
+  }
+
+  if (
     /\b(?:could|might|may|would|perhaps|possibly|hypothetically)\b[^.;]{0,48}\b(?:be\s+)?(?:incomplete|unfinished)\b/iu.test(
       text,
     )
@@ -276,6 +306,14 @@ function sourceSupportedStatus(
 
   if (
     /\b(?:am|is|are|was|were)\s+(?:still\s+)?(?:completing|finishing|delivering|finali[sz]ing)\b/iu.test(
+      text,
+    )
+  ) {
+    return 'partially_complete';
+  }
+
+  if (
+    /\b(?:complete|completed|done|finished)\b[^.;]{0,32}\b(?:except\s+for|apart\s+from|save\s+for)\b/iu.test(
       text,
     )
   ) {
@@ -329,12 +367,31 @@ function sourceSupportedStatus(
     /\b(?:all|each|entire|every|whole)\b[^.;]{0,32}\b(?:deliverables?|pages?|project|site|website)\b|\b(?:entire|whole)\s+(?:project|site|website)\b/iu.test(
       text,
     );
+  const escapedName = escapeRegex(normalizedName);
+  const targetName = `\\b${escapedName}\\b(?!['’]s?\\b)`;
   const hasAffirmativeCompletedState =
-    /\b(?:is|are|was|were|remains?)\s+(?:fully\s+)?(?:complete|completed|done|finished)\b/iu.test(
-      text,
-    ) ||
-    /\b(?:has|have|had)\s+been\s+(?:completed|finished|delivered|finali[sz]ed)\b/iu.test(text) ||
-    /\b(?:completed|finished|delivered|finali[sz]ed)\b/iu.test(text);
+    (namesSpecificDeliverable &&
+      (new RegExp(
+        `${targetName}[^.;]{0,16}\\b(?:is|are|was|were|remains?)\\s+(?:fully\\s+)?(?:complete|completed|done|finished)\\b`,
+        'iu',
+      ).test(text) ||
+        new RegExp(
+          `${targetName}[^.;]{0,16}\\b(?:has|have|had)\\s+been\\s+(?:completed|finished|delivered|finali[sz]ed)\\b`,
+          'iu',
+        ).test(text) ||
+        new RegExp(
+          `\\b(?:completed|finished|delivered|finali[sz]ed)\\s+(?:the\\s+)?${targetName}`,
+          'iu',
+        ).test(text) ||
+        /\b(?:completed|finished|delivered|finali[sz]ed)\s+(?:it|this)\b/iu.test(text))) ||
+    (namesAggregate &&
+      (/\b(?:is|are|was|were|remains?)\s+(?:fully\s+)?(?:complete|completed|done|finished)\b/iu.test(
+        text,
+      ) ||
+        /\b(?:has|have|had)\s+been\s+(?:completed|finished|delivered|finali[sz]ed)\b/iu.test(
+          text,
+        ) ||
+        /\b(?:completed|finished|delivered|finali[sz]ed)\b/iu.test(text)));
 
   if (namesSpecificDeliverable || namesAggregate) {
     return hasAffirmativeCompletedState ? 'complete' : 'unknown';

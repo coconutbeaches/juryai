@@ -353,6 +353,19 @@ describe('Person A completion-state compatibility', () => {
     expect(projectedStatus('I dispute that the booking page is not complete.')).toBe('disputed');
   });
 
+  it.each([
+    ['The booking page was complete, but I dispute it.', 'disputed'],
+    ['The booking page was complete, but I doubt it.', 'unknown'],
+    ['The booking page was complete. Now it is incomplete.', 'partially_complete'],
+    ['The booking page is not incomplete.', 'complete'],
+    ['No pages are unfinished.', 'complete'],
+    ['The booking page is complete except for its payment form.', 'partially_complete'],
+    ["I completed the booking page's header.", 'unknown'],
+    ['I completed the booking page.', 'complete'],
+  ])('handles scoped completion polarity: %s', (narrative, expected) => {
+    expect(projectedStatus(narrative)).toBe(expected);
+  });
+
   it('preserves uncertainty around possible incomplete states', () => {
     expect(projectedStatus('The booking page may be incomplete.')).toBe('unknown');
     expect(projectedStatus("I don't know whether the booking page is complete.")).toBe('unknown');
