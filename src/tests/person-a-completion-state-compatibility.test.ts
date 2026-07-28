@@ -236,6 +236,24 @@ describe('Person A completion-state compatibility', () => {
     },
   );
 
+  it.each(['The booking page is incomplete.', 'The booking page is unfinished.'])(
+    'recognizes standalone incomplete wording: %s',
+    (narrative) => {
+      expect(projectedStatus(narrative)).toBe('partially_complete');
+    },
+  );
+
+  it.each([
+    ['I completed the homepage, and I did not complete the booking page.', 'Homepage', 'complete'],
+    [
+      'I completed the homepage, and I did not complete the booking page.',
+      'Booking page',
+      'not_complete',
+    ],
+  ])('isolates coordinating completion clauses: %s', (narrative, name, expected) => {
+    expect(projectedStatus(narrative, name)).toBe(expected);
+  });
+
   it.each([
     'I completed the booking page.',
     'The booking page is complete and I delivered it.',

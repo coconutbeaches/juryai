@@ -35,7 +35,7 @@ function escapeRegex(value: string): string {
 }
 
 function hasCompletionLanguage(text: string): boolean {
-  return /\b(?:complet(?:e|ed|ing|ion)|done|finish(?:ed|ing)?|finali[sz](?:e|ed|ing)|deliver(?:ed|ing|y)?)\b/iu.test(
+  return /\b(?:complet(?:e|ed|ing|ion)|incomplete|done|finish(?:ed|ing)?|unfinished|finali[sz](?:e|ed|ing)|deliver(?:ed|ing|y)?)\b/iu.test(
     text,
   );
 }
@@ -43,7 +43,7 @@ function hasCompletionLanguage(text: string): boolean {
 function scopedCompletionText(deliverableName: string, quotes: string[]): string {
   const clauses = quotes.flatMap((quote) =>
     quote
-      .split(/[.!?;\r\n]+|,\s*(?:although|but|while)\s+/iu)
+      .split(/[.!?;\r\n]+|\s+(?:although|and|but|while)\s+/iu)
       .map((clause) => clause.trim())
       .filter((clause) => clause.length > 0),
   );
