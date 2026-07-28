@@ -58,6 +58,9 @@ function isCoreferentialCompletionContinuation(clause: string): boolean {
       ) ||
       /^(?:i|we)\s+(?:cannot|can't|could\s+not|couldn't|did\s+not|didn't|do\s+not|don't|has\s+not|hasn't|have\s+not|haven't|had\s+not|hadn't)\s+(?:know|recall|remember|determine|confirm|tell)\b[^.;]{0,48}\b(?:it|this)\b/iu.test(
         clause,
+      ) ||
+      /^(?:i|we)\s+(?:deny|dispute|contest|doubt|question)\b[^.;]{0,48}\b(?:it|this)\b/iu.test(
+        clause,
       ))
   );
 }
@@ -159,6 +162,12 @@ function sourceSupportedStatus(
 
   if (
     /\b(?:did\s+not|didn't|do\s+not|don't|does\s+not|doesn't|cannot|can't|has\s+not|hasn't|have\s+not|haven't|had\s+not|hadn't)\s+(?:know|recall|remember|determine|confirm|tell|confirmed|determined)\b[^.;]{0,64}\b(?:complet(?:e|ed|ing|ion)|incomplete|done|finish(?:ed|ing)?|unfinished)\b/iu.test(
+      text,
+    ) ||
+    /\b(?:doubt|doubts|doubted|doubting|question|questions|questioned|questioning|unsure|uncertain)\b[^.;]{0,64}\b(?:complet(?:e|ed|ing|ion)|incomplete|done|finish(?:ed|ing)?|unfinished)\b/iu.test(
+      text,
+    ) ||
+    /\b(?:am|is|are|was|were)\s+not\s+sure\b[^.;]{0,64}\b(?:complet(?:e|ed|ing|ion)|incomplete|done|finish(?:ed|ing)?|unfinished)\b/iu.test(
       text,
     )
   ) {

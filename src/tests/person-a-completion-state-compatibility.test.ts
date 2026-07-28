@@ -291,6 +291,7 @@ describe('Person A completion-state compatibility', () => {
     ['The booking page was incomplete yesterday, but I finished it today.', 'complete'],
     ['The booking page was complete. It became incomplete after feedback.', 'partially_complete'],
     ["The booking page was listed as complete, but I didn't complete it.", 'not_complete'],
+    ['The booking page was complete, but I dispute that it is complete.', 'disputed'],
     ["I don't deny that the booking page is complete.", 'complete'],
   ])(
     'preserves a supported completion after review-sensitive phrasing: %s',
@@ -346,6 +347,7 @@ describe('Person A completion-state compatibility', () => {
     expect(projectedStatus("I haven't confirmed whether the booking page is complete.")).toBe(
       'unknown',
     );
+    expect(projectedStatus('I doubt I completed the booking page.')).toBe('unknown');
     expect(
       projectedStatus(
         "The booking page was complete, but I can't confirm whether it is complete now.",
