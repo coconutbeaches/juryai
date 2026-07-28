@@ -1,4 +1,5 @@
 import { applyDryRun001ClA003CompatibilityRecovery } from './person-a-dry-run-001-cl-a-003-compatibility-recovery.js';
+import { applyPersonACompletionStateCompatibility } from './person-a-completion-state-compatibility.js';
 import {
   assemblePersonAExtraction,
   type AssemblePersonAExtractionOptions,
@@ -30,4 +31,21 @@ export function assembleDryRun001ClA003CompatibilityProjection(
     options.narrative,
   );
   return assemblePersonAExtraction(projectedModelOutput, options);
+}
+
+/**
+ * Build the next explicit Dry Run 001 compatibility projection without changing
+ * the PR #14 entrypoint or ordinary extraction. The provider's exact claim
+ * spans first correct unsupported completion-state upgrades; the unchanged
+ * cl_a_003 recovery then runs before ordinary assembly and validation.
+ */
+export function assembleDryRun001CompletionStateCompatibilityProjection(
+  frozenModelOutput: JsonObject,
+  options: AssemblePersonAExtractionOptions,
+): JsonObject {
+  const completionCorrected = applyPersonACompletionStateCompatibility(
+    frozenModelOutput,
+    options.narrative,
+  );
+  return assembleDryRun001ClA003CompatibilityProjection(completionCorrected, options);
 }

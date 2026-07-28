@@ -1,0 +1,310 @@
+import { createHash } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { describe, expect, it } from 'vitest';
+import {
+  DRY_RUN_001_COMPATIBILITY_ALIASES,
+  alignPersonAForCase,
+} from '../alignment/person-a-alignment-corrected.js';
+import { evaluatePersonAForCase } from '../evaluation/person-a-diff-corrected.js';
+import { parsePersonAModelOutputFromRawResponse } from '../evaluation/person-a-span-diagnostics.js';
+import { applyPersonACompletionStateCompatibility } from '../extraction/person-a-completion-state-compatibility.js';
+import {
+  assembleDryRun001ClA003CompatibilityProjection,
+  assembleDryRun001CompletionStateCompatibilityProjection,
+} from '../extraction/person-a-frozen-compatibility.js';
+import { assemblePersonAExtraction, extractPersonA } from '../extraction/person-a-extractor.js';
+import { validatePersonAExtraction } from '../extraction/validate-person-a-corrected.js';
+
+type JsonObject = Record<string, any>;
+
+const root = process.cwd();
+const submittedAt = '2026-07-25T00:00:00Z';
+const generatedAt = '2026-07-25T13:03:42.000Z';
+const model = 'gpt-5.6-sol';
+const targetIds = ['del_02_about', 'del_03_services', 'del_04_contact'];
+
+async function json(path: string): Promise<JsonObject> {
+  return JSON.parse(await readFile(resolve(root, path), 'utf8')) as JsonObject;
+}
+
+async function frozenInputs() {
+  const [narrative, historicalExtraction, golden, rawResponse] = await Promise.all([
+    readFile(resolve(root, 'src/fixtures/dry_run_001.person_a.txt'), 'utf8'),
+    json('docs/dry-run-001/extraction.json'),
+    json('docs/dry-run-001/golden-projection.json'),
+    json('docs/dry-run-001/raw-response.json'),
+  ]);
+  return {
+    narrative,
+    historicalExtraction,
+    golden,
+    modelOutput: parsePersonAModelOutputFromRawResponse(rawResponse),
+  };
+}
+
+function evaluate(extraction: JsonObject, golden: JsonObject, narrative: string) {
+  const options = {
+    aliases: DRY_RUN_001_COMPATIBILITY_ALIASES,
+    contractVersion: 'calibrated_live_v2' as const,
+  };
+  const alignment = alignPersonAForCase(extraction, golden, options);
+  return evaluatePersonAForCase(extraction, golden, alignment, {
+    ...options,
+    narrative,
+  });
+}
+
+function exactSpan(narrative: string): JsonObject {
+  return {
+    submission_id: 'submission_test',
+    quote: narrative,
+    start_char: 0,
+    end_char: narrative.length,
+  };
+}
+
+function providerFixture(narrative: string, name = 'Booking page'): JsonObject {
+  return {
+    deliverable_assessments: [
+      {
+        deliverable_id: 'deliverable_test',
+        name,
+        completion_status_person_a: 'complete',
+        source_claim_ids: ['claim_test'],
+      },
+    ],
+    claims: [
+      {
+        claim_id: 'claim_test',
+        source_spans: [exactSpan(narrative)],
+      },
+    ],
+  };
+}
+
+function projectedStatus(narrative: string, name?: string): string {
+  return applyPersonACompletionStateCompatibility(providerFixture(narrative, name), narrative)
+    .deliverable_assessments[0].completion_status_person_a;
+}
+
+describe('Person A completion-state compatibility', () => {
+  it('reproduces and corrects only the three exact frozen completion upgrades', async () => {
+    const { narrative, historicalExtraction, golden, modelOutput } = await frozenInputs();
+    const before = structuredClone(modelOutput);
+    const historical = evaluate(historicalExtraction, golden, narrative);
+    const pr14Projection = assembleDryRun001ClA003CompatibilityProjection(modelOutput, {
+      narrative,
+      submittedAt,
+      model,
+      generatedAt,
+    });
+    const corrected = assembleDryRun001CompletionStateCompatibilityProjection(modelOutput, {
+      narrative,
+      submittedAt,
+      model,
+      generatedAt,
+    });
+
+    expect(historical.summary).toMatchObject({ critical: 1, major: 45, minor: 20 });
+    expect(evaluate(pr14Projection, golden, narrative).summary).toMatchObject({
+      critical: 0,
+      major: 45,
+      minor: 20,
+    });
+    expect(
+      modelOutput.deliverable_assessments
+        .filter((item: JsonObject) => targetIds.includes(item.deliverable_id))
+        .map((item: JsonObject) => item.completion_status_person_a),
+    ).toEqual(['complete', 'complete', 'complete']);
+    expect(
+      corrected.deliverable_assessments
+        .filter((item: JsonObject) => targetIds.includes(item.deliverable_id))
+        .map((item: JsonObject) => item.completion_status_person_a),
+    ).toEqual(['substantially_complete', 'substantially_complete', 'substantially_complete']);
+    const reverted = structuredClone(corrected);
+    for (const deliverable of reverted.deliverable_assessments) {
+      if (targetIds.includes(deliverable.deliverable_id)) {
+        deliverable.completion_status_person_a = 'complete';
+      }
+    }
+    expect(reverted).toEqual(pr14Projection);
+
+    const correctedReport = evaluate(corrected, golden, narrative);
+    expect(correctedReport.summary).toMatchObject({ critical: 0, major: 42, minor: 20 });
+    expect(
+      correctedReport.errors.some(
+        (error) =>
+          targetIds.includes(error.extracted_id ?? '') && error.code === 'completion_status',
+      ),
+    ).toBe(false);
+    expect(
+      correctedReport.errors.some(
+        (error) => error.extracted_id === 'del_06_pricing' && error.code === 'scope_status',
+      ),
+    ).toBe(true);
+    expect(correctedReport.errors.some((error) => error.golden_id === 'cl_a_013')).toBe(true);
+    expect(validatePersonAExtraction(corrected, narrative).valid).toBe(true);
+    expect(modelOutput).toEqual(before);
+  });
+
+  it('proves the exact provider source supports a provisional staging state, not final page completion', async () => {
+    const { narrative, modelOutput } = await frozenInputs();
+    const scopeClaim = modelOutput.claims.find(
+      (claim: JsonObject) => claim.claim_id === 'claim_01_original_scope',
+    );
+    const stagingClaim = modelOutput.claims.find(
+      (claim: JsonObject) => claim.claim_id === 'claim_06_staging_complete',
+    );
+
+    expect(scopeClaim.source_spans).toEqual([
+      {
+        submission_id: 'submission_01',
+        quote:
+          'The original job was a homepage, about page, services page, contact page, and mobile-responsive layout, with two revision rounds.',
+        start_char: 579,
+        end_char: 708,
+      },
+    ]);
+    expect(stagingClaim.source_spans).toEqual([
+      {
+        submission_id: 'submission_01',
+        quote: 'I sent what I considered a complete staging version on June 3.',
+        start_char: 1033,
+        end_char: 1095,
+      },
+    ]);
+    for (const span of [...scopeClaim.source_spans, ...stagingClaim.source_spans]) {
+      expect(narrative.slice(span.start_char, span.end_char)).toBe(span.quote);
+    }
+    expect(stagingClaim.source_spans[0].quote).toMatch(/\bcomplete staging version\b/iu);
+    expect(stagingClaim.source_spans[0].quote).not.toMatch(
+      /\b(?:about|services|contact) page (?:is|was) complete\b/iu,
+    );
+    expect(narrative.slice(1033, 1210)).toContain('gave me a list of changes');
+    expect(narrative.slice(1033, 1210)).toContain('I made most of them');
+  });
+
+  it.each([
+    ['partial', 'I partially completed the booking page.', 'partially_complete'],
+    ['draft', 'I sent a complete draft of the booking page.', 'substantially_complete'],
+    ['pending', 'The booking page is pending approval before completion.', 'unknown'],
+    ['blocked', 'I was blocked from completing the booking page.', 'unknown'],
+    [
+      'awaiting approval',
+      'The booking page is awaiting approval before it can be completed.',
+      'unknown',
+    ],
+    ['abandoned', 'I abandoned the booking page before completion.', 'unknown'],
+    ['disputed', 'I dispute that the booking page is complete.', 'unknown'],
+    ['hypothetical', 'The booking page might be completed next week.', 'unknown'],
+    ['denied', 'I did not complete the booking page.', 'unknown'],
+  ])('does not upgrade %s language to complete', (_label, narrative, expected) => {
+    expect(projectedStatus(narrative)).toBe(expected);
+  });
+
+  it.each([
+    'I completed the booking page.',
+    'The booking page is complete and I delivered it.',
+    'I finished and delivered the booking page.',
+  ])('preserves a genuinely completed named deliverable: %s', (narrative) => {
+    expect(projectedStatus(narrative)).toBe('complete');
+  });
+
+  it.each([
+    'I completed every page in the website.',
+    'I finished the entire project and delivered it.',
+    'All deliverables are complete.',
+  ])('preserves genuine aggregate completion: %s', (narrative) => {
+    expect(projectedStatus(narrative)).toBe('complete');
+  });
+
+  it('ignores non-exact source spans and never mutates the provider input', () => {
+    const narrative = 'I sent a complete draft of the booking page.';
+    const fixture = providerFixture(narrative);
+    fixture.claims[0].source_spans[0].end_char -= 1;
+    const before = structuredClone(fixture);
+
+    expect(
+      applyPersonACompletionStateCompatibility(fixture, narrative).deliverable_assessments[0]
+        .completion_status_person_a,
+    ).toBe('complete');
+    expect(fixture).toEqual(before);
+  });
+
+  it('leaves ordinary assembly and fresh extraction unchanged', async () => {
+    const { narrative, modelOutput } = await frozenInputs();
+    const assembled = assemblePersonAExtraction(modelOutput, {
+      narrative,
+      submittedAt,
+      model,
+      generatedAt,
+    });
+    const fresh = await extractPersonA({
+      narrative,
+      submittedAt,
+      model,
+      generatedAt,
+      client: {
+        generate: async () => ({
+          output: structuredClone(modelOutput),
+          rawResponse: { id: 'offline-test-response' },
+        }),
+      },
+    });
+
+    for (const extraction of [assembled, fresh.extraction]) {
+      expect(
+        extraction.deliverable_assessments
+          .filter((item: JsonObject) => targetIds.includes(item.deliverable_id))
+          .map((item: JsonObject) => item.completion_status_person_a),
+      ).toEqual(['complete', 'complete', 'complete']);
+    }
+  });
+
+  it('keeps PR #14 output byte-identical and the new projection deterministic', async () => {
+    const { narrative, modelOutput } = await frozenInputs();
+    const pr14 = assembleDryRun001ClA003CompatibilityProjection(modelOutput, {
+      narrative,
+      submittedAt,
+      model,
+      generatedAt,
+    });
+    const first = assembleDryRun001CompletionStateCompatibilityProjection(modelOutput, {
+      narrative,
+      submittedAt,
+      model,
+      generatedAt,
+    });
+    const second = assembleDryRun001CompletionStateCompatibilityProjection(modelOutput, {
+      narrative,
+      submittedAt,
+      model,
+      generatedAt,
+    });
+    const hash = (value: JsonObject) =>
+      createHash('sha256')
+        .update(`${JSON.stringify(value, null, 2)}\n`)
+        .digest('hex');
+
+    expect(hash(pr14)).toBe('d607a8555c2bda66e8b12f80ac47f8bc880b82d90a5f23ca5d9cfd58a0af4c41');
+    expect(hash(first)).toBe('04b927a7e54be2afccf36f32494afc563c1c7d2d6730611ee74d2c9a961775d3');
+    expect(JSON.stringify(second)).toBe(JSON.stringify(first));
+  });
+
+  it('keeps the correction independent of frozen identities, goldens, and evaluation code', async () => {
+    const source = await readFile(
+      resolve(root, 'src/extraction/person-a-completion-state-compatibility.ts'),
+      'utf8',
+    );
+    expect(source).not.toMatch(
+      /\b(?:alex|maya|del_02|del_03|del_04|dry_run|golden-projection|fixtures)\b/iu,
+    );
+    expect(source).not.toMatch(/from\s+['"][^'"]*(?:alignment|evaluation|golden)[^'"]*['"]/iu);
+    const extractorSource = await readFile(
+      resolve(root, 'src/extraction/person-a-extractor.ts'),
+      'utf8',
+    );
+    expect(extractorSource).not.toMatch(/completion-state-compatibility/iu);
+  });
+});
