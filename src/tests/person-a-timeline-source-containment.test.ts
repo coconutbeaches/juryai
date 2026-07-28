@@ -541,6 +541,10 @@ describe('Dry Run 001 exact-source timeline containment', () => {
     });
     mutations.push([proxySpan, structuredClone(expected)]);
 
+    const exoticArrayPrototype = structuredClone(extracted);
+    Object.setPrototypeOf(exoticArrayPrototype.source_spans, new Proxy(Array.prototype, {}));
+    mutations.push([exoticArrayPrototype, structuredClone(expected)]);
+
     for (const [left, right] of mutations) {
       expect(
         proveExactSourceTimelineContainment(

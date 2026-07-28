@@ -165,6 +165,9 @@ function canonicalizeJsonSafe(value: unknown, seen = new WeakSet<object>()): unk
   seen.add(value);
 
   if (Array.isArray(value)) {
+    if (Object.getPrototypeOf(value) !== Array.prototype) {
+      throw new Error('Frozen timeline arrays must use the intrinsic Array prototype.');
+    }
     const keys = Object.keys(value);
     if (
       keys.length !== value.length ||
