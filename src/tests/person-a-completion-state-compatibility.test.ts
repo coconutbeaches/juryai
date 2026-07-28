@@ -212,6 +212,31 @@ describe('Person A completion-state compatibility', () => {
   });
 
   it.each([
+    [
+      'I partially completed the homepage. I completed the booking page.',
+      'Booking page',
+      'complete',
+    ],
+    [
+      'I completed the homepage. I partially completed the booking page.',
+      'Booking page',
+      'partially_complete',
+    ],
+  ])(
+    'scopes mixed deliverable states to the named deliverable: %s',
+    (narrative, name, expected) => {
+      expect(projectedStatus(narrative, name)).toBe(expected);
+    },
+  );
+
+  it.each(['Not all pages are complete.', 'Not every page is complete.'])(
+    'does not preserve complete from negated aggregate language: %s',
+    (narrative) => {
+      expect(projectedStatus(narrative)).toBe('unknown');
+    },
+  );
+
+  it.each([
     'I completed the booking page.',
     'The booking page is complete and I delivered it.',
     'I finished and delivered the booking page.',

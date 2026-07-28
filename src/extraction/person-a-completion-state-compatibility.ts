@@ -34,22 +34,52 @@ function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
 }
 
+function hasCompletionLanguage(text: string): boolean {
+  return /\b(?:complet(?:e|ed|ing|ion)|done|finish(?:ed|ing)?|finali[sz](?:e|ed|ing)|deliver(?:ed|ing|y)?)\b/iu.test(
+    text,
+  );
+}
+
+function scopedCompletionText(deliverableName: string, quotes: string[]): string {
+  const clauses = quotes.flatMap((quote) =>
+    quote
+      .split(/[.!?;\r\n]+|,\s*(?:although|but|while)\s+/iu)
+      .map((clause) => clause.trim())
+      .filter((clause) => clause.length > 0),
+  );
+  if (deliverableName.length === 0) return clauses.join(' ');
+  const namePattern = new RegExp(`\\b${escapeRegex(deliverableName)}\\b`, 'iu');
+  const namedCompletionClauses = clauses.filter(
+    (clause) => namePattern.test(clause) && hasCompletionLanguage(clause),
+  );
+  return (namedCompletionClauses.length > 0 ? namedCompletionClauses : clauses).join(' ');
+}
+
 function sourceSupportedStatus(
   deliverableName: unknown,
   quotes: string[],
 ): CompletionStatus | null {
   if (quotes.length === 0) return null;
-  const text = quotes.join(' ').replace(/[’‘]/gu, "'").toLocaleLowerCase();
+  const normalizedName =
+    typeof deliverableName === 'string'
+      ? deliverableName.trim().replace(/\s+/gu, ' ').toLocaleLowerCase()
+      : '';
+  const normalizedQuotes = quotes.map((quote) => quote.replace(/[’‘]/gu, "'").toLocaleLowerCase());
+  const text = scopedCompletionText(normalizedName, normalizedQuotes);
 
   if (/\b(?:not\s+started|never\s+started|work\s+had\s+not\s+begun)\b/iu.test(text)) {
     return 'not_complete';
   }
 
-  const hasCompletionLanguage =
-    /\b(?:complet(?:e|ed|ing|ion)|done|finish(?:ed|ing)?|finali[sz](?:e|ed|ing)|deliver(?:ed|ing|y)?)\b/iu.test(
+  if (!hasCompletionLanguage(text)) return null;
+
+  if (
+    /\bnot\s+(?:all|each|every)\b[^.;]{0,64}\b(?:deliverables?|pages?|project|site|website)\b[^.;]{0,32}\b(?:complete|completed|done|finished)\b/iu.test(
       text,
-    );
-  if (!hasCompletionLanguage) return null;
+    )
+  ) {
+    return 'unknown';
+  }
 
   if (
     /\b(?:did\s+not|didn't|do\s+not|don't|has\s+not|hasn't|have\s+not|haven't|is\s+not|isn't|never|was\s+not|wasn't)\b[^.;]{0,48}\b(?:complet(?:e|ed|ing|ion)|done|finish(?:ed|ing)?|finali[sz](?:e|ed|ing)|deliver(?:ed|ing|y)?)\b/iu.test(
@@ -110,10 +140,6 @@ function sourceSupportedStatus(
     return 'unknown';
   }
 
-  const normalizedName =
-    typeof deliverableName === 'string'
-      ? deliverableName.trim().replace(/\s+/gu, ' ').toLocaleLowerCase()
-      : '';
   const namesSpecificDeliverable =
     normalizedName.length > 0 &&
     new RegExp(`\\b${escapeRegex(normalizedName)}\\b`, 'iu').test(text);
