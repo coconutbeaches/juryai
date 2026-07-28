@@ -124,11 +124,13 @@ function namesSpecificPageDeliverable(clause: string): boolean {
 
 function isThirdPartyAttributedCompletionClause(clause: string): boolean {
   return (
-    /^(?:according\s+to|per)\s+(?!me\b|us\b)[^,.;]{1,64}[,:]?\s+/iu.test(clause) ||
+    /^(?:according\s+to|per)\s+(?!me\b|mine\b|my\b|our\b|ours\b|us\b)[^,.;]{1,64}[,:]?\s+/iu.test(
+      clause,
+    ) ||
     /^(?:the\s+)?(?!i\b|we\b)[\p{L}\p{N}'’-]+(?:\s+[\p{L}\p{N}'’-]+){0,3}\s+(?:believes?|claims?|considers?|contests?|denies?|disputes?|doubts?|maintains?|questions?|reports?|says?|said|states?|stated|thinks?)\b/iu.test(
       clause,
     ) ||
-    /(?:,|—|-)\s*(?:according\s+to|per)\s+(?!me\b|us\b)/iu.test(clause)
+    /(?:,|—|-)\s*(?:according\s+to|per)\s+(?!me\b|mine\b|my\b|our\b|ours\b|us\b)/iu.test(clause)
   );
 }
 
@@ -145,7 +147,7 @@ function hasProvisionalStateLanguage(text: string): boolean {
 
 function splitCompletionClauses(quote: string): string[] {
   const contrastClauses = quote.split(
-    /[.!?;\r\n]+|\s+(?:although|but|however|while)\s+|,\s+(?:currently|later|now|subsequently|today)\s+|,\s+(?=(?:it|this)\s+(?:is|was|has|had|will|would|can|could|may|might|became|becomes|remained|remains)\b)/iu,
+    /[.!?;\r\n]+|\s+(?:although|however|while)\s+|(?<!\banything)(?<!\bnothing)\s+but\s+|,\s+(?:currently|later|now|subsequently|today)\s+|,\s+(?=(?:it|this)\s+(?:is|was|has|had|will|would|can|could|may|might|became|becomes|remained|remains)\b)/iu,
   );
   return contrastClauses.flatMap((contrastClause) => {
     const coordinatedParts = contrastClause.split(/\s+and\s+/iu);
@@ -375,6 +377,14 @@ function sourceSupportedStatus(
     )
   ) {
     return 'complete';
+  }
+
+  if (
+    /\b(?:anything\s+but|far\s+from|nowhere\s+near)\s+(?:complete|completed|done|finished)\b/iu.test(
+      text,
+    )
+  ) {
+    return 'not_complete';
   }
 
   if (
