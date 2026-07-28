@@ -206,6 +206,8 @@ describe('Dry Run 001 cl_a_013 grounded recall', () => {
       created_claim_id: 'claim_15_scope_documentation',
       narrative_sha256: '2cdb00b4b2b28c1813a979be5cf22f1ac51a30282abea9e144df491549c4fcc7',
       prior_projection_sha256: 'f46a43391795d5f8e0a8360992ce74135547f887cc5cba512f6e81d11a1f311d',
+      prior_serialization_sha256:
+        'a50cfa97b53d2511869839f73bf1f2daf26747fa9d0567efa79c6e09a3182797',
       prior_claims_sha256: '89d594d55df3c6f4719c57f4f55af8478375cc91ff306b8ae17e790811daa0d0',
       related_record_sha256: {
         term_12_pricing_section: '7f7689fb72897171a538f657f268aabbe7e9cae796eddbc927e1991f0e00607f',
@@ -448,6 +450,40 @@ describe('Dry Run 001 cl_a_013 grounded recall', () => {
     const proxied = structuredClone(prior);
     proxied.claims = new Proxy(proxied.claims, {});
     expect(() => projectDryRun001ClA013CompatibilityRecovery(proxied, narrative)).toThrow();
+  });
+
+  it('rejects stateful proxies before any reflective trap can mutate the projection', async () => {
+    const { narrative, prior } = await frozenInputs();
+    const attacked = structuredClone(prior);
+    const termIndex = attacked.agreement.terms.findIndex(
+      (term: JsonObject) => term.term_id === 'term_12_pricing_section',
+    );
+    const originalTerm = attacked.agreement.terms[termIndex];
+    let ownKeysCalls = 0;
+    attacked.agreement.terms[termIndex] = new Proxy(originalTerm, {
+      ownKeys(target) {
+        ownKeysCalls += 1;
+        if (ownKeysCalls === 2) {
+          attacked.claims[0].materiality = 'low';
+          attacked.agreement.terms[termIndex] = originalTerm;
+        }
+        return Reflect.ownKeys(target);
+      },
+    });
+
+    expectRecoveryToReject(attacked, narrative);
+    expect(ownKeysCalls).toBe(0);
+    expect(attacked.claims[0].materiality).toBe(prior.claims[0].materiality);
+  });
+
+  it('rejects key-reordered records that would serialize to different output bytes', async () => {
+    const { narrative, prior } = await frozenInputs();
+    const reordered = structuredClone(prior);
+    reordered.claims[0] = Object.fromEntries(Object.entries(reordered.claims[0]).reverse());
+
+    expect(reordered.claims[0]).toEqual(prior.claims[0]);
+    expect(JSON.stringify(reordered)).not.toBe(JSON.stringify(prior));
+    expectRecoveryToReject(reordered, narrative);
   });
 
   it('leaves ordinary assembly and fresh extraction isolated from the recovery', async () => {

@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { types as utilTypes } from 'node:util';
 import { validatePersonAExtraction } from './validate-person-a-corrected.js';
 
 type JsonObject = Record<string, any>;
@@ -7,6 +8,8 @@ const EXPECTED_NARRATIVE_SHA256 =
   '2cdb00b4b2b28c1813a979be5cf22f1ac51a30282abea9e144df491549c4fcc7';
 const EXPECTED_PRIOR_PROJECTION_SHA256 =
   'f46a43391795d5f8e0a8360992ce74135547f887cc5cba512f6e81d11a1f311d';
+const EXPECTED_PRIOR_SERIALIZATION_SHA256 =
+  'a50cfa97b53d2511869839f73bf1f2daf26747fa9d0567efa79c6e09a3182797';
 const EXPECTED_CLAIMS_SHA256 = '89d594d55df3c6f4719c57f4f55af8478375cc91ff306b8ae17e790811daa0d0';
 const EXPECTED_RELATED_RECORD_SHA256 = {
   term_12_pricing_section: '7f7689fb72897171a538f657f268aabbe7e9cae796eddbc927e1991f0e00607f',
@@ -40,6 +43,7 @@ export type DryRun001ClA013CompatibilityProjection = {
     created_claim_id: typeof RECOVERED_CLAIM_ID;
     narrative_sha256: typeof EXPECTED_NARRATIVE_SHA256;
     prior_projection_sha256: typeof EXPECTED_PRIOR_PROJECTION_SHA256;
+    prior_serialization_sha256: typeof EXPECTED_PRIOR_SERIALIZATION_SHA256;
     prior_claims_sha256: typeof EXPECTED_CLAIMS_SHA256;
     related_record_sha256: typeof EXPECTED_RELATED_RECORD_SHA256;
     source_span: typeof SOURCE_SPAN;
@@ -84,6 +88,7 @@ function canonicalizeJsonSafe(
   if (typeof value !== 'object') fail(`rejects unsupported value at ${path}.`);
 
   const object = value as object;
+  if (utilTypes.isProxy(object)) fail(`rejects proxied input at ${path}.`);
   if (ancestors.has(object)) fail(`rejects cyclic input at ${path}.`);
   ancestors.add(object);
   try {
@@ -142,6 +147,10 @@ function fingerprint(value: unknown): string {
   return createHash('sha256')
     .update(JSON.stringify(canonicalizeJsonSafe(value)), 'utf8')
     .digest('hex');
+}
+
+function serializationFingerprint(value: unknown): string {
+  return createHash('sha256').update(JSON.stringify(value), 'utf8').digest('hex');
 }
 
 function uniqueRecord(
@@ -233,6 +242,9 @@ export function projectDryRun001ClA013CompatibilityRecovery(
   }
 
   requireFingerprint(priorProjection, EXPECTED_PRIOR_PROJECTION_SHA256, 'PR #16 projection');
+  if (serializationFingerprint(priorProjection) !== EXPECTED_PRIOR_SERIALIZATION_SHA256) {
+    fail('requires the exact PR #16 projection serialization.');
+  }
   if (!Array.isArray(priorProjection.claims)) fail('requires claims to be an array.');
   if (priorProjection.claims.length !== EXPECTED_CLAIM_COUNT) {
     fail(`requires exactly ${EXPECTED_CLAIM_COUNT} prior claims.`);
@@ -279,6 +291,7 @@ export function projectDryRun001ClA013CompatibilityRecovery(
       created_claim_id: RECOVERED_CLAIM_ID,
       narrative_sha256: EXPECTED_NARRATIVE_SHA256,
       prior_projection_sha256: EXPECTED_PRIOR_PROJECTION_SHA256,
+      prior_serialization_sha256: EXPECTED_PRIOR_SERIALIZATION_SHA256,
       prior_claims_sha256: EXPECTED_CLAIMS_SHA256,
       related_record_sha256: { ...EXPECTED_RELATED_RECORD_SHA256 },
       source_span: { ...SOURCE_SPAN },

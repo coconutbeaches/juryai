@@ -112,9 +112,11 @@ calls one case-specific projector. The projector:
 
 1. accepts only the exact Dry Run 001 narrative SHA-256;
 2. verifies the exact `937–1031` narrative slice;
-3. rejects non-JSON values, non-finite numbers, sparse arrays, extra array properties, symbols,
-   cycles, accessors, non-plain objects, and non-intrinsic arrays before transformation;
-4. requires the complete PR #16 projection fingerprint;
+3. rejects proxies before invoking their reflective traps and rejects non-JSON values, non-finite
+   numbers, sparse arrays, extra array properties, symbols, cycles, accessors, non-plain objects,
+   and non-intrinsic arrays before transformation;
+4. requires both the complete canonical PR #16 projection fingerprint and its exact serialized
+   key order;
 5. requires exactly 16 prior claims and the complete claims-array fingerprint;
 6. requires complete fingerprints of the three related scope terms and the ambiguity issue;
 7. requires their exact admission span or exact containing issue span;
@@ -124,9 +126,9 @@ calls one case-specific projector. The projector:
 10. validates the complete projected extraction against JSON Schema and custom invariants; and
 11. returns a deterministic audit separately from the canonical extraction.
 
-Any narrative, claim, related-record, fingerprint, prototype, or structural difference throws
-before an output is returned. An equivalent or ID-conflicting claim changes the prior claims
-fingerprint and fails closed.
+Any narrative, claim, related-record, fingerprint, key-order, prototype, proxy, or structural
+difference throws before an output is returned. An equivalent or ID-conflicting claim changes the
+prior claims fingerprint and fails closed.
 
 The projector does not import golden data, alignment, evaluation, similarity, or threshold code.
 Ordinary assembly and `extractPersonA` do not import or invoke it.
@@ -145,8 +147,11 @@ assembler span relocation, and all earlier compatibility entrypoints remain unch
 | PR #18 claim projection | evaluated with PR #17 at `0/37/19` | `2f2bdcf59c7a87fe52137610ac5a1c78ae9d97001a44b141a9424c4e9b2e7f80` |
 
 The PR #18 audit SHA-256 is
-`312d7f217d5f1e2d65000425c0c1cb75d3940f4a53574aa9e31102f2a2d2c807`.
-Hashes use the repository convention of two-space JSON followed by a newline.
+`ab7bcd2bb42604bc36487fdbfb2329827060c1ac71b163dcf1e9b44cd3df1985`.
+The exact compact serialization guard for the PR #16 input is
+`a50cfa97b53d2511869839f73bf1f2daf26747fa9d0567efa79c6e09a3182797`.
+Projection and audit hashes use the repository convention of two-space JSON followed by a
+newline; the key-order guard hashes the compact runtime serialization that it validates.
 
 ## Before and after
 
@@ -171,9 +176,9 @@ qualification, and the fail-closed complete-record boundary.
 
 Local verification:
 
-- focused PR #18 regression: `16/16`;
-- claim/evaluator/extractor/validation/repair projection set: `799/799` across 12 files;
-- full suite: `1329/1329` across 24 files;
+- focused PR #18 regression: `18/18`;
+- claim/evaluator/extractor/validation/repair projection set: `801/801` across 12 files;
+- full suite: `1331/1331` across 24 files;
 - Person A suite: `70/70`;
 - typecheck and repository formatting;
 - CI test-matrix coverage;
@@ -186,7 +191,8 @@ support, the extracted representation map, one-record append, deterministic audi
 before/after errors, prior counts and hashes, no duplicate claim, schema validation, ordinary
 assembly/extraction isolation, and fail-closed behavior for negated, conditional, incomplete,
 paraphrased, structurally altered, malformed, sparse, duplicate, prototype-mutated,
-accessor-backed, cyclic, symbol-bearing, non-finite, `undefined`, and proxied inputs.
+accessor-backed, cyclic, symbol-bearing, non-finite, `undefined`, key-reordered, and proxied inputs,
+including a stateful proxy whose reflective trap attempts to mutate another claim.
 
 ## Exclusions and remaining defects
 
