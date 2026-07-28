@@ -195,11 +195,19 @@ describe('Person A completion-state compatibility', () => {
       'The booking page is awaiting approval before it can be completed.',
       'unknown',
     ],
-    ['abandoned', 'I abandoned the booking page before completion.', 'unknown'],
-    ['disputed', 'I dispute that the booking page is complete.', 'unknown'],
+    ['abandoned', 'I abandoned the booking page before completion.', 'not_complete'],
+    ['disputed', 'I dispute that the booking page is complete.', 'disputed'],
     ['hypothetical', 'The booking page might be completed next week.', 'unknown'],
-    ['denied', 'I did not complete the booking page.', 'unknown'],
+    ['denied', 'I did not complete the booking page.', 'not_complete'],
+    ['not started', 'I never started the booking page.', 'not_complete'],
   ])('does not upgrade %s language to complete', (_label, narrative, expected) => {
+    expect(projectedStatus(narrative)).toBe(expected);
+  });
+
+  it.each([
+    ['The draft was not complete.', 'not_complete'],
+    ['I did not complete the staging version.', 'not_complete'],
+  ])('gives negation precedence over provisional language: %s', (narrative, expected) => {
     expect(projectedStatus(narrative)).toBe(expected);
   });
 

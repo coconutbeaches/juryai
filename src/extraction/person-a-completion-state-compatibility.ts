@@ -1,7 +1,12 @@
 type JsonObject = Record<string, any>;
 
 type CompletionStatus =
-  'not_started' | 'partially_complete' | 'substantially_complete' | 'complete' | 'unknown';
+  | 'partially_complete'
+  | 'substantially_complete'
+  | 'complete'
+  | 'not_complete'
+  | 'disputed'
+  | 'unknown';
 
 function isJsonObject(value: unknown): value is JsonObject {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -37,7 +42,7 @@ function sourceSupportedStatus(
   const text = quotes.join(' ').replace(/[’‘]/gu, "'").toLocaleLowerCase();
 
   if (/\b(?:not\s+started|never\s+started|work\s+had\s+not\s+begun)\b/iu.test(text)) {
-    return 'not_started';
+    return 'not_complete';
   }
 
   const hasCompletionLanguage =
@@ -45,6 +50,28 @@ function sourceSupportedStatus(
       text,
     );
   if (!hasCompletionLanguage) return null;
+
+  if (
+    /\b(?:did\s+not|didn't|do\s+not|don't|has\s+not|hasn't|have\s+not|haven't|is\s+not|isn't|never|was\s+not|wasn't)\b[^.;]{0,48}\b(?:complet(?:e|ed|ing|ion)|done|finish(?:ed|ing)?|finali[sz](?:e|ed|ing)|deliver(?:ed|ing|y)?)\b/iu.test(
+      text,
+    ) ||
+    /\b(?:deny|denies|denied|denying)\b[^.;]{0,56}\b(?:complete|completed|completion|done|finished)\b/iu.test(
+      text,
+    ) ||
+    /\b(?:abandon(?:ed|ment)?|cancel(?:led|ed|lation)?|stopped)\b[^.;]{0,48}\b(?:before|without|prior\s+to)\b[^.;]{0,24}\b(?:complete|completed|completion|finish(?:ed)?)\b/iu.test(
+      text,
+    )
+  ) {
+    return 'not_complete';
+  }
+
+  if (
+    /\b(?:dispute|disputes|disputed|disputing|contest|contests|contested|contesting)\b[^.;]{0,56}\b(?:complete|completed|completion|done|finished)\b/iu.test(
+      text,
+    )
+  ) {
+    return 'disputed';
+  }
 
   if (
     /\b(?:partially|partly)\b/iu.test(text) ||
@@ -69,17 +96,8 @@ function sourceSupportedStatus(
   }
 
   if (
-    /\b(?:did\s+not|didn't|do\s+not|don't|has\s+not|hasn't|have\s+not|haven't|is\s+not|isn't|never|was\s+not|wasn't)\b[^.;]{0,48}\b(?:complete|completed|completion|done|finish(?:ed)?|finali[sz](?:e|ed)|deliver(?:ed|y)?)\b/iu.test(
-      text,
-    ) ||
     /\b(?:pending|awaiting)\b[^.;]{0,48}\b(?:approval|completion|sign[- ]?off)\b/iu.test(text) ||
     /\b(?:blocked|prevented)\b[^.;]{0,48}\b(?:complet(?:e|ed|ing|ion)|finish(?:ed|ing)?)\b/iu.test(
-      text,
-    ) ||
-    /\b(?:abandon(?:ed|ment)?|cancel(?:led|ed|lation)?|stopped)\b[^.;]{0,48}\b(?:before|without|prior\s+to)\b[^.;]{0,24}\b(?:complete|completed|completion|finish(?:ed)?)\b/iu.test(
-      text,
-    ) ||
-    /\b(?:deny|denies|denied|denying|dispute|disputes|disputed|disputing|contest|contests|contested|contesting)\b[^.;]{0,56}\b(?:complete|completed|completion|done|finished)\b/iu.test(
       text,
     ) ||
     /\b(?:could|might|may|would|perhaps|possibly|hypothetically)\b[^.;]{0,48}\b(?:complete|completed|completion|done|finish(?:ed)?)\b/iu.test(
