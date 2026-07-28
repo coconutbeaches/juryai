@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import {
   alignPersonAForCase as alignPriorProjection,
   familyItems,
@@ -28,6 +29,8 @@ export type TimelineContainmentAuditEntry = {
     quote: string;
   };
   material_tokens: string[];
+  extracted_record_sha256: string;
+  golden_record_sha256: string;
 };
 
 export type TimelineContainmentAlignment = PersonAAlignment & {
@@ -126,18 +129,14 @@ function materialTimelineTokens(value: unknown, aliases: PersonASemanticAliases)
 }
 
 const dryRun001TimelineContainmentRepresentation = {
-  extractedSummary:
-    'The contract allegedly required Maya to supply final copy and images by April 25; no year is stated.',
-  extractedInterpretation:
-    'Alex considers timely delivery of the content a dependency for the project timeline.',
+  extractedRecordSha256: '80e9d2509dedba61b8439527c324c28aebfb70e0dd8dca656cc7355fef5c7bfa',
   extractedSpan: {
     start_char: 283,
     end_char: 428,
     quote:
       'The intended launch was around May 20, although the contract also says the timeline depended on Maya supplying final copy and images by April 25.',
   },
-  goldenSummary: 'by April 25.',
-  goldenInterpretation: 'A material dependency for the launch schedule.',
+  goldenRecordSha256: 'd2233b8f28b3c6eff750fd4c17f94c0730a6bf94d8d76d7856d906d8cf3afdc7',
   goldenSpan: {
     start_char: 416,
     end_char: 428,
@@ -145,17 +144,33 @@ const dryRun001TimelineContainmentRepresentation = {
   },
 } as const;
 
+function canonicalize(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (value !== null && typeof value === 'object') {
+    const object = value as JsonObject;
+    return Object.fromEntries(
+      Object.keys(object)
+        .sort()
+        .map((key) => [key, canonicalize(object[key])]),
+    );
+  }
+  return value;
+}
+
+function recordFingerprint(value: JsonObject): string {
+  return createHash('sha256')
+    .update(JSON.stringify(canonicalize(value)), 'utf8')
+    .digest('hex');
+}
+
 function matchesFrozenTimelineContainmentRepresentation(
   extracted: JsonObject,
   golden: JsonObject,
 ): boolean {
   return (
-    extracted.event_summary === dryRun001TimelineContainmentRepresentation.extractedSummary &&
-    extracted.person_a_interpretation ===
-      dryRun001TimelineContainmentRepresentation.extractedInterpretation &&
-    golden.event_summary === dryRun001TimelineContainmentRepresentation.goldenSummary &&
-    golden.person_a_interpretation ===
-      dryRun001TimelineContainmentRepresentation.goldenInterpretation
+    recordFingerprint(extracted) ===
+      dryRun001TimelineContainmentRepresentation.extractedRecordSha256 &&
+    recordFingerprint(golden) === dryRun001TimelineContainmentRepresentation.goldenRecordSha256
   );
 }
 
@@ -320,6 +335,8 @@ export function alignDryRun001TimelineContainmentProjection(
         extracted_span: candidate.proof.extractedSpan,
         golden_span: candidate.proof.goldenSpan,
         material_tokens: candidate.proof.materialTokens,
+        extracted_record_sha256: dryRun001TimelineContainmentRepresentation.extractedRecordSha256,
+        golden_record_sha256: dryRun001TimelineContainmentRepresentation.goldenRecordSha256,
       },
     ],
   };

@@ -217,6 +217,10 @@ describe('Dry Run 001 exact-source timeline containment', () => {
     ).toMatchObject({
       recovery_reason: 'exact_source_containment',
     });
+    expect(corrected.audit.transformation).toMatchObject({
+      extracted_record_sha256: '80e9d2509dedba61b8439527c324c28aebfb70e0dd8dca656cc7355fef5c7bfa',
+      golden_record_sha256: 'd2233b8f28b3c6eff750fd4c17f94c0730a6bf94d8d76d7856d906d8cf3afdc7',
+    });
     expect(corrected.audit.removed_findings).toEqual([
       {
         severity: 'major',
@@ -476,13 +480,48 @@ describe('Dry Run 001 exact-source timeline containment', () => {
     ).toBeNull();
   });
 
+  it('rejects every mutation of the complete frozen pair', async () => {
+    const { extraction, golden, narrative } = await frozenProjection();
+    const extracted = extraction.timeline.find(
+      (item: JsonObject) => item.event_id === 'event_02_content_deadline',
+    );
+    const expected = golden.timeline.find((item: JsonObject) => item.event_id === 'tl_content_due');
+    const mutations: Array<[JsonObject, JsonObject]> = [];
+
+    const changedId = structuredClone(extracted);
+    changedId.event_id = 'event_02_content_deadline_mutated';
+    mutations.push([changedId, structuredClone(expected)]);
+
+    const changedEvidence = structuredClone(extracted);
+    changedEvidence.source_evidence_ids = ['ev_unrelated'];
+    mutations.push([changedEvidence, structuredClone(expected)]);
+
+    const changedSubmission = structuredClone(expected);
+    changedSubmission.source_spans[0].submission_id = 'sub_a_mutated';
+    mutations.push([structuredClone(extracted), changedSubmission]);
+
+    const addedSpan = structuredClone(extracted);
+    addedSpan.source_spans.push(structuredClone(addedSpan.source_spans[0]));
+    mutations.push([addedSpan, structuredClone(expected)]);
+
+    for (const [left, right] of mutations) {
+      expect(
+        proveExactSourceTimelineContainment(
+          left,
+          right,
+          narrative,
+          DRY_RUN_001_COMPATIBILITY_ALIASES,
+        ),
+      ).toBeNull();
+    }
+  });
+
   it('rejects competing containment candidates instead of forcing an alignment', async () => {
     const { extraction, golden, evaluationOptions } = await frozenProjection();
     const ambiguousGolden = structuredClone(golden);
     const duplicate = structuredClone(
       ambiguousGolden.timeline.find((item: JsonObject) => item.event_id === 'tl_content_due'),
     );
-    duplicate.event_id = 'tl_content_due_competing';
     ambiguousGolden.timeline.push(duplicate);
 
     expect(() =>

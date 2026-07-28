@@ -71,15 +71,17 @@ projection. The entrypoint:
 5. requires the golden summary to equal a verbatim golden source leaf strictly nested in an exact
    extracted source span;
 6. requires every material golden-summary token to remain in the extracted summary;
-7. requires the exact audited PR #16 extracted summary, interpretation, source span, and offsets
-   together with the exact audited golden summary, interpretation, source leaf, and offsets;
+7. requires SHA-256 fingerprints of the complete audited PR #16 extracted and golden records,
+   including IDs, evidence IDs, every source-span field, and the requirement that each record has
+   exactly its one audited span;
 8. requires exactly one mutually unique candidate and fails closed otherwise;
-9. records the exact spans, material tokens, IDs, and `exact_source_containment` reason;
+9. records both complete-record fingerprints, the exact spans, material tokens, IDs, and
+   `exact_source_containment` reason;
 10. independently re-proves the invariant during evaluation; and
 11. rejects the projection if any finding other than the selected missing/extra pair changes.
 
 This is a frozen-representation compatibility projection, not fuzzy matching or a new general
-alignment heuristic. Any wording, interpretation, span, or offset change fails closed. One
+alignment heuristic. Any record-leaf, extra field, span, or offset change fails closed. One
 extracted event still cannot satisfy multiple goldens, and one golden still cannot absorb multiple
 extracted events.
 
@@ -126,9 +128,9 @@ validation, near-match and ambiguity rejection, actor preservation, legitimate e
 exclusions, and ordinary extraction/assembly isolation. The test is registered in the explicit CI
 matrix. Local verification passed:
 
-- focused PR #17 regression: `12/12`;
-- timeline/evaluator/extractor/validation/repair/projection set: `724/724`;
-- full suite: `1312/1312` across 23 files;
+- focused PR #17 regression: `13/13`;
+- timeline/evaluator/extractor/validation/repair/projection set: `725/725`;
+- full suite: `1313/1313` across 23 files;
 - typecheck, formatting, CI matrix coverage, and golden schema/custom validation;
 - Person A acceptance gate with historical outputs still `0/3` and controls `3/3`;
 - dependency audit with zero vulnerabilities.
