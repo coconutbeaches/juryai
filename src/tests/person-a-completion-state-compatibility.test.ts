@@ -350,6 +350,7 @@ describe('Person A completion-state compatibility', () => {
   it('recognizes completion-first passive dispute language', () => {
     expect(projectedStatus('Completion of the booking page is disputed.')).toBe('disputed');
     expect(projectedStatus('I dispute that the booking page is incomplete.')).toBe('disputed');
+    expect(projectedStatus('I dispute that the booking page is not complete.')).toBe('disputed');
   });
 
   it('preserves uncertainty around possible incomplete states', () => {

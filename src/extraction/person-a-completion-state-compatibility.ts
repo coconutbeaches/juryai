@@ -240,6 +240,17 @@ function sourceSupportedStatus(
   }
 
   if (
+    /\b(?:dispute|disputes|disputed|disputing|contest|contests|contested|contesting)\b[^.;]{0,56}\b(?:complete|completed|completion|incomplete|done|finished|unfinished)\b/iu.test(
+      text,
+    ) ||
+    /\b(?:complete|completed|completion|incomplete|done|finished|unfinished)\b[^.;]{0,56}\b(?:(?:is|was|remains?)\s+|(?:has|had)\s+been\s+)(?:disputed|contested)\b/iu.test(
+      text,
+    )
+  ) {
+    return 'disputed';
+  }
+
+  if (
     /\b(?:did\s+not|didn't|do\s+not|don't|has\s+not|hasn't|have\s+not|haven't|is\s+not|isn't|never|was\s+not|wasn't)\b[^.;]{0,48}\b(?:complet(?:e|ed|ing|ion)|done|finish(?:ed|ing)?|finali[sz](?:e|ed|ing)|deliver(?:ed|ing|y)?)\b/iu.test(
       text,
     ) ||
@@ -253,17 +264,6 @@ function sourceSupportedStatus(
     )
   ) {
     return 'not_complete';
-  }
-
-  if (
-    /\b(?:dispute|disputes|disputed|disputing|contest|contests|contested|contesting)\b[^.;]{0,56}\b(?:complete|completed|completion|incomplete|done|finished|unfinished)\b/iu.test(
-      text,
-    ) ||
-    /\b(?:complete|completed|completion|incomplete|done|finished|unfinished)\b[^.;]{0,56}\b(?:(?:is|was|remains?)\s+|(?:has|had)\s+been\s+)(?:disputed|contested)\b/iu.test(
-      text,
-    )
-  ) {
-    return 'disputed';
   }
 
   if (
