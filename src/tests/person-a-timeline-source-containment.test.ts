@@ -521,6 +521,26 @@ describe('Dry Run 001 exact-source timeline containment', () => {
     });
     mutations.push([accessorSpan, structuredClone(expected)]);
 
+    const proxySpan = structuredClone(extracted);
+    const proxyOriginalSpan = proxySpan.source_spans[0];
+    Object.defineProperty(proxySpan.source_spans, '0', {
+      configurable: true,
+      enumerable: true,
+      get: () => proxyOriginalSpan,
+    });
+    proxySpan.source_spans = new Proxy(proxySpan.source_spans, {
+      getOwnPropertyDescriptor: (target, property) =>
+        property === '0'
+          ? {
+              configurable: true,
+              enumerable: true,
+              value: proxyOriginalSpan,
+              writable: true,
+            }
+          : Reflect.getOwnPropertyDescriptor(target, property),
+    });
+    mutations.push([proxySpan, structuredClone(expected)]);
+
     for (const [left, right] of mutations) {
       expect(
         proveExactSourceTimelineContainment(

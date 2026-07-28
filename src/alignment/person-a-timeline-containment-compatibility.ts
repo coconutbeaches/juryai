@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { types as utilTypes } from 'node:util';
 import {
   alignPersonAForCase as alignPriorProjection,
   familyItems,
@@ -154,6 +155,9 @@ function canonicalizeJsonSafe(value: unknown, seen = new WeakSet<object>()): unk
   }
   if (typeof value !== 'object') {
     throw new Error('Frozen timeline records must contain JSON-safe values.');
+  }
+  if (utilTypes.isProxy(value)) {
+    throw new Error('Frozen timeline records must not contain proxies.');
   }
   if (seen.has(value)) {
     throw new Error('Frozen timeline records must not contain cycles.');

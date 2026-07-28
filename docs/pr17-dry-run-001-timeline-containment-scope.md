@@ -74,7 +74,7 @@ projection. The entrypoint:
 7. requires SHA-256 fingerprints of the complete audited PR #16 extracted and golden records,
    including IDs, evidence IDs, every source-span field, and the requirement that each record has
    exactly its one audited span; rejects non-finite numbers, `undefined`, sparse arrays, cycles,
-   accessors, symbols, and other values that JSON serialization would lose;
+   accessors, proxies, symbols, and other values that JSON serialization would lose;
 8. requires exactly one mutually unique candidate and fails closed otherwise;
 9. records both complete-record fingerprints, the exact spans, material tokens, IDs, and
    `exact_source_containment` reason;
