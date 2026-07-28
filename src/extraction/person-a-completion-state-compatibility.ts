@@ -450,7 +450,7 @@ function sourceSupportedStatus(
   }
 
   if (
-    /\b(?:did\s+not|didn't|do\s+not|don't|does\s+not|doesn't|cannot|can't|has\s+not|hasn't|have\s+not|haven't|had\s+not|hadn't)\s+(?:know|recall|remember|determine|confirm|tell|confirmed|determined)\b[^.;]{0,64}\b(?:complet(?:e|ed|ing|ion)|incomplete|done|finish(?:ed|ing)?|unfinished)\b/iu.test(
+    /\b(?:did\s+not|didn't|do\s+not|don't|does\s+not|doesn't|cannot|can't|has\s+not|hasn't|have\s+not|haven't|had\s+not|hadn't)\s+(?:assert|claim|confirm|confirmed|determine|determined|indicate|know|recall|remember|report|say|state|tell)\b[^.;]{0,64}\b(?:complet(?:e|ed|ing|ion)|incomplete|done|finish(?:ed|ing)?|unfinished)\b/iu.test(
       text,
     ) ||
     /\b(?:doubt|doubts|doubted|doubting|question|questions|questioned|questioning|unsure|uncertain)\b[^.;]{0,64}\b(?:complet(?:e|ed|ing|ion)|incomplete|done|finish(?:ed|ing)?|unfinished)\b/iu.test(
