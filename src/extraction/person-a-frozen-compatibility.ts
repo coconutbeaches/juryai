@@ -1,4 +1,8 @@
 import { applyDryRun001ClA003CompatibilityRecovery } from './person-a-dry-run-001-cl-a-003-compatibility-recovery.js';
+import {
+  projectDryRun001ClA013CompatibilityRecovery,
+  type DryRun001ClA013CompatibilityProjection,
+} from './person-a-dry-run-001-cl-a-013-compatibility-recovery.js';
 import { applyPersonACompletionStateCompatibility } from './person-a-completion-state-compatibility.js';
 import {
   assemblePersonAExtraction,
@@ -77,4 +81,20 @@ export function assembleDryRun001DeterministicClaimTypeProjection(
     );
   }
   return repair.repaired_extraction;
+}
+
+/**
+ * Build the explicit PR #18 frozen projection from the unchanged PR #16
+ * projection. The case-specific recovery validates complete fingerprints and
+ * returns its audit separately from the canonical extraction.
+ */
+export function assembleDryRun001ClA013CompatibilityProjection(
+  frozenModelOutput: JsonObject,
+  options: AssemblePersonAExtractionOptions,
+): DryRun001ClA013CompatibilityProjection {
+  const priorProjection = assembleDryRun001DeterministicClaimTypeProjection(
+    frozenModelOutput,
+    options,
+  );
+  return projectDryRun001ClA013CompatibilityRecovery(priorProjection, options.narrative);
 }
