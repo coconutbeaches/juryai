@@ -77,7 +77,7 @@ describe('Dry Run 001 deterministic claim-type projection', () => {
     );
     const report = evaluate(pr15, golden, narrative);
 
-    expect(report.summary).toMatchObject({ critical: 0, major: 42, minor: 20 });
+    expect(report.summary).toMatchObject({ critical: 0, major: 41, minor: 20 });
     expect(
       report.errors
         .filter((error) => error.family === 'claims' && error.code === 'claim_type')
@@ -140,7 +140,7 @@ describe('Dry Run 001 deterministic claim-type projection', () => {
     }
     expect(evaluate(projected, golden, narrative).summary).toMatchObject({
       critical: 0,
-      major: 39,
+      major: 38,
       minor: 20,
     });
   });

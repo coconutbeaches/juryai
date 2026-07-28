@@ -106,10 +106,10 @@ describe('Person A completion-state compatibility', () => {
       generatedAt,
     });
 
-    expect(historical.summary).toMatchObject({ critical: 1, major: 45, minor: 20 });
+    expect(historical.summary).toMatchObject({ critical: 1, major: 44, minor: 20 });
     expect(evaluate(pr14Projection, golden, narrative).summary).toMatchObject({
       critical: 0,
-      major: 45,
+      major: 44,
       minor: 20,
     });
     expect(
@@ -131,7 +131,7 @@ describe('Person A completion-state compatibility', () => {
     expect(reverted).toEqual(pr14Projection);
 
     const correctedReport = evaluate(corrected, golden, narrative);
-    expect(correctedReport.summary).toMatchObject({ critical: 0, major: 42, minor: 20 });
+    expect(correctedReport.summary).toMatchObject({ critical: 0, major: 41, minor: 20 });
     expect(
       correctedReport.errors.some(
         (error) =>

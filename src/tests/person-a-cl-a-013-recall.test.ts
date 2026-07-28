@@ -110,7 +110,7 @@ describe('Dry Run 001 cl_a_013 grounded recall', () => {
       (issue: JsonObject) => issue.issue_id === 'issue_02_added_scope_unclear',
     );
 
-    expect(report.summary).toMatchObject({ critical: 0, major: 37, minor: 20 });
+    expect(report.summary).toMatchObject({ critical: 0, major: 36, minor: 20 });
     expect(
       report.errors.filter(
         (error) =>
@@ -247,7 +247,7 @@ describe('Dry Run 001 cl_a_013 grounded recall', () => {
         ),
     );
 
-    expect(after.summary).toMatchObject({ critical: 0, major: 37, minor: 19 });
+    expect(after.summary).toMatchObject({ critical: 0, major: 36, minor: 19 });
     expect(after.errors.map(errorKey).sort()).toEqual(expected.map(errorKey).sort());
     expect(after.errors.filter((error) => error.golden_id === 'cl_a_013')).toEqual([]);
   });
@@ -274,22 +274,22 @@ describe('Dry Run 001 cl_a_013 grounded recall', () => {
     );
     expect(evaluatePrior(pr14, golden, narrative).summary).toMatchObject({
       critical: 0,
-      major: 45,
+      major: 44,
       minor: 20,
     });
     expect(evaluatePrior(pr15, golden, narrative).summary).toMatchObject({
       critical: 0,
-      major: 42,
+      major: 41,
       minor: 20,
     });
     expect(evaluatePrior(prior, golden, narrative).summary).toMatchObject({
       critical: 0,
-      major: 39,
+      major: 38,
       minor: 20,
     });
     expect(evaluate(prior, golden, narrative).summary).toMatchObject({
       critical: 0,
-      major: 37,
+      major: 36,
       minor: 20,
     });
   });

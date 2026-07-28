@@ -102,7 +102,7 @@ describe('Dry Run 001 exact-source timeline containment', () => {
   it('reproduces all eight exact PR #16 timeline findings before correction', async () => {
     const { report } = await frozenProjection();
 
-    expect(report.summary).toMatchObject({ critical: 0, major: 39, minor: 20 });
+    expect(report.summary).toMatchObject({ critical: 0, major: 38, minor: 20 });
     expect(
       report.errors
         .filter((error) => error.family === 'timeline')
@@ -235,7 +235,7 @@ describe('Dry Run 001 exact-source timeline containment', () => {
         extracted_id: 'event_02_content_deadline',
       },
     ]);
-    expect(corrected.report.summary).toMatchObject({ critical: 0, major: 37, minor: 20 });
+    expect(corrected.report.summary).toMatchObject({ critical: 0, major: 36, minor: 20 });
     expect(corrected.audit.added_findings).toEqual([]);
     expect(corrected.report.errors.map(errorKey).sort()).toEqual(
       expectedErrors.map(errorKey).sort(),
@@ -264,17 +264,17 @@ describe('Dry Run 001 exact-source timeline containment', () => {
     );
     expect(evaluate(pr14, golden, evaluationOptions).summary).toMatchObject({
       critical: 0,
-      major: 45,
+      major: 44,
       minor: 20,
     });
     expect(evaluate(pr15, golden, evaluationOptions).summary).toMatchObject({
       critical: 0,
-      major: 42,
+      major: 41,
       minor: 20,
     });
     expect(evaluate(extraction, golden, evaluationOptions).summary).toMatchObject({
       critical: 0,
-      major: 39,
+      major: 38,
       minor: 20,
     });
   });

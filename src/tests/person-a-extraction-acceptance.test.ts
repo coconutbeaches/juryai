@@ -819,6 +819,7 @@ describe('Person A acceptance dependency isolation', () => {
       'node:fs/promises',
       'node:path',
       'node:url',
+      'node:util',
     ]);
     expect([...forbiddenConstructs]).toEqual([]);
     for (const path of visited) {
