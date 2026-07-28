@@ -59,6 +59,15 @@ function isCoreferentialCompletionContinuation(clause: string): boolean {
   );
 }
 
+function isAggregateCompletionClause(clause: string): boolean {
+  return (
+    hasCompletionLanguage(clause) &&
+    /\b(?:all|each|entire|every|whole|no|none\s+of\s+the)\b[^.;]{0,48}\b(?:deliverables?|pages?|project|site|website)\b/iu.test(
+      clause,
+    )
+  );
+}
+
 function scopedCompletionText(deliverableName: string, quotes: string[]): string {
   const clauses = quotes.flatMap((quote) =>
     quote
@@ -73,6 +82,7 @@ function scopedCompletionText(deliverableName: string, quotes: string[]): string
   const namedCompletionClauses = clauses.flatMap((clause, index) => {
     if (!namePattern.test(clause) || !hasCompletionLanguage(clause)) return [];
     let scopedClause = clause;
+    let scopedIndex = index;
     for (let next = index + 1; next < clauses.length; next += 1) {
       const nextClause = clauses[next];
       if (
@@ -83,10 +93,16 @@ function scopedCompletionText(deliverableName: string, quotes: string[]): string
         break;
       }
       scopedClause = `${deliverableName} ${nextClause}`;
+      scopedIndex = next;
     }
-    return [scopedClause];
+    return [{ index: scopedIndex, text: scopedClause }];
   });
-  return namedCompletionClauses[namedCompletionClauses.length - 1] ?? clauses.join(' ');
+  const lastNamed = namedCompletionClauses[namedCompletionClauses.length - 1];
+  if (lastNamed === undefined) return clauses.join(' ');
+  const laterAggregate = clauses.flatMap((clause, index) =>
+    index > lastNamed.index && isAggregateCompletionClause(clause) ? [{ index, text: clause }] : [],
+  );
+  return laterAggregate[laterAggregate.length - 1]?.text ?? lastNamed.text;
 }
 
 function removeNegatedReportingPrefixes(text: string): string {
@@ -138,12 +154,22 @@ function sourceSupportedStatus(
   }
 
   if (
+    /\b(?:did\s+not|didn't|do\s+not|don't|does\s+not|doesn't|cannot|can't)\s+(?:know|recall|remember|determine|confirm|tell)\b[^.;]{0,64}\b(?:complet(?:e|ed|ing|ion)|incomplete|done|finish(?:ed|ing)?|unfinished)\b/iu.test(
+      text,
+    )
+  ) {
+    return 'unknown';
+  }
+
+  if (
     /\b(?:did\s+not|didn't|do\s+not|don't|has\s+not|hasn't|have\s+not|haven't|is\s+not|isn't|never|was\s+not|wasn't)\b[^.;]{0,48}\b(?:complet(?:e|ed|ing|ion)|done|finish(?:ed|ing)?|finali[sz](?:e|ed|ing)|deliver(?:ed|ing|y)?)\b/iu.test(
       text,
     ) ||
     /\b(?:deny|denies|denied|denying)\b[^.;]{0,56}\b(?:complete|completed|completion|done|finished)\b/iu.test(
       text,
     ) ||
+    /\bfail(?:ed|s|ing)?\s+to\s+(?:complete|finish|deliver|finali[sz]e)\b/iu.test(text) ||
+    /\b(?:unable|incapable)\s+to\s+(?:complete|finish|deliver|finali[sz]e)\b/iu.test(text) ||
     /\b(?:abandon(?:ed|ment)?|cancel(?:led|ed|lation)?|stopped)\b[^.;]{0,48}\b(?:before|without|prior\s+to)\b[^.;]{0,24}\b(?:complete|completed|completion|finish(?:ed)?)\b/iu.test(
       text,
     )

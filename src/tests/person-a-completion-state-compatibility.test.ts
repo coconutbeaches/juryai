@@ -200,6 +200,8 @@ describe('Person A completion-state compatibility', () => {
     ['hypothetical', 'The booking page might be completed next week.', 'unknown'],
     ['denied', 'I did not complete the booking page.', 'not_complete'],
     ['not started', 'I never started the booking page.', 'not_complete'],
+    ['failed', 'I failed to complete the booking page.', 'not_complete'],
+    ['unable', 'I was unable to complete the booking page.', 'not_complete'],
   ])('does not upgrade %s language to complete', (_label, narrative, expected) => {
     expect(projectedStatus(narrative)).toBe(expected);
   });
@@ -239,6 +241,7 @@ describe('Person A completion-state compatibility', () => {
   it.each([
     'The booking page is in scope. No pages are complete.',
     'The booking page is in scope. None of the pages are complete.',
+    'The booking page was complete. No pages are complete now.',
   ])('recognizes aggregate language denying all completion: %s', (narrative) => {
     expect(projectedStatus(narrative)).toBe('not_complete');
   });
@@ -327,6 +330,7 @@ describe('Person A completion-state compatibility', () => {
 
   it('preserves uncertainty around possible incomplete states', () => {
     expect(projectedStatus('The booking page may be incomplete.')).toBe('unknown');
+    expect(projectedStatus("I don't know whether the booking page is complete.")).toBe('unknown');
   });
 
   it.each([
