@@ -102,7 +102,7 @@ function isCoreferentialCompletionContinuation(clause: string): boolean {
 function isAnyAggregateCompletionClause(clause: string): boolean {
   return (
     hasCompletionLanguage(clause) &&
-    /\b(?:all|each|entire|every|whole|no|none\s+of\s+the)\b[^.;]{0,48}\b(?:deliverables?|pages?|project|site|website)\b/iu.test(
+    /\b(?:all|each|entire|every|neither|not\s+a\s+single|whole|no|none\s+of\s+the)\b[^.;]{0,48}\b(?:deliverables?|pages?|project|site|website)\b/iu.test(
       clause,
     )
   );
@@ -127,7 +127,7 @@ function isThirdPartyAttributedCompletionClause(clause: string): boolean {
     /^(?:according\s+to|per)\s+(?!me\b|mine\b|my\b|our\b|ours\b|us\b)[^,.;]{1,64}[,:]?\s+/iu.test(
       clause,
     ) ||
-    /^(?:the\s+)?(?!i\b|we\b)[\p{L}\p{N}'’-]+(?:\s+[\p{L}\p{N}'’-]+){0,3}\s+(?:believes?|claims?|considers?|contests?|denies?|disputes?|doubts?|maintains?|questions?|reports?|says?|said|states?|stated|thinks?)\b/iu.test(
+    /^(?:the\s+)?(?!i\b|we\b)[\p{L}\p{N}'’-]+(?:\s+[\p{L}\p{N}'’-]+){0,3}\s+(?:believes?|claims?|considers?|contests?|denies?|disputes?|doubts?|maintains?|questions?|reports?|says?|said|states?|stated|tells?|thinks?|told)\b/iu.test(
       clause,
     ) ||
     /(?:,|—|-)\s*(?:according\s+to|per)\s+(?!me\b|mine\b|my\b|our\b|ours\b|us\b)/iu.test(clause)
@@ -260,7 +260,11 @@ function sourceSupportedStatus(
     scopedCompletionText(normalizedName, normalizedQuotes),
   );
 
-  if (/\b(?:not\s+started|never\s+started|work\s+had\s+not\s+begun)\b/iu.test(text)) {
+  if (
+    /\b(?:not\s+started|never\s+started|work\s+had\s+not\s+begun)\b/iu.test(text) ||
+    /\b(?:(?:has|have|had)\s+not|hasn't|haven't|hadn't)\s+started\b/iu.test(text) ||
+    /\bwork\s+(?:(?:has|have|had)\s+not|hasn't|haven't|hadn't)\s+begun\b/iu.test(text)
+  ) {
     return 'not_complete';
   }
 
@@ -336,6 +340,9 @@ function sourceSupportedStatus(
     /\b(?:no|none\s+of\s+the)\s+(?:deliverables?|pages?)\b[^.;]{0,32}\b(?:complete|completed|done|finished)\b/iu.test(
       text,
     ) ||
+    /\b(?:neither|not\s+a\s+single)\s+(?:deliverable|page)s?\b[^.;]{0,32}\b(?:complete|completed|done|finished)\b/iu.test(
+      text,
+    ) ||
     /\b(?:(?:has|have|had|is|was)\s+yet\s+to\s+be|(?:needs?|needed|requires?|required|remains?)\s+to\s+be)\s+(?:completed|finished|delivered|finali[sz]ed)\b/iu.test(
       text,
     )
@@ -404,6 +411,7 @@ function sourceSupportedStatus(
   }
 
   if (
+    /\b(?:is|are|was|were)\s+no\s+longer\s+(?:incomplete|unfinished)\b/iu.test(text) ||
     /\b(?:is|are|was|were)\s+(?:not|never)\s+(?:incomplete|unfinished)\b/iu.test(text) ||
     /\b(?:isn't|aren't|wasn't|weren't)\s+(?:incomplete|unfinished)\b/iu.test(text) ||
     /\b(?:no|none\s+of\s+the)\s+(?:deliverables?|pages?)\b[^.;]{0,24}\b(?:incomplete|unfinished)\b/iu.test(
