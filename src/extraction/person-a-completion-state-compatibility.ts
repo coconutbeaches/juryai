@@ -48,7 +48,10 @@ function hasCompletionLanguage(text: string): boolean {
 function isCoreferentialCompletionContinuation(clause: string): boolean {
   return (
     hasCompletionLanguage(clause) &&
-    /^(?:(?:it|this)\s+)?(?:is|was|has|had|will|would|can|could|may|might)\b/iu.test(clause)
+    (/^(?:(?:it|this)\s+)?(?:is|was|has|had|will|would|can|could|may|might)\b/iu.test(clause) ||
+      /^(?:i|we)\s+(?:(?:did|do|have|had|will|would|can|could|may|might)\s+)?(?:not\s+)?(?:complet(?:e|ed)|finish(?:ed)?|deliver(?:ed)?|finali[sz](?:e|ed))\s+(?:it|this)\b/iu.test(
+        clause,
+      ))
   );
 }
 
@@ -133,6 +136,9 @@ function sourceSupportedStatus(
 
   if (
     /\b(?:dispute|disputes|disputed|disputing|contest|contests|contested|contesting)\b[^.;]{0,56}\b(?:complete|completed|completion|done|finished)\b/iu.test(
+      text,
+    ) ||
+    /\b(?:complete|completed|completion|done|finished)\b[^.;]{0,56}\b(?:(?:is|was|remains?)\s+|(?:has|had)\s+been\s+)(?:disputed|contested)\b/iu.test(
       text,
     )
   ) {
