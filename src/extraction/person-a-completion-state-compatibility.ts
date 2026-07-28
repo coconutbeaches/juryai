@@ -125,7 +125,7 @@ function namesSpecificPageDeliverable(clause: string): boolean {
 function isThirdPartyAttributedCompletionClause(clause: string): boolean {
   return (
     /^(?:according\s+to|per)\s+(?!me\b|us\b)[^,.;]{1,64}[,:]?\s+/iu.test(clause) ||
-    /^(?:the\s+)?(?!i\b|we\b)[\p{L}\p{N}'’-]+(?:\s+[\p{L}\p{N}'’-]+){0,3}\s+(?:believes?|claims?|considers?|maintains?|reports?|says?|said|states?|stated|thinks?)\b/iu.test(
+    /^(?:the\s+)?(?!i\b|we\b)[\p{L}\p{N}'’-]+(?:\s+[\p{L}\p{N}'’-]+){0,3}\s+(?:believes?|claims?|considers?|contests?|denies?|disputes?|doubts?|maintains?|questions?|reports?|says?|said|states?|stated|thinks?)\b/iu.test(
       clause,
     ) ||
     /(?:,|—|-)\s*(?:according\s+to|per)\s+(?!me\b|us\b)/iu.test(clause)
@@ -216,13 +216,12 @@ function scopedCompletionText(deliverableName: string, quotes: string[]): string
         return [`${deliverableName} ${clause}`];
       }
       if (
-        targetIsInScope &&
         isProjectLevelProvisionalCompletionClause(clause) &&
         !namesSpecificPageDeliverable(clause)
       ) {
         return [clause];
       }
-      return !targetIsInScope && !namesSpecificPageDeliverable(clause) ? [clause] : [];
+      return [];
     });
     return applicableFallbacks[applicableFallbacks.length - 1] ?? '';
   }

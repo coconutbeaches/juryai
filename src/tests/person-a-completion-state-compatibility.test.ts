@@ -378,8 +378,16 @@ describe('Person A completion-state compatibility', () => {
     ['The booking page is incomplete, according to the client.', 'complete'],
     ['The booking page and checkout page are not complete.', 'not_complete'],
     ["The booking page and checkout page aren't complete.", 'not_complete'],
+    ['The client disputes that the booking page is complete.', 'complete'],
+    ['The client denies that the booking page is complete.', 'complete'],
   ])('handles scoped completion polarity: %s', (narrative, expected) => {
     expect(projectedStatus(narrative)).toBe(expected);
+  });
+
+  it('does not apply unnamed non-page evidence to another deliverable', () => {
+    expect(
+      projectedStatus('The mobile-responsive layout is incomplete.', 'Newsletter signup'),
+    ).toBe('complete');
   });
 
   it('preserves uncertainty around possible incomplete states', () => {
