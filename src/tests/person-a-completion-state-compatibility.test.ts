@@ -253,6 +253,7 @@ describe('Person A completion-state compatibility', () => {
     expect(projectedStatus('The booking page is complete. All other pages are incomplete.')).toBe(
       'complete',
     );
+    expect(projectedStatus('All pages except the booking page are complete.')).toBe('not_complete');
   });
 
   it.each([
@@ -368,6 +369,8 @@ describe('Person A completion-state compatibility', () => {
   it.each([
     ['Completion of the booking page is scheduled for next week.', 'unknown'],
     ['I am completing the booking page.', 'partially_complete'],
+    ['The booking page will be completed tomorrow.', 'unknown'],
+    ['The booking page is expected to be completed tomorrow.', 'unknown'],
   ])('does not treat future or in-progress work as complete: %s', (narrative, expected) => {
     expect(projectedStatus(narrative)).toBe(expected);
   });
@@ -405,6 +408,9 @@ describe('Person A completion-state compatibility', () => {
     expect(projectedStatus('The booking page was in scope. The homepage was incomplete.')).toBe(
       'complete',
     );
+    expect(
+      projectedStatus('The booking page was in scope. I sent a complete draft of the homepage.'),
+    ).toBe('complete');
   });
 
   it('rejects exact-looking source spans with an oversized end offset', () => {

@@ -133,7 +133,8 @@ function scopedCompletionText(deliverableName: string, quotes: string[]): string
         isAnyAggregateCompletionClause(clause) ||
         (targetIsInScope &&
           (isProjectLevelProvisionalCompletionClause(clause) ||
-            isCoreferentialCompletionContinuation(clause))) ||
+            isCoreferentialCompletionContinuation(clause)) &&
+          !namesSpecificPageDeliverable(clause)) ||
         (!targetIsInScope && !namesSpecificPageDeliverable(clause)),
     );
     return applicableFallbacks[applicableFallbacks.length - 1] ?? '';
@@ -172,6 +173,20 @@ function sourceSupportedStatus(
   }
 
   if (!hasCompletionLanguage(text)) return null;
+
+  if (
+    normalizedName.length > 0 &&
+    (new RegExp(
+      `\\b(?:all|every)\\b[^.;]{0,32}\\bpages?\\b[^.;]{0,32}\\bexcept\\b[^.;]{0,32}\\b${escapeRegex(normalizedName)}\\b[^.;]{0,32}\\b(?:complete|completed|done|finished)\\b`,
+      'iu',
+    ).test(text) ||
+      new RegExp(
+        `\\b(?:all|every)\\b[^.;]{0,32}\\bpages?\\b[^.;]{0,32}\\b(?:complete|completed|done|finished)\\b[^.;]{0,32}\\bexcept\\b[^.;]{0,32}\\b${escapeRegex(normalizedName)}\\b`,
+        'iu',
+      ).test(text))
+  ) {
+    return 'not_complete';
+  }
 
   if (
     /\bnot\s+(?:all|each|every)\b[^.;]{0,64}\b(?:deliverables?|pages?|project|site|website)\b[^.;]{0,32}\b(?:complete|completed|done|finished)\b/iu.test(
@@ -282,7 +297,7 @@ function sourceSupportedStatus(
     /\b(?:could|might|may|would|perhaps|possibly|hypothetically)\b[^.;]{0,48}\b(?:complete|completed|completion|done|finish(?:ed)?)\b/iu.test(
       text,
     ) ||
-    /\b(?:will|plan(?:s|ned)?\s+to|intend(?:s|ed)?\s+to|expect(?:s|ed)?\s+to|hope(?:s|d)?\s+to)\b[^.;]{0,48}\b(?:complete|finish|finali[sz]e|deliver)\b/iu.test(
+    /\b(?:will|plan(?:s|ned)?\s+to|intend(?:s|ed)?\s+to|expect(?:s|ed)?\s+to|hope(?:s|d)?\s+to)\b[^.;]{0,48}\b(?:complete(?:d)?|finish(?:ed)?|finali[sz](?:e|ed)|deliver(?:ed)?)\b/iu.test(
       text,
     )
   ) {
