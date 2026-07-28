@@ -53,10 +53,10 @@ function isCoreferentialCompletionContinuation(clause: string): boolean {
     (/^(?:(?:it|this)\s+)?(?:is|was|has|had|will|would|can|could|may|might|became|becomes|remained|remains)\b/iu.test(
       clause,
     ) ||
-      /^(?:i|we)\s+(?:(?:did|do|have|had|will|would|can|could|may|might)\s+)?(?:not\s+)?(?:complet(?:e|ed)|finish(?:ed)?|deliver(?:ed)?|finali[sz](?:e|ed))\s+(?:it|this)\b/iu.test(
+      /^(?:i|we)\s+(?:(?:did|do|have|had|will|would|can|could|may|might|didn't|don't|hasn't|haven't|hadn't|can't|couldn't)\s+)?(?:not\s+)?(?:complet(?:e|ed)|finish(?:ed)?|deliver(?:ed)?|finali[sz](?:e|ed))\s+(?:it|this)\b/iu.test(
         clause,
       ) ||
-      /^(?:i|we)\s+(?:cannot|can't|could\s+not|couldn't|do\s+not|don't)\s+(?:know|recall|remember|determine|confirm|tell)\b[^.;]{0,48}\b(?:it|this)\b/iu.test(
+      /^(?:i|we)\s+(?:cannot|can't|could\s+not|couldn't|did\s+not|didn't|do\s+not|don't|has\s+not|hasn't|have\s+not|haven't|had\s+not|hadn't)\s+(?:know|recall|remember|determine|confirm|tell)\b[^.;]{0,48}\b(?:it|this)\b/iu.test(
         clause,
       ))
   );
@@ -76,7 +76,7 @@ function scopedCompletionText(deliverableName: string, quotes: string[]): string
   const clauses = quotes.flatMap((quote) =>
     quote
       .split(
-        /[.!?;\r\n]+|\s+(?:although|and|but|while)\s+|,\s+(?:currently|now|today)\s+|,\s+(?=(?:it|this)\s+(?:is|was|has|had|will|would|can|could|may|might|became|becomes|remained|remains)\b)/iu,
+        /[.!?;\r\n]+|\s+(?:although|and|but|while)\s+|,\s+(?:currently|later|now|subsequently|today)\s+|,\s+(?=(?:it|this)\s+(?:is|was|has|had|will|would|can|could|may|might|became|becomes|remained|remains)\b)/iu,
       )
       .map((clause) => clause.trim())
       .filter((clause) => clause.length > 0),
@@ -158,7 +158,7 @@ function sourceSupportedStatus(
   }
 
   if (
-    /\b(?:did\s+not|didn't|do\s+not|don't|does\s+not|doesn't|cannot|can't)\s+(?:know|recall|remember|determine|confirm|tell)\b[^.;]{0,64}\b(?:complet(?:e|ed|ing|ion)|incomplete|done|finish(?:ed|ing)?|unfinished)\b/iu.test(
+    /\b(?:did\s+not|didn't|do\s+not|don't|does\s+not|doesn't|cannot|can't|has\s+not|hasn't|have\s+not|haven't|had\s+not|hadn't)\s+(?:know|recall|remember|determine|confirm|tell|confirmed|determined)\b[^.;]{0,64}\b(?:complet(?:e|ed|ing|ion)|incomplete|done|finish(?:ed|ing)?|unfinished)\b/iu.test(
       text,
     )
   ) {
@@ -201,6 +201,14 @@ function sourceSupportedStatus(
   }
 
   if (
+    /\b(?:am|is|are|was|were)\s+(?:still\s+)?(?:completing|finishing|delivering|finali[sz]ing)\b/iu.test(
+      text,
+    )
+  ) {
+    return 'partially_complete';
+  }
+
+  if (
     /\b(?:partially|partly)\b/iu.test(text) ||
     /\b(?:incomplete|unfinished)\b/iu.test(text) ||
     /\bonly\s+(?:part|some)\b/iu.test(text)
@@ -224,6 +232,9 @@ function sourceSupportedStatus(
 
   if (
     /\b(?:pending|awaiting)\b[^.;]{0,48}\b(?:approval|completion|sign[- ]?off)\b/iu.test(text) ||
+    /\b(?:completion|delivery|finali[sz]ation)\b[^.;]{0,48}\b(?:is|was|remains?)\s+(?:planned|scheduled|targeted|due)\b/iu.test(
+      text,
+    ) ||
     /\b(?:blocked|prevented)\b[^.;]{0,48}\b(?:complet(?:e|ed|ing|ion)|finish(?:ed|ing)?)\b/iu.test(
       text,
     ) ||
@@ -244,8 +255,16 @@ function sourceSupportedStatus(
     /\b(?:all|each|entire|every|whole)\b[^.;]{0,32}\b(?:deliverables?|pages?|project|site|website)\b|\b(?:entire|whole)\s+(?:project|site|website)\b/iu.test(
       text,
     );
+  const hasAffirmativeCompletedState =
+    /\b(?:is|are|was|were|remains?)\s+(?:fully\s+)?(?:complete|completed|done|finished)\b/iu.test(
+      text,
+    ) ||
+    /\b(?:has|have|had)\s+been\s+(?:completed|finished|delivered|finali[sz]ed)\b/iu.test(text) ||
+    /\b(?:completed|finished|delivered|finali[sz]ed)\b/iu.test(text);
 
-  if (namesSpecificDeliverable || namesAggregate) return 'complete';
+  if (namesSpecificDeliverable || namesAggregate) {
+    return hasAffirmativeCompletedState ? 'complete' : 'unknown';
+  }
   return null;
 }
 

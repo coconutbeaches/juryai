@@ -282,9 +282,15 @@ describe('Person A completion-state compatibility', () => {
     ['The booking page was incomplete yesterday but is complete now.', 'complete'],
     ['The booking page was incomplete yesterday, now it is complete.', 'complete'],
     ['The booking page was incomplete yesterday, it is complete now.', 'complete'],
+    ['The booking page was incomplete yesterday, later the booking page was complete.', 'complete'],
+    [
+      'The booking page was incomplete yesterday, subsequently the booking page was complete.',
+      'complete',
+    ],
     ['The booking page was incomplete yesterday. I completed the booking page today.', 'complete'],
     ['The booking page was incomplete yesterday, but I finished it today.', 'complete'],
     ['The booking page was complete. It became incomplete after feedback.', 'partially_complete'],
+    ["The booking page was listed as complete, but I didn't complete it.", 'not_complete'],
     ["I don't deny that the booking page is complete.", 'complete'],
   ])(
     'preserves a supported completion after review-sensitive phrasing: %s',
@@ -337,11 +343,21 @@ describe('Person A completion-state compatibility', () => {
   it('preserves uncertainty around possible incomplete states', () => {
     expect(projectedStatus('The booking page may be incomplete.')).toBe('unknown');
     expect(projectedStatus("I don't know whether the booking page is complete.")).toBe('unknown');
+    expect(projectedStatus("I haven't confirmed whether the booking page is complete.")).toBe(
+      'unknown',
+    );
     expect(
       projectedStatus(
         "The booking page was complete, but I can't confirm whether it is complete now.",
       ),
     ).toBe('unknown');
+  });
+
+  it.each([
+    ['Completion of the booking page is scheduled for next week.', 'unknown'],
+    ['I am completing the booking page.', 'partially_complete'],
+  ])('does not treat future or in-progress work as complete: %s', (narrative, expected) => {
+    expect(projectedStatus(narrative)).toBe(expected);
   });
 
   it.each([
