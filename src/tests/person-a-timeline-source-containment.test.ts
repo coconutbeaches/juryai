@@ -512,6 +512,15 @@ describe('Dry Run 001 exact-source timeline containment', () => {
     omittedValue.unrelated = undefined;
     mutations.push([omittedValue, structuredClone(expected)]);
 
+    const accessorSpan = structuredClone(extracted);
+    const originalSpan = accessorSpan.source_spans[0];
+    Object.defineProperty(accessorSpan.source_spans, '0', {
+      configurable: true,
+      enumerable: true,
+      get: () => originalSpan,
+    });
+    mutations.push([accessorSpan, structuredClone(expected)]);
+
     for (const [left, right] of mutations) {
       expect(
         proveExactSourceTimelineContainment(

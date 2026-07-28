@@ -169,7 +169,18 @@ function canonicalizeJsonSafe(value: unknown, seen = new WeakSet<object>()): unk
     ) {
       throw new Error('Frozen timeline arrays must not be sparse or contain extra properties.');
     }
-    const result = value.map((item) => canonicalizeJsonSafe(item, seen));
+    const result: unknown[] = [];
+    for (let index = 0; index < value.length; index += 1) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+      if (
+        descriptor === undefined ||
+        !descriptor.enumerable ||
+        !Object.hasOwn(descriptor, 'value')
+      ) {
+        throw new Error('Frozen timeline arrays must contain enumerable own data elements.');
+      }
+      result.push(canonicalizeJsonSafe(descriptor.value, seen));
+    }
     seen.delete(value);
     return result;
   }
