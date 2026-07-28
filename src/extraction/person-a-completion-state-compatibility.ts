@@ -27,6 +27,8 @@ function exactSourceQuotes(value: unknown, narrative: string): ExactSourceQuote[
       !Number.isInteger(span.end_char) ||
       span.start_char < 0 ||
       span.end_char < span.start_char ||
+      span.end_char > narrative.length ||
+      span.end_char - span.start_char !== span.quote.length ||
       narrative.slice(span.start_char, span.end_char) !== span.quote
     ) {
       return [];
@@ -118,6 +120,17 @@ function sourceSupportedStatus(
     )
   ) {
     return 'unknown';
+  }
+
+  if (
+    /\b(?:no|none\s+of\s+the)\s+(?:deliverables?|pages?)\b[^.;]{0,32}\b(?:complete|completed|done|finished)\b/iu.test(
+      text,
+    ) ||
+    /\b(?:(?:has|have|had|is|was)\s+yet\s+to\s+be|(?:needs?|needed|requires?|required|remains?)\s+to\s+be)\s+(?:completed|finished|delivered|finali[sz]ed)\b/iu.test(
+      text,
+    )
+  ) {
+    return 'not_complete';
   }
 
   if (

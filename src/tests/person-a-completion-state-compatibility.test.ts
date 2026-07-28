@@ -236,6 +236,21 @@ describe('Person A completion-state compatibility', () => {
     },
   );
 
+  it.each([
+    'The booking page is in scope. No pages are complete.',
+    'The booking page is in scope. None of the pages are complete.',
+  ])('recognizes aggregate language denying all completion: %s', (narrative) => {
+    expect(projectedStatus(narrative)).toBe('not_complete');
+  });
+
+  it.each([
+    'The booking page has yet to be completed.',
+    'The booking page needs to be completed.',
+    'The booking page remains to be completed.',
+  ])('recognizes explicit yet-to-be-completed language: %s', (narrative) => {
+    expect(projectedStatus(narrative)).toBe('not_complete');
+  });
+
   it.each(['The booking page is incomplete.', 'The booking page is unfinished.'])(
     'recognizes standalone incomplete wording: %s',
     (narrative) => {
@@ -334,6 +349,17 @@ describe('Person A completion-state compatibility', () => {
         .completion_status_person_a,
     ).toBe('complete');
     expect(fixture).toEqual(before);
+  });
+
+  it('rejects exact-looking source spans with an oversized end offset', () => {
+    const narrative = 'I sent a complete draft of the booking page.';
+    const fixture = providerFixture(narrative);
+    fixture.claims[0].source_spans[0].end_char = narrative.length + 5;
+
+    expect(
+      applyPersonACompletionStateCompatibility(fixture, narrative).deliverable_assessments[0]
+        .completion_status_person_a,
+    ).toBe('complete');
   });
 
   it('leaves ordinary assembly and fresh extraction unchanged', async () => {
