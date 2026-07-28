@@ -328,6 +328,25 @@ describe('Dry Run 001 exact-source timeline containment', () => {
     ).toThrow(/requires calibrated_live_v2/iu);
   });
 
+  it('rejects a contradictory event summary that merely repeats the golden date tokens', async () => {
+    const { extraction, golden, narrative } = await frozenProjection();
+    const contradicted = structuredClone(
+      extraction.timeline.find((item: JsonObject) => item.event_id === 'event_02_content_deadline'),
+    );
+    const expected = golden.timeline.find((item: JsonObject) => item.event_id === 'tl_content_due');
+    contradicted.event_summary =
+      'The contract required Maya to supply final copy and images by April 25, but the deadline was missed and later superseded.';
+
+    expect(
+      proveExactSourceTimelineContainment(
+        contradicted,
+        expected,
+        narrative,
+        DRY_RUN_001_COMPATIBILITY_ALIASES,
+      ),
+    ).toBeNull();
+  });
+
   it('rejects competing containment candidates instead of forcing an alignment', async () => {
     const { extraction, golden, evaluationOptions } = await frozenProjection();
     const ambiguousGolden = structuredClone(golden);

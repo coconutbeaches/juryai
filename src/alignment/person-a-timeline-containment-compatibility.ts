@@ -125,6 +125,24 @@ function materialTimelineTokens(value: unknown, aliases: PersonASemanticAliases)
   ].sort();
 }
 
+function assertsTimelineDependency(value: unknown): boolean {
+  return (
+    typeof value === 'string' &&
+    /\b(?:depend(?:ed|ence|ency|ent|s)?|requir(?:e|ed|ement|es|ing)|must|needed\s+to|had\s+to)\b/iu.test(
+      value,
+    )
+  );
+}
+
+function contradictsTimelineDependency(value: unknown): boolean {
+  return (
+    typeof value === 'string' &&
+    /\b(?:miss(?:ed|ing)|fail(?:ed|ing)?\s+to|did\s+not|late|after\s+the\s+deadline|supersed(?:e|ed|es|ing)|replac(?:e|ed|es|ing)|waiv(?:e|ed|es|ing)|cancel(?:ed|ing|led|s)?|rescind(?:ed|ing|s)?|extend(?:ed|ing|s)?|postpon(?:e|ed|es|ing)|mov(?:e|ed|es|ing)\s+the\s+deadline)\b/iu.test(
+      value,
+    )
+  );
+}
+
 /**
  * Prove exact containment without lowering semantic thresholds or using IDs.
  */
@@ -163,7 +181,16 @@ export function proveExactSourceTimelineContainment(
         goldenSpan.end_char <= extractedSpan.end_char &&
         (goldenSpan.start_char > extractedSpan.start_char ||
           goldenSpan.end_char < extractedSpan.end_char);
-      if (nested) return { extractedSpan, goldenSpan, materialTokens };
+      if (!nested) continue;
+      if (
+        !assertsTimelineDependency(extracted.event_summary) ||
+        !assertsTimelineDependency(extractedSpan.quote) ||
+        !assertsTimelineDependency(golden.person_a_interpretation) ||
+        contradictsTimelineDependency(extracted.event_summary)
+      ) {
+        return null;
+      }
+      return { extractedSpan, goldenSpan, materialTokens };
     }
   }
   return null;

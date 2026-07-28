@@ -71,10 +71,13 @@ projection. The entrypoint:
 5. requires the golden summary to equal a verbatim golden source leaf strictly nested in an exact
    extracted source span;
 6. requires every material golden-summary token to remain in the extracted summary;
-7. requires exactly one mutually unique candidate and fails closed otherwise;
-8. records the exact spans, material tokens, IDs, and `exact_source_containment` reason;
-9. independently re-proves the invariant during evaluation; and
-10. rejects the projection if any finding other than the selected missing/extra pair changes.
+7. requires the containing source, extracted summary, and golden interpretation to express the
+   same timeline dependency/obligation and rejects nonperformance or deadline-modification
+   predicates such as missed, superseded, waived, cancelled, or extended;
+8. requires exactly one mutually unique candidate and fails closed otherwise;
+9. records the exact spans, material tokens, IDs, and `exact_source_containment` reason;
+10. independently re-proves the invariant during evaluation; and
+11. rejects the projection if any finding other than the selected missing/extra pair changes.
 
 This is exact-source semantic containment, not fuzzy matching. One extracted event still cannot
 satisfy multiple goldens, and one golden still cannot absorb multiple extracted events.
@@ -122,9 +125,9 @@ validation, near-match and ambiguity rejection, actor preservation, legitimate e
 exclusions, and ordinary extraction/assembly isolation. The test is registered in the explicit CI
 matrix. Local verification passed:
 
-- focused PR #17 regression: `10/10`;
-- timeline/evaluator/extractor/validation/repair/projection set: `722/722`;
-- full suite: `1310/1310` across 23 files;
+- focused PR #17 regression: `11/11`;
+- timeline/evaluator/extractor/validation/repair/projection set: `723/723`;
+- full suite: `1311/1311` across 23 files;
 - typecheck, formatting, CI matrix coverage, and golden schema/custom validation;
 - Person A acceptance gate with historical outputs still `0/3` and controls `3/3`;
 - dependency audit with zero vulnerabilities.
