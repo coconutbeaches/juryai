@@ -347,7 +347,7 @@ describe('Dry Run 001 exact-source timeline containment', () => {
     ).toBeNull();
   });
 
-  it('requires the dependency predicate to govern the nested date and agree with its source', async () => {
+  it('rejects every near-match outside the exact frozen dependency representation', async () => {
     const { extraction, golden } = await frozenProjection();
     const extracted = structuredClone(
       extraction.timeline.find((item: JsonObject) => item.event_id === 'event_02_content_deadline'),
@@ -388,6 +388,36 @@ describe('Dry Run 001 exact-source timeline containment', () => {
       ),
     ).toBeNull();
 
+    const sameClauseNarrative =
+      'The agreement required a deposit and the target launch was by April 25.';
+    extracted.event_summary =
+      'The agreement required a deposit and the target launch was by April 25.';
+    extracted.source_spans = [
+      {
+        submission_id: 'sub_a_extracted',
+        quote: sameClauseNarrative,
+        start_char: 0,
+        end_char: sameClauseNarrative.length,
+      },
+    ];
+    expected.source_spans = [
+      {
+        submission_id: 'sub_a_001',
+        quote: 'by April 25.',
+        start_char: sameClauseNarrative.indexOf('by April 25.'),
+        end_char: sameClauseNarrative.length,
+      },
+    ];
+
+    expect(
+      proveExactSourceTimelineContainment(
+        extracted,
+        expected,
+        sameClauseNarrative,
+        DRY_RUN_001_COMPATIBILITY_ALIASES,
+      ),
+    ).toBeNull();
+
     const negatedNarrative = 'The timeline did not depend on content delivery by April 25.';
     extracted.event_summary = 'The timeline depended on content delivery by April 25.';
     extracted.source_spans = [
@@ -412,6 +442,35 @@ describe('Dry Run 001 exact-source timeline containment', () => {
         extracted,
         expected,
         negatedNarrative,
+        DRY_RUN_001_COMPATIBILITY_ALIASES,
+      ),
+    ).toBeNull();
+
+    const alternateNegationNarrative =
+      'The timeline does not depend on content delivery by April 25.';
+    extracted.event_summary = alternateNegationNarrative;
+    extracted.source_spans = [
+      {
+        submission_id: 'sub_a_extracted',
+        quote: alternateNegationNarrative,
+        start_char: 0,
+        end_char: alternateNegationNarrative.length,
+      },
+    ];
+    expected.source_spans = [
+      {
+        submission_id: 'sub_a_001',
+        quote: 'by April 25.',
+        start_char: alternateNegationNarrative.indexOf('by April 25.'),
+        end_char: alternateNegationNarrative.length,
+      },
+    ];
+
+    expect(
+      proveExactSourceTimelineContainment(
+        extracted,
+        expected,
+        alternateNegationNarrative,
         DRY_RUN_001_COMPATIBILITY_ALIASES,
       ),
     ).toBeNull();

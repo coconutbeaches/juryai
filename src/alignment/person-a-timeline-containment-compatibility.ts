@@ -125,66 +125,48 @@ function materialTimelineTokens(value: unknown, aliases: PersonASemanticAliases)
   ].sort();
 }
 
-function assertsTimelineDependency(value: unknown): boolean {
-  return (
-    typeof value === 'string' &&
-    /\b(?:depend(?:ed|ence|ency|ent|s)?|requir(?:e|ed|ement|es|ing)|must|needed\s+to|had\s+to)\b/iu.test(
-      value,
-    )
-  );
-}
+const dryRun001TimelineContainmentRepresentation = {
+  extractedSummary:
+    'The contract allegedly required Maya to supply final copy and images by April 25; no year is stated.',
+  extractedInterpretation:
+    'Alex considers timely delivery of the content a dependency for the project timeline.',
+  extractedSpan: {
+    start_char: 283,
+    end_char: 428,
+    quote:
+      'The intended launch was around May 20, although the contract also says the timeline depended on Maya supplying final copy and images by April 25.',
+  },
+  goldenSummary: 'by April 25.',
+  goldenInterpretation: 'A material dependency for the launch schedule.',
+  goldenSpan: {
+    start_char: 416,
+    end_char: 428,
+    quote: 'by April 25.',
+  },
+} as const;
 
-function contradictsTimelineDependency(value: unknown): boolean {
-  return (
-    typeof value === 'string' &&
-    /\b(?:miss(?:ed|ing)|fail(?:ed|ing)?\s+to|did\s+not|late|after\s+the\s+deadline|supersed(?:e|ed|es|ing)|replac(?:e|ed|es|ing)|waiv(?:e|ed|es|ing)|cancel(?:ed|ing|led|s)?|rescind(?:ed|ing|s)?|extend(?:ed|ing|s)?|postpon(?:e|ed|es|ing)|mov(?:e|ed|es|ing)\s+the\s+deadline)\b/iu.test(
-      value,
-    )
-  );
-}
-
-const timelineClauseBoundary = /[;.!?](?:\s|$)|,\s+(?:although|but|whereas|while)\b/giu;
-
-function timelineClauses(value: string): string[] {
-  return value
-    .split(timelineClauseBoundary)
-    .map((clause) => clause.trim())
-    .filter((clause) => clause.length > 0);
-}
-
-function dependencyGovernsSummaryDate(
-  summary: unknown,
-  materialTokens: string[],
-  aliases: PersonASemanticAliases,
+function matchesFrozenTimelineContainmentRepresentation(
+  extracted: JsonObject,
+  golden: JsonObject,
 ): boolean {
-  if (typeof summary !== 'string' || contradictsTimelineDependency(summary)) return false;
-  return timelineClauses(summary).some((clause) => {
-    const tokens = new Set(materialTimelineTokens(clause, aliases));
-    return (
-      materialTokens.every((token) => tokens.has(token)) &&
-      assertsTimelineDependency(clause) &&
-      !contradictsTimelineDependency(clause)
-    );
-  });
+  return (
+    extracted.event_summary === dryRun001TimelineContainmentRepresentation.extractedSummary &&
+    extracted.person_a_interpretation ===
+      dryRun001TimelineContainmentRepresentation.extractedInterpretation &&
+    golden.event_summary === dryRun001TimelineContainmentRepresentation.goldenSummary &&
+    golden.person_a_interpretation ===
+      dryRun001TimelineContainmentRepresentation.goldenInterpretation
+  );
 }
 
-function dependencyGovernsNestedLeaf(extractedSpan: ExactSpan, goldenSpan: ExactSpan): boolean {
-  const leafStart = goldenSpan.start_char - extractedSpan.start_char;
-  const leafEnd = goldenSpan.end_char - extractedSpan.start_char;
-  if (leafStart < 0 || leafEnd > extractedSpan.quote.length || leafEnd <= leafStart) return false;
-
-  let clauseStart = 0;
-  const prefix = extractedSpan.quote.slice(0, leafStart);
-  for (const boundary of prefix.matchAll(
-    new RegExp(timelineClauseBoundary.source, timelineClauseBoundary.flags),
-  )) {
-    clauseStart = (boundary.index ?? 0) + boundary[0].length;
-  }
-  const containingClause = extractedSpan.quote.slice(clauseStart, leafEnd);
+function sameExactSpan(
+  left: ExactSpan,
+  right: (typeof dryRun001TimelineContainmentRepresentation)['extractedSpan' | 'goldenSpan'],
+): boolean {
   return (
-    assertsTimelineDependency(containingClause) &&
-    !contradictsTimelineDependency(containingClause) &&
-    !contradictsTimelineDependency(extractedSpan.quote)
+    left.start_char === right.start_char &&
+    left.end_char === right.end_char &&
+    left.quote === right.quote
   );
 }
 
@@ -198,6 +180,7 @@ export function proveExactSourceTimelineContainment(
   aliases: PersonASemanticAliases = {},
 ): ContainmentProof | null {
   if (
+    !matchesFrozenTimelineContainmentRepresentation(extracted, golden) ||
     extracted.actor_party_id !== golden.actor_party_id ||
     extracted.actor_third_party_id !== golden.actor_third_party_id ||
     extracted.occurrence_status !== golden.occurrence_status ||
@@ -228,10 +211,8 @@ export function proveExactSourceTimelineContainment(
           goldenSpan.end_char < extractedSpan.end_char);
       if (!nested) continue;
       if (
-        !dependencyGovernsSummaryDate(extracted.event_summary, materialTokens, aliases) ||
-        !dependencyGovernsNestedLeaf(extractedSpan, goldenSpan) ||
-        !assertsTimelineDependency(golden.person_a_interpretation) ||
-        contradictsTimelineDependency(golden.person_a_interpretation)
+        !sameExactSpan(extractedSpan, dryRun001TimelineContainmentRepresentation.extractedSpan) ||
+        !sameExactSpan(goldenSpan, dryRun001TimelineContainmentRepresentation.goldenSpan)
       ) {
         return null;
       }

@@ -71,17 +71,17 @@ projection. The entrypoint:
 5. requires the golden summary to equal a verbatim golden source leaf strictly nested in an exact
    extracted source span;
 6. requires every material golden-summary token to remain in the extracted summary;
-7. requires the dependency/obligation predicate to govern the same clause as the nested date in
-   both the containing source and extracted summary, and rejects contradictions,
-   nonperformance, or deadline-modification predicates such as missed, superseded, waived,
-   cancelled, or extended in every asserted source;
+7. requires the exact audited PR #16 extracted summary, interpretation, source span, and offsets
+   together with the exact audited golden summary, interpretation, source leaf, and offsets;
 8. requires exactly one mutually unique candidate and fails closed otherwise;
 9. records the exact spans, material tokens, IDs, and `exact_source_containment` reason;
 10. independently re-proves the invariant during evaluation; and
 11. rejects the projection if any finding other than the selected missing/extra pair changes.
 
-This is exact-source semantic containment, not fuzzy matching. One extracted event still cannot
-satisfy multiple goldens, and one golden still cannot absorb multiple extracted events.
+This is a frozen-representation compatibility projection, not fuzzy matching or a new general
+alignment heuristic. Any wording, interpretation, span, or offset change fails closed. One
+extracted event still cannot satisfy multiple goldens, and one golden still cannot absorb multiple
+extracted events.
 
 ## Expected files
 
