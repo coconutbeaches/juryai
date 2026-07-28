@@ -55,11 +55,15 @@ function isCoreferentialCompletionContinuation(clause: string): boolean {
     ) ||
       /^(?:i|we)\s+(?:(?:did|do|have|had|will|would|can|could|may|might)\s+)?(?:not\s+)?(?:complet(?:e|ed)|finish(?:ed)?|deliver(?:ed)?|finali[sz](?:e|ed))\s+(?:it|this)\b/iu.test(
         clause,
+      ) ||
+      /^(?:i|we)\s+(?:cannot|can't|could\s+not|couldn't|do\s+not|don't)\s+(?:know|recall|remember|determine|confirm|tell)\b[^.;]{0,48}\b(?:it|this)\b/iu.test(
+        clause,
       ))
   );
 }
 
 function isAggregateCompletionClause(clause: string): boolean {
+  if (/\bnot\s+(?:all|each|every)\b/iu.test(clause)) return false;
   return (
     hasCompletionLanguage(clause) &&
     /\b(?:all|each|entire|every|whole|no|none\s+of\s+the)\b[^.;]{0,48}\b(?:deliverables?|pages?|project|site|website)\b/iu.test(

@@ -246,6 +246,12 @@ describe('Person A completion-state compatibility', () => {
     expect(projectedStatus(narrative)).toBe('not_complete');
   });
 
+  it('does not let a non-universal aggregate override explicit named completion', () => {
+    expect(projectedStatus('The booking page is complete. Not all pages are complete.')).toBe(
+      'complete',
+    );
+  });
+
   it.each([
     'The booking page has yet to be completed.',
     'The booking page needs to be completed.',
@@ -331,6 +337,11 @@ describe('Person A completion-state compatibility', () => {
   it('preserves uncertainty around possible incomplete states', () => {
     expect(projectedStatus('The booking page may be incomplete.')).toBe('unknown');
     expect(projectedStatus("I don't know whether the booking page is complete.")).toBe('unknown');
+    expect(
+      projectedStatus(
+        "The booking page was complete, but I can't confirm whether it is complete now.",
+      ),
+    ).toBe('unknown');
   });
 
   it.each([
