@@ -247,7 +247,7 @@
       {
         "outcome_id": "out_dry_run_002",
         "priority": 1,
-        "outcome_type": "payment",
+        "outcome_type": "mixed",
         "transfers": [
           {
             "from_party_id": "party_b",
@@ -256,7 +256,11 @@
             "currency": "USD"
           }
         ],
-        "required_actions": ["Jordan delivers the final two chairs after payment."],
+        "required_actions": [
+          "Jordan delivers the final two chairs.",
+          "Priya pays Jordan the remaining $900 after delivery.",
+          "Jordan does not refund Priya."
+        ],
         "rationale": "Jordan requests the unpaid balance and does not request a refund."
       }
     ]

@@ -179,7 +179,7 @@ describe('Person A provenance case resolution', () => {
       narrativePath: 'src/fixtures/dry_run_002.person_a.txt',
       narrativeSha256: '0508bdb60323a32beafaa0b7e7e7ac734cd64a002830fc8eb1ca52e5feda0f86',
       goldenPath: 'src/fixtures/dry_run_002.person_a.golden.extraction.json',
-      goldenSha256: '67c85bc005b377a064d1bd18c59570dff50cdc10ae9ac9480331da41a934165c',
+      goldenSha256: 'c56a61eb606c5efbcc8fdd5f364d70a889c9c84b7092784daf2f2b814f265567',
       aliases: { client: 'priya', restorer: 'jordan' },
       evaluationContract: 'calibrated_live_v2',
       artifactPrefix: 'dry_run_002.person_a',
@@ -1027,7 +1027,7 @@ describe('Person A provenance local live simulation and raw-only replay', () => 
       case: {
         golden: {
           path: 'src/fixtures/dry_run_002.person_a.golden.extraction.json',
-          sha256: '67c85bc005b377a064d1bd18c59570dff50cdc10ae9ac9480331da41a934165c',
+          sha256: 'c56a61eb606c5efbcc8fdd5f364d70a889c9c84b7092784daf2f2b814f265567',
         },
         evaluation_contract: 'calibrated_live_v2',
       },

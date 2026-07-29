@@ -133,7 +133,7 @@ function goldenOutcome(): JsonObject {
   return {
     outcome_id: 'out_dry_run_002',
     priority: 1,
-    outcome_type: 'payment',
+    outcome_type: 'mixed',
     transfers: [
       {
         from_party_id: 'party_b',
@@ -142,8 +142,20 @@ function goldenOutcome(): JsonObject {
         currency: 'USD',
       },
     ],
-    required_actions: ['Jordan delivers the final two chairs after payment.'],
+    required_actions: [
+      'Jordan delivers the final two chairs.',
+      'Priya pays Jordan the remaining $900 after delivery.',
+      'Jordan does not refund Priya.',
+    ],
     rationale: 'Jordan requests the unpaid balance and does not request a refund.',
+  };
+}
+
+function defectiveGoldenOutcome(): JsonObject {
+  return {
+    ...goldenOutcome(),
+    outcome_type: 'payment',
+    required_actions: ['Jordan delivers the final two chairs after payment.'],
   };
 }
 
@@ -192,7 +204,7 @@ function alignedDamages(
 }
 
 describe('Dry Run 002 structured monetary identity compatibility', () => {
-  it('reproduces four false unpaired findings and replaces only them with field diagnostics', () => {
+  it('recovers the adjudicated damage while the source-faithful outcome aligns normally', () => {
     const { extracted, golden } = frozenRecords();
     const priorAlignment = alignPriorProjection(extracted, golden, options);
     const prior = evaluate(extracted, golden, priorAlignment);
@@ -215,21 +227,6 @@ describe('Dry Run 002 structured monetary identity compatibility', () => {
           'Extracted object has no supported golden match and is a fabrication hard failure.',
         extracted_id: 'damages_unpaid_balance_1',
       },
-      {
-        severity: 'critical',
-        family: 'outcomes',
-        code: 'missing_golden_object',
-        message: 'Golden object was not extracted.',
-        golden_id: 'out_dry_run_002',
-      },
-      {
-        severity: 'critical',
-        family: 'outcomes',
-        code: 'unsupported_extra_object',
-        message:
-          'Extracted object has no supported golden match and is a fabrication hard failure.',
-        extracted_id: 'outcome_payment_1',
-      },
     ]);
     expect(alignment.families.damages.pairs).toEqual([
       {
@@ -242,13 +239,14 @@ describe('Dry Run 002 structured monetary identity compatibility', () => {
         recovery_reason: 'exact_structured_monetary_identity',
       },
     ]);
-    expect(alignment.families.outcomes.pairs).toEqual([]);
-    expect(alignment.families.outcomes.unmatched_extracted).toEqual([
-      { index: 0, id: 'outcome_payment_1' },
+    expect(alignment.families.outcomes.pairs).toEqual([
+      expect.objectContaining({
+        extracted_id: 'outcome_payment_1',
+        golden_id: 'out_dry_run_002',
+      }),
     ]);
-    expect(alignment.families.outcomes.unmatched_golden).toEqual([
-      { index: 0, id: 'out_dry_run_002' },
-    ]);
+    expect(alignment.families.outcomes.unmatched_extracted).toEqual([]);
+    expect(alignment.families.outcomes.unmatched_golden).toEqual([]);
     expect(monetaryErrors(report)).toEqual([
       {
         severity: 'major',
@@ -258,6 +256,20 @@ describe('Dry Run 002 structured monetary identity compatibility', () => {
         extracted_id: 'damages_unpaid_balance_1',
         golden_id: 'dam_dry_run_002',
       },
+    ]);
+  });
+
+  it('removes only the two findings caused by the reversed DR002 golden outcome', () => {
+    const fixed = frozenRecords();
+    const defective = frozenRecords();
+    defective.golden.desired_outcomes.outcomes[0] = defectiveGoldenOutcome();
+
+    const before = evaluate(defective.extracted, defective.golden);
+    const after = evaluate(fixed.extracted, fixed.golden);
+    const beforeOutcomeFindings = before.errors.filter((error) => error.family === 'outcomes');
+    const afterOutcomeFindings = after.errors.filter((error) => error.family === 'outcomes');
+
+    expect(beforeOutcomeFindings).toEqual([
       {
         severity: 'critical',
         family: 'outcomes',
@@ -274,6 +286,8 @@ describe('Dry Run 002 structured monetary identity compatibility', () => {
         extracted_id: 'outcome_payment_1',
       },
     ]);
+    expect(afterOutcomeFindings).toEqual([]);
+    expect(after.errors).toEqual(before.errors.filter((error) => error.family !== 'outcomes'));
   });
 
   it('proves exact integer money, unpaid-balance category, causal anchor, and source containment', () => {
@@ -311,7 +325,7 @@ describe('Dry Run 002 structured monetary identity compatibility', () => {
       '2513daa8d2ed1fef51bb44e4b6e14f1b35ff71237740ab09f8598da5341308e4',
     );
     expect(structuredMonetaryRecordFingerprint(golden.desired_outcomes.outcomes[0])).toBe(
-      'fd37b50412fb657cf10b1c8f833cef61debf4c94f6943805b25deefc81ea9759',
+      'c94e305e637d2d2d0a11efa9ebbeda14772530c9eda1a2f917d3fd23526c749b',
     );
     expect(structuredMonetaryRecordFingerprint(extracted.claims[0])).toBe(
       '9512e792b1db5df09e73b9e0afc500f567a83f16d1a8f4bd37c95d03130b045f',
@@ -386,27 +400,39 @@ describe('Dry Run 002 structured monetary identity compatibility', () => {
     expect(alignedDamages(mutate as (records: any) => void)).toBe(0);
   });
 
-  it('leaves the outcome pair unaligned because its delivery/payment order is materially reversed', () => {
+  it('locks the DR002 golden to the source-supported delivery-before-payment outcome', () => {
     const records = frozenRecords();
     const extracted = records.extracted.desired_outcomes.outcomes[0];
     const golden = records.golden.desired_outcomes.outcomes[0];
+    const fixture = JSON.parse(
+      readFileSync(
+        resolve(process.cwd(), 'src/fixtures/dry_run_002.person_a.golden.extraction.json'),
+        'utf8',
+      ),
+    );
     const alignment = alignPersonAForCase(records.extracted, records.golden, options);
 
     expect(extracted.outcome_type).toBe('mixed');
-    expect(golden.outcome_type).toBe('payment');
-    expect(extracted.required_actions).toContain(
-      'Priya pays Jordan the remaining $900 after delivery.',
-    );
+    expect(golden.outcome_type).toBe('mixed');
+    expect(fixture.desired_outcomes.outcomes[0]).toEqual(golden);
     expect(golden.required_actions).toEqual([
-      'Jordan delivers the final two chairs after payment.',
+      'Jordan delivers the final two chairs.',
+      'Priya pays Jordan the remaining $900 after delivery.',
+      'Jordan does not refund Priya.',
     ]);
-    expect(alignment.families.outcomes.pairs).toHaveLength(0);
+    expect(narrative.slice(sourceSpan.start_char, sourceSpan.end_char)).toBe(sourceQuote);
+    expect(sourceQuote).toMatch(/pay the remaining \$900 after I deliver the last two chairs/u);
+    expect(alignment.families.outcomes.pairs).toEqual([
+      expect.objectContaining({
+        extracted_id: 'outcome_payment_1',
+        golden_id: 'out_dry_run_002',
+      }),
+    ]);
   });
 
   it('aligns harmless wording variation that preserves the conditional delivery-before-payment order', () => {
     const records = frozenRecords();
     const golden = records.golden.desired_outcomes.outcomes[0];
-    golden.outcome_type = 'mixed';
     golden.required_actions = [
       'Jordan hands over the final two chairs before Priya pays the outstanding $900.',
       'Jordan does not refund Priya.',
@@ -530,7 +556,7 @@ describe('Dry Run 002 structured monetary identity compatibility', () => {
     );
   });
 
-  it('preserves causal wording and the complete unpaired outcome difference without mutation', () => {
+  it('preserves causal wording and the source-faithful outcome alignment without mutation', () => {
     const { extracted, golden } = frozenRecords();
     const beforeExtracted = structuredClone(extracted);
     const beforeGolden = structuredClone(golden);
@@ -541,27 +567,23 @@ describe('Dry Run 002 structured monetary identity compatibility', () => {
     expect(report.errors).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ family: 'damages', code: 'causal_theory' }),
-        expect.objectContaining({
-          family: 'outcomes',
-          code: 'missing_golden_object',
-          golden_id: 'out_dry_run_002',
-        }),
-        expect.objectContaining({
-          family: 'outcomes',
-          code: 'unsupported_extra_object',
-          extracted_id: 'outcome_payment_1',
-        }),
       ]),
     );
+    expect(report.errors.filter((error) => error.family === 'outcomes')).toEqual([]);
   });
 
-  it('does not activate under the locked acceptance contract', () => {
+  it('keeps damage recovery inactive while the corrected outcome aligns under locked acceptance', () => {
     const { extracted, golden } = frozenRecords();
     const alignment = alignPersonAForCase(extracted, golden, {
       ...options,
       contractVersion: 'locked_acceptance_v1',
     });
     expect(alignment.families.damages.pairs).toHaveLength(0);
-    expect(alignment.families.outcomes.pairs).toHaveLength(0);
+    expect(alignment.families.outcomes.pairs).toEqual([
+      expect.objectContaining({
+        extracted_id: 'outcome_payment_1',
+        golden_id: 'out_dry_run_002',
+      }),
+    ]);
   });
 });
