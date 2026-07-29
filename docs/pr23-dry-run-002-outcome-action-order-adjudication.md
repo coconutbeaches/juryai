@@ -84,14 +84,14 @@ The `output_text` JSON in the frozen provider response contains:
 }
 ```
 
-Its stable JSON SHA-256 is
-`df2f03992d7e26ad48df83f0f4aa56e92c56b0001afd0b3c7a6e153c26051c73`.
+Its canonical complete-record SHA-256 is
+`2513daa8d2ed1fef51bb44e4b6e14f1b35ff71237740ab09f8598da5341308e4`.
 
 ### Assembled extracted outcome
 
-The assembled `outcome_payment_1` is field-for-field identical to the raw model outcome. Its stable
-JSON SHA-256 is also
-`df2f03992d7e26ad48df83f0f4aa56e92c56b0001afd0b3c7a6e153c26051c73`.
+The assembled `outcome_payment_1` is field-for-field identical to the raw model outcome. Its
+canonical complete-record SHA-256 is also
+`2513daa8d2ed1fef51bb44e4b6e14f1b35ff71237740ab09f8598da5341308e4`.
 
 ### Golden outcome
 
