@@ -1,0 +1,536 @@
+{
+  "version": "juryai-pr25-dr002-critical-diagnostic-v1",
+  "case": {
+    "case_id": "dry_run_002",
+    "fixture_contract": "calibrated_live_v2",
+    "locked_base_sha": "14d21cc89d916586be8dccb2a30577d46279a146",
+    "live_source_sha": "c081c1e10427f11125a43976f74d1ce076d4a19c",
+    "narrative": {
+      "path": "src/fixtures/dry_run_002.person_a.txt",
+      "sha256": "0508bdb60323a32beafaa0b7e7e7ac734cd64a002830fc8eb1ca52e5feda0f86",
+      "utf16_length": 626,
+      "utf8_bytes": 630
+    },
+    "golden": {
+      "path": "src/fixtures/dry_run_002.person_a.golden.extraction.json",
+      "sha256": "c56a61eb606c5efbcc8fdd5f364d70a889c9c84b7092784daf2f2b814f265567"
+    },
+    "frozen_evidence": {
+      "raw_response_sha256": "b6156e7754e28ee5ec9f3a5fa3ca89209b1f9d185b9aff76ba8c246ee5f4f171",
+      "request_metadata_sha256": "798e6cdff6f4462cd57c2d7234f16abb1681b5aa17cd343b505eda127cbb1469",
+      "extraction_sha256": "496ce4938cc04ae65a72efc611e839158dfe7e5ee053d27dc21de96c77a8d076",
+      "source_alignment_sha256": "888da6ccd55ce012fec72f42c8a020c70b69ef31003b809ff9e2e3a6360b1eff",
+      "source_evaluation_sha256": "32080c0c21b67a4d04e3561e39ede60c7c09b59cfc4b872dc2bd78fe2e121330",
+      "locked_base_alignment_sha256": "ee015c6efb1fe1bb3ead8625cfddbf1057f11837d2ba5d360169b03312de09a6",
+      "locked_base_evaluation_sha256": "dba69c1f95e2da4d885aec4f28cea77fa62401e4d7c2de193bbc06d620b660f6",
+      "acceptance_sha256": "a81553ce546d46c9fee379a18177400840a0aeb43e163060a033023d921677c3"
+    },
+    "canonical_replays": [
+      {
+        "extraction_sha256": "496ce4938cc04ae65a72efc611e839158dfe7e5ee053d27dc21de96c77a8d076",
+        "validation_sha256": "d3adea256203aaa11bba6b0b151a3b6659e2ed4031878c615b9474884dd733df",
+        "provider_calls": 0,
+        "retries": 0,
+        "manually_edited": false
+      },
+      {
+        "extraction_sha256": "496ce4938cc04ae65a72efc611e839158dfe7e5ee053d27dc21de96c77a8d076",
+        "validation_sha256": "d3adea256203aaa11bba6b0b151a3b6659e2ed4031878c615b9474884dd733df",
+        "provider_calls": 0,
+        "retries": 0,
+        "manually_edited": false
+      }
+    ]
+  },
+  "baseline": {
+    "critical": 5,
+    "major": 15,
+    "minor": 14,
+    "total": 34,
+    "acceptance": "pass",
+    "historical_accepted": 0,
+    "historical_total": 3,
+    "controls_accepted": 3,
+    "controls_total": 3
+  },
+  "source_segments": {
+    "S1": {
+      "start_char": 58,
+      "end_char": 200,
+      "quote": "On about March 12, 2026, I agreed with Priya Nair to restore six dining chairs for $1,800, with $900 paid upfront and $900 due after delivery."
+    },
+    "S2": {
+      "start_char": 201,
+      "end_char": 300,
+      "quote": "Priya messaged, “They look ready for the hotel lobby,” but said one cushion still needed stitching."
+    },
+    "S3": {
+      "start_char": 301,
+      "end_char": 378,
+      "quote": "Around April 2, 2026, Priya collected four chairs while I kept two to finish."
+    },
+    "S4": {
+      "start_char": 379,
+      "end_char": 513,
+      "quote": "Priya later alleged that I scratched all six chairs, but I only observed a mark on one chair and I have not inspected her photographs."
+    },
+    "S5": {
+      "start_char": 514,
+      "end_char": 625,
+      "quote": "I am asking Priya to pay the remaining $900 after I deliver the last two chairs; I am not asking to refund her."
+    }
+  },
+  "records": {
+    "term_scope_1": {
+      "fingerprint": "4777f3b6da8675168096211a5957cb95aecb0ee05b647d2f330341654dc0ee10",
+      "value": {
+        "interpretation_status": "unclear",
+        "materiality": "high",
+        "person_a_interpretation": null,
+        "person_b_interpretation": null,
+        "source_evidence_ids": [],
+        "source_spans": [
+          {
+            "end_char": 200,
+            "quote": "On about March 12, 2026, I agreed with Priya Nair to restore six dining chairs for $1,800, with $900 paid upfront and $900 due after delivery.",
+            "start_char": 58,
+            "submission_id": "sub_a_extracted"
+          }
+        ],
+        "term_id": "term_scope_1",
+        "term_type": "scope",
+        "wording": "Restore six dining chairs.",
+        "wording_status": "not_inspected"
+      }
+    },
+    "term_price_1": {
+      "fingerprint": "ff6234474986c1e5f12e7795e28fdf3d4a46285aa0e45d128799784adc6618ec",
+      "raw_model_fingerprint": "1d15aaccc17b7a7dab14c15700b75077f61206a676abe815fa9ca5933a80e3aa",
+      "value": {
+        "interpretation_status": "unclear",
+        "materiality": "high",
+        "person_a_interpretation": null,
+        "person_b_interpretation": null,
+        "source_evidence_ids": [],
+        "source_spans": [
+          {
+            "end_char": 200,
+            "quote": "On about March 12, 2026, I agreed with Priya Nair to restore six dining chairs for $1,800, with $900 paid upfront and $900 due after delivery.",
+            "start_char": 58,
+            "submission_id": "sub_a_extracted"
+          }
+        ],
+        "term_id": "term_price_1",
+        "term_type": "price",
+        "wording": "The total price was $1,800.",
+        "wording_status": "not_inspected"
+      }
+    },
+    "deliverable_1": {
+      "fingerprint": "e5cf71a64687274232b7fc04f46ab13d10164d5c1a5a9781cba63c1de6a516c5",
+      "value": {
+        "alleged_defects": [
+          "Priya allegedly claimed that all six chairs were scratched.",
+          "Jordan observed a mark on one chair.",
+          "One cushion still needed stitching."
+        ],
+        "completion_status_person_a": "partially_complete",
+        "completion_status_person_b": "unknown",
+        "deliverable_id": "deliverable_1",
+        "materiality": "high",
+        "name": "Restoration of six dining chairs",
+        "repair_attempts": ["Jordan kept two chairs to finish them."],
+        "scope_status": "included",
+        "source_claim_ids": [
+          "claim_scope_1",
+          "claim_partial_completion_1",
+          "claim_cushion_1",
+          "claim_scratch_allegation_1",
+          "claim_mark_1"
+        ],
+        "source_evidence_ids": ["evidence_message_1", "evidence_photos_1"],
+        "use_status": "unknown"
+      }
+    },
+    "claim_scope_1": {
+      "fingerprint": "95ffd92ae5c68bd6c5859190f4cb53bfcf92baaa85809a9a84346301b470afbe",
+      "value": {
+        "against_asserting_party_interest": false,
+        "claim_id": "claim_scope_1",
+        "claim_text": "Jordan asserts that the agreed scope was restoration of six dining chairs for $1,800.",
+        "claim_type": "scope",
+        "contradicting_evidence_ids": [],
+        "counterclaim_ids": [],
+        "materiality": "high",
+        "party_id": "party_a",
+        "requires_clarification": true,
+        "response_status": "unanswered",
+        "source_spans": [
+          {
+            "end_char": 200,
+            "quote": "On about March 12, 2026, I agreed with Priya Nair to restore six dining chairs for $1,800, with $900 paid upfront and $900 due after delivery.",
+            "start_char": 58,
+            "submission_id": "sub_a_extracted"
+          }
+        ],
+        "support_level": "none",
+        "supporting_evidence_ids": []
+      }
+    },
+    "claim_payment_term_1": {
+      "fingerprint": "76661e3614cedf6575fb63071e84b49f6de5f3b18c1b00194e3c7679be27d9cf",
+      "value": {
+        "against_asserting_party_interest": false,
+        "claim_id": "claim_payment_term_1",
+        "claim_text": "Jordan asserts that $900 was paid upfront and the remaining $900 is due after delivery.",
+        "claim_type": "payment",
+        "contradicting_evidence_ids": [],
+        "counterclaim_ids": [],
+        "materiality": "high",
+        "party_id": "party_a",
+        "requires_clarification": true,
+        "response_status": "unanswered",
+        "source_spans": [
+          {
+            "end_char": 200,
+            "quote": "On about March 12, 2026, I agreed with Priya Nair to restore six dining chairs for $1,800, with $900 paid upfront and $900 due after delivery.",
+            "start_char": 58,
+            "submission_id": "sub_a_extracted"
+          }
+        ],
+        "support_level": "none",
+        "supporting_evidence_ids": []
+      }
+    },
+    "claim_no_refund_1": {
+      "fingerprint": "2fc5491efd581ba3104bdcea3095a80ae5eb2c5efc60076362cca35d91aa1e28",
+      "value": {
+        "against_asserting_party_interest": false,
+        "claim_id": "claim_no_refund_1",
+        "claim_text": "Jordan is not seeking to refund Priya.",
+        "claim_type": "refund",
+        "contradicting_evidence_ids": [],
+        "counterclaim_ids": [],
+        "materiality": "medium",
+        "party_id": "party_a",
+        "requires_clarification": false,
+        "response_status": "unanswered",
+        "source_spans": [
+          {
+            "end_char": 625,
+            "quote": "I am asking Priya to pay the remaining $900 after I deliver the last two chairs; I am not asking to refund her.",
+            "start_char": 514,
+            "submission_id": "sub_a_extracted"
+          }
+        ],
+        "support_level": "none",
+        "supporting_evidence_ids": []
+      }
+    },
+    "term_dry_run_002": {
+      "fingerprint": "e436b07d1c65e47a46152fa2691be91d272d93b70204506a0fed4175a19197f4",
+      "value": {
+        "term_id": "term_dry_run_002",
+        "term_type": "scope",
+        "wording": "On about March 12, 2026, I agreed with Priya Nair to restore six dining chairs for $1,800, with $900 paid upfront and $900 due after delivery.",
+        "wording_status": "not_inspected",
+        "interpretation_status": "unclear",
+        "person_a_interpretation": "On about March 12, 2026, I agreed with Priya Nair to restore six dining chairs for $1,800, with $900 paid upfront and $900 due after delivery.",
+        "person_b_interpretation": null,
+        "source_evidence_ids": ["ev_dry_run_002"],
+        "materiality": "high",
+        "source_spans": [
+          {
+            "submission_id": "sub_dry_run_002",
+            "quote": "On about March 12, 2026, I agreed with Priya Nair to restore six dining chairs for $1,800, with $900 paid upfront and $900 due after delivery.",
+            "start_char": 58,
+            "end_char": 200
+          }
+        ]
+      }
+    },
+    "cl_002_remedy": {
+      "fingerprint": "2f52fd6d00c7eae617307136ec859e32ac0094d779a181ef026d49fc4193ec69",
+      "value": {
+        "claim_id": "cl_002_remedy",
+        "party_id": "party_a",
+        "claim_text": "I am asking Priya to pay the remaining $900 after I deliver the last two chairs; I am not asking to refund her.",
+        "claim_type": "payment",
+        "response_status": "unanswered",
+        "materiality": "high",
+        "support_level": "not_assessed",
+        "supporting_evidence_ids": ["ev_dry_run_002"],
+        "contradicting_evidence_ids": [],
+        "counterclaim_ids": [],
+        "requires_clarification": true,
+        "against_asserting_party_interest": false,
+        "source_spans": [
+          {
+            "submission_id": "sub_dry_run_002",
+            "quote": "I am asking Priya to pay the remaining $900 after I deliver the last two chairs; I am not asking to refund her.",
+            "start_char": 514,
+            "end_char": 625
+          }
+        ]
+      }
+    }
+  },
+  "critical_findings": [
+    {
+      "stable_identity": "critical|agreement_terms|unsupported_extra_object|term_price_1|",
+      "finding_fingerprint": "d5013941b000a20e9931e80bfc88b5717428c0954cfad1fd69eff4e0182e3020",
+      "family": "agreement_terms",
+      "code": "unsupported_extra_object",
+      "extracted_id": "term_price_1",
+      "golden_id": null,
+      "related_golden_ids": ["term_dry_run_002"],
+      "source_segments": ["S1"],
+      "extracted_record": "term_price_1",
+      "golden_representation": "The broader term_dry_run_002 contains the exact USD 1,800 price but is already paired to term_scope_1.",
+      "alignment": "Unmatched extracted; no unmatched golden; term_scope_1 is paired to term_dry_run_002.",
+      "category": "unsupported_extra_object",
+      "source_grounded": true,
+      "likely_root_cause": "evaluator_defect",
+      "confidence": "high",
+      "expected_blast_radius": "One DR002 price decomposition diagnostic if corrected with exact-money fail-closed evidence.",
+      "policy_change_required": true,
+      "controls_or_dr001_effect": "None expected, but a correction would require explicit regression proof.",
+      "previous_adjudication": "Previously preserved as a legitimate grounded extra in docs/dry-run-002-finding-adjudication.md.",
+      "coupled_to": [
+        "agreement_terms|term_wording|term_scope_1|term_dry_run_002",
+        "agreement_terms|party_interpretation|term_scope_1|term_dry_run_002"
+      ]
+    },
+    {
+      "stable_identity": "critical|deliverables|unsupported_extra_object|deliverable_1|",
+      "finding_fingerprint": "c538faa387d7f35cf712fa88812da5bb2085fe1fb89e7f6e981d3f3ca7f22031",
+      "family": "deliverables",
+      "code": "unsupported_extra_object",
+      "extracted_id": "deliverable_1",
+      "golden_id": null,
+      "related_golden_ids": [],
+      "source_segments": ["S1", "S2", "S3", "S4"],
+      "extracted_record": "deliverable_1",
+      "golden_representation": "The golden deliverable_assessments family is empty; scope and completion facts appear only across other golden families.",
+      "alignment": "Unmatched extracted with an empty same-family golden set.",
+      "category": "unsupported_extra_object",
+      "source_grounded": true,
+      "likely_root_cause": "intentional_unsupported_or_legitimate_unmatched_behavior",
+      "confidence": "high",
+      "expected_blast_radius": "Potentially broad because deliverable grounding depends on claim alignment.",
+      "policy_change_required": true,
+      "controls_or_dr001_effect": "A generic change could affect DR001 deliverable extras and controls.",
+      "previous_adjudication": "Previously preserved as a legitimate grounded extra in docs/dry-run-002-finding-adjudication.md.",
+      "coupled_to": [
+        "claim_scope_1",
+        "claim_partial_completion_1",
+        "claim_cushion_1",
+        "claim_scratch_allegation_1",
+        "claim_mark_1"
+      ]
+    },
+    {
+      "stable_identity": "critical|claims|unsupported_extra_object|claim_scope_1|",
+      "finding_fingerprint": "d80465a6dd94083a60e1ea3055ff46433461582091bb3aca91067a08a650afb5",
+      "family": "claims",
+      "code": "unsupported_extra_object",
+      "extracted_id": "claim_scope_1",
+      "golden_id": null,
+      "related_golden_ids": ["term_dry_run_002"],
+      "source_segments": ["S1"],
+      "extracted_record": "claim_scope_1",
+      "golden_representation": "The same scope is represented cross-family as term_dry_run_002, not as a golden claim.",
+      "alignment": "Unmatched extracted; all golden claims are already paired to other extracted claims.",
+      "category": "unsupported_extra_object",
+      "source_grounded": true,
+      "likely_root_cause": "intentional_unsupported_or_legitimate_unmatched_behavior",
+      "confidence": "high",
+      "expected_blast_radius": "Generic cross-family claim policy could alter multiple findings.",
+      "policy_change_required": true,
+      "controls_or_dr001_effect": "Possible because DR001 also separates terms and relied-upon claims.",
+      "previous_adjudication": "Previously preserved as a legitimate grounded extra in docs/dry-run-002-finding-adjudication.md.",
+      "coupled_to": ["term_scope_1", "deliverable_1"]
+    },
+    {
+      "stable_identity": "critical|claims|unsupported_extra_object|claim_payment_term_1|",
+      "finding_fingerprint": "dac4609ada54c5990e9467857f53e19694fef2ce6e36f8d2eca1342e772113c2",
+      "family": "claims",
+      "code": "unsupported_extra_object",
+      "extracted_id": "claim_payment_term_1",
+      "golden_id": null,
+      "related_golden_ids": ["term_dry_run_002"],
+      "source_segments": ["S1"],
+      "extracted_record": "claim_payment_term_1",
+      "golden_representation": "The payment structure is represented cross-family as term_dry_run_002; no same-family golden claim covers S1.",
+      "alignment": "Unmatched extracted; all golden claims are already paired to other extracted claims.",
+      "category": "unsupported_extra_object",
+      "source_grounded": true,
+      "likely_root_cause": "intentional_unsupported_or_legitimate_unmatched_behavior",
+      "confidence": "high",
+      "expected_blast_radius": "A claim-grounding change could affect all unmatched claim severities.",
+      "policy_change_required": true,
+      "controls_or_dr001_effect": "Possible because Rule 26 applies across cases.",
+      "previous_adjudication": "Previously preserved as a legitimate grounded extra in docs/dry-run-002-finding-adjudication.md.",
+      "coupled_to": ["term_payment_trigger_1", "claim_balance_1"]
+    },
+    {
+      "stable_identity": "critical|claims|unsupported_extra_object|claim_no_refund_1|",
+      "finding_fingerprint": "3f71427b9864f3dd7b33044964ba7996bdb801e861e636eda33d86e76ee59a4d",
+      "family": "claims",
+      "code": "unsupported_extra_object",
+      "extracted_id": "claim_no_refund_1",
+      "golden_id": null,
+      "related_golden_ids": ["cl_002_remedy"],
+      "source_segments": ["S5"],
+      "extracted_record": "claim_no_refund_1",
+      "golden_representation": "cl_002_remedy combines the positive payment request and negative no-refund position and is paired to claim_balance_1.",
+      "alignment": "Unmatched extracted; cl_002_remedy is paired to claim_balance_1.",
+      "category": "unsupported_extra_object",
+      "source_grounded": true,
+      "likely_root_cause": "intentional_unsupported_or_legitimate_unmatched_behavior",
+      "confidence": "medium",
+      "expected_blast_radius": "A granularity rule for negative remedy positions could affect claim splitting generally.",
+      "policy_change_required": true,
+      "controls_or_dr001_effect": "Possible if compound remedy claims are decomposed generically.",
+      "previous_adjudication": "Previously preserved with medium confidence in docs/dry-run-002-finding-adjudication.md.",
+      "coupled_to": ["claim_balance_1", "cl_002_remedy"]
+    }
+  ],
+  "ranking": [
+    {
+      "rank": 1,
+      "stable_identity": "critical|agreement_terms|unsupported_extra_object|term_price_1|",
+      "score": 43,
+      "criteria": {
+        "direct_source_evidence": 5,
+        "current_behavior_wrong": 5,
+        "layer_distinguishability": 5,
+        "correction_narrowness": 5,
+        "low_regression_risk": 4,
+        "no_controls_or_dr001_effect": 5,
+        "low_policy_judgment": 4,
+        "deterministic_tooling_support": 4,
+        "not_intentionally_preserved": 1,
+        "truthful_evaluation_improvement": 5
+      }
+    },
+    {
+      "rank": 2,
+      "stable_identity": "critical|claims|unsupported_extra_object|claim_payment_term_1|",
+      "score": 33,
+      "criteria": {
+        "direct_source_evidence": 5,
+        "current_behavior_wrong": 4,
+        "layer_distinguishability": 3,
+        "correction_narrowness": 3,
+        "low_regression_risk": 3,
+        "no_controls_or_dr001_effect": 4,
+        "low_policy_judgment": 3,
+        "deterministic_tooling_support": 2,
+        "not_intentionally_preserved": 1,
+        "truthful_evaluation_improvement": 5
+      }
+    },
+    {
+      "rank": 3,
+      "stable_identity": "critical|claims|unsupported_extra_object|claim_scope_1|",
+      "score": 32,
+      "criteria": {
+        "direct_source_evidence": 5,
+        "current_behavior_wrong": 4,
+        "layer_distinguishability": 3,
+        "correction_narrowness": 3,
+        "low_regression_risk": 3,
+        "no_controls_or_dr001_effect": 4,
+        "low_policy_judgment": 2,
+        "deterministic_tooling_support": 2,
+        "not_intentionally_preserved": 1,
+        "truthful_evaluation_improvement": 5
+      }
+    },
+    {
+      "rank": 4,
+      "stable_identity": "critical|claims|unsupported_extra_object|claim_no_refund_1|",
+      "score": 28,
+      "criteria": {
+        "direct_source_evidence": 5,
+        "current_behavior_wrong": 3,
+        "layer_distinguishability": 2,
+        "correction_narrowness": 2,
+        "low_regression_risk": 3,
+        "no_controls_or_dr001_effect": 4,
+        "low_policy_judgment": 1,
+        "deterministic_tooling_support": 2,
+        "not_intentionally_preserved": 1,
+        "truthful_evaluation_improvement": 5
+      }
+    },
+    {
+      "rank": 5,
+      "stable_identity": "critical|deliverables|unsupported_extra_object|deliverable_1|",
+      "score": 25,
+      "criteria": {
+        "direct_source_evidence": 4,
+        "current_behavior_wrong": 3,
+        "layer_distinguishability": 2,
+        "correction_narrowness": 2,
+        "low_regression_risk": 2,
+        "no_controls_or_dr001_effect": 3,
+        "low_policy_judgment": 2,
+        "deterministic_tooling_support": 1,
+        "not_intentionally_preserved": 1,
+        "truthful_evaluation_improvement": 5
+      }
+    }
+  ],
+  "selected": {
+    "stable_identity": "critical|agreement_terms|unsupported_extra_object|term_price_1|",
+    "classification": "evaluator_defect",
+    "confidence": "high",
+    "trace": {
+      "source_segment": "S1",
+      "raw_model_record_fingerprint": "1d15aaccc17b7a7dab14c15700b75077f61206a676abe815fa9ca5933a80e3aa",
+      "assembled_record_fingerprint": "ff6234474986c1e5f12e7795e28fdf3d4a46285aa0e45d128799784adc6618ec",
+      "golden_record_id": "term_dry_run_002",
+      "golden_record_fingerprint": "e436b07d1c65e47a46152fa2691be91d272d93b70204506a0fed4175a19197f4",
+      "alignment_decision": "term_price_1 remains unmatched while term_scope_1 pairs to term_dry_run_002.",
+      "evaluator_decision": "critical unsupported_extra_object with fabrication-hard-failure evidence.",
+      "acceptance_impact": "None; the acceptance gate remains pass."
+    },
+    "counterfactual": {
+      "changed_field": "term_price_1.wording",
+      "from": "The total price was $1,800.",
+      "to": "Restore six dining chairs for $1,800.",
+      "alignment_unchanged": true,
+      "before": "critical unsupported_extra_object",
+      "after": "minor agreement_term_decomposition"
+    },
+    "answers": {
+      "frozen_extraction_source_grounded": true,
+      "golden_source_grounded": true,
+      "same_semantic_object": false,
+      "structurally_compatible": true,
+      "mismatch_axis": "granularity plus evaluator normalization",
+      "evaluator_faithful_to_current_implementation": true,
+      "evaluator_faithful_to_documented_grounding_policy": false,
+      "alignment_change_would_hide_material_disagreement": true,
+      "golden_change_would_rewrite_policy": true,
+      "extraction_change_requires_provider_regeneration": true,
+      "finding_should_remain_unmatched": true,
+      "finding_should_remain_a_fabrication_hard_failure": false
+    },
+    "implementation_decision": "diagnostic_only",
+    "implementation_reason": "A correction would necessarily filter or re-tier this existing critical diagnostic, which PR #25 explicitly forbids, and the target tier still requires an explicit minor-decomposition versus major-grounded-extra policy decision.",
+    "recommended_next_action": "A separately scoped corrective PR should add fail-closed exact-money grounding for price decompositions, preserve the unmatched object, and prove that only this diagnostic changes."
+  },
+  "protected_dr001": {
+    "narrative_sha256": "2cdb00b4b2b28c1813a979be5cf22f1ac51a30282abea9e144df491549c4fcc7",
+    "golden_sha256": "a6aea6cce9a3047c86f34bb5b7d36ccee1315f8f041e775793aeb1e75e3055f8",
+    "frozen_extraction_sha256": "68a3a5da581f98caf6bdfdee127d6b8b632d7845d968acce46c411cfc20a641c",
+    "frozen_alignment_sha256": "6ae6ae7f662c9b632739caf43a22958305621af17199cafa553fe6e3058d97ab",
+    "frozen_evaluation_sha256": "a6cd2426a2e7b2a5f975c159eac295155d8fe1db7fa97b7564a75ea688c54509",
+    "raw_response_sha256": "499ba4ed59a314aea0037f4677cdf356d3d6b0319c2cad66d6d6f311402a4a9e",
+    "golden_projection_sha256": "75e3d8a345ff0a05af770eb860690f62d7916a8c96d47773f15ee3d54f963dc3",
+    "run_manifest_sha256": "42571dd232b9b900c9225400f969cda682d4bf393d5547e0a459f0f098b5fe30"
+  }
+}
