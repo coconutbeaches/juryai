@@ -13,6 +13,13 @@ import { extractNumberedRule, unsupportedFieldTokens } from './person-a-test-hel
 
 type SchemaNode = Record<string, unknown>;
 
+function responseBytes(body: string | Uint8Array): ArrayBuffer {
+  const bytes = typeof body === 'string' ? new TextEncoder().encode(body) : body;
+  const buffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(buffer).set(bytes);
+  return buffer;
+}
+
 function collectSchemaNodes(value: unknown, path = '#'): Array<{ node: SchemaNode; path: string }> {
   if (Array.isArray(value)) {
     return value.flatMap((entry, index) => collectSchemaNodes(entry, `${path}/${index}`));
@@ -402,7 +409,7 @@ describe('OpenAI Responses parsing', () => {
       return {
         ok: true,
         status: 200,
-        text: async () => JSON.stringify(payload),
+        arrayBuffer: async () => responseBytes(JSON.stringify(payload)),
       } as Response;
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -425,7 +432,7 @@ describe('OpenAI Responses parsing', () => {
         ({
           ok: false,
           status: 307,
-          text: async () => 'redirect refused',
+          arrayBuffer: async () => responseBytes('redirect refused'),
         }) as Response,
     );
     vi.stubGlobal('fetch', fetchMock);
@@ -439,7 +446,11 @@ describe('OpenAI Responses parsing', () => {
 
     expect(fetchMock).toHaveBeenCalledOnce();
     expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ redirect: 'manual' });
-    expect(result).toEqual({ status: 307, ok: false, body: 'redirect refused' });
+    expect(result).toEqual({
+      status: 307,
+      ok: false,
+      body: new TextEncoder().encode('redirect refused'),
+    });
   });
 
   it('canonicalizes and hashes the exact non-secret Responses endpoint', () => {
@@ -454,6 +465,12 @@ describe('OpenAI Responses parsing', () => {
     expect(() => openAIResponsesEndpointIdentity('https://proxy.example/v1?token=secret')).toThrow(
       /must not contain.*query/i,
     );
+    expect(() => openAIResponsesEndpointIdentity('https://proxy.example/v1?')).toThrow(
+      /query or fragment delimiter/i,
+    );
+    expect(() => openAIResponsesEndpointIdentity('https://proxy.example/v1#')).toThrow(
+      /query or fragment delimiter/i,
+    );
   });
 
   it('fails loudly when the configured model is invalid', async () => {
@@ -464,8 +481,10 @@ describe('OpenAI Responses parsing', () => {
           ({
             ok: false,
             status: 400,
-            text: async () =>
-              JSON.stringify({ error: { message: 'Model gpt-5.6 is not available.' } }),
+            arrayBuffer: async () =>
+              responseBytes(
+                JSON.stringify({ error: { message: 'Model gpt-5.6 is not available.' } }),
+              ),
           }) as Response,
       ),
     );
@@ -489,7 +508,7 @@ describe('OpenAI Responses parsing', () => {
           ({
             ok: true,
             status: 200,
-            text: async () => body,
+            arrayBuffer: async () => responseBytes(body),
           }) as Response,
       ),
     );
@@ -501,6 +520,31 @@ describe('OpenAI Responses parsing', () => {
         model: 'gpt-5.6',
         reasoningEffort: 'medium',
       }),
-    ).resolves.toEqual({ status: 200, ok: true, body });
+    ).resolves.toEqual({ status: 200, ok: true, body: new TextEncoder().encode(body) });
+  });
+
+  it('preserves exact response bytes before any UTF-8 decoding', async () => {
+    const body = Uint8Array.of(0xef, 0xbb, 0xbf, 0x7b, 0xff, 0x7d);
+    const fetchMock = vi.fn(
+      async () =>
+        ({
+          ok: true,
+          status: 200,
+          arrayBuffer: async () => responseBytes(body),
+        }) as Response,
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const client = new OpenAIResponsesClient('test-key', 'https://example.test/v1');
+
+    const result = await client.requestRaw({
+      narrative: 'Synthetic narrative',
+      model: 'gpt-5.6',
+      reasoningEffort: 'medium',
+    });
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(result.status).toBe(200);
+    expect(result.ok).toBe(true);
+    expect(result.body).toEqual(body);
   });
 });

@@ -15,6 +15,7 @@ import { parsePersonAModelOutputFromRawResponse } from '../evaluation/person-a-s
 import { buildOpenAIResponseSchema } from './person-a-schema.js';
 import { PERSON_A_EXTRACTION_INSTRUCTIONS, PERSON_A_PROMPT_VERSION } from './person-a-prompt.js';
 import {
+  decodeRawOpenAIResponse,
   parseRawOpenAIResponse,
   type RawStructuredExtractionClient,
   type RawStructuredExtractionResult,
@@ -158,12 +159,12 @@ export type PersonAProvenanceRunManifest = {
 };
 
 export interface PersonAProvenanceArtifactWriter {
-  writeNew(path: string, contents: string): Promise<void>;
+  writeNew(path: string, contents: string | Uint8Array): Promise<void>;
   writeReplace(path: string, contents: string): Promise<void>;
 }
 
 export class AtomicPersonAProvenanceArtifactWriter implements PersonAProvenanceArtifactWriter {
-  async writeNew(path: string, contents: string): Promise<void> {
+  async writeNew(path: string, contents: string | Uint8Array): Promise<void> {
     const temporary = `${path}.tmp-${process.pid}-${randomUUID()}`;
     await writeFile(temporary, contents, { flag: 'wx', mode: 0o600 });
     try {
@@ -308,10 +309,13 @@ async function prepareOutputDirectory(outputDir: string): Promise<string> {
   return absolute;
 }
 
-function artifactReference(path: string, contents: string): PersonAProvenanceArtifactReference {
+function artifactReference(
+  path: string,
+  contents: string | Uint8Array,
+): PersonAProvenanceArtifactReference {
   return {
     path: basename(path),
-    sha256: sha256Text(contents),
+    sha256: createHash('sha256').update(contents).digest('hex'),
   };
 }
 
@@ -550,7 +554,7 @@ function assertSourceManifest(
   path: string,
   resolvedCase: ResolvedPersonAProvenanceCase,
   metadata: PersonAProvenanceRequestMetadata,
-  rawBody: string,
+  rawBody: Uint8Array,
   rawResponsePath: string,
   metadataBody: string,
   requestMetadataPath: string,
@@ -598,7 +602,7 @@ function assertSourceManifest(
   if (
     !rawReference ||
     rawReference.path !== basename(rawResponsePath) ||
-    rawReference.sha256 !== sha256Text(rawBody)
+    rawReference.sha256 !== createHash('sha256').update(rawBody).digest('hex')
   ) {
     throw new Error('Source run manifest does not bind the supplied raw response.');
   }
@@ -657,13 +661,13 @@ function providerMetadata(
 }
 
 function deriveArtifacts(
-  rawBody: string,
+  rawBody: Uint8Array,
   resolvedCase: ResolvedPersonAProvenanceCase,
   metadata: PersonAProvenanceRequestMetadata,
   onStage: (stage: PersonAProvenanceFailureStage) => void,
 ): DerivedArtifacts {
   onStage('response_parse');
-  const rawResponse = parseRawOpenAIResponse(rawBody);
+  const rawResponse = parseRawOpenAIResponse(decodeRawOpenAIResponse(rawBody));
   const modelOutput = parsePersonAModelOutputFromRawResponse(rawResponse);
 
   onStage('assembly');
@@ -778,7 +782,7 @@ export async function runLivePersonAProvenance(
     await writeManifest(writer, paths.manifest, manifest);
 
     stage = 'response_parse';
-    const rawResponse = parseRawOpenAIResponse(rawResult.body);
+    const rawResponse = parseRawOpenAIResponse(decodeRawOpenAIResponse(rawResult.body));
     manifest.provider_response = providerMetadata(rawResponse, rawResult);
     await writeManifest(writer, paths.manifest, manifest);
     stage = 'provider_response';
@@ -807,7 +811,7 @@ export async function replayPersonAProvenance(
     cases: options.cases,
   });
   const [rawBody, metadataBody, sourceManifestBody] = await Promise.all([
-    readFile(resolve(options.rawResponsePath), 'utf8'),
+    readFile(resolve(options.rawResponsePath)),
     readFile(resolve(options.requestMetadataPath), 'utf8'),
     readFile(resolve(options.sourceManifestPath), 'utf8'),
   ]);
@@ -858,7 +862,7 @@ export async function replayPersonAProvenance(
 
   let stage: PersonAProvenanceFailureStage = 'response_parse';
   try {
-    const rawResponse = parseRawOpenAIResponse(rawBody);
+    const rawResponse = parseRawOpenAIResponse(decodeRawOpenAIResponse(rawBody));
     manifest.provider_response = providerMetadata(rawResponse);
     const derived = deriveArtifacts(rawBody, resolvedCase, metadata, (next) => {
       stage = next;

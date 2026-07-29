@@ -130,7 +130,7 @@ class FakeRawClient implements RawStructuredExtractionClient {
 }
 
 function clientForBody(body: string): FakeRawClient {
-  return new FakeRawClient({ status: 200, ok: true, body });
+  return new FakeRawClient({ status: 200, ok: true, body: new TextEncoder().encode(body) });
 }
 
 async function runLive(
@@ -508,9 +508,49 @@ describe('Person A provenance raw-first and call-count guarantees', () => {
     expect(client.calls).toBe(1);
   });
 
+  it('persists malformed response bytes exactly before fail-closed UTF-8 decoding', async () => {
+    const body = Uint8Array.of(0xef, 0xbb, 0xbf, 0x7b, 0xff, 0x7d);
+    const client = new FakeRawClient({ status: 200, ok: true, body });
+    const outputDir = await temporaryDirectory('invalid-utf8');
+
+    await expect(
+      runLivePersonAProvenance({
+        caseId: 'dry_run_002',
+        outputDir,
+        submittedAt,
+        requestTimestamp,
+        model: 'gpt-5.6',
+        reasoningEffort: 'medium',
+        providerEndpointSha256,
+        repository,
+        client,
+      }),
+    ).rejects.toThrow(/not valid UTF-8/i);
+
+    const persisted = await readFile(artifactPath(outputDir, 'raw-response'));
+    expect(persisted).toEqual(Buffer.from(body));
+    expect(await json(artifactPath(outputDir, 'run-manifest'))).toMatchObject({
+      status: 'failed',
+      provider_response: { http_status: 200 },
+      provider_call_count: 1,
+      retry_count: 0,
+      failure: { stage: 'response_parse' },
+      artifacts: {
+        raw_response: {
+          sha256: createHash('sha256').update(body).digest('hex'),
+        },
+      },
+    });
+    expect(client.calls).toBe(1);
+  });
+
   it('records a known HTTP status when a provider error body is not JSON', async () => {
     const body = '<html>Bad gateway</html>';
-    const client = new FakeRawClient({ status: 502, ok: false, body });
+    const client = new FakeRawClient({
+      status: 502,
+      ok: false,
+      body: new TextEncoder().encode(body),
+    });
     const outputDir = await temporaryDirectory('non-json-http-failure');
     await expect(
       runLivePersonAProvenance({
@@ -575,7 +615,11 @@ describe('Person A provenance raw-first and call-count guarantees', () => {
     const body = JSON.stringify({
       error: { type: 'invalid_request_error', message: 'Synthetic provider failure.' },
     });
-    const client = new FakeRawClient({ status: 400, ok: false, body });
+    const client = new FakeRawClient({
+      status: 400,
+      ok: false,
+      body: new TextEncoder().encode(body),
+    });
     const outputDir = await temporaryDirectory('provider-http-failure');
     await expect(
       runLivePersonAProvenance({
