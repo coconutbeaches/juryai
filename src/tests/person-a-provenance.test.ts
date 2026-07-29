@@ -579,6 +579,7 @@ describe('Person A provenance raw-first and call-count guarantees', () => {
   it('keeps raw evidence when assembly fails and never retries', async () => {
     const body = JSON.stringify({
       id: 'resp_assembly_failure',
+      status: 'completed',
       output: [
         {
           type: 'message',
@@ -641,6 +642,64 @@ describe('Person A provenance raw-first and call-count guarantees', () => {
       failure: { stage: 'provider_response' },
       provider_call_count: 1,
       retry_count: 0,
+    });
+    expect(client.calls).toBe(1);
+  });
+
+  it('rejects a successful HTTP response whose provider status is not completed', async () => {
+    const payload = JSON.parse(await successfulRawBody('dry_run_002')) as JsonObject;
+    payload.status = 'incomplete';
+    const body = JSON.stringify(payload);
+    const client = clientForBody(body);
+    const outputDir = await temporaryDirectory('incomplete-provider-response');
+
+    await expect(
+      runLivePersonAProvenance({
+        caseId: 'dry_run_002',
+        outputDir,
+        submittedAt,
+        requestTimestamp,
+        model: 'gpt-5.6',
+        reasoningEffort: 'medium',
+        providerEndpointSha256,
+        repository,
+        client,
+      }),
+    ).rejects.toThrow(/status was not completed/i);
+
+    expect(await readFile(artifactPath(outputDir, 'raw-response'), 'utf8')).toBe(body);
+    expect(await json(artifactPath(outputDir, 'run-manifest'))).toMatchObject({
+      status: 'failed',
+      provider_response: {
+        http_status: 200,
+        response_status: 'incomplete',
+      },
+      provider_call_count: 1,
+      retry_count: 0,
+      failure: { stage: 'provider_response' },
+      artifacts: {
+        extraction: null,
+        alignment: null,
+        evaluation: null,
+      },
+    });
+    const replayOutput = await temporaryDirectory('incomplete-provider-response-replay');
+    await expect(
+      replayPersonAProvenance({
+        caseId: 'dry_run_002',
+        outputDir: replayOutput,
+        rawResponsePath: artifactPath(outputDir, 'raw-response'),
+        requestMetadataPath: artifactPath(outputDir, 'request'),
+        sourceManifestPath: artifactPath(outputDir, 'run-manifest'),
+        repository,
+      }),
+    ).rejects.toThrow(/status was not completed/i);
+    expect(await json(artifactPath(replayOutput, 'run-manifest'))).toMatchObject({
+      mode: 'replay',
+      status: 'failed',
+      provider_call_count: 0,
+      retry_count: 0,
+      failure: { stage: 'provider_response' },
     });
     expect(client.calls).toBe(1);
   });
@@ -930,6 +989,43 @@ describe('Person A provenance local live simulation and raw-only replay', () => 
       failure: { stage: 'assembly' },
     });
     expect(client.calls).toBe(1);
+  });
+
+  it('fails replay when derived artifacts do not reproduce a completed source run', async () => {
+    const live = await runLive(
+      'derived-hash-mismatch-source',
+      clientForBody(await successfulRawBody('dry_run_002')),
+    );
+    const manifestPath = artifactPath(live.outputDir, 'run-manifest');
+    const sourceManifest = await json(manifestPath);
+    sourceManifest.artifacts.evaluation.sha256 = 'a'.repeat(64);
+    await writeFile(manifestPath, `${JSON.stringify(sourceManifest)}\n`);
+
+    const replayOutput = await temporaryDirectory('derived-hash-mismatch-replay');
+    await expect(
+      replayPersonAProvenance({
+        caseId: 'dry_run_002',
+        outputDir: replayOutput,
+        rawResponsePath: artifactPath(live.outputDir, 'raw-response'),
+        requestMetadataPath: artifactPath(live.outputDir, 'request'),
+        sourceManifestPath: manifestPath,
+        repository,
+      }),
+    ).rejects.toThrow(/evaluation artifact does not match/i);
+
+    expect(await json(artifactPath(replayOutput, 'run-manifest'))).toMatchObject({
+      mode: 'replay',
+      status: 'failed',
+      provider_call_count: 0,
+      retry_count: 0,
+      failure: { stage: 'reproduction_verification' },
+      artifacts: {
+        validation: null,
+        extraction: null,
+        alignment: null,
+        evaluation: null,
+      },
+    });
   });
 
   it('rejects raw response and request metadata swapped across separate live runs', async () => {

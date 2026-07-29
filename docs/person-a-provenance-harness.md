@@ -68,7 +68,9 @@ Replay verifies the case, narrative, golden, prompt, schema, extractor, evaluati
 request settings, then verifies the raw-response and request-metadata paths and SHA-256 identities
 against the source manifest before reconstructing the extraction. A detached exact-SHA checkout is
 recorded explicitly as `(detached HEAD)`. Derived artifacts use canonical JSON so their hashes
-match the live run. The replay manifest records zero provider calls and zero retries.
+match the live run. For a completed source run, replay verifies every derived artifact path and
+hash against the source manifest before persisting the derived outputs or declaring completion.
+The replay manifest records zero provider calls and zero retries.
 
 ## Artifact and manifest behavior
 

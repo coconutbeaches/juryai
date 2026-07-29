@@ -44,6 +44,7 @@ export type PersonAProvenanceFailureStage =
   | 'invariant_validation'
   | 'alignment'
   | 'evaluation'
+  | 'reproduction_verification'
   | 'artifact_persistence';
 
 export type PersonAProvenanceRepositoryState = {
@@ -669,6 +670,12 @@ function providerMetadata(
   };
 }
 
+function assertCompletedProviderResponse(rawResponse: JsonObject): void {
+  if (rawResponse.status !== 'completed') {
+    throw new Error('Provider response status was not completed.');
+  }
+}
+
 function deriveArtifacts(
   rawBody: Uint8Array,
   resolvedCase: ResolvedPersonAProvenanceCase,
@@ -717,19 +724,36 @@ function deriveArtifacts(
   return { validation, extraction, alignment, evaluation };
 }
 
+const derivedArtifactKeys = ['validation', 'extraction', 'alignment', 'evaluation'] as const;
+
+function assertCompletedReplayMatchesSource(
+  source: PersonAProvenanceRunManifest,
+  paths: ArtifactPaths,
+  derived: DerivedArtifacts,
+): void {
+  if (source.status !== 'completed') return;
+  for (const key of derivedArtifactKeys) {
+    const reference = source.artifacts[key];
+    const contents = serializePersonAProvenanceJson(derived[key]);
+    if (
+      !reference ||
+      reference.path !== basename(paths[key]) ||
+      reference.sha256 !== sha256Text(contents)
+    ) {
+      throw new Error(`Replay ${key} artifact does not match the completed source run.`);
+    }
+  }
+}
+
 async function persistDerivedArtifacts(options: {
   writer: PersonAProvenanceArtifactWriter;
   paths: ArtifactPaths;
   manifest: PersonAProvenanceRunManifest;
   derived: DerivedArtifacts;
 }): Promise<void> {
-  const outputs = [
-    ['validation', options.paths.validation, options.derived.validation],
-    ['extraction', options.paths.extraction, options.derived.extraction],
-    ['alignment', options.paths.alignment, options.derived.alignment],
-    ['evaluation', options.paths.evaluation, options.derived.evaluation],
-  ] as const;
-  for (const [key, path, value] of outputs) {
+  for (const key of derivedArtifactKeys) {
+    const path = options.paths[key];
+    const value = options.derived[key];
     const contents = serializePersonAProvenanceJson(value);
     await options.writer.writeNew(path, contents);
     options.manifest.artifacts[key] = artifactReference(path, contents);
@@ -796,6 +820,7 @@ export async function runLivePersonAProvenance(
     await writeManifest(writer, paths.manifest, manifest);
     stage = 'provider_response';
     if (!rawResult.ok) throw new Error(`Provider returned HTTP ${rawResult.status}.`);
+    assertCompletedProviderResponse(rawResponse);
 
     const derived = deriveArtifacts(rawResult.body, resolvedCase, metadata, (next) => {
       stage = next;
@@ -873,9 +898,13 @@ export async function replayPersonAProvenance(
   try {
     const rawResponse = parseRawOpenAIResponse(decodeRawOpenAIResponse(rawBody));
     manifest.provider_response = providerMetadata(rawResponse);
+    stage = 'provider_response';
+    assertCompletedProviderResponse(rawResponse);
     const derived = deriveArtifacts(rawBody, resolvedCase, metadata, (next) => {
       stage = next;
     });
+    stage = 'reproduction_verification';
+    assertCompletedReplayMatchesSource(parsedSourceManifest, paths, derived);
     stage = 'artifact_persistence';
     await persistDerivedArtifacts({ writer, paths, manifest, derived });
     manifest.status = 'completed';
