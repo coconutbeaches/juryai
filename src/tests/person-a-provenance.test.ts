@@ -326,6 +326,19 @@ describe('Person A provenance case resolution', () => {
     expect(client.calls).toBe(0);
   });
 
+  it.each([
+    ['timezone-less submittedAt', { submittedAt: '2026-01-01T00:00:00' }],
+    ['impossible submittedAt', { submittedAt: '2026-02-30T00:00:00Z' }],
+    ['timezone-less requestTimestamp', { requestTimestamp: '2026-07-29T05:00:00' }],
+    ['impossible requestTimestamp', { requestTimestamp: '2026-02-30T05:00:00Z' }],
+  ])('rejects %s before provider invocation', async (_label, overrides) => {
+    const client = clientForBody(await successfulRawBody('dry_run_002'));
+    await expect(runLive('invalid-timestamp', client, overrides)).rejects.toThrow(
+      /ISO 8601 date-time/i,
+    );
+    expect(client.calls).toBe(0);
+  });
+
   it('constrains CLI output directories to the ignored artifacts tree', () => {
     expect(() =>
       parsePersonAProvenanceCommandArgs([

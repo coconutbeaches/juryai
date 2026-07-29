@@ -1,6 +1,8 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { link, mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
 import { basename, dirname, resolve } from 'node:path';
+import Ajv2020 from 'ajv/dist/2020.js';
+import addFormats from 'ajv-formats';
 import {
   alignPersonAForCase,
   type PersonAAlignment,
@@ -244,12 +246,18 @@ export function serializePersonAProvenanceJson(value: unknown): string {
   return `${JSON.stringify(stableValue(value), null, 2)}\n`;
 }
 
+const dateTimeValidator = (() => {
+  const ajv = new Ajv2020({ strict: true });
+  addFormats(ajv);
+  return ajv.compile({ type: 'string', format: 'date-time' });
+})();
+
 function responseSchemaSha256(): string {
   return sha256Text(JSON.stringify(stableValue(buildOpenAIResponseSchema())));
 }
 
 function assertIsoDateTime(value: string, label: string): void {
-  if (!Number.isFinite(Date.parse(value)) || !/T/u.test(value)) {
+  if (!dateTimeValidator(value)) {
     throw new Error(`${label} must be an ISO 8601 date-time.`);
   }
 }
