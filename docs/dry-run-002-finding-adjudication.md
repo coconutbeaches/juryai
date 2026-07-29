@@ -44,9 +44,9 @@ meaning. The raw response and all replay artifacts remain ignored and are not co
 
 ## Source-span ledger
 
-All five extraction spans passed exact JavaScript UTF-16 slice validation. Short quotes are
-included because every classification below must be source-grounded; the full narrative is not
-duplicated here.
+All five unique extraction coordinate ranges passed exact JavaScript UTF-16 slice validation.
+Short quotes are included because every classification below must be source-grounded; the full
+narrative is not duplicated here.
 
 | Label | Exact span   | Quoted source text                                                                                                                               |
 | ----- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -81,8 +81,8 @@ source slice but the golden does not contain a separately alignable object in th
 ## Finding inventory
 
 The JSON references point to the exact finding-relevant projections in the evidence ledger below.
-`null` means that the relevant family has no separate object; a cross-family representation is
-identified where one exists.
+An empty family projection means that the relevant family has no separate object; a cross-family
+representation is identified where one exists.
 
 | Finding                                                                          | Severity | Classification             | Confidence | Source span | Root cause                                                                                                                                                                                                           | Recommended action                                                                                |
 | -------------------------------------------------------------------------------- | -------- | -------------------------- | ---------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
@@ -100,7 +100,7 @@ identified where one exists.
 | `claims/claim_meaning_distorted/claim_mark_1→cl_002_allegation`                  | major    | Golden policy disagreement | High       | S4          | E-CL separates Priya’s six-chair allegation from Jordan’s one-mark observation; G-CL-ALLEGATION combines them.                                                                                                       | Preserve epistemic separation unless a coordinated claim-granularity policy says otherwise.       |
 | `claims/against_interest_flag/claim_mark_1→cl_002_allegation`                    | major    | Golden policy disagreement | High       | S4          | Jordan’s observation of a mark is an admission against Jordan’s interest under prompt rule 11; the combined golden claim is flagged false.                                                                           | Retain the extracted flag; revise policy only through a control migration.                        |
 | `claims/unsupported_extra_object/claim_scope_1`                                  | critical | Legitimate grounded extra  | High       | S1          | The asserted scope is exact-source-grounded and materially relied on; the golden carries it only as an agreement term.                                                                                               | No extraction fix.                                                                                |
-| `claims/unsupported_extra_object/claim_payment_term_1`                           | critical | Legitimate grounded extra  | High       | S1, S5      | The asserted payment trigger is relied on for entitlement and rules 22/26 require a claim as well as a term.                                                                                                         | No extraction fix.                                                                                |
+| `claims/unsupported_extra_object/claim_payment_term_1`                           | critical | Legitimate grounded extra  | High       | S1          | The asserted payment trigger is relied on for entitlement and rule 26 requires a claim as well as a term.                                                                                                            | No extraction fix.                                                                                |
 | `claims/granularity_split/claim_cushion_1`                                       | major    | Legitimate grounded extra  | High       | S2          | The unfinished cushion is a distinct, against-interest completion assertion within the broad golden quote claim.                                                                                                     | No extraction fix.                                                                                |
 | `claims/source_grounded_extra_object/claim_partial_completion_1`                 | major    | Legitimate grounded extra  | High       | S3          | Four collected and two retained to finish is an explicit, material completion admission; the golden carries it only as timeline content.                                                                             | No extraction fix.                                                                                |
 | `claims/granularity_split/claim_scratch_allegation_1`                            | major    | Legitimate grounded extra  | High       | S4          | Separating Priya’s allegation from Jordan’s own observation preserves speaker and epistemic force.                                                                                                                   | No extraction fix.                                                                                |
@@ -112,8 +112,8 @@ identified where one exists.
 | `outcomes/missing_golden_object/out_dry_run_002`                                 | critical | Alignment defect           | High       | S5          | E-OUT and G-OUT share party, priority, transfer direction, USD 900 amount, and payment objective. Exact `outcome_type` equality blocks comparison (`mixed` versus `payment`).                                        | PR #22: recover same-transfer outcome identity and surface the type/policy difference explicitly. |
 | `outcomes/unsupported_extra_object/outcome_payment_1`                            | critical | Alignment defect           | High       | S5          | Same failed pair as the preceding finding; ignoring the type gate gives a `0.6150` score, above the `0.55` outcome threshold.                                                                                        | PR #22: replace the false missing/extra pair with a paired outcome-type diagnostic.               |
 | `extraction_issues/unmatched_extracted_object/issue_agreement_form_1`            | minor    | Legitimate grounded extra  | High       | S1          | The narrative does not state the agreement form or identify a terms artifact; the golden issues family is empty.                                                                                                     | No extraction fix.                                                                                |
-| `extraction_issues/unmatched_extracted_object/issue_delivery_trigger_1`          | minor    | Legitimate grounded extra  | High       | S1, S5      | “After delivery” is not expressly defined as all six versus the final two; the golden issues family is empty.                                                                                                        | No extraction fix.                                                                                |
-| `extraction_issues/unmatched_extracted_object/issue_completion_1`                | minor    | Legitimate grounded extra  | High       | S2, S3      | Current completion/delivery status is unstated; the golden issues family is empty.                                                                                                                                   | No extraction fix.                                                                                |
+| `extraction_issues/unmatched_extracted_object/issue_delivery_trigger_1`          | minor    | Legitimate grounded extra  | High       | S5          | “After delivery” is not expressly defined as all six versus the final two; the golden issues family is empty.                                                                                                        | No extraction fix.                                                                                |
+| `extraction_issues/unmatched_extracted_object/issue_completion_1`                | minor    | Legitimate grounded extra  | High       | S3          | Current completion/delivery status is unstated; the golden issues family is empty.                                                                                                                                   | No extraction fix.                                                                                |
 | `extraction_issues/unmatched_extracted_object/issue_photos_1`                    | minor    | Legitimate grounded extra  | High       | S4          | Jordan has not inspected the photographs, so their contents cannot be assessed; the golden issues family is empty.                                                                                                   | No extraction fix.                                                                                |
 | `clarification_questions/missing_golden_object/q_dry_run_002_1`                  | minor    | Golden policy disagreement | High       | S2          | G-Q is a synthetic placeholder, not a material natural-language expectation. E-Q asks for the message date and complete thread.                                                                                      | Replace placeholders only in a coordinated control-fixture migration.                             |
 | `clarification_questions/missing_golden_object/q_dry_run_002_2`                  | minor    | Golden policy disagreement | High       | S4          | G-Q is a synthetic placeholder. E-Q asks about the observed mark and photograph availability.                                                                                                                        | Replace placeholders only in a coordinated control-fixture migration.                             |
@@ -255,11 +255,19 @@ Golden:
     "asserted_by_party_ids": ["party_a"],
     "event_summary": "On about March 12, 2026, I agreed with Priya Nair to restore six dining chairs for $1,800, with $900 paid upfront and $900 due after delivery.",
     "source_span": [58, 200]
+  },
+  {
+    "event_id": "tl_002_collection",
+    "actor_party_id": "party_b",
+    "asserted_by_party_ids": ["party_a"],
+    "event_summary": "Around April 2, 2026, Priya collected four chairs while I kept two to finish.",
+    "source_span": [301, 378]
   }
 ]
 ```
 
-The golden timeline contains no separate message or scratch-allegation event.
+The golden timeline contains the collection fact relied on by the partial-completion claim, but no
+separate message or scratch-allegation event.
 
 ### Claims — E-CL and G-CL
 
