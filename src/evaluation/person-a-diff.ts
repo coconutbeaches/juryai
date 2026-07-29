@@ -358,6 +358,19 @@ function comparePair(
         );
       break;
     case 'outcomes':
+      if (
+        contractVersion === 'calibrated_live_v2' &&
+        extracted.outcome_type !== golden.outcome_type
+      )
+        add(
+          errors,
+          'major',
+          family,
+          'outcome_type',
+          'Requested-outcome type differs.',
+          extractedId,
+          goldenId,
+        );
       if (transferDirection(extracted) !== transferDirection(golden))
         add(
           errors,
