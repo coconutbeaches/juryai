@@ -2,7 +2,11 @@ import { execFileSync } from 'node:child_process';
 import { lstat } from 'node:fs/promises';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { OpenAIResponsesClient } from '../extraction/openai-responses.js';
+import {
+  openAIResponsesEndpointIdentity,
+  OpenAIResponsesClient,
+  type RawStructuredExtractionClient,
+} from '../extraction/openai-responses.js';
 import {
   replayPersonAProvenance,
   runLivePersonAProvenance,
@@ -30,7 +34,7 @@ export type RunPersonAProvenanceCommandDependencies = {
   getEnvironment(name: string): string | undefined;
   now(): string;
   repositoryState(): PersonAProvenanceRepositoryState;
-  createClient(apiKey: string, baseUrl?: string): OpenAIResponsesClient;
+  createClient(apiKey: string, baseUrl?: string): RawStructuredExtractionClient;
 };
 
 function requireValue(argv: string[], index: number, option: string): string {
@@ -204,7 +208,9 @@ export async function runPersonAProvenanceCommand(
   }
   const apiKey = dependencies.getEnvironment('OPENAI_API_KEY');
   if (!apiKey) throw new Error('OPENAI_API_KEY is required for live provenance execution.');
-  const client = dependencies.createClient(apiKey, dependencies.getEnvironment('OPENAI_BASE_URL'));
+  const baseUrl = dependencies.getEnvironment('OPENAI_BASE_URL');
+  const endpointIdentity = openAIResponsesEndpointIdentity(baseUrl);
+  const client = dependencies.createClient(apiKey, baseUrl);
   const result = await runLivePersonAProvenance({
     caseId: args.caseId,
     outputDir: args.outputDir,
@@ -212,6 +218,7 @@ export async function runPersonAProvenanceCommand(
     requestTimestamp: args.requestTimestamp ?? dependencies.now(),
     model: args.model,
     reasoningEffort: args.reasoningEffort,
+    providerEndpointSha256: endpointIdentity.sha256,
     repository,
     client,
   });

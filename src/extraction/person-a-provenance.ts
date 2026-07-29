@@ -56,6 +56,7 @@ export type PersonAProvenanceRequestMetadata = {
   case_id: PersonAProvenanceCaseId;
   repository: PersonAProvenanceRepositoryState;
   provider: 'openai';
+  provider_endpoint_sha256: string;
   requested_model: string;
   requested_reasoning_effort: 'low' | 'medium' | 'high';
   submitted_at: string;
@@ -117,6 +118,7 @@ export type PersonAProvenanceRunManifest = {
   };
   request: {
     provider: 'openai';
+    provider_endpoint_sha256: string;
     requested_model: string;
     reasoning_effort: 'low' | 'medium' | 'high';
     submitted_at: string;
@@ -190,6 +192,7 @@ export type RunLivePersonAProvenanceOptions = {
   requestTimestamp: string;
   model: string;
   reasoningEffort: 'low' | 'medium' | 'high';
+  providerEndpointSha256: string;
   repository: PersonAProvenanceRepositoryState;
   client: RawStructuredExtractionClient;
   projectRoot?: string;
@@ -341,6 +344,7 @@ function createRequestMetadata(
     repository: PersonAProvenanceRepositoryState;
     model: string;
     reasoningEffort: 'low' | 'medium' | 'high';
+    providerEndpointSha256: string;
     submittedAt: string;
     requestTimestamp: string;
   },
@@ -350,6 +354,7 @@ function createRequestMetadata(
     case_id: resolvedCase.caseId,
     repository: options.repository,
     provider: 'openai',
+    provider_endpoint_sha256: options.providerEndpointSha256,
     requested_model: options.model,
     requested_reasoning_effort: options.reasoningEffort,
     submitted_at: options.submittedAt,
@@ -426,6 +431,7 @@ function createManifest(
     },
     request: {
       provider: 'openai',
+      provider_endpoint_sha256: metadata.provider_endpoint_sha256,
       requested_model: metadata.requested_model,
       reasoning_effort: metadata.requested_reasoning_effort,
       submitted_at: metadata.submitted_at,
@@ -519,6 +525,7 @@ function assertRequestMetadata(
   }
   if (
     metadata.provider !== 'openai' ||
+    !/^[a-f0-9]{64}$/u.test(String(metadata.provider_endpoint_sha256)) ||
     metadata.credential_environment_variable !== 'OPENAI_API_KEY' ||
     metadata.generation_parameters?.store !== false ||
     metadata.generation_parameters.temperature !== null ||
@@ -723,6 +730,9 @@ export async function runLivePersonAProvenance(
   assertIsoDateTime(options.submittedAt, 'submittedAt');
   assertIsoDateTime(options.requestTimestamp, 'requestTimestamp');
   if (!options.model) throw new Error('model is required.');
+  if (!/^[a-f0-9]{64}$/u.test(options.providerEndpointSha256)) {
+    throw new Error('providerEndpointSha256 must be a lowercase SHA-256 identity.');
+  }
   const resolvedCase = await resolvePersonAProvenanceCase(options.caseId, {
     projectRoot: options.projectRoot,
     cases: options.cases,
@@ -734,6 +744,7 @@ export async function runLivePersonAProvenance(
     repository: options.repository,
     model: options.model,
     reasoningEffort: options.reasoningEffort,
+    providerEndpointSha256: options.providerEndpointSha256,
     submittedAt: options.submittedAt,
     requestTimestamp: options.requestTimestamp,
   });

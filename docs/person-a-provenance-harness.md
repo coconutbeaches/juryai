@@ -43,7 +43,10 @@ There is no retry or fallback path. A raw-write failure stops before parsing. A 
 the raw response and writes a structured, secret-free failure artifact and partial manifest.
 
 `OPENAI_API_KEY` is the only credential variable recorded, and only its name is serialized. The
-key value and request authorization headers are never part of an artifact.
+exact canonical Responses endpoint is bound as a SHA-256 identity so an `OPENAI_BASE_URL` override
+cannot be confused with the default route, while the URL itself is not serialized. Base URLs with
+credentials, query strings, or fragments fail closed. The key value and request authorization
+headers are never part of an artifact.
 
 ## Offline replay
 

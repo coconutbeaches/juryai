@@ -27,9 +27,10 @@ import {
   type PersonAProvenanceCaseDefinition,
   type PersonAProvenanceCaseId,
 } from '../extraction/person-a-provenance-cases.js';
-import type {
-  RawStructuredExtractionClient,
-  RawStructuredExtractionResult,
+import {
+  openAIResponsesEndpointIdentity,
+  type RawStructuredExtractionClient,
+  type RawStructuredExtractionResult,
 } from '../extraction/openai-responses.js';
 import {
   runExtractPersonACommand,
@@ -51,6 +52,7 @@ const repository: PersonAProvenanceRepositoryState = {
 };
 const submittedAt = '2026-01-01T00:00:00Z';
 const requestTimestamp = '2026-07-29T05:00:00.000Z';
+const providerEndpointSha256 = openAIResponsesEndpointIdentity().sha256;
 const cleanupDirectories: string[] = [];
 
 async function temporaryDirectory(label: string): Promise<string> {
@@ -144,6 +146,7 @@ async function runLive(
     requestTimestamp,
     model: 'gpt-5.6',
     reasoningEffort: 'medium',
+    providerEndpointSha256,
     repository,
     client,
     ...overrides,
@@ -425,6 +428,50 @@ describe('Person A provenance case resolution', () => {
     ).rejects.toThrow(/symbolic link/i);
     expect(calls).toEqual([]);
   });
+
+  it('binds the exact configured endpoint identity without serializing its URL', async () => {
+    const artifactsRoot = resolve(PERSON_A_PROVENANCE_PROJECT_ROOT, 'artifacts');
+    await mkdir(artifactsRoot, { recursive: true });
+    const commandRoot = await mkdtemp(resolve(artifactsRoot, 'provenance-endpoint-'));
+    cleanupDirectories.push(commandRoot);
+    const outputDir = resolve(commandRoot, 'run');
+    const baseUrl = 'https://juryai-proxy.example/v1';
+    const endpointIdentity = openAIResponsesEndpointIdentity(baseUrl);
+    const client = clientForBody(await successfulRawBody('dry_run_002'));
+    const dependencies: RunPersonAProvenanceCommandDependencies = {
+      getEnvironment(name) {
+        if (name === 'OPENAI_API_KEY') return 'test-key';
+        if (name === 'OPENAI_BASE_URL') return baseUrl;
+        return undefined;
+      },
+      now: () => requestTimestamp,
+      repositoryState: () => repository,
+      createClient(apiKey, configuredBaseUrl) {
+        expect(apiKey).toBe('test-key');
+        expect(configuredBaseUrl).toBe(baseUrl);
+        return client;
+      },
+    };
+
+    await runPersonAProvenanceCommand(
+      [
+        '--mode',
+        'live',
+        '--case-id',
+        'dry_run_002',
+        '--submitted-at',
+        submittedAt,
+        '--output-dir',
+        outputDir,
+      ],
+      dependencies,
+    );
+
+    expect(client.calls).toBe(1);
+    const manifest = await json(artifactPath(outputDir, 'run-manifest'));
+    expect(manifest.request.provider_endpoint_sha256).toBe(endpointIdentity.sha256);
+    expect(await allFileContents(outputDir)).not.toContain(endpointIdentity.endpoint);
+  });
 });
 
 describe('Person A provenance raw-first and call-count guarantees', () => {
@@ -440,6 +487,7 @@ describe('Person A provenance raw-first and call-count guarantees', () => {
         requestTimestamp,
         model: 'gpt-5.6',
         reasoningEffort: 'medium',
+        providerEndpointSha256,
         repository,
         client,
       }),
@@ -472,6 +520,7 @@ describe('Person A provenance raw-first and call-count guarantees', () => {
         requestTimestamp,
         model: 'gpt-5.6',
         reasoningEffort: 'medium',
+        providerEndpointSha256,
         repository,
         client,
       }),
@@ -507,6 +556,7 @@ describe('Person A provenance raw-first and call-count guarantees', () => {
         requestTimestamp,
         model: 'gpt-5.6',
         reasoningEffort: 'medium',
+        providerEndpointSha256,
         repository,
         client,
       }),
@@ -535,6 +585,7 @@ describe('Person A provenance raw-first and call-count guarantees', () => {
         requestTimestamp,
         model: 'gpt-5.6',
         reasoningEffort: 'medium',
+        providerEndpointSha256,
         repository,
         client,
       }),
@@ -572,6 +623,7 @@ describe('Person A provenance raw-first and call-count guarantees', () => {
         requestTimestamp,
         model: 'gpt-5.6',
         reasoningEffort: 'medium',
+        providerEndpointSha256,
         repository,
         client,
         writer,
@@ -601,6 +653,7 @@ describe('Person A provenance raw-first and call-count guarantees', () => {
         requestTimestamp,
         model: 'gpt-5.6',
         reasoningEffort: 'medium',
+        providerEndpointSha256,
         repository,
         client,
       }),
@@ -629,6 +682,7 @@ describe('Person A provenance raw-first and call-count guarantees', () => {
         requestTimestamp,
         model: 'gpt-5.6',
         reasoningEffort: 'medium',
+        providerEndpointSha256,
         repository,
         client,
       }),
@@ -676,6 +730,9 @@ describe('Person A provenance local live simulation and raw-only replay', () => 
       provider_call_count: 1,
       retry_count: 0,
       manually_edited: false,
+      request: {
+        provider_endpoint_sha256: providerEndpointSha256,
+      },
       artifacts: {
         request_metadata: expect.objectContaining({ sha256: expect.any(String) }),
         raw_response: expect.objectContaining({ sha256: expect.any(String) }),
@@ -776,6 +833,29 @@ describe('Person A provenance local live simulation and raw-only replay', () => 
         repository,
       }),
     ).rejects.toThrow(/does not bind the supplied raw response/i);
+  });
+
+  it('distinguishes non-secret provider endpoint identities in frozen provenance', async () => {
+    const firstEndpoint = openAIResponsesEndpointIdentity('https://proxy-one.example/v1');
+    const secondEndpoint = openAIResponsesEndpointIdentity('https://proxy-two.example/v1');
+    const first = await runLive(
+      'first-provider-endpoint',
+      clientForBody(await successfulRawBody('dry_run_002')),
+      { providerEndpointSha256: firstEndpoint.sha256 },
+    );
+    const second = await runLive(
+      'second-provider-endpoint',
+      clientForBody(await successfulRawBody('dry_run_002')),
+      { providerEndpointSha256: secondEndpoint.sha256 },
+    );
+
+    expect(first.manifest.request.provider_endpoint_sha256).toBe(firstEndpoint.sha256);
+    expect(second.manifest.request.provider_endpoint_sha256).toBe(secondEndpoint.sha256);
+    expect(first.manifest.request.provider_endpoint_sha256).not.toBe(
+      second.manifest.request.provider_endpoint_sha256,
+    );
+    expect(await allFileContents(first.outputDir)).not.toContain(firstEndpoint.endpoint);
+    expect(await allFileContents(second.outputDir)).not.toContain(secondEndpoint.endpoint);
   });
 
   it('permits replay from an explicitly represented detached exact-SHA checkout', async () => {

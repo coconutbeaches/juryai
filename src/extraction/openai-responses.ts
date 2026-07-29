@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { buildOpenAIResponseSchema } from './person-a-schema.js';
 import { PERSON_A_EXTRACTION_INSTRUCTIONS } from './person-a-prompt.js';
 
@@ -26,6 +27,36 @@ export interface StructuredExtractionClient {
 
 export interface RawStructuredExtractionClient {
   requestRaw(request: StructuredExtractionRequest): Promise<RawStructuredExtractionResult>;
+}
+
+export const DEFAULT_OPENAI_BASE_URL = 'https://api.openai.com/v1';
+
+export type OpenAIResponsesEndpointIdentity = {
+  endpoint: string;
+  sha256: string;
+};
+
+export function openAIResponsesEndpointIdentity(
+  baseUrl = DEFAULT_OPENAI_BASE_URL,
+): OpenAIResponsesEndpointIdentity {
+  let parsed: URL;
+  try {
+    parsed = new URL(baseUrl);
+  } catch {
+    throw new Error('OPENAI_BASE_URL must be a valid absolute URL.');
+  }
+  if (!['https:', 'http:'].includes(parsed.protocol)) {
+    throw new Error('OPENAI_BASE_URL must use HTTP or HTTPS.');
+  }
+  if (parsed.username || parsed.password || parsed.search || parsed.hash) {
+    throw new Error('OPENAI_BASE_URL must not contain credentials, a query, or a fragment.');
+  }
+  parsed.pathname = `${parsed.pathname.replace(/\/+$/u, '')}/responses`;
+  const endpoint = parsed.toString();
+  return {
+    endpoint,
+    sha256: createHash('sha256').update(endpoint, 'utf8').digest('hex'),
+  };
 }
 
 export function parseRawOpenAIResponse(body: string): JsonObject {
@@ -72,15 +103,18 @@ export function extractResponseText(response: unknown): string {
 export class OpenAIResponsesClient
   implements StructuredExtractionClient, RawStructuredExtractionClient
 {
+  private readonly endpoint: string;
+
   constructor(
     private readonly apiKey: string,
-    private readonly baseUrl = 'https://api.openai.com/v1',
+    baseUrl = DEFAULT_OPENAI_BASE_URL,
   ) {
     if (!apiKey) throw new Error('OPENAI_API_KEY is required for live extraction.');
+    this.endpoint = openAIResponsesEndpointIdentity(baseUrl).endpoint;
   }
 
   async requestRaw(request: StructuredExtractionRequest): Promise<RawStructuredExtractionResult> {
-    const response = await fetch(`${this.baseUrl}/responses`, {
+    const response = await fetch(this.endpoint, {
       method: 'POST',
       redirect: 'manual',
       headers: {

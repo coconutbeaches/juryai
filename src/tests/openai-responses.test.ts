@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { extractResponseText, OpenAIResponsesClient } from '../extraction/openai-responses.js';
+import {
+  extractResponseText,
+  openAIResponsesEndpointIdentity,
+  OpenAIResponsesClient,
+} from '../extraction/openai-responses.js';
 import { buildOpenAIResponseSchema } from '../extraction/person-a-schema.js';
 import {
   PERSON_A_PROMPT_VERSION,
@@ -436,6 +440,20 @@ describe('OpenAI Responses parsing', () => {
     expect(fetchMock).toHaveBeenCalledOnce();
     expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ redirect: 'manual' });
     expect(result).toEqual({ status: 307, ok: false, body: 'redirect refused' });
+  });
+
+  it('canonicalizes and hashes the exact non-secret Responses endpoint', () => {
+    const first = openAIResponsesEndpointIdentity('https://proxy.example/v1/');
+    const second = openAIResponsesEndpointIdentity('https://proxy.example/v1');
+    expect(first).toEqual(second);
+    expect(first.endpoint).toBe('https://proxy.example/v1/responses');
+    expect(first.sha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(() => openAIResponsesEndpointIdentity('https://user:secret@proxy.example/v1')).toThrow(
+      /must not contain credentials/i,
+    );
+    expect(() => openAIResponsesEndpointIdentity('https://proxy.example/v1?token=secret')).toThrow(
+      /must not contain.*query/i,
+    );
   });
 
   it('fails loudly when the configured model is invalid', async () => {
