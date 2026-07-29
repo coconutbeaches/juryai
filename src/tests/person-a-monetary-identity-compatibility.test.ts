@@ -403,6 +403,29 @@ describe('Dry Run 002 structured monetary identity compatibility', () => {
     expect(alignment.families.outcomes.pairs).toHaveLength(0);
   });
 
+  it('aligns harmless wording variation that preserves the conditional delivery-before-payment order', () => {
+    const records = frozenRecords();
+    const golden = records.golden.desired_outcomes.outcomes[0];
+    golden.outcome_type = 'mixed';
+    golden.required_actions = [
+      'Jordan hands over the final two chairs before Priya pays the outstanding $900.',
+      'Jordan does not refund Priya.',
+    ];
+    golden.rationale =
+      'Jordan requests the balance once the remaining two chairs have been delivered and rejects a refund.';
+
+    const alignment = alignPersonAForCase(records.extracted, records.golden, options);
+
+    expect(alignment.families.outcomes.pairs).toEqual([
+      expect.objectContaining({
+        extracted_id: 'outcome_payment_1',
+        golden_id: 'out_dry_run_002',
+      }),
+    ]);
+    expect(alignment.families.outcomes.unmatched_extracted).toEqual([]);
+    expect(alignment.families.outcomes.unmatched_golden).toEqual([]);
+  });
+
   it.each([
     [
       'wrong quote',
