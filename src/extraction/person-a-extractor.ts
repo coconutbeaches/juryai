@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { StructuredExtractionClient } from './openai-responses.js';
 import { PERSON_A_PROMPT_VERSION } from './person-a-prompt.js';
+import type { PersonAValidationResult } from './validate-person-a.js';
 import { validatePersonAExtraction } from './validate-person-a-corrected.js';
 
 type JsonObject = Record<string, any>;
@@ -26,6 +27,16 @@ export type PersonAExtractionResult = {
   modelOutput: JsonObject;
   rawResponse: JsonObject;
 };
+
+export class PersonAExtractionValidationError extends Error {
+  constructor(readonly validation: PersonAValidationResult) {
+    const lines = [...validation.schemaErrors, ...validation.invariantErrors].map(
+      (issue) => `${issue.path}: ${issue.message}`,
+    );
+    super(`Person A extraction validation failed:\n${lines.join('\n')}`);
+    this.name = 'PersonAExtractionValidationError';
+  }
+}
 
 export function sha256(value: string): string {
   return createHash('sha256').update(value, 'utf8').digest('hex');
@@ -137,10 +148,7 @@ export function assemblePersonAExtraction(
 
   const validation = validatePersonAExtraction(extraction, options.narrative);
   if (!validation.valid) {
-    const lines = [...validation.schemaErrors, ...validation.invariantErrors].map(
-      (issue) => `${issue.path}: ${issue.message}`,
-    );
-    throw new Error(`Person A extraction validation failed:\n${lines.join('\n')}`);
+    throw new PersonAExtractionValidationError(validation);
   }
   return extraction;
 }

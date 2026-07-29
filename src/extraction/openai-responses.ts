@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { buildOpenAIResponseSchema } from './person-a-schema.js';
 import { PERSON_A_EXTRACTION_INSTRUCTIONS } from './person-a-prompt.js';
 
@@ -14,8 +15,74 @@ export type StructuredExtractionResult = {
   rawResponse: JsonObject;
 };
 
+export type RawStructuredExtractionResult = {
+  status: number;
+  ok: boolean;
+  body: Uint8Array;
+};
+
 export interface StructuredExtractionClient {
   generate(request: StructuredExtractionRequest): Promise<StructuredExtractionResult>;
+}
+
+export interface RawStructuredExtractionClient {
+  requestRaw(request: StructuredExtractionRequest): Promise<RawStructuredExtractionResult>;
+}
+
+export const DEFAULT_OPENAI_BASE_URL = 'https://api.openai.com/v1';
+
+export type OpenAIResponsesEndpointIdentity = {
+  endpoint: string;
+  sha256: string;
+};
+
+export function openAIResponsesEndpointIdentity(
+  baseUrl = DEFAULT_OPENAI_BASE_URL,
+): OpenAIResponsesEndpointIdentity {
+  if (/[?#]/u.test(baseUrl)) {
+    throw new Error('OPENAI_BASE_URL must not contain a query or fragment delimiter.');
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(baseUrl);
+  } catch {
+    throw new Error('OPENAI_BASE_URL must be a valid absolute URL.');
+  }
+  if (parsed.protocol !== 'https:') {
+    throw new Error('OPENAI_BASE_URL must use HTTPS.');
+  }
+  if (parsed.username || parsed.password || parsed.search || parsed.hash) {
+    throw new Error('OPENAI_BASE_URL must not contain credentials, a query, or a fragment.');
+  }
+  parsed.pathname = `${parsed.pathname.replace(/\/+$/u, '')}/responses`;
+  const endpoint = parsed.toString();
+  return {
+    endpoint,
+    sha256: createHash('sha256').update(endpoint, 'utf8').digest('hex'),
+  };
+}
+
+export function decodeRawOpenAIResponse(body: Uint8Array): string {
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(body);
+  } catch {
+    throw new Error('OpenAI response body was not valid UTF-8.');
+  }
+}
+
+export function parseRawOpenAIResponse(body: string): JsonObject {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(body) as unknown;
+  } catch (error) {
+    throw new Error(
+      `OpenAI response body was not valid JSON: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('OpenAI response was not a JSON object.');
+  }
+  return parsed as JsonObject;
 }
 
 export function extractResponseText(response: unknown): string {
@@ -44,17 +111,23 @@ export function extractResponseText(response: unknown): string {
   throw new Error('OpenAI response did not contain structured output text.');
 }
 
-export class OpenAIResponsesClient implements StructuredExtractionClient {
+export class OpenAIResponsesClient
+  implements StructuredExtractionClient, RawStructuredExtractionClient
+{
+  private readonly endpoint: string;
+
   constructor(
     private readonly apiKey: string,
-    private readonly baseUrl = 'https://api.openai.com/v1',
+    baseUrl = DEFAULT_OPENAI_BASE_URL,
   ) {
     if (!apiKey) throw new Error('OPENAI_API_KEY is required for live extraction.');
+    this.endpoint = openAIResponsesEndpointIdentity(baseUrl).endpoint;
   }
 
-  async generate(request: StructuredExtractionRequest): Promise<StructuredExtractionResult> {
-    const response = await fetch(`${this.baseUrl}/responses`, {
+  async requestRaw(request: StructuredExtractionRequest): Promise<RawStructuredExtractionResult> {
+    const response = await fetch(this.endpoint, {
       method: 'POST',
+      redirect: 'manual',
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
         'Content-Type': 'application/json',
@@ -77,10 +150,19 @@ export class OpenAIResponsesClient implements StructuredExtractionClient {
       }),
     });
 
-    const payload = (await response.json()) as JsonObject;
-    if (!response.ok) {
+    return {
+      status: response.status,
+      ok: response.ok,
+      body: new Uint8Array(await response.arrayBuffer()),
+    };
+  }
+
+  async generate(request: StructuredExtractionRequest): Promise<StructuredExtractionResult> {
+    const raw = await this.requestRaw(request);
+    const payload = parseRawOpenAIResponse(decodeRawOpenAIResponse(raw.body));
+    if (!raw.ok) {
       const message = payload.error?.message ?? JSON.stringify(payload);
-      throw new Error(`OpenAI Responses API failed (${response.status}): ${message}`);
+      throw new Error(`OpenAI Responses API failed (${raw.status}): ${message}`);
     }
 
     const text = extractResponseText(payload);
