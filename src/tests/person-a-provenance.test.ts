@@ -475,6 +475,105 @@ describe('Person A provenance case resolution', () => {
 });
 
 describe('Person A provenance raw-first and call-count guarantees', () => {
+  it('persists the provider-call attempt before awaiting its result', async () => {
+    const outputDir = await temporaryDirectory('in-flight-provider-call');
+    const delegate = new AtomicPersonAProvenanceArtifactWriter();
+    let markAttemptPersisted!: () => void;
+    const attemptPersisted = new Promise<void>((resolveAttempt) => {
+      markAttemptPersisted = resolveAttempt;
+    });
+    const writer: PersonAProvenanceArtifactWriter = {
+      writeNew: (path, contents) => delegate.writeNew(path, contents),
+      async writeReplace(path, contents) {
+        await delegate.writeReplace(path, contents);
+        if (contents.includes('"provider_call_count": 1')) markAttemptPersisted();
+      },
+    };
+    let rejectProvider!: (error: Error) => void;
+    const client: RawStructuredExtractionClient = {
+      requestRaw() {
+        return new Promise<RawStructuredExtractionResult>((_resolve, reject) => {
+          rejectProvider = reject;
+        });
+      },
+    };
+
+    const run = runLivePersonAProvenance({
+      caseId: 'dry_run_002',
+      outputDir,
+      submittedAt,
+      requestTimestamp,
+      model: 'gpt-5.6',
+      reasoningEffort: 'medium',
+      providerEndpointSha256,
+      repository,
+      client,
+      writer,
+    });
+    await attemptPersisted;
+
+    expect(await json(artifactPath(outputDir, 'run-manifest'))).toMatchObject({
+      status: 'initialized',
+      provider_call_count: 1,
+      retry_count: 0,
+      failure: null,
+      artifacts: { raw_response: null },
+    });
+
+    rejectProvider(new Error('Synthetic interrupted provider call.'));
+    await expect(run).rejects.toThrow(/interrupted provider call/i);
+    expect(await json(artifactPath(outputDir, 'run-manifest'))).toMatchObject({
+      status: 'failed',
+      provider_call_count: 1,
+      retry_count: 0,
+      failure: { stage: 'provider_call' },
+    });
+  });
+
+  it('does not count or issue a call when durable attempt persistence fails', async () => {
+    const outputDir = await temporaryDirectory('provider-attempt-write-failure');
+    const delegate = new AtomicPersonAProvenanceArtifactWriter();
+    let rejectedAttemptWrite = false;
+    const writer: PersonAProvenanceArtifactWriter = {
+      writeNew: (path, contents) => delegate.writeNew(path, contents),
+      async writeReplace(path, contents) {
+        if (
+          !rejectedAttemptWrite &&
+          contents.includes('"status": "initialized"') &&
+          contents.includes('"provider_call_count": 1')
+        ) {
+          rejectedAttemptWrite = true;
+          throw new Error('Synthetic attempt persistence failure.');
+        }
+        await delegate.writeReplace(path, contents);
+      },
+    };
+    const client = clientForBody(await successfulRawBody('dry_run_002'));
+
+    await expect(
+      runLivePersonAProvenance({
+        caseId: 'dry_run_002',
+        outputDir,
+        submittedAt,
+        requestTimestamp,
+        model: 'gpt-5.6',
+        reasoningEffort: 'medium',
+        providerEndpointSha256,
+        repository,
+        client,
+        writer,
+      }),
+    ).rejects.toThrow(/attempt persistence failure/i);
+
+    expect(client.calls).toBe(0);
+    expect(await json(artifactPath(outputDir, 'run-manifest'))).toMatchObject({
+      status: 'failed',
+      provider_call_count: 0,
+      retry_count: 0,
+      failure: { stage: 'provider_call' },
+    });
+  });
+
   it('persists the untouched raw response before structured parsing', async () => {
     const body = '{"not valid after this point":';
     const client = clientForBody(body);
@@ -608,6 +707,72 @@ describe('Person A provenance raw-first and call-count guarantees', () => {
       provider_call_count: 1,
       retry_count: 0,
       failure: { stage: 'assembly' },
+    });
+    expect(client.calls).toBe(1);
+  });
+
+  it('classifies assembler schema failures as schema validation failures', async () => {
+    const rawResponse = JSON.parse(await successfulRawBody('dry_run_002')) as JsonObject;
+    const modelOutput = JSON.parse(rawResponse.output[0].content[0].text) as JsonObject;
+    modelOutput.party_profile.language = 42;
+    rawResponse.output[0].content[0].text = JSON.stringify(modelOutput);
+    const body = JSON.stringify(rawResponse);
+    const client = clientForBody(body);
+    const outputDir = await temporaryDirectory('schema-validation-failure');
+
+    await expect(
+      runLivePersonAProvenance({
+        caseId: 'dry_run_002',
+        outputDir,
+        submittedAt,
+        requestTimestamp,
+        model: 'gpt-5.6',
+        reasoningEffort: 'medium',
+        providerEndpointSha256,
+        repository,
+        client,
+      }),
+    ).rejects.toThrow(/validation failed/i);
+    expect(await json(artifactPath(outputDir, 'run-manifest'))).toMatchObject({
+      status: 'failed',
+      provider_call_count: 1,
+      retry_count: 0,
+      failure: { stage: 'schema_validation' },
+    });
+    expect(client.calls).toBe(1);
+  });
+
+  it('classifies assembler invariant failures as invariant validation failures', async () => {
+    const rawResponse = JSON.parse(await successfulRawBody('dry_run_002')) as JsonObject;
+    const modelOutput = JSON.parse(rawResponse.output[0].content[0].text) as JsonObject;
+    modelOutput.agreement.terms[0].source_spans[0] = {
+      ...modelOutput.agreement.terms[0].source_spans[0],
+      quote: 'Synthetic quote absent from the narrative.',
+      start_char: 0,
+      end_char: 42,
+    };
+    rawResponse.output[0].content[0].text = JSON.stringify(modelOutput);
+    const client = clientForBody(JSON.stringify(rawResponse));
+    const outputDir = await temporaryDirectory('invariant-validation-failure');
+
+    await expect(
+      runLivePersonAProvenance({
+        caseId: 'dry_run_002',
+        outputDir,
+        submittedAt,
+        requestTimestamp,
+        model: 'gpt-5.6',
+        reasoningEffort: 'medium',
+        providerEndpointSha256,
+        repository,
+        client,
+      }),
+    ).rejects.toThrow(/validation failed/i);
+    expect(await json(artifactPath(outputDir, 'run-manifest'))).toMatchObject({
+      status: 'failed',
+      provider_call_count: 1,
+      retry_count: 0,
+      failure: { stage: 'invariant_validation' },
     });
     expect(client.calls).toBe(1);
   });

@@ -20,7 +20,11 @@ import {
   type RawStructuredExtractionClient,
   type RawStructuredExtractionResult,
 } from './openai-responses.js';
-import { assemblePersonAExtraction, PERSON_A_EXTRACTOR_VERSION } from './person-a-extractor.js';
+import {
+  assemblePersonAExtraction,
+  PersonAExtractionValidationError,
+  PERSON_A_EXTRACTOR_VERSION,
+} from './person-a-extractor.js';
 import {
   resolvePersonAProvenanceCase,
   type PersonAProvenanceCaseDefinition,
@@ -687,12 +691,22 @@ function deriveArtifacts(
   const modelOutput = parsePersonAModelOutputFromRawResponse(rawResponse);
 
   onStage('assembly');
-  const extraction = assemblePersonAExtraction(modelOutput, {
-    narrative: resolvedCase.narrative,
-    submittedAt: metadata.submitted_at,
-    model: metadata.requested_model,
-    generatedAt: metadata.request_timestamp,
-  });
+  let extraction: JsonObject;
+  try {
+    extraction = assemblePersonAExtraction(modelOutput, {
+      narrative: resolvedCase.narrative,
+      submittedAt: metadata.submitted_at,
+      model: metadata.requested_model,
+      generatedAt: metadata.request_timestamp,
+    });
+  } catch (error) {
+    if (error instanceof PersonAExtractionValidationError) {
+      onStage(
+        error.validation.schemaErrors.length > 0 ? 'schema_validation' : 'invariant_validation',
+      );
+    }
+    throw error;
+  }
 
   const validationResult = validatePersonAExtraction(extraction, resolvedCase.narrative);
   onStage('schema_validation');
@@ -800,6 +814,11 @@ export async function runLivePersonAProvenance(
 
   let stage: PersonAProvenanceFailureStage = 'provider_call';
   try {
+    const callAttemptManifest: PersonAProvenanceRunManifest = {
+      ...manifest,
+      provider_call_count: 1,
+    };
+    await writeManifest(writer, paths.manifest, callAttemptManifest);
     manifest.provider_call_count = 1;
     const rawResult = await options.client.requestRaw({
       narrative: resolvedCase.narrative,
