@@ -44,6 +44,7 @@ jobs:
           - src/tests/person-a-provenance.test.ts
           - src/tests/person-a-monetary-identity-compatibility.test.ts
           - src/tests/person-a-dr002-critical-diagnostic.test.ts
+          - src/tests/person-a-dr002-agreement-term-decomposition.test.ts
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
