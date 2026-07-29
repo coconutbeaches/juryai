@@ -42,6 +42,7 @@ jobs:
           - src/tests/person-a-timeline-source-containment.test.ts
           - src/tests/person-a-cl-a-013-recall.test.ts
           - src/tests/person-a-provenance.test.ts
+          - src/tests/person-a-monetary-identity-compatibility.test.ts
     steps:
       - name: Check out repository
         uses: actions/checkout@v4

@@ -13,6 +13,7 @@ import {
   type PersonAAlignment,
   type PersonASemanticAliases,
 } from './person-a-alignment.js';
+import { recoverDryRun002StructuredMonetaryIdentity } from './person-a-monetary-identity-compatibility.js';
 
 type JsonObject = Record<string, any>;
 
@@ -501,6 +502,7 @@ export function alignPersonAForCase(
   recoverUniqueEvidenceBlocks(extracted, golden, alignment, aliases, options.contractVersion);
   recoverActorReversals(extracted, golden, alignment, aliases);
   recoverOutcomeTransferReversals(extracted, golden, alignment, aliases);
+  recoverDryRun002StructuredMonetaryIdentity(extracted, golden, alignment, options);
   return alignment;
 }
 
