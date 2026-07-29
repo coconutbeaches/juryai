@@ -1,0 +1,255 @@
+{
+  "version": "juryai-pr26-dr002-agreement-term-decomposition-v1",
+  "repository": {
+    "remote": "https://github.com/coconutbeaches/juryai.git",
+    "locked_base_sha": "78112adc50adbcafb76a5edf3192be55db529334",
+    "final_head_sha": null,
+    "final_head_note": "The immutable PR head is reported externally after commit; embedding a commit's own SHA is self-referential."
+  },
+  "case": {
+    "case_id": "dry_run_002",
+    "fixture_contract": "calibrated_live_v2",
+    "narrative_sha256": "0508bdb60323a32beafaa0b7e7e7ac734cd64a002830fc8eb1ca52e5feda0f86",
+    "golden_sha256": "c56a61eb606c5efbcc8fdd5f364d70a889c9c84b7092784daf2f2b814f265567",
+    "frozen_extraction_sha256": "496ce4938cc04ae65a72efc611e839158dfe7e5ee053d27dc21de96c77a8d076",
+    "validation_sha256": "d3adea256203aaa11bba6b0b151a3b6659e2ed4031878c615b9474884dd733df",
+    "alignment_sha256": "ee015c6efb1fe1bb3ead8625cfddbf1057f11837d2ba5d360169b03312de09a6",
+    "alignment_canonical_fingerprint": "8b4b50a9e675b98248f02696ca637cddb07458afb5798b610df93c03b710f066",
+    "agreement_alignment_fingerprint": "ccc69ef0a97751016c8f224e2cecc77b3c33d7d2b8216ce848a153a15ef46c97",
+    "before_evaluation_sha256": "dba69c1f95e2da4d885aec4f28cea77fa62401e4d7c2de193bbc06d620b660f6",
+    "after_evaluation_sha256": "5a36da589608c2cbb0d44c791b73e4cfed0103c96e887bf65f4da6b140b302e3",
+    "before_finding_set_sha256": "6fa42feb373df72a26a6d6f341500f996be7a391beae0af1c408375113a9d5a0",
+    "after_finding_set_sha256": "56d1f0a1e372b029e609285037bec2ba09e8b9d37543feca028c2249b7fe1694"
+  },
+  "correction": {
+    "exact_changed_finding": "critical|agreement_terms|unsupported_extra_object|term_price_1|",
+    "replacement_finding": "minor|agreement_terms|agreement_term_decomposition|term_price_1|",
+    "old_diagnostic": "unsupported_extra_object",
+    "old_severity": "critical",
+    "new_diagnostic": "agreement_term_decomposition",
+    "new_severity": "minor",
+    "finding_count_preserved": true,
+    "ordering_preserved": true,
+    "before": {
+      "critical": 5,
+      "major": 15,
+      "minor": 14,
+      "total": 34
+    },
+    "after": {
+      "critical": 4,
+      "major": 15,
+      "minor": 15,
+      "total": 34
+    }
+  },
+  "fingerprints": {
+    "unsupported_diagnostic": "d5013941b000a20e9931e80bfc88b5717428c0954cfad1fd69eff4e0182e3020",
+    "extracted_record": "ff6234474986c1e5f12e7795e28fdf3d4a46285aa0e45d128799784adc6618ec",
+    "normalized_record": "ff6234474986c1e5f12e7795e28fdf3d4a46285aa0e45d128799784adc6618ec",
+    "raw_model_record": "1d15aaccc17b7a7dab14c15700b75077f61206a676abe815fa9ca5933a80e3aa",
+    "matched_extracted_scope": "4777f3b6da8675168096211a5957cb95aecb0ee05b647d2f330341654dc0ee10",
+    "matched_golden": "e436b07d1c65e47a46152fa2691be91d272d93b70204506a0fed4175a19197f4",
+    "source_span": "c9c4552c889173b1e81e9fccb9234b95ac904a818328ba417b9e45e059563d72",
+    "matched_alignment_pair": "39302e2ce67a22b766973ab8ab241ebd52f9fa1c36b406c70fc97f4d5543d30c"
+  },
+  "source": {
+    "segment": "S1",
+    "start_char": 58,
+    "end_char": 200,
+    "quote": "On about March 12, 2026, I agreed with Priya Nair to restore six dining chairs for $1,800, with $900 paid upfront and $900 due after delivery.",
+    "price_minor_units": 180000,
+    "currency": "USD"
+  },
+  "alignment": {
+    "family": "agreement_terms",
+    "pairs": [
+      {
+        "extracted_index": 0,
+        "golden_index": 0,
+        "extracted_id": "term_scope_1",
+        "golden_id": "term_dry_run_002",
+        "score": 0.7709499661933739,
+        "margin": 0.7709499661933739
+      }
+    ],
+    "ambiguous": [],
+    "unmatched_extracted": [
+      {
+        "index": 1,
+        "id": "term_price_1"
+      },
+      {
+        "index": 2,
+        "id": "term_deposit_1"
+      },
+      {
+        "index": 3,
+        "id": "term_payment_trigger_1"
+      }
+    ],
+    "unmatched_golden": []
+  },
+  "additional_extracted_terms": [
+    {
+      "interpretation_status": "unclear",
+      "materiality": "high",
+      "person_a_interpretation": null,
+      "person_b_interpretation": null,
+      "source_evidence_ids": [],
+      "source_spans": [
+        {
+          "end_char": 200,
+          "quote": "On about March 12, 2026, I agreed with Priya Nair to restore six dining chairs for $1,800, with $900 paid upfront and $900 due after delivery.",
+          "start_char": 58,
+          "submission_id": "sub_a_extracted"
+        }
+      ],
+      "term_id": "term_deposit_1",
+      "term_type": "deposit",
+      "wording": "$900 was paid upfront.",
+      "wording_status": "not_inspected"
+    },
+    {
+      "interpretation_status": "unclear",
+      "materiality": "high",
+      "person_a_interpretation": "Jordan's position is that Priya must pay the remaining $900 after Jordan delivers the last two chairs.",
+      "person_b_interpretation": null,
+      "source_evidence_ids": [],
+      "source_spans": [
+        {
+          "end_char": 200,
+          "quote": "On about March 12, 2026, I agreed with Priya Nair to restore six dining chairs for $1,800, with $900 paid upfront and $900 due after delivery.",
+          "start_char": 58,
+          "submission_id": "sub_a_extracted"
+        },
+        {
+          "end_char": 625,
+          "quote": "I am asking Priya to pay the remaining $900 after I deliver the last two chairs; I am not asking to refund her.",
+          "start_char": 514,
+          "submission_id": "sub_a_extracted"
+        }
+      ],
+      "term_id": "term_payment_trigger_1",
+      "term_type": "payment_trigger",
+      "wording": "The remaining $900 was due after delivery.",
+      "wording_status": "not_inspected"
+    }
+  ],
+  "fail_closed_invariants": [
+    "calibrated_live_v2 contract",
+    "exact DR002 narrative SHA-256 and identical extracted and golden raw_text",
+    "current finding is the exact critical agreement_terms unsupported_extra_object for term_price_1",
+    "complete normalized term_price_1 record fingerprint",
+    "complete matched term_scope_1 record fingerprint",
+    "complete consolidated term_dry_run_002 golden record fingerprint",
+    "exact S1 UTF-16 span and quote independently ground USD 1,800",
+    "exact complete agreement-term alignment fingerprint",
+    "exact term_scope_1 to term_dry_run_002 pair score, margin, indexes, and IDs",
+    "term_price_1 remains unmatched and is neither paired nor ambiguous",
+    "term_dry_run_002 is matched and not unmatched",
+    "the exact price-only record contains no additional obligation, actor, date, condition, or legal meaning"
+  ],
+  "negative_test_inventory": [
+    "different amount",
+    "different currency",
+    "installment condition",
+    "refund condition",
+    "timing condition",
+    "delivery condition",
+    "payment condition",
+    "unsupported source span",
+    "unrelated source evidence",
+    "non-agreement family",
+    "missing matched golden record",
+    "missing expected alignment pair",
+    "changed structural fingerprint",
+    "contradictory amount",
+    "semantic similarity without full containment",
+    "claim_payment_term_1",
+    "claim_scope_1",
+    "claim_no_refund_1",
+    "deliverable_1",
+    "proxy and accessor-bearing inputs"
+  ],
+  "unchanged_critical_findings": [
+    "critical|deliverables|unsupported_extra_object|deliverable_1|",
+    "critical|claims|unsupported_extra_object|claim_scope_1|",
+    "critical|claims|unsupported_extra_object|claim_payment_term_1|",
+    "critical|claims|unsupported_extra_object|claim_no_refund_1|"
+  ],
+  "after_finding_identities": [
+    "major|agreement_terms|term_wording|term_scope_1|term_dry_run_002",
+    "major|agreement_terms|party_interpretation|term_scope_1|term_dry_run_002",
+    "minor|agreement_terms|agreement_term_decomposition|term_price_1|",
+    "minor|agreement_terms|agreement_term_decomposition|term_deposit_1|",
+    "minor|agreement_terms|agreement_term_decomposition|term_payment_trigger_1|",
+    "critical|deliverables|unsupported_extra_object|deliverable_1|",
+    "major|timeline|actor_specificity|event_agreement_1|tl_002_agreement",
+    "major|timeline|source_grounded_extra_object|event_message_1|",
+    "major|timeline|source_grounded_extra_object|event_scratch_allegation_1|",
+    "major|claims|claim_meaning_distorted|claim_balance_1|cl_002_remedy",
+    "major|claims|claim_type|claim_message_1|cl_002_quote",
+    "major|claims|claim_meaning_distorted|claim_mark_1|cl_002_allegation",
+    "major|claims|against_interest_flag|claim_mark_1|cl_002_allegation",
+    "critical|claims|unsupported_extra_object|claim_scope_1|",
+    "critical|claims|unsupported_extra_object|claim_payment_term_1|",
+    "major|claims|granularity_split|claim_cushion_1|",
+    "major|claims|source_grounded_extra_object|claim_partial_completion_1|",
+    "major|claims|granularity_split|claim_scratch_allegation_1|",
+    "critical|claims|unsupported_extra_object|claim_no_refund_1|",
+    "major|evidence|evidence_identity|evidence_message_1|ev_dry_run_002",
+    "major|evidence|source_grounded_extra_object|evidence_photos_1|",
+    "major|damages|causal_theory|damages_unpaid_balance_1|dam_dry_run_002",
+    "minor|extraction_issues|unmatched_extracted_object|issue_agreement_form_1|",
+    "minor|extraction_issues|unmatched_extracted_object|issue_delivery_trigger_1|",
+    "minor|extraction_issues|unmatched_extracted_object|issue_completion_1|",
+    "minor|extraction_issues|unmatched_extracted_object|issue_photos_1|",
+    "minor|clarification_questions|missing_golden_object||q_dry_run_002_1",
+    "minor|clarification_questions|missing_golden_object||q_dry_run_002_2",
+    "minor|clarification_questions|missing_golden_object||q_dry_run_002_3",
+    "minor|clarification_questions|unmatched_extracted_object|question_agreement_form_1|",
+    "minor|clarification_questions|unmatched_extracted_object|question_delivery_trigger_1|",
+    "minor|clarification_questions|unmatched_extracted_object|question_completion_1|",
+    "minor|clarification_questions|unmatched_extracted_object|question_defects_1|",
+    "minor|clarification_questions|unmatched_extracted_object|question_message_1|"
+  ],
+  "protected_dr001": {
+    "narrative_sha256": "2cdb00b4b2b28c1813a979be5cf22f1ac51a30282abea9e144df491549c4fcc7",
+    "golden_sha256": "a6aea6cce9a3047c86f34bb5b7d36ccee1315f8f041e775793aeb1e75e3055f8",
+    "frozen_extraction_sha256": "68a3a5da581f98caf6bdfdee127d6b8b632d7845d968acce46c411cfc20a641c",
+    "frozen_alignment_sha256": "6ae6ae7f662c9b632739caf43a22958305621af17199cafa553fe6e3058d97ab",
+    "frozen_evaluation_sha256": "a6cd2426a2e7b2a5f975c159eac295155d8fe1db7fa97b7564a75ea688c54509",
+    "raw_response_sha256": "499ba4ed59a314aea0037f4677cdf356d3d6b0319c2cad66d6d6f311402a4a9e",
+    "golden_projection_sha256": "75e3d8a345ff0a05af770eb860690f62d7916a8c96d47773f15ee3d54f963dc3",
+    "run_manifest_sha256": "42571dd232b9b900c9225400f969cda682d4bf393d5547e0a459f0f098b5fe30"
+  },
+  "acceptance": {
+    "gate": "pass",
+    "historical_accepted": 0,
+    "historical_total": 3,
+    "controls_accepted": 3,
+    "controls_total": 3,
+    "serialized_sha256": "a81553ce546d46c9fee379a18177400840a0aeb43e163060a033023d921677c3"
+  },
+  "replays": [
+    {
+      "extraction_sha256": "496ce4938cc04ae65a72efc611e839158dfe7e5ee053d27dc21de96c77a8d076",
+      "validation_sha256": "d3adea256203aaa11bba6b0b151a3b6659e2ed4031878c615b9474884dd733df",
+      "alignment_sha256": "ee015c6efb1fe1bb3ead8625cfddbf1057f11837d2ba5d360169b03312de09a6",
+      "evaluation_sha256": "5a36da589608c2cbb0d44c791b73e4cfed0103c96e887bf65f4da6b140b302e3",
+      "provider_calls": 0,
+      "retries": 0,
+      "manually_edited": false
+    },
+    {
+      "extraction_sha256": "496ce4938cc04ae65a72efc611e839158dfe7e5ee053d27dc21de96c77a8d076",
+      "validation_sha256": "d3adea256203aaa11bba6b0b151a3b6659e2ed4031878c615b9474884dd733df",
+      "alignment_sha256": "ee015c6efb1fe1bb3ead8625cfddbf1057f11837d2ba5d360169b03312de09a6",
+      "evaluation_sha256": "5a36da589608c2cbb0d44c791b73e4cfed0103c96e887bf65f4da6b140b302e3",
+      "provider_calls": 0,
+      "retries": 0,
+      "manually_edited": false
+    }
+  ]
+}

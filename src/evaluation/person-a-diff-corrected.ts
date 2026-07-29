@@ -17,6 +17,7 @@ import {
   type PersonASemanticAliases,
 } from '../alignment/person-a-alignment-corrected.js';
 import type { EvidenceRecallDiagnostics } from './person-a-diff.js';
+import { isDryRun002AgreementTermDecompositionDiagnostic } from './person-a-dr002-agreement-term-decomposition.js';
 
 type JsonObject = Record<string, any>;
 
@@ -992,6 +993,21 @@ export function evaluatePersonAForCase(
         error.message =
           'Extracted object has no supported golden match and is a fabrication hard failure.';
       }
+    }
+    if (
+      isDryRun002AgreementTermDecompositionDiagnostic(
+        error,
+        extracted,
+        golden,
+        alignment,
+        narrative,
+        options.contractVersion,
+      )
+    ) {
+      error.severity = 'minor';
+      error.code = 'agreement_term_decomposition';
+      error.message =
+        'Separately named source-grounded agreement component is covered by a broader compatible golden term.';
     }
     if (error.golden_id) editedObjects.add(`${error.family}:${error.golden_id}`);
     else if (error.code === 'ambiguous_alignment' && error.extracted_id) {
