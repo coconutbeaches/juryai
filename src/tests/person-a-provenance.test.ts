@@ -845,6 +845,93 @@ describe('Person A provenance local live simulation and raw-only replay', () => 
     );
   });
 
+  it('rejects replay when the source provider response was not successful', async () => {
+    const body = await successfulRawBody('dry_run_002');
+    const liveOutput = await temporaryDirectory('non-success-replay-source');
+    const client = new FakeRawClient({
+      status: 400,
+      ok: false,
+      body: new TextEncoder().encode(body),
+    });
+    await expect(
+      runLivePersonAProvenance({
+        caseId: 'dry_run_002',
+        outputDir: liveOutput,
+        submittedAt,
+        requestTimestamp,
+        model: 'gpt-5.6',
+        reasoningEffort: 'medium',
+        providerEndpointSha256,
+        repository,
+        client,
+      }),
+    ).rejects.toThrow(/HTTP 400/i);
+
+    const replayOutput = await temporaryDirectory('non-success-replay');
+    await expect(
+      replayPersonAProvenance({
+        caseId: 'dry_run_002',
+        outputDir: replayOutput,
+        rawResponsePath: artifactPath(liveOutput, 'raw-response'),
+        requestMetadataPath: artifactPath(liveOutput, 'request'),
+        sourceManifestPath: artifactPath(liveOutput, 'run-manifest'),
+        repository,
+      }),
+    ).rejects.toThrow(/successful provider HTTP status/i);
+    await expect(readdir(replayOutput)).rejects.toMatchObject({ code: 'ENOENT' });
+    expect(client.calls).toBe(1);
+  });
+
+  it('accepts a successful HTTP source that failed during later artifact derivation', async () => {
+    const body = JSON.stringify({
+      id: 'resp_replayable_assembly_failure',
+      model: 'gpt-5.6',
+      status: 'completed',
+      output: [
+        {
+          type: 'message',
+          content: [{ type: 'output_text', text: '{}' }],
+        },
+      ],
+    });
+    const liveOutput = await temporaryDirectory('later-failure-replay-source');
+    const client = clientForBody(body);
+    await expect(
+      runLivePersonAProvenance({
+        caseId: 'dry_run_002',
+        outputDir: liveOutput,
+        submittedAt,
+        requestTimestamp,
+        model: 'gpt-5.6',
+        reasoningEffort: 'medium',
+        providerEndpointSha256,
+        repository,
+        client,
+      }),
+    ).rejects.toThrow();
+
+    const replayOutput = await temporaryDirectory('later-failure-replay');
+    await expect(
+      replayPersonAProvenance({
+        caseId: 'dry_run_002',
+        outputDir: replayOutput,
+        rawResponsePath: artifactPath(liveOutput, 'raw-response'),
+        requestMetadataPath: artifactPath(liveOutput, 'request'),
+        sourceManifestPath: artifactPath(liveOutput, 'run-manifest'),
+        repository,
+      }),
+    ).rejects.toThrow();
+    expect(await readFile(artifactPath(replayOutput, 'raw-response'), 'utf8')).toBe(body);
+    expect(await json(artifactPath(replayOutput, 'run-manifest'))).toMatchObject({
+      mode: 'replay',
+      status: 'failed',
+      provider_call_count: 0,
+      retry_count: 0,
+      failure: { stage: 'assembly' },
+    });
+    expect(client.calls).toBe(1);
+  });
+
   it('rejects raw response and request metadata swapped across separate live runs', async () => {
     const firstBody = await successfulRawBody('dry_run_002');
     const secondPayload = JSON.parse(firstBody) as JsonObject;

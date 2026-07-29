@@ -569,6 +569,15 @@ function assertSourceManifest(
   if (!['raw_preserved', 'completed', 'failed'].includes(String(source.status))) {
     throw new Error('Source run manifest has not preserved a replayable raw response.');
   }
+  const sourceHttpStatus = source.provider_response?.http_status;
+  if (
+    typeof sourceHttpStatus !== 'number' ||
+    !Number.isInteger(sourceHttpStatus) ||
+    sourceHttpStatus < 200 ||
+    sourceHttpStatus >= 300
+  ) {
+    throw new Error('Replay requires a source run with a successful provider HTTP status.');
+  }
   const expected = createManifest(
     'live',
     resolvedCase,
