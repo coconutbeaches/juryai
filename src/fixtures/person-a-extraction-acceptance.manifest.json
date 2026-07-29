@@ -37,7 +37,7 @@
       },
       "golden": {
         "path": "dry_run_002.person_a.golden.extraction.json",
-        "sha256": "67c85bc005b377a064d1bd18c59570dff50cdc10ae9ac9480331da41a934165c"
+        "sha256": "c56a61eb606c5efbcc8fdd5f364d70a889c9c84b7092784daf2f2b814f265567"
       },
       "semantic_calibration": {
         "identities": ["jordan", "priya"],
@@ -125,7 +125,7 @@
       "origin": "hand_authored_control",
       "extraction": {
         "path": "dry_run_002.person_a.golden.extraction.json",
-        "sha256": "67c85bc005b377a064d1bd18c59570dff50cdc10ae9ac9480331da41a934165c"
+        "sha256": "c56a61eb606c5efbcc8fdd5f364d70a889c9c84b7092784daf2f2b814f265567"
       },
       "expected_status": "accepted"
     },
