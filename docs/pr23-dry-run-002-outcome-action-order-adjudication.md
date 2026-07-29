@@ -166,8 +166,9 @@ encodes opposite conditions.
    the raw model outcome shown above.
 2. **Assembly clone.** `assemblePersonAExtraction` takes a `structuredClone` of the model object.
 3. **Source-span normalization.** Assembly rewrites source-span submission IDs and repairs uniquely
-   locatable exact span offsets. Outcome records have no source-span field, so neither operation
-   traverses or changes the target outcome.
+   locatable exact span offsets. Both recursive walkers traverse `desired_outcomes`, including the
+   target outcome, its transfer, and its action strings. The target contains no source-span-shaped
+   object, so neither operation mutates it.
 4. **Root assembly.** Assembly adds the canonical party, submission, extractor, and metadata
    wrappers and assigns `normalizedModelOutput.desired_outcomes` directly.
 5. **Schema and invariant validation.** The assembled record validates. Validation does not mutate
