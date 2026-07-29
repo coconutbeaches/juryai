@@ -1052,6 +1052,7 @@ describe('Person A provenance local live simulation and raw-only replay', () => 
     expect(replay.manifest).toMatchObject({
       mode: 'replay',
       status: 'completed',
+      provider_response: { http_status: 200 },
       provider_call_count: 0,
       retry_count: 0,
     });

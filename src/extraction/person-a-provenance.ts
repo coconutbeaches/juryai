@@ -18,7 +18,6 @@ import {
   decodeRawOpenAIResponse,
   parseRawOpenAIResponse,
   type RawStructuredExtractionClient,
-  type RawStructuredExtractionResult,
 } from './openai-responses.js';
 import {
   assemblePersonAExtraction,
@@ -660,10 +659,10 @@ async function recordFailure(options: {
 
 function providerMetadata(
   rawResponse: JsonObject,
-  rawResult?: RawStructuredExtractionResult,
+  httpStatus: number | null = null,
 ): PersonAProvenanceRunManifest['provider_response'] {
   return {
-    http_status: rawResult?.status ?? null,
+    http_status: httpStatus,
     response_id: typeof rawResponse.id === 'string' ? rawResponse.id : null,
     served_model: typeof rawResponse.model === 'string' ? rawResponse.model : null,
     response_status: typeof rawResponse.status === 'string' ? rawResponse.status : null,
@@ -829,13 +828,13 @@ export async function runLivePersonAProvenance(
     stage = 'raw_persistence';
     await writer.writeNew(paths.rawResponse, rawResult.body);
     manifest.artifacts.raw_response = artifactReference(paths.rawResponse, rawResult.body);
-    manifest.provider_response = providerMetadata({}, rawResult);
+    manifest.provider_response = providerMetadata({}, rawResult.status);
     manifest.status = 'raw_preserved';
     await writeManifest(writer, paths.manifest, manifest);
 
     stage = 'response_parse';
     const rawResponse = parseRawOpenAIResponse(decodeRawOpenAIResponse(rawResult.body));
-    manifest.provider_response = providerMetadata(rawResponse, rawResult);
+    manifest.provider_response = providerMetadata(rawResponse, rawResult.status);
     await writeManifest(writer, paths.manifest, manifest);
     stage = 'provider_response';
     if (!rawResult.ok) throw new Error(`Provider returned HTTP ${rawResult.status}.`);
@@ -916,7 +915,10 @@ export async function replayPersonAProvenance(
   let stage: PersonAProvenanceFailureStage = 'response_parse';
   try {
     const rawResponse = parseRawOpenAIResponse(decodeRawOpenAIResponse(rawBody));
-    manifest.provider_response = providerMetadata(rawResponse);
+    manifest.provider_response = providerMetadata(
+      rawResponse,
+      parsedSourceManifest.provider_response.http_status,
+    );
     stage = 'provider_response';
     assertCompletedProviderResponse(rawResponse);
     const derived = deriveArtifacts(rawBody, resolvedCase, metadata, (next) => {
