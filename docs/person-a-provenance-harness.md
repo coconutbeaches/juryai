@@ -47,8 +47,9 @@ key value and request authorization headers are never part of an artifact.
 
 ## Offline replay
 
-Replay takes the frozen raw response and request metadata. It does not read provider credentials
-and has no provider client:
+Replay takes the frozen raw response, request metadata, and source run manifest. The manifest
+cryptographically binds the other two inputs so artifacts from separate runs cannot be mixed. It
+does not read provider credentials and has no provider client:
 
 ```bash
 npm run provenance:person-a -- \
@@ -56,12 +57,15 @@ npm run provenance:person-a -- \
   --case-id dry_run_002 \
   --raw-response artifacts/person-a/dry-run-002-live/dry_run_002.person_a.raw-response.json \
   --request-metadata artifacts/person-a/dry-run-002-live/dry_run_002.person_a.request.json \
+  --run-manifest artifacts/person-a/dry-run-002-live/dry_run_002.person_a.run-manifest.json \
   --output-dir artifacts/person-a/dry-run-002-replay
 ```
 
 Replay verifies the case, narrative, golden, prompt, schema, extractor, evaluation contract, and
-request settings before reconstructing the extraction. Derived artifacts use canonical JSON so
-their hashes match the live run. The replay manifest records zero provider calls and zero retries.
+request settings, then verifies the raw-response and request-metadata paths and SHA-256 identities
+against the source manifest before reconstructing the extraction. A detached exact-SHA checkout is
+recorded explicitly as `(detached HEAD)`. Derived artifacts use canonical JSON so their hashes
+match the live run. The replay manifest records zero provider calls and zero retries.
 
 ## Artifact and manifest behavior
 

@@ -132,6 +132,9 @@ export type PersonAProvenanceRunManifest = {
     response_status: string | null;
     usage: JsonObject | null;
   };
+  replay_source: {
+    run_manifest: PersonAProvenanceArtifactReference;
+  } | null;
   artifacts: {
     request_metadata: PersonAProvenanceArtifactReference | null;
     raw_response: PersonAProvenanceArtifactReference | null;
@@ -199,6 +202,7 @@ export type ReplayPersonAProvenanceOptions = {
   outputDir: string;
   rawResponsePath: string;
   requestMetadataPath: string;
+  sourceManifestPath: string;
   repository: PersonAProvenanceRepositoryState;
   projectRoot?: string;
   cases?: Readonly<Record<string, PersonAProvenanceCaseDefinition | undefined>>;
@@ -314,14 +318,19 @@ function shellQuote(value: string): string {
 
 function reproductionCommand(
   caseId: PersonAProvenanceCaseId,
-  paths: ArtifactPaths,
+  inputs: {
+    rawResponse: string;
+    requestMetadata: string;
+    runManifest: string;
+  },
   outputDir: string,
 ): string {
   return [
     'npm run provenance:person-a -- --mode replay',
     `--case-id ${caseId}`,
-    `--raw-response ${shellQuote(paths.rawResponse)}`,
-    `--request-metadata ${shellQuote(paths.requestMetadata)}`,
+    `--raw-response ${shellQuote(inputs.rawResponse)}`,
+    `--request-metadata ${shellQuote(inputs.requestMetadata)}`,
+    `--run-manifest ${shellQuote(inputs.runManifest)}`,
     `--output-dir ${shellQuote(`${outputDir}-replay`)}`,
   ].join(' ');
 }
@@ -384,6 +393,11 @@ function createManifest(
   paths: ArtifactPaths,
   outputDir: string,
   repository: PersonAProvenanceRepositoryState,
+  replayInputs?: {
+    rawResponse: string;
+    requestMetadata: string;
+    runManifest: string;
+  },
 ): PersonAProvenanceRunManifest {
   return {
     version: PERSON_A_PROVENANCE_MANIFEST_VERSION,
@@ -427,6 +441,7 @@ function createManifest(
       response_status: null,
       usage: null,
     },
+    replay_source: null,
     artifacts: {
       request_metadata: null,
       raw_response: null,
@@ -440,7 +455,15 @@ function createManifest(
     provider_call_count: 0,
     retry_count: 0,
     manually_edited: false,
-    offline_reproduction_command: reproductionCommand(resolvedCase.caseId, paths, outputDir),
+    offline_reproduction_command: reproductionCommand(
+      resolvedCase.caseId,
+      replayInputs ?? {
+        rawResponse: paths.rawResponse,
+        requestMetadata: paths.requestMetadata,
+        runManifest: paths.manifest,
+      },
+      outputDir,
+    ),
   };
 }
 
@@ -513,6 +536,65 @@ function assertRequestMetadata(
   assertRepositoryState(metadata.repository, { requireClean: false });
   assertIsoDateTime(String(metadata.submitted_at), 'Request metadata submitted_at');
   assertIsoDateTime(String(metadata.request_timestamp), 'Request metadata request_timestamp');
+}
+
+function assertSourceManifest(
+  value: unknown,
+  path: string,
+  resolvedCase: ResolvedPersonAProvenanceCase,
+  metadata: PersonAProvenanceRequestMetadata,
+  rawBody: string,
+  rawResponsePath: string,
+  metadataBody: string,
+  requestMetadataPath: string,
+): asserts value is PersonAProvenanceRunManifest {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('Source run manifest must be a JSON object.');
+  }
+  const source = value as Partial<PersonAProvenanceRunManifest>;
+  if (source.version !== PERSON_A_PROVENANCE_MANIFEST_VERSION || source.mode !== 'live') {
+    throw new Error('Replay requires a supported live source run manifest.');
+  }
+  if (!['raw_preserved', 'completed', 'failed'].includes(String(source.status))) {
+    throw new Error('Source run manifest has not preserved a replayable raw response.');
+  }
+  const expected = createManifest(
+    'live',
+    resolvedCase,
+    metadata,
+    artifactPaths(dirname(path), resolvedCase.artifactPrefix),
+    dirname(path),
+    metadata.repository,
+  );
+  for (const key of ['repository', 'case', 'extraction_contract', 'request'] as const) {
+    if (JSON.stringify(stableValue(source[key])) !== JSON.stringify(stableValue(expected[key]))) {
+      throw new Error(`Source run manifest ${key} does not match its request metadata.`);
+    }
+  }
+  if (
+    source.case_id !== resolvedCase.caseId ||
+    source.manually_edited !== false ||
+    source.provider_call_count !== 1 ||
+    source.retry_count !== 0
+  ) {
+    throw new Error('Source run manifest execution identity is not replayable.');
+  }
+  const requestReference = source.artifacts?.request_metadata;
+  const rawReference = source.artifacts?.raw_response;
+  if (
+    !requestReference ||
+    requestReference.path !== basename(requestMetadataPath) ||
+    requestReference.sha256 !== sha256Text(metadataBody)
+  ) {
+    throw new Error('Source run manifest does not bind the supplied request metadata.');
+  }
+  if (
+    !rawReference ||
+    rawReference.path !== basename(rawResponsePath) ||
+    rawReference.sha256 !== sha256Text(rawBody)
+  ) {
+    throw new Error('Source run manifest does not bind the supplied raw response.');
+  }
 }
 
 async function writeManifest(
@@ -713,9 +795,10 @@ export async function replayPersonAProvenance(
     projectRoot: options.projectRoot,
     cases: options.cases,
   });
-  const [rawBody, metadataBody] = await Promise.all([
+  const [rawBody, metadataBody, sourceManifestBody] = await Promise.all([
     readFile(resolve(options.rawResponsePath), 'utf8'),
     readFile(resolve(options.requestMetadataPath), 'utf8'),
+    readFile(resolve(options.sourceManifestPath), 'utf8'),
   ]);
   const parsedMetadata = JSON.parse(metadataBody) as unknown;
   assertRequestMetadata(parsedMetadata, resolvedCase);
@@ -725,6 +808,17 @@ export async function replayPersonAProvenance(
       `Replay repository SHA ${options.repository.sha} does not match frozen request SHA ${metadata.repository.sha}.`,
     );
   }
+  const parsedSourceManifest = JSON.parse(sourceManifestBody) as unknown;
+  assertSourceManifest(
+    parsedSourceManifest,
+    resolve(options.sourceManifestPath),
+    resolvedCase,
+    metadata,
+    rawBody,
+    resolve(options.rawResponsePath),
+    metadataBody,
+    resolve(options.requestMetadataPath),
+  );
   const outputDir = await prepareOutputDirectory(options.outputDir);
   const paths = artifactPaths(outputDir, resolvedCase.artifactPrefix);
   const writer = options.writer ?? new AtomicPersonAProvenanceArtifactWriter();
@@ -735,7 +829,15 @@ export async function replayPersonAProvenance(
     paths,
     outputDir,
     options.repository,
+    {
+      rawResponse: resolve(options.rawResponsePath),
+      requestMetadata: resolve(options.requestMetadataPath),
+      runManifest: resolve(options.sourceManifestPath),
+    },
   );
+  manifest.replay_source = {
+    run_manifest: artifactReference(resolve(options.sourceManifestPath), sourceManifestBody),
+  };
   await writer.writeNew(paths.requestMetadata, metadataBody);
   manifest.artifacts.request_metadata = artifactReference(paths.requestMetadata, metadataBody);
   await writer.writeNew(paths.rawResponse, rawBody);

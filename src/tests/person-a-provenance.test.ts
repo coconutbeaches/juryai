@@ -36,6 +36,7 @@ import {
   type ExtractPersonACommandDependencies,
 } from '../commands/extract-person-a.js';
 import {
+  explicitRepositoryBranch,
   parsePersonAProvenanceCommandArgs,
   runPersonAProvenanceCommand,
   type RunPersonAProvenanceCommandDependencies,
@@ -364,6 +365,20 @@ describe('Person A provenance case resolution', () => {
         'artifacts/person-a/dry-run-002-live',
       ]).outputDir,
     ).toContain('/artifacts/person-a/dry-run-002-live');
+    expect(() =>
+      parsePersonAProvenanceCommandArgs([
+        '--mode',
+        'replay',
+        '--case-id',
+        'dry_run_002',
+        '--raw-response',
+        'artifacts/source/raw.json',
+        '--request-metadata',
+        'artifacts/source/request.json',
+        '--output-dir',
+        'artifacts/person-a/dry-run-002-replay',
+      ]),
+    ).toThrow(/run-manifest/i);
   });
 
   it('rejects symlinked output components before credentials or provider setup', async () => {
@@ -672,6 +687,7 @@ describe('Person A provenance local live simulation and raw-only replay', () => 
       },
     });
     expect(result.manifest.offline_reproduction_command).toContain('--case-id dry_run_002');
+    expect(result.manifest.offline_reproduction_command).toContain('--run-manifest');
     expect(await readFile(artifactPath(result.outputDir, 'raw-response'), 'utf8')).toBe(body);
     for (const reference of Object.values(result.manifest.artifacts)) {
       if (!reference) continue;
@@ -704,6 +720,7 @@ describe('Person A provenance local live simulation and raw-only replay', () => 
       outputDir: replayOutput,
       rawResponsePath: artifactPath(live.outputDir, 'raw-response'),
       requestMetadataPath: artifactPath(live.outputDir, 'request'),
+      sourceManifestPath: artifactPath(live.outputDir, 'run-manifest'),
       repository,
     });
     expect(fetchMock).not.toHaveBeenCalled();
@@ -722,6 +739,63 @@ describe('Person A provenance local live simulation and raw-only replay', () => 
     expect(replay.manifest.artifacts.raw_response!.sha256).toBe(
       live.manifest.artifacts.raw_response!.sha256,
     );
+    expect(replay.manifest.replay_source?.run_manifest.sha256).toBe(
+      sha256(await readFile(artifactPath(live.outputDir, 'run-manifest'), 'utf8')),
+    );
+  });
+
+  it('rejects raw response and request metadata swapped across separate live runs', async () => {
+    const firstBody = await successfulRawBody('dry_run_002');
+    const secondPayload = JSON.parse(firstBody) as JsonObject;
+    secondPayload.id = 'resp_fake_dry_run_002_second';
+    const secondBody = JSON.stringify(secondPayload);
+    const first = await runLive('first-bound-run', clientForBody(firstBody));
+    const second = await runLive('second-bound-run', clientForBody(secondBody), {
+      model: 'gpt-5.6-variant',
+      requestTimestamp: '2026-07-29T06:00:00.000Z',
+    });
+
+    await expect(
+      replayPersonAProvenance({
+        caseId: 'dry_run_002',
+        outputDir: await temporaryDirectory('swapped-replay-inputs'),
+        rawResponsePath: artifactPath(first.outputDir, 'raw-response'),
+        requestMetadataPath: artifactPath(second.outputDir, 'request'),
+        sourceManifestPath: artifactPath(first.outputDir, 'run-manifest'),
+        repository,
+      }),
+    ).rejects.toThrow(/does not (?:match|bind).*request metadata/i);
+
+    await expect(
+      replayPersonAProvenance({
+        caseId: 'dry_run_002',
+        outputDir: await temporaryDirectory('swapped-raw-response'),
+        rawResponsePath: artifactPath(second.outputDir, 'raw-response'),
+        requestMetadataPath: artifactPath(first.outputDir, 'request'),
+        sourceManifestPath: artifactPath(first.outputDir, 'run-manifest'),
+        repository,
+      }),
+    ).rejects.toThrow(/does not bind the supplied raw response/i);
+  });
+
+  it('permits replay from an explicitly represented detached exact-SHA checkout', async () => {
+    const live = await runLive(
+      'detached-replay-source',
+      clientForBody(await successfulRawBody('dry_run_002')),
+    );
+    const replay = await replayPersonAProvenance({
+      caseId: 'dry_run_002',
+      outputDir: await temporaryDirectory('detached-replay'),
+      rawResponsePath: artifactPath(live.outputDir, 'raw-response'),
+      requestMetadataPath: artifactPath(live.outputDir, 'request'),
+      sourceManifestPath: artifactPath(live.outputDir, 'run-manifest'),
+      repository: { ...repository, branch: explicitRepositoryBranch('') },
+    });
+
+    expect(replay.manifest.repository).toMatchObject({
+      sha: repository.sha,
+      branch: '(detached HEAD)',
+    });
   });
 
   it('fails replay when frozen metadata names another golden identity', async () => {
@@ -739,6 +813,7 @@ describe('Person A provenance local live simulation and raw-only replay', () => 
         outputDir: await temporaryDirectory('mismatched-metadata-replay'),
         rawResponsePath: artifactPath(live.outputDir, 'raw-response'),
         requestMetadataPath: mismatched,
+        sourceManifestPath: artifactPath(live.outputDir, 'run-manifest'),
         repository,
       }),
     ).rejects.toThrow(/golden identity/i);
@@ -759,6 +834,7 @@ describe('Person A provenance local live simulation and raw-only replay', () => 
         outputDir: await temporaryDirectory('mismatched-provider-replay'),
         rawResponsePath: artifactPath(live.outputDir, 'raw-response'),
         requestMetadataPath: mismatched,
+        sourceManifestPath: artifactPath(live.outputDir, 'run-manifest'),
         repository,
       }),
     ).rejects.toThrow(/provider configuration/i);
@@ -774,6 +850,7 @@ describe('Person A provenance local live simulation and raw-only replay', () => 
         outputDir: await temporaryDirectory('repository-mismatch-replay'),
         rawResponsePath: artifactPath(live.outputDir, 'raw-response'),
         requestMetadataPath: artifactPath(live.outputDir, 'request'),
+        sourceManifestPath: artifactPath(live.outputDir, 'run-manifest'),
         repository: {
           ...repository,
           sha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',

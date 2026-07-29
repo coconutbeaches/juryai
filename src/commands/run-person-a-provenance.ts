@@ -23,6 +23,7 @@ type PersonAProvenanceCommandArgs = {
   requestTimestamp?: string;
   rawResponse?: string;
   requestMetadata?: string;
+  runManifest?: string;
 };
 
 export type RunPersonAProvenanceCommandDependencies = {
@@ -89,6 +90,7 @@ export function parsePersonAProvenanceCommandArgs(argv: string[]): PersonAProven
     '--request-timestamp',
     '--raw-response',
     '--request-metadata',
+    '--run-manifest',
   ]);
   for (let index = 0; index < argv.length; index += 1) {
     const option = argv[index]!;
@@ -133,15 +135,20 @@ export function parsePersonAProvenanceCommandArgs(argv: string[]): PersonAProven
       values.get('--request-metadata')!,
     );
   }
+  if (values.has('--run-manifest')) {
+    parsed.runManifest = resolve(PERSON_A_PROVENANCE_PROJECT_ROOT, values.get('--run-manifest')!);
+  }
 
   if (mode === 'live') {
     if (!parsed.submittedAt) throw new Error('--submitted-at is required in live mode.');
-    if (parsed.rawResponse || parsed.requestMetadata) {
+    if (parsed.rawResponse || parsed.requestMetadata || parsed.runManifest) {
       throw new Error('Live mode does not accept replay artifacts.');
     }
   } else {
-    if (!parsed.rawResponse || !parsed.requestMetadata) {
-      throw new Error('Replay mode requires --raw-response and --request-metadata.');
+    if (!parsed.rawResponse || !parsed.requestMetadata || !parsed.runManifest) {
+      throw new Error(
+        'Replay mode requires --raw-response, --request-metadata, and --run-manifest.',
+      );
     }
     if (parsed.submittedAt || parsed.requestTimestamp) {
       throw new Error('Replay mode reads timestamps from frozen request metadata.');
@@ -157,12 +164,16 @@ function git(args: string[]): string {
   }).trim();
 }
 
+export function explicitRepositoryBranch(branch: string): string {
+  return branch || '(detached HEAD)';
+}
+
 const defaultDependencies: RunPersonAProvenanceCommandDependencies = {
   getEnvironment: (name) => process.env[name],
   now: () => new Date().toISOString(),
   repositoryState: () => ({
     sha: git(['rev-parse', 'HEAD']),
-    branch: git(['branch', '--show-current']),
+    branch: explicitRepositoryBranch(git(['branch', '--show-current'])),
     clean: git(['status', '--porcelain=v1']).length === 0,
   }),
   createClient: (apiKey, baseUrl) => new OpenAIResponsesClient(apiKey, baseUrl),
@@ -181,6 +192,7 @@ export async function runPersonAProvenanceCommand(
       outputDir: args.outputDir,
       rawResponsePath: args.rawResponse!,
       requestMetadataPath: args.requestMetadata!,
+      sourceManifestPath: args.runManifest!,
       repository,
     });
     process.stdout.write(`✓ Person A provenance replay completed: ${result.outputDir}\n`);
