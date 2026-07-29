@@ -397,7 +397,7 @@ describe('OpenAI Responses parsing', () => {
       return {
         ok: true,
         status: 200,
-        json: async () => payload,
+        text: async () => JSON.stringify(payload),
       } as Response;
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -422,7 +422,8 @@ describe('OpenAI Responses parsing', () => {
           ({
             ok: false,
             status: 400,
-            json: async () => ({ error: { message: 'Model gpt-5.6 is not available.' } }),
+            text: async () =>
+              JSON.stringify({ error: { message: 'Model gpt-5.6 is not available.' } }),
           }) as Response,
       ),
     );
@@ -435,5 +436,29 @@ describe('OpenAI Responses parsing', () => {
         reasoningEffort: 'medium',
       }),
     ).rejects.toThrow(/400.*gpt-5\.6.*not available/i);
+  });
+
+  it('returns exact response text from the raw boundary without structured parsing', async () => {
+    const body = '{"preserve before parsing":';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          ({
+            ok: true,
+            status: 200,
+            text: async () => body,
+          }) as Response,
+      ),
+    );
+    const client = new OpenAIResponsesClient('test-key', 'https://example.test/v1');
+
+    await expect(
+      client.requestRaw({
+        narrative: 'Synthetic narrative',
+        model: 'gpt-5.6',
+        reasoningEffort: 'medium',
+      }),
+    ).resolves.toEqual({ status: 200, ok: true, body });
   });
 });
