@@ -382,6 +382,20 @@ describe('Person A provenance case resolution', () => {
         'artifacts/person-a/dry-run-002-replay',
       ]),
     ).toThrow(/run-manifest/i);
+    expect(() =>
+      parsePersonAProvenanceCommandArgs([
+        '--mode',
+        'live',
+        '--case-id',
+        'dry_run_002',
+        '--submitted-at',
+        submittedAt,
+        '--request-timestamp',
+        '2000-01-01T00:00:00Z',
+        '--output-dir',
+        'artifacts/person-a/dry-run-002-live',
+      ]),
+    ).toThrow(/Unknown option: --request-timestamp/i);
   });
 
   it('rejects symlinked output components before credentials or provider setup', async () => {
@@ -469,6 +483,7 @@ describe('Person A provenance case resolution', () => {
 
     expect(client.calls).toBe(1);
     const manifest = await json(artifactPath(outputDir, 'run-manifest'));
+    expect(manifest.request.request_timestamp).toBe(requestTimestamp);
     expect(manifest.request.provider_endpoint_sha256).toBe(endpointIdentity.sha256);
     expect(await allFileContents(outputDir)).not.toContain(endpointIdentity.endpoint);
   });

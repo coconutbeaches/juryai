@@ -41,6 +41,8 @@ The command:
 
 There is no retry or fallback path. A raw-write failure stops before parsing. A later failure keeps
 the raw response and writes a structured, secret-free failure artifact and partial manifest.
+Live mode records the request timestamp from the command's observed clock; callers cannot override
+it with a CLI argument.
 
 `OPENAI_API_KEY` is the only credential variable recorded, and only its name is serialized. The
 exact canonical Responses endpoint is bound as a SHA-256 identity so an `OPENAI_BASE_URL` override

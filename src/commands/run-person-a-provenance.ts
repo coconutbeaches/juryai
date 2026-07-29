@@ -24,7 +24,6 @@ type PersonAProvenanceCommandArgs = {
   model: string;
   reasoningEffort: 'low' | 'medium' | 'high';
   submittedAt?: string;
-  requestTimestamp?: string;
   rawResponse?: string;
   requestMetadata?: string;
   runManifest?: string;
@@ -91,7 +90,6 @@ export function parsePersonAProvenanceCommandArgs(argv: string[]): PersonAProven
     '--model',
     '--reasoning-effort',
     '--submitted-at',
-    '--request-timestamp',
     '--raw-response',
     '--request-metadata',
     '--run-manifest',
@@ -127,9 +125,6 @@ export function parsePersonAProvenanceCommandArgs(argv: string[]): PersonAProven
     reasoningEffort: reasoningEffort as 'low' | 'medium' | 'high',
   };
   if (values.has('--submitted-at')) parsed.submittedAt = values.get('--submitted-at');
-  if (values.has('--request-timestamp')) {
-    parsed.requestTimestamp = values.get('--request-timestamp');
-  }
   if (values.has('--raw-response')) {
     parsed.rawResponse = resolve(PERSON_A_PROVENANCE_PROJECT_ROOT, values.get('--raw-response')!);
   }
@@ -154,7 +149,7 @@ export function parsePersonAProvenanceCommandArgs(argv: string[]): PersonAProven
         'Replay mode requires --raw-response, --request-metadata, and --run-manifest.',
       );
     }
-    if (parsed.submittedAt || parsed.requestTimestamp) {
+    if (parsed.submittedAt) {
       throw new Error('Replay mode reads timestamps from frozen request metadata.');
     }
   }
@@ -215,7 +210,7 @@ export async function runPersonAProvenanceCommand(
     caseId: args.caseId,
     outputDir: args.outputDir,
     submittedAt: args.submittedAt!,
-    requestTimestamp: args.requestTimestamp ?? dependencies.now(),
+    requestTimestamp: dependencies.now(),
     model: args.model,
     reasoningEffort: args.reasoningEffort,
     providerEndpointSha256: endpointIdentity.sha256,
