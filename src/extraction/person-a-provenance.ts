@@ -672,6 +672,7 @@ export async function runLivePersonAProvenance(
     stage = 'raw_persistence';
     await writer.writeNew(paths.rawResponse, rawResult.body);
     manifest.artifacts.raw_response = artifactReference(paths.rawResponse, rawResult.body);
+    manifest.provider_response = providerMetadata({}, rawResult);
     manifest.status = 'raw_preserved';
     await writeManifest(writer, paths.manifest, manifest);
 

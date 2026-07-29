@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { lstat } from 'node:fs/promises';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { OpenAIResponsesClient } from '../extraction/openai-responses.js';
@@ -50,6 +51,30 @@ function resolveOutputDirectory(value: string): string {
     throw new Error('--output-dir must be a new directory below artifacts/.');
   }
   return outputDir;
+}
+
+async function assertNoSymlinkedOutputComponents(outputDir: string): Promise<void> {
+  const artifactsRoot = resolve(PERSON_A_PROVENANCE_PROJECT_ROOT, 'artifacts');
+  const fromArtifacts = relative(artifactsRoot, outputDir);
+  const components = fromArtifacts.split(sep);
+  const paths = [
+    artifactsRoot,
+    ...components.map((_, index) => resolve(artifactsRoot, ...components.slice(0, index + 1))),
+  ];
+  for (const path of paths) {
+    try {
+      const status = await lstat(path);
+      if (status.isSymbolicLink()) {
+        throw new Error('--output-dir must not contain a symbolic link.');
+      }
+      if (path !== outputDir && !status.isDirectory()) {
+        throw new Error('--output-dir parent components must be directories.');
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return;
+      throw error;
+    }
+  }
 }
 
 export function parsePersonAProvenanceCommandArgs(argv: string[]): PersonAProvenanceCommandArgs {
@@ -148,6 +173,7 @@ export async function runPersonAProvenanceCommand(
   dependencies: RunPersonAProvenanceCommandDependencies = defaultDependencies,
 ): Promise<void> {
   const args = parsePersonAProvenanceCommandArgs(argv);
+  await assertNoSymlinkedOutputComponents(args.outputDir);
   const repository = dependencies.repositoryState();
   if (args.mode === 'replay') {
     const result = await replayPersonAProvenance({

@@ -13,7 +13,7 @@ import {
   OpenAIResponsesClient,
   type StructuredExtractionClient,
 } from '../extraction/openai-responses.js';
-import { personAProvenanceCaseIdForInputPath } from '../extraction/person-a-provenance-cases.js';
+import { personAProvenanceCaseIdForNarrative } from '../extraction/person-a-provenance-cases.js';
 import { validatePersonAExtraction } from '../extraction/validate-person-a-corrected.js';
 
 export type ExtractPersonACommandArgs = {
@@ -96,7 +96,7 @@ export async function runExtractPersonACommand(
 ): Promise<void> {
   const args = parseExtractPersonAArgs(argv);
   const narrative = await readFile(args.input, 'utf8');
-  const provenanceCaseId = personAProvenanceCaseIdForInputPath(args.input);
+  const provenanceCaseId = personAProvenanceCaseIdForNarrative(narrative);
   if (provenanceCaseId === 'dry_run_002') {
     throw new Error(
       'Dry Run 002 must use npm run provenance:person-a so its raw response and case-specific golden are preserved safely.',

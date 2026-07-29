@@ -177,13 +177,12 @@ export async function resolvePersonAProvenanceCase(
   };
 }
 
-export function personAProvenanceCaseIdForInputPath(
-  inputPath: string,
-  projectRoot = PERSON_A_PROVENANCE_PROJECT_ROOT,
+export function personAProvenanceCaseIdForNarrative(
+  narrative: string,
 ): PersonAProvenanceCaseId | null {
-  const absoluteInput = resolve(inputPath);
+  const narrativeSha256 = sha256Bytes(narrative);
   for (const definition of Object.values(PERSON_A_PROVENANCE_CASES)) {
-    if (resolve(projectRoot, definition.narrativePath) === absoluteInput) return definition.caseId;
+    if (definition.narrativeSha256 === narrativeSha256) return definition.caseId;
   }
   return null;
 }

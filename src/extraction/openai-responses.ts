@@ -82,6 +82,7 @@ export class OpenAIResponsesClient
   async requestRaw(request: StructuredExtractionRequest): Promise<RawStructuredExtractionResult> {
     const response = await fetch(`${this.baseUrl}/responses`, {
       method: 'POST',
+      redirect: 'manual',
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
         'Content-Type': 'application/json',

@@ -1,5 +1,14 @@
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, readdir, rm, unlink, writeFile } from 'node:fs/promises';
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  symlink,
+  unlink,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -13,6 +22,7 @@ import {
 } from '../extraction/person-a-provenance.js';
 import {
   PERSON_A_PROVENANCE_CASES,
+  PERSON_A_PROVENANCE_PROJECT_ROOT,
   resolvePersonAProvenanceCase,
   type PersonAProvenanceCaseDefinition,
   type PersonAProvenanceCaseId,
@@ -25,7 +35,11 @@ import {
   runExtractPersonACommand,
   type ExtractPersonACommandDependencies,
 } from '../commands/extract-person-a.js';
-import { parsePersonAProvenanceCommandArgs } from '../commands/run-person-a-provenance.js';
+import {
+  parsePersonAProvenanceCommandArgs,
+  runPersonAProvenanceCommand,
+  type RunPersonAProvenanceCommandDependencies,
+} from '../commands/run-person-a-provenance.js';
 
 type JsonObject = Record<string, any>;
 
@@ -240,6 +254,68 @@ describe('Person A provenance case resolution', () => {
     expect(calls).toEqual([]);
   });
 
+  it('blocks an identical Dry Run 002 copy in the legacy command', async () => {
+    const selected = await resolvePersonAProvenanceCase('dry_run_002');
+    const copiedRoot = await mkdtemp(resolve(tmpdir(), 'juryai-dry-run-002-copy-'));
+    cleanupDirectories.push(copiedRoot);
+    const copiedNarrative = resolve(copiedRoot, 'renamed-input.txt');
+    await writeFile(copiedNarrative, selected.narrative);
+    const calls: string[] = [];
+    const dependencies: ExtractPersonACommandDependencies = {
+      getEnvironment(name) {
+        calls.push(`environment:${name}`);
+        return undefined;
+      },
+      createClient() {
+        calls.push('client');
+        throw new Error('must not create a provider client');
+      },
+      async extract() {
+        calls.push('extract');
+        throw new Error('must not invoke extraction');
+      },
+    };
+
+    await expect(
+      runExtractPersonACommand(
+        ['--input', copiedNarrative, '--output-dir', resolve(copiedRoot, 'legacy-output')],
+        dependencies,
+      ),
+    ).rejects.toThrow(/must use npm run provenance:person-a/i);
+    expect(calls).toEqual([]);
+  });
+
+  it('blocks a symlink to Dry Run 002 in the legacy command', async () => {
+    const selected = await resolvePersonAProvenanceCase('dry_run_002');
+    const linkedRoot = await mkdtemp(resolve(tmpdir(), 'juryai-dry-run-002-link-'));
+    cleanupDirectories.push(linkedRoot);
+    const linkedNarrative = resolve(linkedRoot, 'renamed-input.txt');
+    await symlink(selected.narrativeAbsolutePath, linkedNarrative);
+    const calls: string[] = [];
+    const dependencies: ExtractPersonACommandDependencies = {
+      getEnvironment(name) {
+        calls.push(`environment:${name}`);
+        return undefined;
+      },
+      createClient() {
+        calls.push('client');
+        throw new Error('must not create a provider client');
+      },
+      async extract() {
+        calls.push('extract');
+        throw new Error('must not invoke extraction');
+      },
+    };
+
+    await expect(
+      runExtractPersonACommand(
+        ['--input', linkedNarrative, '--output-dir', resolve(linkedRoot, 'legacy-output')],
+        dependencies,
+      ),
+    ).rejects.toThrow(/must use npm run provenance:person-a/i);
+    expect(calls).toEqual([]);
+  });
+
   it('requires live repository provenance to be clean before provider invocation', async () => {
     const client = clientForBody(await successfulRawBody('dry_run_002'));
     await expect(
@@ -276,6 +352,51 @@ describe('Person A provenance case resolution', () => {
       ]).outputDir,
     ).toContain('/artifacts/person-a/dry-run-002-live');
   });
+
+  it('rejects symlinked output components before credentials or provider setup', async () => {
+    const artifactsRoot = resolve(PERSON_A_PROVENANCE_PROJECT_ROOT, 'artifacts');
+    await mkdir(artifactsRoot, { recursive: true });
+    const linkedRoot = await mkdtemp(resolve(artifactsRoot, 'provenance-output-link-'));
+    const outsideRoot = await mkdtemp(resolve(tmpdir(), 'juryai-provenance-output-outside-'));
+    cleanupDirectories.push(linkedRoot, outsideRoot);
+    await symlink(outsideRoot, resolve(linkedRoot, 'escape'));
+    const calls: string[] = [];
+    const dependencies: RunPersonAProvenanceCommandDependencies = {
+      getEnvironment(name) {
+        calls.push(`environment:${name}`);
+        return undefined;
+      },
+      now() {
+        calls.push('now');
+        return requestTimestamp;
+      },
+      repositoryState() {
+        calls.push('repository');
+        return repository;
+      },
+      createClient() {
+        calls.push('client');
+        throw new Error('must not create a provider client');
+      },
+    };
+
+    await expect(
+      runPersonAProvenanceCommand(
+        [
+          '--mode',
+          'live',
+          '--case-id',
+          'dry_run_002',
+          '--submitted-at',
+          submittedAt,
+          '--output-dir',
+          resolve(linkedRoot, 'escape', 'run'),
+        ],
+        dependencies,
+      ),
+    ).rejects.toThrow(/symbolic link/i);
+    expect(calls).toEqual([]);
+  });
 });
 
 describe('Person A provenance raw-first and call-count guarantees', () => {
@@ -307,6 +428,33 @@ describe('Person A provenance raw-first and call-count guarantees', () => {
           path: 'dry_run_002.person_a.raw-response.json',
         },
       },
+    });
+    expect(client.calls).toBe(1);
+  });
+
+  it('records a known HTTP status when a provider error body is not JSON', async () => {
+    const body = '<html>Bad gateway</html>';
+    const client = new FakeRawClient({ status: 502, ok: false, body });
+    const outputDir = await temporaryDirectory('non-json-http-failure');
+    await expect(
+      runLivePersonAProvenance({
+        caseId: 'dry_run_002',
+        outputDir,
+        submittedAt,
+        requestTimestamp,
+        model: 'gpt-5.6',
+        reasoningEffort: 'medium',
+        repository,
+        client,
+      }),
+    ).rejects.toThrow(/not valid JSON/i);
+    expect(await readFile(artifactPath(outputDir, 'raw-response'), 'utf8')).toBe(body);
+    expect(await json(artifactPath(outputDir, 'run-manifest'))).toMatchObject({
+      status: 'failed',
+      provider_response: { http_status: 502 },
+      failure: { stage: 'response_parse' },
+      provider_call_count: 1,
+      retry_count: 0,
     });
     expect(client.calls).toBe(1);
   });

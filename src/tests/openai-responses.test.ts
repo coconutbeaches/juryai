@@ -394,6 +394,7 @@ describe('OpenAI Responses parsing', () => {
       expect(body.instructions).toContain('Do not create an evidence object from a belief');
       expect(body.text.format.type).toBe('json_schema');
       expect(body.text.format.strict).toBe(true);
+      expect(init?.redirect).toBe('manual');
       return {
         ok: true,
         status: 200,
@@ -412,6 +413,29 @@ describe('OpenAI Responses parsing', () => {
     expect(fetchMock).toHaveBeenCalledOnce();
     expect(result.output).toEqual(structuredOutput);
     expect(result.rawResponse).toEqual(payload);
+  });
+
+  it('does not follow provider redirects at the one-call boundary', async () => {
+    const fetchMock = vi.fn(
+      async (_input: unknown, _init?: RequestInit) =>
+        ({
+          ok: false,
+          status: 307,
+          text: async () => 'redirect refused',
+        }) as Response,
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const client = new OpenAIResponsesClient('test-key', 'https://example.test/v1');
+
+    const result = await client.requestRaw({
+      narrative: 'Synthetic narrative',
+      model: 'gpt-5.6',
+      reasoningEffort: 'medium',
+    });
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ redirect: 'manual' });
+    expect(result).toEqual({ status: 307, ok: false, body: 'redirect refused' });
   });
 
   it('fails loudly when the configured model is invalid', async () => {
