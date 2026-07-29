@@ -43,10 +43,6 @@ const frozenRepresentations = {
     extractedRecordSha256: '42d90ed9c3805af375ee0c12ba515bd2ae49bc2ac45b83adc3769b936ce12a37',
     goldenRecordSha256: '27d5ce5fd95e7a8fee3a64aae8c068ba7e894118d3a9c7f036d6f51631f7f8a2',
   },
-  outcome: {
-    extractedRecordSha256: '2513daa8d2ed1fef51bb44e4b6e14f1b35ff71237740ab09f8598da5341308e4',
-    goldenRecordSha256: 'fd37b50412fb657cf10b1c8f833cef61debf4c94f6943805b25deefc81ea9759',
-  },
   sourceClaim: {
     extractedRecordSha256: '9512e792b1db5df09e73b9e0afc500f567a83f16d1a8f4bd37c95d03130b045f',
     goldenRecordSha256: '2f52fd6d00c7eae617307136ec859e32ac0094d779a181ef026d49fc4193ec69',
@@ -189,11 +185,6 @@ function exactSingletonAmountRange(item: JsonObject): bigint | null {
   const minimum = exactMinorUnits(ownDataValue(item, 'amount_min'));
   const maximum = exactMinorUnits(ownDataValue(item, 'amount_max'));
   return minimum !== null && maximum !== null && minimum === maximum ? minimum : null;
-}
-
-function exactSingletonTransfer(item: JsonObject): JsonObject | null {
-  const transfers = denseDataArray(ownDataValue(item, 'transfers'));
-  return transfers?.length === 1 ? plainDataObject(transfers[0]) : null;
 }
 
 function exactSourceSpans(item: JsonObject, narrative: string): ExactSourceSpan[] | null {
@@ -349,87 +340,11 @@ export function proveDryRun002DamageIdentity(
   return { amountMinorUnits: extractedAmount, currency: extractedCurrency, sourceSpan };
 }
 
-export function proveDryRun002OutcomeIdentity(
-  extractedRecordValue: unknown,
-  goldenRecordValue: unknown,
-  extractedOutcomeValue: unknown,
-  goldenOutcomeValue: unknown,
-  narrativeValue?: unknown,
-): MonetaryIdentityProof | null {
-  const extractedRecord = plainDataObject(extractedRecordValue);
-  const goldenRecord = plainDataObject(goldenRecordValue);
-  const extractedOutcome = plainDataObject(extractedOutcomeValue);
-  const goldenOutcome = plainDataObject(goldenOutcomeValue);
-  if (
-    extractedRecord === null ||
-    goldenRecord === null ||
-    extractedOutcome === null ||
-    goldenOutcome === null ||
-    structuredMonetaryRecordFingerprint(extractedOutcome) !==
-      frozenRepresentations.outcome.extractedRecordSha256 ||
-    structuredMonetaryRecordFingerprint(goldenOutcome) !==
-      frozenRepresentations.outcome.goldenRecordSha256
-  ) {
-    return null;
-  }
-
-  const narrative = exactNarrative(extractedRecord, goldenRecord, narrativeValue);
-  const sourceSpan =
-    narrative === null ? null : sameExactGrounding(extractedRecord, goldenRecord, narrative);
-  const extractedTransfer = exactSingletonTransfer(extractedOutcome);
-  const goldenTransfer = exactSingletonTransfer(goldenOutcome);
-  const extractedAmount =
-    extractedTransfer === null ? null : exactMinorUnits(ownDataValue(extractedTransfer, 'amount'));
-  const goldenAmount =
-    goldenTransfer === null ? null : exactMinorUnits(ownDataValue(goldenTransfer, 'amount'));
-  const extractedCurrency =
-    extractedTransfer === null ? null : exactCurrency(ownDataValue(extractedTransfer, 'currency'));
-  const goldenCurrency =
-    goldenTransfer === null ? null : exactCurrency(ownDataValue(goldenTransfer, 'currency'));
-  const extractedDesiredOutcomes = plainDataObject(
-    ownDataValue(extractedRecord, 'desired_outcomes'),
-  );
-  const goldenDesiredOutcomes = plainDataObject(ownDataValue(goldenRecord, 'desired_outcomes'));
-  if (
-    sourceSpan === null ||
-    extractedTransfer === null ||
-    goldenTransfer === null ||
-    extractedAmount === null ||
-    extractedAmount !== goldenAmount ||
-    exactSourceUsdMinorUnits(sourceSpan.quote) !== extractedAmount ||
-    extractedCurrency === null ||
-    extractedCurrency !== goldenCurrency ||
-    ownDataValue(extractedTransfer, 'from_party_id') !==
-      ownDataValue(goldenTransfer, 'from_party_id') ||
-    ownDataValue(extractedTransfer, 'to_party_id') !==
-      ownDataValue(goldenTransfer, 'to_party_id') ||
-    ownDataValue(extractedOutcome, 'priority') !== ownDataValue(goldenOutcome, 'priority') ||
-    ownDataValue(extractedOutcome, 'outcome_type') !== 'mixed' ||
-    ownDataValue(goldenOutcome, 'outcome_type') !== 'payment' ||
-    extractedDesiredOutcomes === null ||
-    goldenDesiredOutcomes === null ||
-    ownDataValue(extractedDesiredOutcomes, 'party_id') !==
-      ownDataValue(goldenDesiredOutcomes, 'party_id')
-  ) {
-    return null;
-  }
-  return { amountMinorUnits: extractedAmount, currency: extractedCurrency, sourceSpan };
-}
-
-function joinStrings(value: unknown): string {
-  const entries = denseDataArray(value);
-  return entries === null
-    ? ''
-    : entries.filter((item): item is string => typeof item === 'string').join(' ');
-}
-
 function recoverUniquePair(
   alignment: PersonAAlignment,
-  family: 'damages' | 'outcomes',
   extractedItems: JsonObject[],
   goldenItems: JsonObject[],
   candidates: Candidate[],
-  idKey: 'damages_claim_id' | 'outcome_id',
 ): void {
   if (candidates.length !== 1) return;
   const candidate = candidates[0]!;
@@ -438,25 +353,26 @@ function recoverUniquePair(
   if (
     extracted === undefined ||
     golden === undefined ||
-    typeof extracted[idKey] !== 'string' ||
-    typeof golden[idKey] !== 'string'
+    typeof extracted.damages_claim_id !== 'string' ||
+    typeof golden.damages_claim_id !== 'string'
   ) {
     return;
   }
   const pair: MonetaryRecoveryPair = {
     extracted_index: candidate.extractedIndex,
     golden_index: candidate.goldenIndex,
-    extracted_id: extracted[idKey],
-    golden_id: golden[idKey],
+    extracted_id: extracted.damages_claim_id,
+    golden_id: golden.damages_claim_id,
     score: candidate.score,
     margin: candidate.score,
     recovery_reason: 'exact_structured_monetary_identity',
   };
-  alignment.families[family].pairs.push(pair);
-  alignment.families[family].unmatched_extracted = alignment.families[
-    family
-  ].unmatched_extracted.filter((item) => item.index !== candidate.extractedIndex);
-  alignment.families[family].unmatched_golden = alignment.families[family].unmatched_golden.filter(
+  alignment.families.damages.pairs.push(pair);
+  alignment.families.damages.unmatched_extracted =
+    alignment.families.damages.unmatched_extracted.filter(
+      (item) => item.index !== candidate.extractedIndex,
+    );
+  alignment.families.damages.unmatched_golden = alignment.families.damages.unmatched_golden.filter(
     (item) => item.index !== candidate.goldenIndex,
   );
 }
@@ -493,45 +409,5 @@ export function recoverDryRun002StructuredMonetaryIdentity(
       });
     }
   }
-  recoverUniquePair(
-    alignment,
-    'damages',
-    extractedDamages,
-    goldenDamages,
-    damageCandidates,
-    'damages_claim_id',
-  );
-
-  const extractedOutcomes = familyItems(extracted, 'outcomes');
-  const goldenOutcomes = familyItems(golden, 'outcomes');
-  const outcomeCandidates: Candidate[] = [];
-  for (const extra of alignment.families.outcomes.unmatched_extracted) {
-    for (const missing of alignment.families.outcomes.unmatched_golden) {
-      const left = extractedOutcomes[extra.index];
-      const right = goldenOutcomes[missing.index];
-      const proof = proveDryRun002OutcomeIdentity(extracted, golden, left, right, narrative);
-      if (proof === null || left === undefined || right === undefined) continue;
-      outcomeCandidates.push({
-        extractedIndex: extra.index,
-        goldenIndex: missing.index,
-        score:
-          0.35 +
-          0.4 *
-            semanticSimilarity(
-              joinStrings(left.required_actions),
-              joinStrings(right.required_actions),
-              aliases,
-            ) +
-          0.25 * semanticSimilarity(left.rationale, right.rationale, aliases),
-      });
-    }
-  }
-  recoverUniquePair(
-    alignment,
-    'outcomes',
-    extractedOutcomes,
-    goldenOutcomes,
-    outcomeCandidates,
-    'outcome_id',
-  );
+  recoverUniquePair(alignment, extractedDamages, goldenDamages, damageCandidates);
 }

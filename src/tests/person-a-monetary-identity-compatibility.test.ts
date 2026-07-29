@@ -8,7 +8,6 @@ import {
 } from '../alignment/person-a-alignment-corrected.js';
 import {
   proveDryRun002DamageIdentity,
-  proveDryRun002OutcomeIdentity,
   structuredMonetaryRecordFingerprint,
 } from '../alignment/person-a-monetary-identity-compatibility.js';
 import { evaluatePersonAForCase } from '../evaluation/person-a-diff-corrected.js';
@@ -183,13 +182,12 @@ function monetaryErrors(report: ReturnType<typeof evaluate>): JsonObject[] {
   return report.errors.filter((error) => ['damages', 'outcomes'].includes(error.family));
 }
 
-function alignedFamily(
+function alignedDamages(
   mutate: (records: { extracted: JsonObject; golden: JsonObject }) => void,
-  family: 'damages' | 'outcomes',
 ): number {
   const records = frozenRecords();
   mutate(records);
-  return alignPersonAForCase(records.extracted, records.golden, options).families[family].pairs
+  return alignPersonAForCase(records.extracted, records.golden, options).families.damages.pairs
     .length;
 }
 
@@ -244,16 +242,12 @@ describe('Dry Run 002 structured monetary identity compatibility', () => {
         recovery_reason: 'exact_structured_monetary_identity',
       },
     ]);
-    expect(alignment.families.outcomes.pairs).toEqual([
-      {
-        extracted_index: 0,
-        golden_index: 0,
-        extracted_id: 'outcome_payment_1',
-        golden_id: 'out_dry_run_002',
-        score: 0.6150381198747963,
-        margin: 0.6150381198747963,
-        recovery_reason: 'exact_structured_monetary_identity',
-      },
+    expect(alignment.families.outcomes.pairs).toEqual([]);
+    expect(alignment.families.outcomes.unmatched_extracted).toEqual([
+      { index: 0, id: 'outcome_payment_1' },
+    ]);
+    expect(alignment.families.outcomes.unmatched_golden).toEqual([
+      { index: 0, id: 'out_dry_run_002' },
     ]);
     expect(monetaryErrors(report)).toEqual([
       {
@@ -265,30 +259,30 @@ describe('Dry Run 002 structured monetary identity compatibility', () => {
         golden_id: 'dam_dry_run_002',
       },
       {
-        severity: 'major',
+        severity: 'critical',
         family: 'outcomes',
-        code: 'outcome_type',
-        message: 'Requested-outcome type differs.',
-        extracted_id: 'outcome_payment_1',
+        code: 'missing_golden_object',
+        message: 'Golden object was not extracted.',
         golden_id: 'out_dry_run_002',
+      },
+      {
+        severity: 'critical',
+        family: 'outcomes',
+        code: 'unsupported_extra_object',
+        message:
+          'Extracted object has no supported golden match and is a fabrication hard failure.',
+        extracted_id: 'outcome_payment_1',
       },
     ]);
   });
 
-  it('proves exact integer money, category, causal anchor, transfer direction, and source containment', () => {
+  it('proves exact integer money, unpaid-balance category, causal anchor, and source containment', () => {
     const { extracted, golden } = frozenRecords();
     const damage = proveDryRun002DamageIdentity(
       extracted,
       golden,
       extracted.damages_claims[0],
       golden.damages_claims[0],
-      narrative,
-    );
-    const outcome = proveDryRun002OutcomeIdentity(
-      extracted,
-      golden,
-      extracted.desired_outcomes.outcomes[0],
-      golden.desired_outcomes.outcomes[0],
       narrative,
     );
 
@@ -302,7 +296,6 @@ describe('Dry Run 002 structured monetary identity compatibility', () => {
       },
     };
     expect(damage).toEqual(expectedProof);
-    expect(outcome).toEqual(expectedProof);
     expect(narrative.slice(sourceSpan.start_char, sourceSpan.end_char)).toBe(sourceQuote);
   });
 
@@ -390,62 +383,24 @@ describe('Dry Run 002 structured monetary identity compatibility', () => {
       },
     ],
   ])('does not align damages with the same nominal amount but %s', (_label, mutate) => {
-    expect(alignedFamily(mutate as (records: any) => void, 'damages')).toBe(0);
+    expect(alignedDamages(mutate as (records: any) => void)).toBe(0);
   });
 
-  it.each([
-    [
-      'unsupported outcome type',
-      (records: { extracted: JsonObject }) => {
-        records.extracted.desired_outcomes.outcomes[0].outcome_type = 'refund';
-      },
-    ],
-    [
-      'different amount',
-      (records: { extracted: JsonObject }) => {
-        records.extracted.desired_outcomes.outcomes[0].transfers[0].amount = 899;
-      },
-    ],
-    [
-      'different currency',
-      (records: { extracted: JsonObject }) => {
-        records.extracted.desired_outcomes.outcomes[0].transfers[0].currency = 'EUR';
-      },
-    ],
-    [
-      'approximate amount',
-      (records: { extracted: JsonObject }) => {
-        records.extracted.desired_outcomes.outcomes[0].transfers[0].amount = 900.001;
-      },
-    ],
-    [
-      'ambiguous multiple transfers',
-      (records: { extracted: JsonObject }) => {
-        records.extracted.desired_outcomes.outcomes[0].transfers.push({
-          from_party_id: 'party_b',
-          to_party_id: 'party_a',
-          amount: 900,
-          currency: 'USD',
-        });
-      },
-    ],
-    [
-      'different transfer direction',
-      (records: { extracted: JsonObject }) => {
-        const transfer = records.extracted.desired_outcomes.outcomes[0].transfers[0];
-        transfer.from_party_id = 'party_a';
-        transfer.to_party_id = 'party_b';
-      },
-    ],
-    [
-      'completed instead of requested payment',
-      (records: { extracted: JsonObject }) => {
-        records.extracted.desired_outcomes.outcomes[0].rationale =
-          'Priya completed the $900 payment.';
-      },
-    ],
-  ])('does not align outcomes with the same nominal amount but %s', (_label, mutate) => {
-    expect(alignedFamily(mutate as (records: any) => void, 'outcomes')).toBe(0);
+  it('leaves the outcome pair unaligned because its delivery/payment order is materially reversed', () => {
+    const records = frozenRecords();
+    const extracted = records.extracted.desired_outcomes.outcomes[0];
+    const golden = records.golden.desired_outcomes.outcomes[0];
+    const alignment = alignPersonAForCase(records.extracted, records.golden, options);
+
+    expect(extracted.outcome_type).toBe('mixed');
+    expect(golden.outcome_type).toBe('payment');
+    expect(extracted.required_actions).toContain(
+      'Priya pays Jordan the remaining $900 after delivery.',
+    );
+    expect(golden.required_actions).toEqual([
+      'Jordan delivers the final two chairs after payment.',
+    ]);
+    expect(alignment.families.outcomes.pairs).toHaveLength(0);
   });
 
   it.each([
@@ -473,12 +428,11 @@ describe('Dry Run 002 structured monetary identity compatibility', () => {
         records.extracted.submission.raw_text = `${narrative}changed`;
       },
     ],
-  ])('fails both families closed for %s', (_label, mutate) => {
+  ])('fails damage recovery closed for %s', (_label, mutate) => {
     const records = frozenRecords();
     mutate(records);
     const alignment = alignPersonAForCase(records.extracted, records.golden, options);
     expect(alignment.families.damages.pairs).toHaveLength(0);
-    expect(alignment.families.outcomes.pairs).toHaveLength(0);
   });
 
   it('fails closed for proxies, accessors, non-plain records, and sparse arrays', () => {
@@ -495,15 +449,7 @@ describe('Dry Run 002 structured monetary identity compatibility', () => {
     expect(getter).not.toHaveBeenCalled();
 
     const nonPlain = Object.assign(Object.create({ inherited: true }), extractedOutcome());
-    expect(
-      proveDryRun002OutcomeIdentity(
-        extracted,
-        golden,
-        nonPlain,
-        golden.desired_outcomes.outcomes[0],
-        narrative,
-      ),
-    ).toBeNull();
+    expect(structuredMonetaryRecordFingerprint(nonPlain)).toBeNull();
 
     const sparse = extractedOutcome();
     sparse.transfers = new Array(2);
@@ -515,16 +461,9 @@ describe('Dry Run 002 structured monetary identity compatibility', () => {
     const records = frozenRecords();
     records.extracted.damages_claims.push(structuredClone(records.extracted.damages_claims[0]));
     records.golden.damages_claims.push(structuredClone(records.golden.damages_claims[0]));
-    records.extracted.desired_outcomes.outcomes.push(
-      structuredClone(records.extracted.desired_outcomes.outcomes[0]),
-    );
-    records.golden.desired_outcomes.outcomes.push(
-      structuredClone(records.golden.desired_outcomes.outcomes[0]),
-    );
     const alignment = alignPersonAForCase(records.extracted, records.golden, options);
 
     expect(alignment.families.damages.pairs).toHaveLength(0);
-    expect(alignment.families.outcomes.pairs).toHaveLength(0);
   });
 
   it('leaves unrelated same-amount damages and outcomes unmatched and visible', () => {
@@ -568,7 +507,7 @@ describe('Dry Run 002 structured monetary identity compatibility', () => {
     );
   });
 
-  it('preserves the causal wording and mixed/payment policy difference without mutating inputs', () => {
+  it('preserves causal wording and the complete unpaired outcome difference without mutation', () => {
     const { extracted, golden } = frozenRecords();
     const beforeExtracted = structuredClone(extracted);
     const beforeGolden = structuredClone(golden);
@@ -579,7 +518,16 @@ describe('Dry Run 002 structured monetary identity compatibility', () => {
     expect(report.errors).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ family: 'damages', code: 'causal_theory' }),
-        expect.objectContaining({ family: 'outcomes', code: 'outcome_type' }),
+        expect.objectContaining({
+          family: 'outcomes',
+          code: 'missing_golden_object',
+          golden_id: 'out_dry_run_002',
+        }),
+        expect.objectContaining({
+          family: 'outcomes',
+          code: 'unsupported_extra_object',
+          extracted_id: 'outcome_payment_1',
+        }),
       ]),
     );
   });
