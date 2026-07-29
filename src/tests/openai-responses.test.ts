@@ -459,6 +459,9 @@ describe('OpenAI Responses parsing', () => {
     expect(first).toEqual(second);
     expect(first.endpoint).toBe('https://proxy.example/v1/responses');
     expect(first.sha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(() => openAIResponsesEndpointIdentity('http://proxy.example/v1')).toThrow(
+      /must use HTTPS/i,
+    );
     expect(() => openAIResponsesEndpointIdentity('https://user:secret@proxy.example/v1')).toThrow(
       /must not contain credentials/i,
     );

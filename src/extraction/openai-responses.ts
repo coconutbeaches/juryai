@@ -48,8 +48,8 @@ export function openAIResponsesEndpointIdentity(
   } catch {
     throw new Error('OPENAI_BASE_URL must be a valid absolute URL.');
   }
-  if (!['https:', 'http:'].includes(parsed.protocol)) {
-    throw new Error('OPENAI_BASE_URL must use HTTP or HTTPS.');
+  if (parsed.protocol !== 'https:') {
+    throw new Error('OPENAI_BASE_URL must use HTTPS.');
   }
   if (parsed.username || parsed.password || parsed.search || parsed.hash) {
     throw new Error('OPENAI_BASE_URL must not contain credentials, a query, or a fragment.');

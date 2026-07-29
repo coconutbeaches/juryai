@@ -472,6 +472,44 @@ describe('Person A provenance case resolution', () => {
     expect(manifest.request.provider_endpoint_sha256).toBe(endpointIdentity.sha256);
     expect(await allFileContents(outputDir)).not.toContain(endpointIdentity.endpoint);
   });
+
+  it('rejects a plaintext provider endpoint before constructing a client or calling it', async () => {
+    const artifactsRoot = resolve(PERSON_A_PROVENANCE_PROJECT_ROOT, 'artifacts');
+    await mkdir(artifactsRoot, { recursive: true });
+    const commandRoot = await mkdtemp(resolve(artifactsRoot, 'provenance-http-endpoint-'));
+    cleanupDirectories.push(commandRoot);
+    let clientCreated = false;
+    const dependencies: RunPersonAProvenanceCommandDependencies = {
+      getEnvironment(name) {
+        if (name === 'OPENAI_API_KEY') return 'test-key';
+        if (name === 'OPENAI_BASE_URL') return 'http://proxy.example/v1';
+        return undefined;
+      },
+      now: () => requestTimestamp,
+      repositoryState: () => repository,
+      createClient() {
+        clientCreated = true;
+        throw new Error('must not construct a provider client');
+      },
+    };
+
+    await expect(
+      runPersonAProvenanceCommand(
+        [
+          '--mode',
+          'live',
+          '--case-id',
+          'dry_run_002',
+          '--submitted-at',
+          submittedAt,
+          '--output-dir',
+          resolve(commandRoot, 'run'),
+        ],
+        dependencies,
+      ),
+    ).rejects.toThrow(/must use HTTPS/i);
+    expect(clientCreated).toBe(false);
+  });
 });
 
 describe('Person A provenance raw-first and call-count guarantees', () => {
