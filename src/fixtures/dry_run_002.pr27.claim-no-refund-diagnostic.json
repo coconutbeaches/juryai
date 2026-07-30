@@ -1,0 +1,420 @@
+{
+  "version": "juryai-pr27-dr002-claim-no-refund-diagnostic-v1",
+  "repository": {
+    "remote": "https://github.com/coconutbeaches/juryai.git",
+    "locked_base_sha": "94d0a98a28a96f89c41e17e851d239a091a5a50c",
+    "previous_pr": 26,
+    "branch": "agent/pr27-dr002-claim-no-refund-diagnostic",
+    "final_head_sha": null,
+    "final_head_sha_policy": "Null by convention: the final head SHA cannot be committed into the commit it names. It is verified externally from the pull request head."
+  },
+  "case": {
+    "case_id": "dry_run_002",
+    "fixture_contract": "calibrated_live_v2",
+    "narrative_path": "src/fixtures/dry_run_002.person_a.txt",
+    "narrative_sha256": "0508bdb60323a32beafaa0b7e7e7ac734cd64a002830fc8eb1ca52e5feda0f86",
+    "narrative_utf16_length": 626,
+    "golden_path": "src/fixtures/dry_run_002.person_a.golden.extraction.json",
+    "golden_sha256": "c56a61eb606c5efbcc8fdd5f364d70a889c9c84b7092784daf2f2b814f265567",
+    "raw_response_sha256": "b6156e7754e28ee5ec9f3a5fa3ca89209b1f9d185b9aff76ba8c246ee5f4f171",
+    "request_metadata_sha256": "798e6cdff6f4462cd57c2d7234f16abb1681b5aa17cd343b505eda127cbb1469",
+    "extraction_sha256": "496ce4938cc04ae65a72efc611e839158dfe7e5ee053d27dc21de96c77a8d076",
+    "validation_sha256": "d3adea256203aaa11bba6b0b151a3b6659e2ed4031878c615b9474884dd733df",
+    "alignment_sha256": "ee015c6efb1fe1bb3ead8625cfddbf1057f11837d2ba5d360169b03312de09a6",
+    "evaluation_sha256": "5a36da589608c2cbb0d44c791b73e4cfed0103c96e887bf65f4da6b140b302e3",
+    "finding_set_sha256": "318488482883a1d82e57ae4d6a9c7f901bc0a5152102a8e7b8e0c12b8feb3a16",
+    "finding_set_serialization": "sha256 of serializePersonAProvenanceJson(orderedFindingIdentities), identity = severity|family|code|extracted_id|golden_id"
+  },
+  "baseline": {
+    "critical": 4,
+    "major": 15,
+    "minor": 15,
+    "total": 34,
+    "acceptance": "pass",
+    "historical_accepted": 0,
+    "historical_total": 3,
+    "controls_accepted": 3,
+    "controls_total": 3,
+    "provider_calls": 0,
+    "retries": 0,
+    "manually_edited": false
+  },
+  "critical_findings": [
+    "critical|deliverables|unsupported_extra_object|deliverable_1|",
+    "critical|claims|unsupported_extra_object|claim_scope_1|",
+    "critical|claims|unsupported_extra_object|claim_payment_term_1|",
+    "critical|claims|unsupported_extra_object|claim_no_refund_1|"
+  ],
+  "after_finding_identities": [
+    "major|agreement_terms|term_wording|term_scope_1|term_dry_run_002",
+    "major|agreement_terms|party_interpretation|term_scope_1|term_dry_run_002",
+    "minor|agreement_terms|agreement_term_decomposition|term_price_1|",
+    "minor|agreement_terms|agreement_term_decomposition|term_deposit_1|",
+    "minor|agreement_terms|agreement_term_decomposition|term_payment_trigger_1|",
+    "critical|deliverables|unsupported_extra_object|deliverable_1|",
+    "major|timeline|actor_specificity|event_agreement_1|tl_002_agreement",
+    "major|timeline|source_grounded_extra_object|event_message_1|",
+    "major|timeline|source_grounded_extra_object|event_scratch_allegation_1|",
+    "major|claims|claim_meaning_distorted|claim_balance_1|cl_002_remedy",
+    "major|claims|claim_type|claim_message_1|cl_002_quote",
+    "major|claims|claim_meaning_distorted|claim_mark_1|cl_002_allegation",
+    "major|claims|against_interest_flag|claim_mark_1|cl_002_allegation",
+    "critical|claims|unsupported_extra_object|claim_scope_1|",
+    "critical|claims|unsupported_extra_object|claim_payment_term_1|",
+    "major|claims|granularity_split|claim_cushion_1|",
+    "major|claims|source_grounded_extra_object|claim_partial_completion_1|",
+    "major|claims|granularity_split|claim_scratch_allegation_1|",
+    "critical|claims|unsupported_extra_object|claim_no_refund_1|",
+    "major|evidence|evidence_identity|evidence_message_1|ev_dry_run_002",
+    "major|evidence|source_grounded_extra_object|evidence_photos_1|",
+    "major|damages|causal_theory|damages_unpaid_balance_1|dam_dry_run_002",
+    "minor|extraction_issues|unmatched_extracted_object|issue_agreement_form_1|",
+    "minor|extraction_issues|unmatched_extracted_object|issue_delivery_trigger_1|",
+    "minor|extraction_issues|unmatched_extracted_object|issue_completion_1|",
+    "minor|extraction_issues|unmatched_extracted_object|issue_photos_1|",
+    "minor|clarification_questions|missing_golden_object||q_dry_run_002_1",
+    "minor|clarification_questions|missing_golden_object||q_dry_run_002_2",
+    "minor|clarification_questions|missing_golden_object||q_dry_run_002_3",
+    "minor|clarification_questions|unmatched_extracted_object|question_agreement_form_1|",
+    "minor|clarification_questions|unmatched_extracted_object|question_delivery_trigger_1|",
+    "minor|clarification_questions|unmatched_extracted_object|question_completion_1|",
+    "minor|clarification_questions|unmatched_extracted_object|question_defects_1|",
+    "minor|clarification_questions|unmatched_extracted_object|question_message_1|"
+  ],
+  "selected": {
+    "stable_identity": "critical|claims|unsupported_extra_object|claim_no_refund_1|",
+    "extracted_id": "claim_no_refund_1",
+    "family": "claims",
+    "root_cause_classification": "evaluator_defect",
+    "confidence": "high",
+    "first_divergent_stage": "evaluator_severity_classification",
+    "behavior_changed_in_pr27": false,
+    "expected_correction_ownership": "evaluator"
+  },
+  "source": {
+    "segment": "S5",
+    "start_char": 514,
+    "end_char": 625,
+    "quote": "I am asking Priya to pay the remaining $900 after I deliver the last two chairs; I am not asking to refund her.",
+    "span_quote_matches_narrative": true,
+    "golden_claim_text_is_byte_identical_to_span": true
+  },
+  "fingerprints": {
+    "extracted_record": "2fc5491efd581ba3104bdcea3095a80ae5eb2c5efc60076362cca35d91aa1e28",
+    "extracted_source_span": "1bc7d3fcbe3398d31c6113f0b8291af21c6a251d105e0fb55ea2ccc387864d2c",
+    "matched_sibling_record": "9512e792b1db5df09e73b9e0afc500f567a83f16d1a8f4bd37c95d03130b045f",
+    "golden_record": "2f52fd6d00c7eae617307136ec859e32ac0094d779a181ef026d49fc4193ec69",
+    "golden_source_span": "10eb145a0635a71c3abd43861c68b8f1bbac2434f1083b840a6cdd7ccdac0654",
+    "claims_alignment": "637af938628d5a770cb2b40216dc1f85668e890550ab14246c7898eb630d2332",
+    "matched_sibling_pair": "582ef3db53443c19579a0c1e588983fa82d1c997aefedbab0fb8be2bf8fe5cc1",
+    "historical_diagnostic": "3f71427b9864f3dd7b33044964ba7996bdb801e861e636eda33d86e76ee59a4d"
+  },
+  "alignment_state": {
+    "target_unmatched": true,
+    "target_unmatched_index": 8,
+    "unmatched_golden_count": 0,
+    "ambiguous_count": 0,
+    "golden_remedy_paired_to": "claim_balance_1",
+    "golden_remedy_pair_score": 0.5106681034482758,
+    "pairing_structurally_impossible": true,
+    "pairing_impossible_reason": "candidateScore returns null for claims whose claim_type differs; extracted claim_type \"refund\" has no golden counterpart, so no similarity value is ever computed.",
+    "golden_claim_types": ["acceptance", "defect", "payment"],
+    "extracted_target_claim_type": "refund"
+  },
+  "evaluator_rule": {
+    "module": "src/evaluation/person-a-diff-corrected.ts",
+    "entry_code": "unmatched_extracted_object",
+    "emitted_identity": "critical|claims|unsupported_extra_object|claim_no_refund_1|",
+    "decision_cascade": [
+      {
+        "predicate": "isAgreementTermDecomposition",
+        "reached": false,
+        "reason": "family is claims, not agreement_terms"
+      },
+      {
+        "predicate": "isMatchedGranularitySplit",
+        "reached": true,
+        "result": false,
+        "span_overlap": 1,
+        "span_overlap_threshold": 0.8,
+        "span_overlap_met": true,
+        "meaning_similarity": 0.314667,
+        "meaning_similarity_threshold": 0.45,
+        "meaning_similarity_met": false,
+        "note": "Sole blocking conjunct is the symmetric similarity threshold; span overlap is maximal."
+      },
+      {
+        "predicate": "isSourceGroundedExtra",
+        "reached": true,
+        "result": false,
+        "party_id_gate_met": true,
+        "grounding_similarity": 0.314667,
+        "grounding_threshold": 0.4,
+        "grounding_threshold_met": false
+      },
+      {
+        "predicate": "fallthrough",
+        "result": "critical unsupported_extra_object"
+      }
+    ]
+  },
+  "similarity_analysis": {
+    "metric": "semanticSimilarity = 0.65 * tokenDice + 0.35 * trigramDice (symmetric set Dice)",
+    "extracted_claim_text": "Jordan is not seeking to refund Priya.",
+    "golden_claim_text": "I am asking Priya to pay the remaining $900 after I deliver the last two chairs; I am not asking to refund her.",
+    "extracted_token_count": 7,
+    "golden_token_count": 17,
+    "shared_tokens": ["not", "priya", "refund", "to"],
+    "extracted_tokens_absent_from_golden": ["is", "jordan", "seeking"],
+    "observed_token_dice": 0.333333,
+    "maximum_attainable_token_dice_under_perfect_lexical_containment": 0.583333,
+    "structural_ceiling_note": "Symmetric Dice between a 7-token faithful component and a 17-token compound golden cannot exceed 0.583 even if every extracted token appeared verbatim. The metric scores resemblance, not entailment or containment."
+  },
+  "semantic_component_analysis": {
+    "actor": {
+      "added": true,
+      "value": "Jordan",
+      "support": "directly_supported",
+      "basis": "First-person narrator; party.display_name is \"Jordan Lee\" in the same submission."
+    },
+    "action": {
+      "added": true,
+      "value": "is not seeking to refund",
+      "support": "directly_supported",
+      "basis": "Source: \"I am not asking to refund her.\" Synonym substitution only."
+    },
+    "object": {
+      "added": true,
+      "value": "Priya",
+      "support": "directly_supported",
+      "basis": "Pronoun \"her\" resolved; Priya Nair is the only antecedent and is named in the same sentence."
+    },
+    "date": {
+      "added": false,
+      "support": "not_applicable"
+    },
+    "amount": {
+      "added": false,
+      "support": "not_applicable"
+    },
+    "condition": {
+      "added": false,
+      "support": "not_applicable"
+    },
+    "obligation": {
+      "added": false,
+      "support": "not_applicable"
+    },
+    "remedy": {
+      "added": true,
+      "value": "negative remedy position",
+      "support": "directly_supported",
+      "basis": "Verbatim in source and verbatim inside the golden claim text."
+    },
+    "refund_rule": {
+      "added": true,
+      "value": "no refund sought",
+      "support": "directly_supported",
+      "basis": "Verbatim in source and verbatim inside the golden claim text."
+    },
+    "legal_conclusion": {
+      "added": false,
+      "support": "not_applicable"
+    },
+    "unsupported_or_inferential_additions": [],
+    "modality_preserved": true,
+    "modality_note": "Source and extraction are both negative present-tense assertions of Person A’s own position. No hedging was added or removed.",
+    "combines_multiple_source_facts": false,
+    "golden_combines_the_same_facts": true,
+    "difference_is_structural_decomposition_not_contradiction": true
+  },
+  "counterfactual": {
+    "description": "Wording-only counterfactual. claim_text is replaced with the source clause verbatim, leaving every other field, the claim_type, and both source spans untouched.",
+    "changed_field": "claims[claim_no_refund_1].claim_text",
+    "from": "Jordan is not seeking to refund Priya.",
+    "to": "I am not asking to refund her.",
+    "resulting_similarity": 0.531984,
+    "alignment_unchanged": true,
+    "before_identity": "critical|claims|unsupported_extra_object|claim_no_refund_1|",
+    "after_identity": "major|claims|granularity_split|claim_no_refund_1|",
+    "before_counts": {
+      "critical": 4,
+      "major": 15,
+      "minor": 15,
+      "total": 34
+    },
+    "after_counts": {
+      "critical": 3,
+      "major": 16,
+      "minor": 15,
+      "total": 34
+    },
+    "entries_changed": 1,
+    "interpretation": "The only variable is surface wording. Resolving \"I\" to \"Jordan\", \"her\" to \"Priya\", and \"asking\" to \"seeking\" — three faithfulness-preserving normalizations — is what pushes the finding from major granularity_split to critical fabrication hard failure."
+  },
+  "competing_explanations_rejected": {
+    "legitimate_unsupported_or_fabricated_extraction": "Rejected. The asserted proposition appears verbatim in the narrative at [514,625) and verbatim inside golden cl_002_remedy.claim_text. No actor, date, amount, condition, obligation, remedy, refund rule, or legal conclusion is introduced beyond the source.",
+    "alignment_defect": "Rejected. candidateScore gates claims on exact claim_type equality. The extracted claim_type \"refund\" has no golden counterpart, so no pairing is computable. cl_002_remedy is legitimately paired to claim_balance_1 at score 0.5107. Forcing a pair would break one-to-one alignment and would hide a real granularity difference.",
+    "golden_policy_defect": "Not proven. cl_002_remedy faithfully mirrors one source sentence. Whether a benchmark golden should decompose a compound remedy sentence into positive and negative components is a benchmark-design question this PR deliberately does not adjudicate.",
+    "extraction_defect": "Rejected as the owner of the critical. The decomposition is a granularity difference for which the evaluator already defines a dedicated non-fatal tier (granularity_split, major). The defect under diagnosis is the severity misclassification, which the evaluator owns."
+  },
+  "candidate_probe": {
+    "claim_scope_1": {
+      "claim_type": "scope",
+      "source_span": {
+        "start_char": 58,
+        "end_char": 200
+      },
+      "grounding_similarity": 0.357588,
+      "grounding_threshold_met": false,
+      "best_same_family_golden": [
+        {
+          "golden_id": "cl_002_quote",
+          "span_overlap": 0,
+          "meaning_similarity": 0.141563
+        },
+        {
+          "golden_id": "cl_002_allegation",
+          "span_overlap": 0,
+          "meaning_similarity": 0.163086
+        },
+        {
+          "golden_id": "cl_002_remedy",
+          "span_overlap": 0,
+          "meaning_similarity": 0.145209
+        }
+      ]
+    },
+    "claim_payment_term_1": {
+      "claim_type": "payment",
+      "source_span": {
+        "start_char": 58,
+        "end_char": 200
+      },
+      "grounding_similarity": 0.386842,
+      "grounding_threshold_met": false,
+      "best_same_family_golden": [
+        {
+          "golden_id": "cl_002_quote",
+          "span_overlap": 0,
+          "meaning_similarity": 0.081377
+        },
+        {
+          "golden_id": "cl_002_allegation",
+          "span_overlap": 0,
+          "meaning_similarity": 0.104955
+        },
+        {
+          "golden_id": "cl_002_remedy",
+          "span_overlap": 0,
+          "meaning_similarity": 0.28734
+        }
+      ]
+    },
+    "claim_no_refund_1": {
+      "claim_type": "refund",
+      "source_span": {
+        "start_char": 514,
+        "end_char": 625
+      },
+      "grounding_similarity": 0.314667,
+      "grounding_threshold_met": false,
+      "best_same_family_golden": [
+        {
+          "golden_id": "cl_002_quote",
+          "span_overlap": 0,
+          "meaning_similarity": 0.103188
+        },
+        {
+          "golden_id": "cl_002_allegation",
+          "span_overlap": 0,
+          "meaning_similarity": 0.123083
+        },
+        {
+          "golden_id": "cl_002_remedy",
+          "span_overlap": 1,
+          "meaning_similarity": 0.314667
+        }
+      ]
+    }
+  },
+  "ranking": [
+    {
+      "rank": 1,
+      "selected": true,
+      "stable_identity": "critical|claims|unsupported_extra_object|claim_no_refund_1|",
+      "rationale": "Only candidate with a same-family golden object at span overlap 1.0 that is already matched. The evaluator’s own granularity_split tier is the designed destination and is blocked by exactly one threshold. Single-variable wording counterfactual isolates the defect with alignment held constant and exactly one finding entry changing.",
+      "direct_source_support": "maximal",
+      "extraction_vs_golden_clarity": "unambiguous same-family containment",
+      "reproducibility": "deterministic and offline",
+      "root_cause_confidence": "high",
+      "correction_blast_radius": "one finding entry",
+      "risk_of_hiding_fabrication": "low",
+      "fail_closed_bindability": "high",
+      "policy_independence": "high"
+    },
+    {
+      "rank": 2,
+      "selected": false,
+      "stable_identity": "critical|claims|unsupported_extra_object|claim_payment_term_1|",
+      "not_selected_because": "Its span [58,200) is covered by no golden claim at all, so span overlap against every golden claim is 0.0 and granularity_split is structurally unreachable regardless of wording. A verbatim-wording counterfactual reaches only source_grounded_extra_object. The residual question — whether S1 payment structure should exist as a golden claim or only cross-family as term_dry_run_002 — is a golden-policy judgment, not an isolable evaluator defect."
+    },
+    {
+      "rank": 3,
+      "selected": false,
+      "stable_identity": "critical|claims|unsupported_extra_object|claim_scope_1|",
+      "not_selected_because": "Same structural situation as claim_payment_term_1 and coupled to it: both decompose the identical S1 span, and both are additionally coupled to deliverable_1 through source_claim_ids. Diagnosing one in isolation would either understate the coupling or require batching multiple criticals, which this PR forbids."
+    },
+    {
+      "rank": 4,
+      "selected": false,
+      "stable_identity": "critical|deliverables|unsupported_extra_object|deliverable_1|",
+      "not_selected_because": "The golden deliverable_assessments family is empty, so no same-family comparison exists at all. Its grounding predicate depends transitively on claim alignment, so its severity is a cascade of the claim criticals rather than an independent condition. Restricting source_claim_ids to the only matched claim still leaves it critical. Highest risk of drawing a false conclusion."
+    }
+  ],
+  "runtime_change_gate": {
+    "behavior_changed": false,
+    "decision": "diagnosis_only",
+    "reason": "The evidence proves the evaluator defect but does not determine the correct replacement tier. The generic evaluator path would yield major granularity_split, while PR #26 established minor agreement_term_decomposition for the structurally analogous consolidated-golden case in the agreement_terms family. Those two live precedents conflict for this object, and choosing between them is a policy decision this PR has not evidenced. Correcting now would silently resolve that conflict.",
+    "recommended_next_action": "A narrowly scoped PR #28 should decide the claims-family tier for a faithful decomposition of a compound matched golden claim, then bind it fail-closed to the frozen fingerprints recorded here, preserving the unmatched object and proving that only this one finding entry changes."
+  },
+  "replays": [
+    {
+      "replay_index": 1,
+      "extraction_source_commit": "c081c1e10427f11125a43976f74d1ce076d4a19c",
+      "extraction_sha256": "496ce4938cc04ae65a72efc611e839158dfe7e5ee053d27dc21de96c77a8d076",
+      "validation_sha256": "d3adea256203aaa11bba6b0b151a3b6659e2ed4031878c615b9474884dd733df",
+      "source_commit_alignment_sha256": "888da6ccd55ce012fec72f42c8a020c70b69ef31003b809ff9e2e3a6360b1eff",
+      "source_commit_evaluation_sha256": "32080c0c21b67a4d04e3561e39ede60c7c09b59cfc4b872dc2bd78fe2e121330",
+      "reevaluated_alignment_sha256": "ee015c6efb1fe1bb3ead8625cfddbf1057f11837d2ba5d360169b03312de09a6",
+      "reevaluated_evaluation_sha256": "5a36da589608c2cbb0d44c791b73e4cfed0103c96e887bf65f4da6b140b302e3",
+      "provider_calls": 0,
+      "retries": 0,
+      "manually_edited": false
+    },
+    {
+      "replay_index": 2,
+      "extraction_source_commit": "c081c1e10427f11125a43976f74d1ce076d4a19c",
+      "extraction_sha256": "496ce4938cc04ae65a72efc611e839158dfe7e5ee053d27dc21de96c77a8d076",
+      "validation_sha256": "d3adea256203aaa11bba6b0b151a3b6659e2ed4031878c615b9474884dd733df",
+      "source_commit_alignment_sha256": "888da6ccd55ce012fec72f42c8a020c70b69ef31003b809ff9e2e3a6360b1eff",
+      "source_commit_evaluation_sha256": "32080c0c21b67a4d04e3561e39ede60c7c09b59cfc4b872dc2bd78fe2e121330",
+      "reevaluated_alignment_sha256": "ee015c6efb1fe1bb3ead8625cfddbf1057f11837d2ba5d360169b03312de09a6",
+      "reevaluated_evaluation_sha256": "5a36da589608c2cbb0d44c791b73e4cfed0103c96e887bf65f4da6b140b302e3",
+      "provider_calls": 0,
+      "retries": 0,
+      "manually_edited": false
+    }
+  ],
+  "replay_note": "Extraction and validation are replayed from frozen provider bytes at the extraction source commit c081c1e1, because the frozen request metadata binds the pre-PR-24 golden identity. Alignment and evaluation are then re-derived from the frozen extraction at the PR #27 locked base. Both layers are byte-identical across two independent runs.",
+  "protected_dr001": {
+    "narrative_sha256": "2cdb00b4b2b28c1813a979be5cf22f1ac51a30282abea9e144df491549c4fcc7",
+    "golden_sha256": "a6aea6cce9a3047c86f34bb5b7d36ccee1315f8f041e775793aeb1e75e3055f8",
+    "frozen_extraction_sha256": "68a3a5da581f98caf6bdfdee127d6b8b632d7845d968acce46c411cfc20a641c",
+    "frozen_alignment_sha256": "6ae6ae7f662c9b632739caf43a22958305621af17199cafa553fe6e3058d97ab",
+    "frozen_evaluation_sha256": "a6cd2426a2e7b2a5f975c159eac295155d8fe1db7fa97b7564a75ea688c54509",
+    "raw_response_sha256": "499ba4ed59a314aea0037f4677cdf356d3d6b0319c2cad66d6d6f311402a4a9e",
+    "golden_projection_sha256": "75e3d8a345ff0a05af770eb860690f62d7916a8c96d47773f15ee3d54f963dc3",
+    "run_manifest_sha256": "42571dd232b9b900c9225400f969cda682d4bf393d5547e0a459f0f098b5fe30"
+  }
+}
