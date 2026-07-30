@@ -225,6 +225,15 @@ unchanged. PR #26's `term_price_1` correction is unchanged.
 The extracted, golden, and diagnostic fingerprints in this PR were computed independently and match
 the values recorded in PR #25's fixture exactly.
 
+The frozen extraction artifact is not tracked in the repository (`artifacts/` is gitignored), so the
+records the diagnosis needs are embedded in
+`src/fixtures/dry_run_002.pr27.claim-no-refund-diagnostic.json` and the focused test rebuilds the
+projection from committed inputs alone — the same convention PR #25 and PR #26 use. The test asserts
+that every embedded record fingerprints to the value PR #25 recorded independently, so an altered
+embedded copy cannot pass. The projection reproduces all four `unsupported_extra_object` criticals
+exactly; the full 34-finding inventory and the alignment and evaluation hashes are recorded evidence
+from the offline replay described above.
+
 ## Limitations
 
 - The diagnosis covers one frozen historical object. It does not establish a general policy for

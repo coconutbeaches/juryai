@@ -338,6 +338,343 @@
       ]
     }
   },
+  "projection": {
+    "note": "Extracted records required to reproduce the claims and deliverables diagnosis from committed inputs alone. The frozen extraction artifact is not tracked in the repository, so the records it contributes are embedded here and are fingerprint-bound to the values independently recorded in PR #25.",
+    "submission_raw_text_is_narrative": true,
+    "agreement_terms": [
+      {
+        "interpretation_status": "unclear",
+        "materiality": "high",
+        "person_a_interpretation": null,
+        "person_b_interpretation": null,
+        "source_evidence_ids": [],
+        "source_spans": [
+          {
+            "end_char": 200,
+            "quote": "On about March 12, 2026, I agreed with Priya Nair to restore six dining chairs for $1,800, with $900 paid upfront and $900 due after delivery.",
+            "start_char": 58,
+            "submission_id": "sub_a_extracted"
+          }
+        ],
+        "term_id": "term_scope_1",
+        "term_type": "scope",
+        "wording": "Restore six dining chairs.",
+        "wording_status": "not_inspected"
+      },
+      {
+        "interpretation_status": "unclear",
+        "materiality": "high",
+        "person_a_interpretation": null,
+        "person_b_interpretation": null,
+        "source_evidence_ids": [],
+        "source_spans": [
+          {
+            "end_char": 200,
+            "quote": "On about March 12, 2026, I agreed with Priya Nair to restore six dining chairs for $1,800, with $900 paid upfront and $900 due after delivery.",
+            "start_char": 58,
+            "submission_id": "sub_a_extracted"
+          }
+        ],
+        "term_id": "term_price_1",
+        "term_type": "price",
+        "wording": "The total price was $1,800.",
+        "wording_status": "not_inspected"
+      },
+      {
+        "interpretation_status": "unclear",
+        "materiality": "high",
+        "person_a_interpretation": null,
+        "person_b_interpretation": null,
+        "source_evidence_ids": [],
+        "source_spans": [
+          {
+            "end_char": 200,
+            "quote": "On about March 12, 2026, I agreed with Priya Nair to restore six dining chairs for $1,800, with $900 paid upfront and $900 due after delivery.",
+            "start_char": 58,
+            "submission_id": "sub_a_extracted"
+          }
+        ],
+        "term_id": "term_deposit_1",
+        "term_type": "deposit",
+        "wording": "$900 was paid upfront.",
+        "wording_status": "not_inspected"
+      },
+      {
+        "interpretation_status": "unclear",
+        "materiality": "high",
+        "person_a_interpretation": "Jordan's position is that Priya must pay the remaining $900 after Jordan delivers the last two chairs.",
+        "person_b_interpretation": null,
+        "source_evidence_ids": [],
+        "source_spans": [
+          {
+            "end_char": 200,
+            "quote": "On about March 12, 2026, I agreed with Priya Nair to restore six dining chairs for $1,800, with $900 paid upfront and $900 due after delivery.",
+            "start_char": 58,
+            "submission_id": "sub_a_extracted"
+          },
+          {
+            "end_char": 625,
+            "quote": "I am asking Priya to pay the remaining $900 after I deliver the last two chairs; I am not asking to refund her.",
+            "start_char": 514,
+            "submission_id": "sub_a_extracted"
+          }
+        ],
+        "term_id": "term_payment_trigger_1",
+        "term_type": "payment_trigger",
+        "wording": "The remaining $900 was due after delivery.",
+        "wording_status": "not_inspected"
+      }
+    ],
+    "deliverable_assessments": [
+      {
+        "alleged_defects": [
+          "Priya allegedly claimed that all six chairs were scratched.",
+          "Jordan observed a mark on one chair.",
+          "One cushion still needed stitching."
+        ],
+        "completion_status_person_a": "partially_complete",
+        "completion_status_person_b": "unknown",
+        "deliverable_id": "deliverable_1",
+        "materiality": "high",
+        "name": "Restoration of six dining chairs",
+        "repair_attempts": ["Jordan kept two chairs to finish them."],
+        "scope_status": "included",
+        "source_claim_ids": [
+          "claim_scope_1",
+          "claim_partial_completion_1",
+          "claim_cushion_1",
+          "claim_scratch_allegation_1",
+          "claim_mark_1"
+        ],
+        "source_evidence_ids": ["evidence_message_1", "evidence_photos_1"],
+        "use_status": "unknown"
+      }
+    ],
+    "claims": [
+      {
+        "against_asserting_party_interest": false,
+        "claim_id": "claim_scope_1",
+        "claim_text": "Jordan asserts that the agreed scope was restoration of six dining chairs for $1,800.",
+        "claim_type": "scope",
+        "contradicting_evidence_ids": [],
+        "counterclaim_ids": [],
+        "materiality": "high",
+        "party_id": "party_a",
+        "requires_clarification": true,
+        "response_status": "unanswered",
+        "source_spans": [
+          {
+            "end_char": 200,
+            "quote": "On about March 12, 2026, I agreed with Priya Nair to restore six dining chairs for $1,800, with $900 paid upfront and $900 due after delivery.",
+            "start_char": 58,
+            "submission_id": "sub_a_extracted"
+          }
+        ],
+        "support_level": "none",
+        "supporting_evidence_ids": []
+      },
+      {
+        "against_asserting_party_interest": false,
+        "claim_id": "claim_payment_term_1",
+        "claim_text": "Jordan asserts that $900 was paid upfront and the remaining $900 is due after delivery.",
+        "claim_type": "payment",
+        "contradicting_evidence_ids": [],
+        "counterclaim_ids": [],
+        "materiality": "high",
+        "party_id": "party_a",
+        "requires_clarification": true,
+        "response_status": "unanswered",
+        "source_spans": [
+          {
+            "end_char": 200,
+            "quote": "On about March 12, 2026, I agreed with Priya Nair to restore six dining chairs for $1,800, with $900 paid upfront and $900 due after delivery.",
+            "start_char": 58,
+            "submission_id": "sub_a_extracted"
+          }
+        ],
+        "support_level": "none",
+        "supporting_evidence_ids": []
+      },
+      {
+        "against_asserting_party_interest": false,
+        "claim_id": "claim_message_1",
+        "claim_text": "Jordan reports that Priya messaged, “They look ready for the hotel lobby,” while also saying one cushion still needed stitching.",
+        "claim_type": "communication",
+        "contradicting_evidence_ids": [],
+        "counterclaim_ids": [],
+        "materiality": "high",
+        "party_id": "party_a",
+        "requires_clarification": false,
+        "response_status": "unanswered",
+        "source_spans": [
+          {
+            "end_char": 300,
+            "quote": "Priya messaged, “They look ready for the hotel lobby,” but said one cushion still needed stitching.",
+            "start_char": 201,
+            "submission_id": "sub_a_extracted"
+          }
+        ],
+        "support_level": "not_assessed",
+        "supporting_evidence_ids": ["evidence_message_1"]
+      },
+      {
+        "against_asserting_party_interest": true,
+        "claim_id": "claim_cushion_1",
+        "claim_text": "Jordan acknowledges that one cushion still needed stitching when Priya sent the described message.",
+        "claim_type": "completion",
+        "contradicting_evidence_ids": [],
+        "counterclaim_ids": [],
+        "materiality": "medium",
+        "party_id": "party_a",
+        "requires_clarification": true,
+        "response_status": "unanswered",
+        "source_spans": [
+          {
+            "end_char": 300,
+            "quote": "Priya messaged, “They look ready for the hotel lobby,” but said one cushion still needed stitching.",
+            "start_char": 201,
+            "submission_id": "sub_a_extracted"
+          }
+        ],
+        "support_level": "not_assessed",
+        "supporting_evidence_ids": ["evidence_message_1"]
+      },
+      {
+        "against_asserting_party_interest": true,
+        "claim_id": "claim_partial_completion_1",
+        "claim_text": "Jordan asserts that Priya collected four chairs around April 2, 2026, while Jordan retained two chairs to finish.",
+        "claim_type": "completion",
+        "contradicting_evidence_ids": [],
+        "counterclaim_ids": [],
+        "materiality": "high",
+        "party_id": "party_a",
+        "requires_clarification": true,
+        "response_status": "unanswered",
+        "source_spans": [
+          {
+            "end_char": 378,
+            "quote": "Around April 2, 2026, Priya collected four chairs while I kept two to finish.",
+            "start_char": 301,
+            "submission_id": "sub_a_extracted"
+          }
+        ],
+        "support_level": "none",
+        "supporting_evidence_ids": []
+      },
+      {
+        "against_asserting_party_interest": false,
+        "claim_id": "claim_scratch_allegation_1",
+        "claim_text": "Jordan reports that Priya later alleged Jordan had scratched all six chairs.",
+        "claim_type": "defect",
+        "contradicting_evidence_ids": [],
+        "counterclaim_ids": [],
+        "materiality": "high",
+        "party_id": "party_a",
+        "requires_clarification": true,
+        "response_status": "unanswered",
+        "source_spans": [
+          {
+            "end_char": 513,
+            "quote": "Priya later alleged that I scratched all six chairs, but I only observed a mark on one chair and I have not inspected her photographs.",
+            "start_char": 379,
+            "submission_id": "sub_a_extracted"
+          }
+        ],
+        "support_level": "not_assessed",
+        "supporting_evidence_ids": ["evidence_photos_1"]
+      },
+      {
+        "against_asserting_party_interest": true,
+        "claim_id": "claim_mark_1",
+        "claim_text": "Jordan says Jordan observed a mark on one chair, rather than scratches on all six chairs.",
+        "claim_type": "defect",
+        "contradicting_evidence_ids": [],
+        "counterclaim_ids": [],
+        "materiality": "high",
+        "party_id": "party_a",
+        "requires_clarification": true,
+        "response_status": "unanswered",
+        "source_spans": [
+          {
+            "end_char": 513,
+            "quote": "Priya later alleged that I scratched all six chairs, but I only observed a mark on one chair and I have not inspected her photographs.",
+            "start_char": 379,
+            "submission_id": "sub_a_extracted"
+          }
+        ],
+        "support_level": "none",
+        "supporting_evidence_ids": []
+      },
+      {
+        "against_asserting_party_interest": false,
+        "claim_id": "claim_balance_1",
+        "claim_text": "Jordan seeks payment of the remaining $900 after delivering the last two chairs.",
+        "claim_type": "payment",
+        "contradicting_evidence_ids": [],
+        "counterclaim_ids": [],
+        "materiality": "high",
+        "party_id": "party_a",
+        "requires_clarification": true,
+        "response_status": "unanswered",
+        "source_spans": [
+          {
+            "end_char": 625,
+            "quote": "I am asking Priya to pay the remaining $900 after I deliver the last two chairs; I am not asking to refund her.",
+            "start_char": 514,
+            "submission_id": "sub_a_extracted"
+          }
+        ],
+        "support_level": "none",
+        "supporting_evidence_ids": []
+      },
+      {
+        "against_asserting_party_interest": false,
+        "claim_id": "claim_no_refund_1",
+        "claim_text": "Jordan is not seeking to refund Priya.",
+        "claim_type": "refund",
+        "contradicting_evidence_ids": [],
+        "counterclaim_ids": [],
+        "materiality": "medium",
+        "party_id": "party_a",
+        "requires_clarification": false,
+        "response_status": "unanswered",
+        "source_spans": [
+          {
+            "end_char": 625,
+            "quote": "I am asking Priya to pay the remaining $900 after I deliver the last two chairs; I am not asking to refund her.",
+            "start_char": 514,
+            "submission_id": "sub_a_extracted"
+          }
+        ],
+        "support_level": "none",
+        "supporting_evidence_ids": []
+      }
+    ],
+    "desired_outcomes": {
+      "outcomes": [
+        {
+          "outcome_id": "outcome_payment_1",
+          "outcome_type": "mixed",
+          "priority": 1,
+          "rationale": "Jordan seeks the asserted remaining contract balance after delivering the last two chairs and expressly states that no refund is sought.",
+          "required_actions": [
+            "Jordan delivers the last two chairs.",
+            "Priya pays Jordan the remaining $900 after delivery.",
+            "No refund is made by Jordan."
+          ],
+          "transfers": [
+            {
+              "amount": 900,
+              "currency": "USD",
+              "from_party_id": "party_b",
+              "to_party_id": "party_a"
+            }
+          ]
+        }
+      ],
+      "party_id": "party_a"
+    }
+  },
   "ranking": [
     {
       "rank": 1,
