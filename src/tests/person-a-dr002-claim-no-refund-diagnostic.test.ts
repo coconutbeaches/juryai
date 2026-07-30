@@ -198,6 +198,61 @@ describe('PR #27 DR002 claim_no_refund_1 diagnostic', () => {
     );
   });
 
+  it('binds the measured per-substitution attribution of the sub-threshold score', () => {
+    const { extracted, golden } = baseline();
+    const claim = extracted.claims.find(
+      (item: JsonObject) => item.claim_id === 'claim_no_refund_1',
+    );
+    const goldenRemedy = golden.claims.find(
+      (item: JsonObject) => item.claim_id === 'cl_002_remedy',
+    );
+    const attribution = evidence.similarity_analysis.per_substitution_attribution;
+
+    expect(
+      Number(semanticSimilarity(claim.claim_text, goldenRemedy.claim_text, aliases).toFixed(6)),
+    ).toBe(attribution.frozen_extraction_similarity);
+
+    // Every recorded variant is recomputed from the real metric, so the attribution cannot drift.
+    for (const [name, variant] of Object.entries(
+      attribution.variants as Record<string, JsonObject>,
+    )) {
+      const score = semanticSimilarity(variant.claim_text, goldenRemedy.claim_text, aliases);
+      expect(Number(score.toFixed(6)), name).toBe(variant.similarity);
+      expect(Number((score - attribution.frozen_extraction_similarity).toFixed(6)), name).toBe(
+        variant.delta_from_frozen,
+      );
+      expect(score >= attribution.granularity_split_threshold, name).toBe(
+        variant.crosses_granularity_split_threshold,
+      );
+    }
+
+    // Resolving the first-person actor is by itself sufficient to cross the threshold.
+    expect(attribution.dominant_driver).toBe('revert_actor_resolution_only');
+    expect(
+      attribution.variants.revert_actor_resolution_only.crosses_granularity_split_threshold,
+    ).toBe(true);
+
+    // Resolving "her" to "Priya" is score-neutral: both tokens are in the golden token set.
+    const goldenTokens = new Set(
+      goldenRemedy.claim_text
+        .normalize('NFKC')
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}$]+/gu, ' ')
+        .trim()
+        .split(/\s+/),
+    );
+    expect(goldenTokens.has('her')).toBe(true);
+    expect(goldenTokens.has('priya')).toBe(true);
+    expect(goldenTokens.has('jordan')).toBe(false);
+    expect(attribution.neutral_substitution).toBe('revert_object_resolution_only');
+    expect(
+      Math.abs(attribution.variants.revert_object_resolution_only.delta_from_frozen),
+    ).toBeLessThan(0.01);
+    expect(
+      attribution.variants.revert_object_resolution_only.crosses_granularity_split_threshold,
+    ).toBe(false);
+  });
+
   it('binds the evaluator path: maximal span overlap blocked only by the similarity threshold', () => {
     const { extracted, golden } = baseline();
     const claim = extracted.claims.find(

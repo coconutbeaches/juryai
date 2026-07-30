@@ -168,7 +168,46 @@
     "extracted_tokens_absent_from_golden": ["is", "jordan", "seeking"],
     "observed_token_dice": 0.333333,
     "maximum_attainable_token_dice_under_perfect_lexical_containment": 0.583333,
-    "structural_ceiling_note": "Symmetric Dice between a 7-token faithful component and a 17-token compound golden cannot exceed 0.583 even if every extracted token appeared verbatim. The metric scores resemblance, not entailment or containment."
+    "structural_ceiling_note": "Symmetric Dice between a 7-token faithful component and a 17-token compound golden cannot exceed 0.583 even if every extracted token appeared verbatim. The metric scores resemblance, not entailment or containment.",
+    "per_substitution_attribution": {
+      "note": "Per-substitution attribution measured against golden cl_002_remedy.claim_text. Each variant reverts exactly one faithfulness-preserving normalization from the frozen extraction wording.",
+      "granularity_split_threshold": 0.45,
+      "frozen_extraction_similarity": 0.314667,
+      "variants": {
+        "revert_actor_resolution_only": {
+          "substitution": "Jordan → I (with copula is → am)",
+          "claim_text": "I am not seeking to refund Priya.",
+          "similarity": 0.455345,
+          "delta_from_frozen": 0.140678,
+          "crosses_granularity_split_threshold": true
+        },
+        "revert_object_resolution_only": {
+          "substitution": "Priya → her",
+          "claim_text": "Jordan is not seeking to refund her.",
+          "similarity": 0.315991,
+          "delta_from_frozen": 0.001324,
+          "crosses_granularity_split_threshold": false
+        },
+        "revert_verb_synonym_only": {
+          "substitution": "seeking → asking",
+          "claim_text": "Jordan is not asking to refund Priya.",
+          "similarity": 0.388283,
+          "delta_from_frozen": 0.073616,
+          "crosses_granularity_split_threshold": false
+        },
+        "revert_all_three": {
+          "substitution": "all three (verbatim source clause)",
+          "claim_text": "I am not asking to refund her.",
+          "similarity": 0.531984,
+          "delta_from_frozen": 0.217317,
+          "crosses_granularity_split_threshold": true
+        }
+      },
+      "dominant_driver": "revert_actor_resolution_only",
+      "dominant_driver_note": "Reverting only the first-person actor resolution is by itself sufficient to cross the 0.45 granularity_split threshold.",
+      "neutral_substitution": "revert_object_resolution_only",
+      "neutral_substitution_note": "Resolving \"her\" to \"Priya\" is score-neutral: the golden token set contains both \"her\" and \"priya\", so this substitution neither adds nor removes a shared token. It is NOT a driver of the sub-threshold score."
+    }
   },
   "semantic_component_analysis": {
     "actor": {
@@ -250,7 +289,7 @@
       "total": 34
     },
     "entries_changed": 1,
-    "interpretation": "The only variable is surface wording. Resolving \"I\" to \"Jordan\", \"her\" to \"Priya\", and \"asking\" to \"seeking\" — three faithfulness-preserving normalizations — is what pushes the finding from major granularity_split to critical fabrication hard failure."
+    "interpretation": "The only variable is surface wording. Two faithfulness-preserving normalizations account for the sub-threshold score: resolving the first-person pronoun \"I\" to the named actor \"Jordan\" (which also shifts the copula \"am\" to \"is\"), and using \"seeking\" for \"asking\". Resolving \"her\" to \"Priya\" is score-neutral because the golden token set contains both tokens. Reverting the actor resolution alone is sufficient to cross the 0.45 threshold."
   },
   "competing_explanations_rejected": {
     "legitimate_unsupported_or_fabricated_extraction": "Rejected. The asserted proposition appears verbatim in the narrative at [514,625) and verbatim inside golden cl_002_remedy.claim_text. No actor, date, amount, condition, obligation, remedy, refund rule, or legal conclusion is introduced beyond the source.",

@@ -132,12 +132,26 @@ Both gates score `semanticSimilarity`, a symmetric Dice metric
 1. **Length asymmetry.** The extracted claim normalizes to 7 tokens; the compound golden claim to 17. Even if every extracted token appeared verbatim in the golden, `tokenDice` could not exceed
    `2 · 7 / (7 + 17) = 0.5833`. A faithful _proper subset_ of a compound claim is structurally
    penalized for being a subset.
-2. **Correct referent resolution.** The three extracted tokens absent from the golden are
-   `jordan`, `seeking`, and `is`. The extraction resolved `I` → `Jordan` and `her` → `Priya` and
-   used `seeking` for `asking`. The alias map covers `client` and `restorer` but not first- and
-   third-person pronouns, so correct pronoun resolution _reduces_ the score.
+2. **Correct actor resolution.** The three extracted tokens absent from the golden are `jordan`,
+   `seeking`, and `is`. Measuring each normalization separately against the golden claim text:
 
-The extraction is penalized for doing referent resolution correctly.
+   | Reverted substitution                   | Similarity |           Δ | Crosses 0.45 |
+   | --------------------------------------- | ---------: | ----------: | ------------ |
+   | none (frozen extraction)                | `0.314667` |           — | no           |
+   | `Jordan` → `I` (and copula `is` → `am`) | `0.455345` | `+0.140678` | **yes**      |
+   | `seeking` → `asking`                    | `0.388283` | `+0.073616` | no           |
+   | `Priya` → `her`                         | `0.315991` | `+0.001324` | no           |
+   | all three (verbatim source clause)      | `0.531984` | `+0.217317` | **yes**      |
+
+   The dominant driver is resolving the first-person pronoun `I` to the named actor `Jordan`, which
+   also shifts the copula. That single substitution is by itself sufficient to cross the
+   `granularity_split` threshold. The verb synonym is secondary.
+
+   Resolving `her` → `Priya` is **score-neutral**: the golden token set contains both `her` and
+   `priya`, so the substitution neither adds nor removes a shared token. It is not a driver.
+
+The extraction is penalized specifically for resolving the first-person actor, which the alias map
+(`client`, `restorer`) does not cover.
 
 ### Counterfactual
 
