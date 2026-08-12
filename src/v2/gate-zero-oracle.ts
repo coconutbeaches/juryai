@@ -11,13 +11,18 @@ import {
   type SubstantiveNamespace,
   type WorkflowState,
 } from './case-envelope.js';
-import type {
-  CommandFailureReason,
-  EnvelopeCommand,
-  EnvelopeOperation,
+import {
+  OPERATION_PERMISSIONS,
+  type CommandFailureReason,
+  type EnvelopeCommand,
+  type EnvelopeOperation,
 } from './envelope-command.js';
 
 export const GATE_ZERO_ORACLE_VERSION = 'juryai-gate-zero-turn-oracle-v2.1.0';
+export const GATE_ZERO_ENVELOPE_OPERATION_TYPES: readonly EnvelopeOperation['type'][] =
+  Object.freeze(
+    [...new Set(OPERATION_PERMISSIONS.map((permission) => permission.operation))].sort(),
+  );
 
 export interface ExpectedEvidenceAction {
   evidence_id: string;
@@ -303,6 +308,12 @@ function validateGateZeroTurnOracleUnchecked(oracle: GateZeroTurnOracle): string
     ...oracle.permitted_operation_types,
     ...oracle.forbidden_operation_types,
   ]);
+  if (
+    JSON.stringify([...classifiedOperationTypes].sort()) !==
+    JSON.stringify(GATE_ZERO_ENVELOPE_OPERATION_TYPES)
+  ) {
+    issues.push('oracle_operation_permission_partition_invalid');
+  }
   const commandOperationTypes = oracle.command.operations.map((operation) => operation.type);
   if (commandOperationTypes.some((operation) => !classifiedOperationTypes.has(operation))) {
     issues.push('oracle_command_operation_unclassified');

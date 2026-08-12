@@ -47,7 +47,7 @@ Each GZ2/GZ3 turn must populate all of the following:
 | Context       | Immutable source records, complete visible/hidden source partition, and disjoint visible/embargoed envelope paths |
 | Base          | Exact envelope and material-record version/hash identities                                                        |
 | Proposal      | One canonical command with closed operations and exact source references                                          |
-| Authorization | Disjoint permitted and forbidden operation types for this actor/state                                             |
+| Authorization | Complete disjoint partition of every closed operation type into permitted or forbidden for this actor/state       |
 | Mutation      | Applied/idempotent/rejected, exact no-mutation flag, version deltas, and resulting hashes                         |
 | Authority     | Expected object-authority fragments and exact required source references                                          |
 | Conversation  | Zero or one next-question target; no frozen natural-language question wording                                     |

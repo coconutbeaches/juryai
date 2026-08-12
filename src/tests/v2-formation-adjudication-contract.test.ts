@@ -29,6 +29,7 @@ import {
 } from '../v2/contract-fixtures.js';
 import { applyEnvelopeCommand, commandFor, type EnvelopeCommand } from '../v2/envelope-command.js';
 import {
+  GATE_ZERO_ENVELOPE_OPERATION_TYPES,
   GATE_ZERO_ORACLE_VERSION,
   validateGateZeroTurnOracle,
   type GateZeroTurnOracle,
@@ -1147,7 +1148,9 @@ describe('v2 lock, reopening, adjudication projection, and Gate Zero oracle', ()
       base_record_hash: context.envelope.control.record_hash,
       command,
       permitted_operation_types: ['add_object'],
-      forbidden_operation_types: ['transition', 'lock'],
+      forbidden_operation_types: GATE_ZERO_ENVELOPE_OPERATION_TYPES.filter(
+        (operation) => operation !== 'add_object',
+      ),
       expected: {
         disposition: 'applied',
         exact_no_mutation: false,
@@ -1217,6 +1220,9 @@ describe('v2 lock, reopening, adjudication projection, and Gate Zero oracle', ()
     unclassifiedOperationOracle.permitted_operation_types = [];
     expect(validateGateZeroTurnOracle(unclassifiedOperationOracle)).toContain(
       'oracle_command_operation_unclassified',
+    );
+    expect(validateGateZeroTurnOracle(unclassifiedOperationOracle)).toContain(
+      'oracle_operation_permission_partition_invalid',
     );
 
     const forbiddenAppliedOperationOracle = cloneCanonical(oracle);
