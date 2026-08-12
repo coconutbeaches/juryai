@@ -1134,9 +1134,13 @@ describe('v2 lock, reopening, adjudication projection, and Gate Zero oracle', ()
     expect(applied.status).toBe('applied');
     const oracle: GateZeroTurnOracle = {
       oracle_version: GATE_ZERO_ORACLE_VERSION,
+      turn_id: 'turn_oracle_fixture',
       authenticated_actor: actor,
+      source_records: Object.values(context.source_registry),
       visible_source_ids: ['source_party_a_story'],
-      hidden_source_ids: ['source_party_b_story'],
+      hidden_source_ids: ['source_inspection', 'source_material_change', 'source_party_b_story'],
+      visible_envelope_paths: ['$'],
+      embargoed_envelope_paths: [],
       base_envelope_version: context.envelope.control.envelope_version,
       base_envelope_hash: context.envelope.control.envelope_hash,
       base_record_version: context.envelope.control.record_version,
@@ -1162,9 +1166,83 @@ describe('v2 lock, reopening, adjudication projection, and Gate Zero oracle', ()
         output_scope: null,
         failure_reason: null,
         required_source_references: [],
+        next_question_target: {
+          addressed_to_party: 'party_a',
+          namespace: 'payments',
+          object_id: null,
+          field: 'due_trigger',
+          reason_code: 'required_payment_due_trigger',
+        },
+        allowed_user_visible_facts: [
+          {
+            fact_id: 'fact_a_asserted_friday_delivery',
+            basis: 'party_attributed_assertion',
+            party_attribution: 'party_a',
+            source_references: [
+              exactSourceReference(context.source_registry.source_party_a_story!),
+            ],
+          },
+        ],
+        forbidden_factual_promotions: [
+          {
+            proposition_id: 'proposition_friday_delivery_objective',
+            prohibited_promotion: 'objective_fact',
+            source_references: [
+              exactSourceReference(context.source_registry.source_party_a_story!),
+            ],
+            reason_code: 'single_party_assertion_only',
+          },
+        ],
       },
     };
     expect(validateGateZeroTurnOracle(oracle)).toEqual([]);
+
+    const hiddenFactOracle = cloneCanonical(oracle);
+    hiddenFactOracle.expected.allowed_user_visible_facts[0]!.source_references = [
+      exactSourceReference(context.source_registry.source_party_b_story!),
+    ];
+    expect(validateGateZeroTurnOracle(hiddenFactOracle)).toContain(
+      'oracle_visible_fact_uses_hidden_source',
+    );
+
+    const tamperedSourceOracle = cloneCanonical(oracle);
+    tamperedSourceOracle.source_records.find(
+      (source) => source.source_id === 'source_party_a_story',
+    )!.content += ' tampered';
+    expect(validateGateZeroTurnOracle(tamperedSourceOracle)).toContain(
+      'oracle_source_record_invalid',
+    );
+
+    const unclassifiedOperationOracle = cloneCanonical(oracle);
+    unclassifiedOperationOracle.permitted_operation_types = [];
+    expect(validateGateZeroTurnOracle(unclassifiedOperationOracle)).toContain(
+      'oracle_command_operation_unclassified',
+    );
+
+    const forbiddenAppliedOperationOracle = cloneCanonical(oracle);
+    forbiddenAppliedOperationOracle.permitted_operation_types = [];
+    forbiddenAppliedOperationOracle.forbidden_operation_types.push('add_object');
+    expect(validateGateZeroTurnOracle(forbiddenAppliedOperationOracle)).toContain(
+      'oracle_applied_operation_not_permitted',
+    );
+
+    const embargoOverlapOracle = cloneCanonical(oracle);
+    embargoOverlapOracle.embargoed_envelope_paths = ['$.payments'];
+    expect(validateGateZeroTurnOracle(embargoOverlapOracle)).toContain(
+      'oracle_envelope_visibility_overlap',
+    );
+
+    const actorMismatchOracle = cloneCanonical(oracle);
+    actorMismatchOracle.command.authenticated_actor.authenticated_subject_id = 'different_subject';
+    expect(validateGateZeroTurnOracle(actorMismatchOracle)).toContain(
+      'oracle_command_actor_binding_invalid',
+    );
+
+    const invalidQuestionOracle = cloneCanonical(oracle);
+    invalidQuestionOracle.expected.next_question_target!.field = '';
+    expect(validateGateZeroTurnOracle(invalidQuestionOracle)).toContain(
+      'oracle_next_question_target_invalid',
+    );
 
     const staleOracle = cloneCanonical(oracle);
     staleOracle.command.base_envelope_version += 1;

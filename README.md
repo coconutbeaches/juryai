@@ -5,6 +5,10 @@ The frozen v2 formation/adjudication boundary is documented in
 It is deterministic contract infrastructure; it does not add the conversational v2 runtime or Gate
 Zero corpus.
 
+The frozen 36-case Gate Zero taxonomy, coverage matrix, and per-turn oracle are documented in
+[`docs/gz1-gate-zero-coverage-matrix.md`](docs/gz1-gate-zero-coverage-matrix.md). GZ1 defines what
+future canonical cases must test; it does not author the corpus or claim a current capability score.
+
 A deliberately small, local validation lab for JuryAI’s machine-readable case record and narrative extraction pipeline.
 
 The repository now answers two measurable questions:
