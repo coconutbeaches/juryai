@@ -33,7 +33,12 @@ export interface ContractFixtureContext {
 export function sourceRecord(sourceId: string, content: string): SourceRecord {
   return {
     source_id: sourceId,
-    source_type: sourceId === 'source_inspection' ? 'evidence_inspection' : 'initial_story',
+    source_type:
+      sourceId === 'source_inspection'
+        ? 'evidence_inspection'
+        : sourceId === 'source_party_b_story'
+          ? 'independent_account'
+          : 'initial_story',
     actor_id:
       sourceId === 'source_inspection'
         ? 'inspector_primary'
@@ -60,7 +65,25 @@ export function exactSourceReference(source: SourceRecord): SourceReference {
 
 export function createContractFixtureContext(): ContractFixtureContext {
   const envelope = createInitialCaseEnvelope('case_gz0_contract');
+  envelope.parties.party_a = {
+    ...envelope.parties.party_a,
+    authenticated_subject_id: 'subject_party_a',
+    identity_assurance: 'authenticated',
+    identity_event_id: 'event_identity_a',
+    consent_status: 'granted',
+    consent_event_id: 'event_consent_a',
+  };
+  envelope.parties.party_b = {
+    ...envelope.parties.party_b,
+    authenticated_subject_id: 'subject_party_b',
+    identity_assurance: 'authenticated',
+    identity_event_id: 'event_identity_b',
+    consent_status: 'granted',
+    consent_event_id: 'event_consent_b',
+    participation_state: 'active',
+  };
   envelope.control.workflow_state = 'person_a_formation';
+  envelope.control.record_hash = hashCaseRecord(envelope);
   envelope.control.envelope_hash = hashCaseEnvelope(envelope);
   const sources = [
     sourceRecord('source_party_a_story', 'Person A says the agreed delivery date was Friday.'),
@@ -213,6 +236,7 @@ export function createBilateralLockedFixture(): ContractFixtureContext {
     context.envelope.formation.confirmations[partyId] = {
       confirmation_id: `confirmation_${partyId}`,
       party_id: partyId,
+      authenticated_subject_id: context.envelope.parties[partyId].authenticated_subject_id!,
       bound_envelope_version: context.envelope.control.envelope_version,
       bound_envelope_hash: boundSnapshotHash,
       bound_record_version: context.envelope.control.record_version,

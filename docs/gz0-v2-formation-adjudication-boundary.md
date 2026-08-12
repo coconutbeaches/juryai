@@ -53,6 +53,11 @@ changes. `record_version` changes only for material formation/record changes. Th
 confirmations remain bound to a material record while still recording the exact envelope snapshot
 the party reviewed.
 
+Fresh envelopes contain unbound, unverified party slots with consent `not_requested`; they never
+fabricate authenticated subjects or consent events. Deterministic system commands bind identity and
+record consent. Test fixtures may install synthetic authenticated parties explicitly, but production
+construction does not.
+
 ## Authority and party positions
 
 Every substantive object carries `ObjectAuthority`:
@@ -97,11 +102,16 @@ Deterministic outcomes:
 Canonical serialization accepts only bounded plain JSON: no cycles, accessors, symbols, sparse or
 custom arrays, non-finite numbers, or non-plain prototypes. Hashes are SHA-256 over deterministic
 sorted-key projections. The in-memory ledger proves retry semantics; it is not canonical case state.
+Object-key order is non-semantic and sorted. Array order is identity-bearing wherever arrays appear,
+including commands and source-reference lists, unless a named constructor explicitly sorts a set-like
+projection. Strings are preserved as exact Unicode code points and are not silently normalized.
 
 The mutation vocabulary is closed and domain-specific rather than generic JSON Patch. It permits
 adding a typed party object, replacing allowlisted fields on one's own object with an expected-prior
 value, setting one's own stance, and explicit system/inspector operations for classification,
 formation, participation, evidence, disclosure, confirmation, transition, lock, and reopen.
+Corrections and stance changes require exact sources attributed to the authenticated party and append
+those references to the object's authority record.
 
 Party object writes are allowed only in that party's formation phase or shared
 disclosure/reconciliation/final-confirmation phases. Classification, workflow, participation,
@@ -140,6 +150,10 @@ only the minimal case context needed to request participation; the deliberate vi
 sets are represented in the Gate Zero oracle primitive. A `record_detailed_disclosure` operation
 before a source-bound B independent-account event fails with `disclosure_embargo`.
 
+`buildPersonBDisclosureView` makes that embargo structural: before the independent account and the
+separate system disclosure event, its `detailed_record` is `null`. Once disclosed, the view includes
+the structured record but only evidence whose visibility is `disclosed_to_both`.
+
 The authenticated B account records its source identity, changes detailed A framing to `permitted`,
 and enters disclosure/challenge. A separate system disclosure event changes it to `disclosed`. This
 makes premature disclosure testable and auditable without treating UI prose as the guard.
@@ -154,13 +168,15 @@ authentication service. Disclosure or withholding records event identities.
 Decision-relevant evidence is eligible only when uploaded, inspected without an unreadable result,
 and disclosed to both parties. Described-only, withdrawn/superseded, uninspected, unreadable, or
 undisclosed evidence remains explicitly excluded. The lock guard rejects any ineligible
-decision-relevant evidence.
+decision-relevant evidence. Once a content hash is recorded, bytes cannot be replaced under the same
+evidence ID; a different item needs a new/superseding evidence identity.
 
 ## Confirmation, lock, and material change
 
 Confirmation is coarse at the party-record boundary for v2. A receipt records party, exact reviewed
-envelope version/hash, current material record version/hash, timestamp, and event. Any material
-command clears both coarse confirmations. Control-only commands do not change the material hash.
+authenticated subject, envelope version/hash, current material record version/hash, timestamp, and
+event. Any material command clears both coarse confirmations. Control-only commands do not change
+the material hash.
 
 Two lock modes exist:
 
@@ -187,6 +203,7 @@ Its deterministic projection includes:
 - adjudication-eligible structured objects with authority/status;
 - unresolved/disputed object identities;
 - eligible evidence content and inspection identities;
+- evidence submitter, asserted author, authenticity status, and originating authority;
 - excluded evidence identities plus deterministic exclusion reasons;
 - claimed losses, requested outcomes, uncertainties; and
 - deduplicated exact source references deliberately admitted by included objects/evidence.
@@ -199,10 +216,11 @@ fails the projection check.
 ## Gate Zero oracle primitive
 
 `GateZeroTurnOracle` freezes the fields GZ1 needs per turn: authenticated actor, visible and hidden
-source IDs, exact base version/hash, command, permitted/forbidden operation types, exact
-mutation/no-mutation and version deltas, expected authority/evidence/confirmation/transition/lock
-effects, source requirements, and typed failure reason. This PR includes only adversarial contract
-fixtures. GZ1 owns the 30–40-case end-to-end corpus and measurable journey gates.
+source IDs, exact base envelope and record identities, command, disjoint permitted/forbidden
+operation types, exact mutation/no-mutation, exact resulting versions/hashes, expected
+authority/typed evidence/confirmation/transition/lock mode and output-scope effects, source
+requirements, and typed failure reason. This PR includes only adversarial contract fixtures. GZ1
+owns the 30–40-case end-to-end corpus and measurable journey gates.
 
 ## Relationship to the current repository
 
@@ -224,8 +242,8 @@ can be reused conceptually.
 | DR001/DR002 goldens, alignment, evaluator, acceptance suite | Transitional   | Historical regression/migration evidence only; unchanged in GZ0                                                                |
 | PR-specific frozen compatibility predicates                 | Remove later   | Preserve unchanged while legacy evaluation exists; retire with that path unless a v2 release-gate need is proved               |
 | Person A-specific CLIs and orchestration                    | Transitional   | Useful harnesses during migration, not the two-party v2 state machine; retire after a proven replacement                       |
-| Complete Person B formation path                            | New in v2      | Independent-account embargo, two-party positions, disclosure/reconciliation, confirmations, and locks                          |
-| Canonical command/CAS and adjudication projection           | New in v2      | Sole mutation boundary and sole Level 3 input boundary                                                                         |
+| Complete Person B formation path                            | New in v2      | Executable boundary/view contracts now exist; conversational/runtime orchestration remains for later work                      |
+| Canonical command/CAS and adjudication projection           | New in v2      | Executable pure contract now exists; persistence, API/UI integration, and runtime adoption are not implemented here            |
 
 DR001 and DR002 remain untouched historical evidence. The frozen DR002 result remains 3 critical / 15
 major / 16 minor / 34 total. The convergence marathon remains deferred with a presumption toward

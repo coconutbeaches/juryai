@@ -8,10 +8,12 @@ import {
   SYSTEM_ACTOR,
   canonicalSerialize,
   cloneCanonical,
+  createInitialCaseEnvelope,
   deriveResolutionStatus,
   hashCaseEnvelope,
   hashCaseRecord,
   partyActor,
+  sha256,
   validateCaseEnvelope,
   type AuthenticatedActor,
   type JsonValue,
@@ -31,12 +33,142 @@ import {
   validateGateZeroTurnOracle,
   type GateZeroTurnOracle,
 } from '../v2/gate-zero-oracle.js';
+import { buildPersonBDisclosureView } from '../v2/person-b-disclosure.js';
 
 function snapshot(value: unknown): string {
   return canonicalSerialize(value);
 }
 
 describe('v2 authenticated command and authority contract', () => {
+  it('starts fresh party slots without fabricating identity or consent', () => {
+    const envelope = createInitialCaseEnvelope('case_fresh_unbound');
+    expect(envelope.parties).toEqual({
+      party_a: {
+        party_id: 'party_a',
+        role: 'person_a',
+        authenticated_subject_id: null,
+        identity_assurance: 'unverified',
+        identity_event_id: null,
+        consent_status: 'not_requested',
+        consent_event_id: null,
+        participation_state: 'active',
+      },
+      party_b: {
+        party_id: 'party_b',
+        role: 'person_b',
+        authenticated_subject_id: null,
+        identity_assurance: 'unverified',
+        identity_event_id: null,
+        consent_status: 'not_requested',
+        consent_event_id: null,
+        participation_state: 'not_invited',
+      },
+    });
+    expect(() => partyActor('party_a', envelope)).toThrow(/no authenticated subject/u);
+    expect(() => partyActor('party_b', envelope)).toThrow(/no authenticated subject/u);
+    expect(validateCaseEnvelope(envelope)).toEqual([]);
+  });
+
+  it('binds identity and consent only through system-owned commands', () => {
+    const envelope = createInitialCaseEnvelope('case_bind_party');
+    const prematureB = applyEnvelopeCommand({
+      envelope,
+      command: commandFor(
+        envelope,
+        SYSTEM_ACTOR,
+        'command_bind_b_before_invitation',
+        [
+          {
+            type: 'set_party_identity',
+            party_id: 'party_b',
+            authenticated_subject_id: 'subject_premature_b',
+            identity_assurance: 'authenticated',
+            identity_event_id: 'event_identity_premature_b',
+          },
+        ],
+        [],
+      ),
+      authenticated_actor: SYSTEM_ACTOR,
+      source_registry: {},
+      ledger: {},
+    });
+    expect(prematureB).toMatchObject({ status: 'rejected', reason_code: 'invalid_operation' });
+    const identity = applyEnvelopeCommand({
+      envelope,
+      command: commandFor(
+        envelope,
+        SYSTEM_ACTOR,
+        'command_bind_a',
+        [
+          {
+            type: 'set_party_identity',
+            party_id: 'party_a',
+            authenticated_subject_id: 'subject_bound_a',
+            identity_assurance: 'authenticated',
+            identity_event_id: 'event_identity_bound_a',
+          },
+        ],
+        [],
+      ),
+      authenticated_actor: SYSTEM_ACTOR,
+      source_registry: {},
+      ledger: {},
+    });
+    expect(identity.status).toBe('applied');
+    expect(identity.envelope.parties.party_a).toMatchObject({
+      authenticated_subject_id: 'subject_bound_a',
+      consent_status: 'not_requested',
+    });
+    const consent = applyEnvelopeCommand({
+      envelope: identity.envelope,
+      command: commandFor(
+        identity.envelope,
+        SYSTEM_ACTOR,
+        'command_consent_a',
+        [
+          {
+            type: 'record_party_consent',
+            party_id: 'party_a',
+            consent_status: 'granted',
+            consent_event_id: 'event_consent_bound_a',
+          },
+        ],
+        [],
+      ),
+      authenticated_actor: SYSTEM_ACTOR,
+      source_registry: {},
+      ledger: identity.ledger,
+    });
+    expect(consent.status).toBe('applied');
+    expect(partyActor('party_a', consent.envelope)).toMatchObject({
+      actor_id: 'subject_bound_a',
+      authenticated_subject_id: 'subject_bound_a',
+    });
+    expect(validateCaseEnvelope(consent.envelope)).toEqual([]);
+  });
+
+  it('rejects malformed nested substantive objects before versioning state', () => {
+    const context = createContractFixtureContext();
+    const actor = partyActor('party_a', context.envelope);
+    const malformed = positionFixture(
+      context,
+      'party_a',
+      'position_malformed',
+      'command_malformed_position',
+    ) as unknown as Record<string, unknown>;
+    delete malformed.statement;
+    const before = snapshot(context.envelope);
+    const result = executeFixtureCommand(context, actor, 'command_malformed_position', [
+      {
+        type: 'add_object',
+        namespace: 'positions',
+        object: malformed as never,
+      },
+    ]);
+    expect(result).toMatchObject({ status: 'rejected', reason_code: 'invalid_operation' });
+    expect(snapshot(result.envelope)).toBe(before);
+  });
+
   it('accepts an own-party assertion as exactly one atomic envelope and record version', () => {
     const context = createContractFixtureContext();
     expect(validateCaseEnvelope(context.envelope)).toEqual([]);
@@ -202,6 +334,14 @@ describe('v2 authenticated command and authority contract', () => {
       status: 'idempotent',
       resulting_envelope_version: applied.resulting_envelope_version,
     });
+    const mismatchedRetry = applyEnvelopeCommand({
+      envelope: applied.envelope,
+      command,
+      authenticated_actor: SYSTEM_ACTOR,
+      source_registry: context.source_registry,
+      ledger: applied.ledger,
+    });
+    expect(mismatchedRetry.reason_code).toBe('authentication_mismatch');
     const conflicting = cloneCanonical(command);
     conflicting.operations = [
       {
@@ -270,6 +410,26 @@ describe('v2 authenticated command and authority contract', () => {
     expect(snapshot(result.envelope)).toBe(before);
   });
 
+  it('does not let one party attribute another party source as its own assertion', () => {
+    const context = createContractFixtureContext();
+    context.envelope.control.workflow_state = 'reconciliation';
+    context.envelope.control.envelope_hash = hashCaseEnvelope(context.envelope);
+    const actor = partyActor('party_b', context.envelope);
+    const object = positionFixture(
+      context,
+      'party_b',
+      'position_b_using_a_source',
+      'command_b_using_a_source',
+    );
+    object.authority.source_references = [
+      exactSourceReference(context.source_registry.source_party_a_story!),
+    ];
+    const result = executeFixtureCommand(context, actor, 'command_b_using_a_source', [
+      { type: 'add_object', namespace: 'positions', object },
+    ]);
+    expect(result).toMatchObject({ status: 'rejected', reason_code: 'invalid_source_reference' });
+  });
+
   it('fails closed instead of throwing for malformed envelope and command JSON', () => {
     expect(validateCaseEnvelope({ control: { record_hash: 'a'.repeat(64) } })[0]?.code).toBe(
       'envelope_shape_invalid',
@@ -298,6 +458,32 @@ describe('v2 authenticated command and authority contract', () => {
       ledger: context.ledger,
     });
     expect(result).toMatchObject({ status: 'rejected', reason_code: 'invalid_command' });
+
+    const prototypeOperation = commandFor(
+      context.envelope,
+      actor,
+      'command_prototype_operation',
+      [{ type: '__proto__' } as never],
+      [],
+    );
+    expect(
+      applyEnvelopeCommand({
+        envelope: context.envelope,
+        command: prototypeOperation,
+        authenticated_actor: actor,
+        source_registry: context.source_registry,
+        ledger: context.ledger,
+      }),
+    ).toMatchObject({ status: 'rejected', reason_code: 'invalid_command' });
+
+    const injectedEnvelope = cloneCanonical(context.envelope) as typeof context.envelope & {
+      chat_history: string[];
+    };
+    injectedEnvelope.chat_history = ['This must never become operational state.'];
+    injectedEnvelope.control.envelope_hash = hashCaseEnvelope(injectedEnvelope);
+    expect(validateCaseEnvelope(injectedEnvelope).map((issue) => issue.code)).toContain(
+      'envelope_keys_invalid',
+    );
   });
 });
 
@@ -362,6 +548,9 @@ describe('v2 evidence, disclosure, confirmation, and transitions', () => {
     expect(resolved.envelope.positions.position_b_challenged?.statement).toBe(
       'Person B clarifies that no written delivery date was fixed.',
     );
+    expect(
+      resolved.envelope.positions.position_b_challenged?.authority.source_references,
+    ).toContainEqual(sourceB);
   });
 
   it('keeps described, uninspected, undisclosed evidence ineligible and hash identity non-authenticating', () => {
@@ -397,6 +586,20 @@ describe('v2 evidence, disclosure, confirmation, and transitions', () => {
         reasons: ['not_disclosed_to_both', 'uninspected'],
       },
     });
+    const replacedUpload = executeFixtureCommand(
+      context,
+      SYSTEM_ACTOR,
+      'command_replace_evidence_bytes',
+      [
+        {
+          type: 'record_evidence_upload',
+          evidence_id: 'evidence_screenshot',
+          content_hash: 'f'.repeat(64),
+        },
+      ],
+    );
+    expect(replacedUpload).toMatchObject({ status: 'rejected', reason_code: 'invalid_operation' });
+    expect(context.envelope.evidence.evidence_screenshot?.content_hash).toBe('a'.repeat(64));
     context.envelope.control.workflow_state = 'reconciliation';
     context.envelope.control.envelope_hash = hashCaseEnvelope(context.envelope);
     const inspector: AuthenticatedActor = {
@@ -448,10 +651,49 @@ describe('v2 evidence, disclosure, confirmation, and transitions', () => {
     });
   });
 
+  it('does not revive withdrawn evidence in place', () => {
+    const context = createContractFixtureContext();
+    const commandId = 'command_describe_then_withdraw';
+    executeFixtureCommand(context, partyActor('party_a', context.envelope), commandId, [
+      {
+        type: 'add_object',
+        namespace: 'evidence',
+        object: describedEvidenceFixture(context, 'party_a', 'evidence_withdrawn', commandId),
+      },
+    ]);
+    context.envelope.evidence.evidence_withdrawn!.availability = 'withdrawn';
+    context.envelope.evidence.evidence_withdrawn!.adjudication_eligibility = {
+      status: 'ineligible',
+      reasons: ['not_disclosed_to_both', 'uninspected', 'withdrawn_or_superseded'],
+    };
+    context.envelope.control.record_hash = hashCaseRecord(context.envelope);
+    context.envelope.control.envelope_hash = hashCaseEnvelope(context.envelope);
+    const before = snapshot(context.envelope);
+    const result = executeFixtureCommand(context, SYSTEM_ACTOR, 'command_revive_withdrawn', [
+      {
+        type: 'record_evidence_upload',
+        evidence_id: 'evidence_withdrawn',
+        content_hash: 'a'.repeat(64),
+      },
+    ]);
+    expect(result).toMatchObject({ status: 'rejected', reason_code: 'invalid_operation' });
+    expect(snapshot(result.envelope)).toBe(before);
+  });
+
   it('enforces the Person B independent-account embargo in executable state', () => {
     const context = createContractFixtureContext();
+    executeFixtureCommand(context, partyActor('party_a', context.envelope), 'command_a_framing', [
+      {
+        type: 'add_object',
+        namespace: 'positions',
+        object: positionFixture(context, 'party_a', 'position_a_embargoed', 'command_a_framing'),
+      },
+    ]);
     context.envelope.control.workflow_state = 'person_b_independent_account';
     context.envelope.control.envelope_hash = hashCaseEnvelope(context.envelope);
+    const invitationView = buildPersonBDisclosureView(context.envelope);
+    expect(invitationView.detailed_record).toBeNull();
+    expect(invitationView).not.toHaveProperty('positions');
     const before = snapshot(context.envelope);
     const premature = executeFixtureCommand(context, SYSTEM_ACTOR, 'command_premature_disclosure', [
       { type: 'record_detailed_disclosure', event_id: 'event_disclosure_bad' },
@@ -472,10 +714,14 @@ describe('v2 evidence, disclosure, confirmation, and transitions', () => {
       person_b_independent_account_source_id: source.source_id,
       detailed_a_framing: 'permitted',
     });
+    expect(buildPersonBDisclosureView(context.envelope).detailed_record).toBeNull();
     const disclosed = executeFixtureCommand(context, SYSTEM_ACTOR, 'command_disclose_after_b', [
       { type: 'record_detailed_disclosure', event_id: 'event_disclosure_good' },
     ]);
     expect(disclosed.envelope.formation.disclosure.detailed_a_framing).toBe('disclosed');
+    expect(
+      buildPersonBDisclosureView(disclosed.envelope).detailed_record?.positions,
+    ).toHaveProperty('position_a_embargoed');
   });
 
   it('binds confirmation to exact record identity and invalidates it after material mutation', () => {
@@ -519,6 +765,39 @@ describe('v2 evidence, disclosure, confirmation, and transitions', () => {
     ]);
     expect(invalid.reason_code).toBe('invalid_transition');
   });
+
+  it('cannot enter ready-for-lock on the bilateral path with only Person A confirmed', () => {
+    const context = createContractFixtureContext();
+    context.envelope.control.workflow_state = 'final_confirmation';
+    context.envelope.formation.disclosure = {
+      person_b_independent_account_source_id: 'source_party_b_story',
+      detailed_a_framing: 'disclosed',
+      disclosure_event_id: 'event_disclosure_complete',
+    };
+    context.envelope.control.record_hash = hashCaseRecord(context.envelope);
+    context.envelope.control.envelope_hash = hashCaseEnvelope(context.envelope);
+    executeFixtureCommand(
+      context,
+      partyActor('party_a', context.envelope),
+      'command_only_a_confirms',
+      [
+        {
+          type: 'record_confirmation',
+          confirmation_id: 'confirmation_only_a',
+          confirmed_at: '2026-01-02T00:00:00.000Z',
+          event_id: 'event_only_a_confirms',
+        },
+      ],
+    );
+    const result = executeFixtureCommand(context, SYSTEM_ACTOR, 'command_ready_without_b', [
+      {
+        type: 'transition',
+        event: 'final_confirmations_complete',
+        event_id: 'event_ready_without_b',
+      },
+    ]);
+    expect(result).toMatchObject({ status: 'rejected', reason_code: 'invalid_transition' });
+  });
 });
 
 describe('v2 lock, reopening, adjudication projection, and Gate Zero oracle', () => {
@@ -528,6 +807,15 @@ describe('v2 lock, reopening, adjudication projection, and Gate Zero oracle', ()
     context.envelope.classification.suitability = 'eligible';
     context.envelope.classification.maturity = 'ready';
     context.envelope.classification.required_fact_profile = 'commercial_delivery';
+    context.envelope.parties.party_b = {
+      ...context.envelope.parties.party_b,
+      authenticated_subject_id: null,
+      identity_assurance: 'unverified',
+      identity_event_id: null,
+      consent_status: 'not_requested',
+      consent_event_id: null,
+      participation_state: 'not_invited',
+    };
     context.envelope.control.record_hash = hashCaseRecord(context.envelope);
     context.envelope.control.envelope_hash = hashCaseEnvelope(context.envelope);
     executeFixtureCommand(context, SYSTEM_ACTOR, 'command_advisory_policy', [
@@ -644,6 +932,7 @@ describe('v2 lock, reopening, adjudication projection, and Gate Zero oracle', ()
     });
     expect(reopened.envelope.formation.confirmations).toEqual({ party_a: null, party_b: null });
     expect(reopened.envelope.formation.lock_blockers).toContain('reconfirmation_required');
+    expect(() => buildAdjudicationInput(reopened.envelope)).toThrow(/locked state/u);
     context.envelope.control.workflow_state = 'ready_for_lock';
     context.envelope.control.envelope_hash = hashCaseEnvelope(context.envelope);
     const relock = executeFixtureCommand(
@@ -660,6 +949,26 @@ describe('v2 lock, reopening, adjudication projection, and Gate Zero oracle', ()
       ],
     );
     expect(relock.reason_code).toBe('lock_guard_failed');
+  });
+
+  it('allows a system-owned non-material adjudication transition without reopening the record', () => {
+    const context = createBilateralLockedFixture();
+    const before = cloneCanonical(context.envelope);
+    const result = executeFixtureCommand(context, SYSTEM_ACTOR, 'command_begin_adjudication', [
+      {
+        type: 'transition',
+        event: 'adjudication_started',
+        event_id: 'event_adjudication_started',
+      },
+    ]);
+    expect(result.status).toBe('applied');
+    expect(result.envelope.control).toMatchObject({
+      workflow_state: 'deliberation',
+      envelope_version: before.control.envelope_version + 1,
+      record_version: before.control.record_version,
+      record_hash: before.control.record_hash,
+      lock: { status: 'locked', lock_event_id: before.control.lock.lock_event_id },
+    });
   });
 
   it('requires lock commands to bind the exact current confirmation receipt IDs', () => {
@@ -700,6 +1009,34 @@ describe('v2 lock, reopening, adjudication projection, and Gate Zero oracle', ()
     expect(snapshot(result.envelope)).toBe(snapshot(unlocked));
   });
 
+  it('treats every unresolved lock prerequisite as a deterministic lock blocker', () => {
+    const context = createBilateralLockedFixture();
+    context.envelope.control.lock = {
+      status: 'unlocked',
+      mode: null,
+      lock_event_id: null,
+      locked_at: null,
+      output_scope: null,
+    };
+    context.envelope.control.workflow_state = 'ready_for_lock';
+    context.envelope.formation.lock_prerequisites = ['inspect_evidence_receipt'];
+    context.envelope.control.record_hash = hashCaseRecord(context.envelope);
+    for (const partyId of ['party_a', 'party_b'] as const) {
+      context.envelope.formation.confirmations[partyId]!.bound_record_hash =
+        context.envelope.control.record_hash;
+    }
+    context.envelope.control.envelope_hash = hashCaseEnvelope(context.envelope);
+    const result = executeFixtureCommand(context, SYSTEM_ACTOR, 'command_lock_with_prerequisite', [
+      {
+        type: 'lock',
+        mode: 'bilateral',
+        lock_event_id: 'event_lock_with_prerequisite',
+        locked_at: '2026-01-03T02:00:00.000Z',
+      },
+    ]);
+    expect(result).toMatchObject({ status: 'rejected', reason_code: 'lock_guard_failed' });
+  });
+
   it('constructs an exact locked/protocol-bound input and excludes arbitrary journals and ineligible evidence', () => {
     const context = createBilateralLockedFixture();
     const input = buildAdjudicationInput(context.envelope);
@@ -722,6 +1059,36 @@ describe('v2 lock, reopening, adjudication projection, and Gate Zero oracle', ()
     expect(input).not.toHaveProperty('chat_history');
     expect(input).not.toHaveProperty('model_rationale');
 
+    const eligibleContext = createBilateralLockedFixture();
+    const evidence = eligibleContext.envelope.evidence.evidence_background_unadmitted!;
+    evidence.content_hash = 'c'.repeat(64);
+    evidence.availability = 'uploaded';
+    evidence.visibility = 'disclosed_to_both';
+    evidence.disclosure_event_ids = ['event_background_disclosed'];
+    evidence.inspection = {
+      status: 'inspected_complete',
+      result_id: 'inspection_background',
+      result_version: 'inspection-v1',
+      result_hash: 'd'.repeat(64),
+      source_reference: exactSourceReference(eligibleContext.source_registry.source_inspection!),
+      limitations: [],
+    };
+    evidence.authenticity_status = 'disputed';
+    evidence.adjudication_eligibility = { status: 'eligible', reasons: [] };
+    eligibleContext.envelope.control.record_hash = hashCaseRecord(eligibleContext.envelope);
+    for (const partyId of ['party_a', 'party_b'] as const) {
+      eligibleContext.envelope.formation.confirmations[partyId]!.bound_record_hash =
+        eligibleContext.envelope.control.record_hash;
+    }
+    eligibleContext.envelope.control.envelope_hash = hashCaseEnvelope(eligibleContext.envelope);
+    const eligibleInput = buildAdjudicationInput(eligibleContext.envelope);
+    expect(eligibleInput.eligible_evidence[0]).toMatchObject({
+      evidence_id: 'evidence_background_unadmitted',
+      submitted_by_party_id: 'party_a',
+      authenticity_status: 'disputed',
+      authority: { authority_kind: 'party_assertion' },
+    });
+
     const injected = cloneCanonical(input) as typeof input & { audit_journal: JsonValue };
     injected.audit_journal = [{ hidden: 'not admitted' }];
     injected.input_hash = hashAdjudicationInput(injected);
@@ -735,6 +1102,9 @@ describe('v2 lock, reopening, adjudication projection, and Gate Zero oracle', ()
     expect(
       validateAdjudicationInput(staleProtocol, context.envelope).map((issue) => issue.code),
     ).toContain('adjudication_protocol_mismatch');
+    expect(validateAdjudicationInput({} as never, context.envelope)[0]?.code).toBe(
+      'adjudication_input_shape_invalid',
+    );
   });
 
   it('freezes future per-turn oracle primitives without authoring the Gate Zero corpus', () => {
@@ -754,6 +1124,14 @@ describe('v2 lock, reopening, adjudication projection, and Gate Zero oracle', ()
       ],
       [],
     );
+    const applied = applyEnvelopeCommand({
+      envelope: context.envelope,
+      command,
+      authenticated_actor: actor,
+      source_registry: context.source_registry,
+      ledger: context.ledger,
+    });
+    expect(applied.status).toBe('applied');
     const oracle: GateZeroTurnOracle = {
       oracle_version: GATE_ZERO_ORACLE_VERSION,
       authenticated_actor: actor,
@@ -761,6 +1139,8 @@ describe('v2 lock, reopening, adjudication projection, and Gate Zero oracle', ()
       hidden_source_ids: ['source_party_b_story'],
       base_envelope_version: context.envelope.control.envelope_version,
       base_envelope_hash: context.envelope.control.envelope_hash,
+      base_record_version: context.envelope.control.record_version,
+      base_record_hash: context.envelope.control.record_hash,
       command,
       permitted_operation_types: ['add_object'],
       forbidden_operation_types: ['transition', 'lock'],
@@ -769,16 +1149,39 @@ describe('v2 lock, reopening, adjudication projection, and Gate Zero oracle', ()
         exact_no_mutation: false,
         envelope_version_delta: 1,
         record_version_delta: 1,
+        resulting_envelope_version: applied.envelope.control.envelope_version,
+        resulting_envelope_hash: applied.envelope.control.envelope_hash,
+        resulting_record_version: applied.envelope.control.record_version,
+        resulting_record_hash: applied.envelope.control.record_hash,
         authority_fragments: [],
         evidence_actions: [],
         invalidated_confirmation_parties: [],
         workflow_state: 'person_a_formation',
         lock_status: 'unlocked',
+        lock_mode: null,
+        output_scope: null,
         failure_reason: null,
         required_source_references: [],
       },
     };
     expect(validateGateZeroTurnOracle(oracle)).toEqual([]);
+
+    const staleOracle = cloneCanonical(oracle);
+    staleOracle.command.base_envelope_version += 1;
+    staleOracle.expected = {
+      ...staleOracle.expected,
+      disposition: 'rejected',
+      exact_no_mutation: true,
+      envelope_version_delta: 0,
+      record_version_delta: 0,
+      resulting_envelope_version: staleOracle.base_envelope_version,
+      resulting_envelope_hash: staleOracle.base_envelope_hash,
+      resulting_record_version: staleOracle.base_record_version,
+      resulting_record_hash: staleOracle.base_record_hash,
+      failure_reason: 'stale_base_version',
+    };
+    expect(validateGateZeroTurnOracle(staleOracle)).toEqual([]);
+    expect(validateGateZeroTurnOracle({} as never)).toEqual(['oracle_shape_invalid']);
   });
 
   it('rejects non-plain or non-finite state from canonical hashing', () => {
@@ -786,5 +1189,18 @@ describe('v2 lock, reopening, adjudication projection, and Gate Zero oracle', ()
     const accessor = {} as Record<string, unknown>;
     Object.defineProperty(accessor, 'secret', { enumerable: true, get: () => 'hidden' });
     expect(() => canonicalSerialize(accessor)).toThrow(/accessor/u);
+    const prototypeKey = JSON.parse('{"__proto__":{"polluted":true},"safe":true}') as JsonValue;
+    expect(canonicalSerialize(prototypeKey)).toContain('"__proto__"');
+    expect(canonicalSerialize(prototypeKey)).not.toBe(canonicalSerialize({ safe: true }));
+  });
+
+  it('defines sorted object keys while preserving semantic array order and exact Unicode', () => {
+    expect(canonicalSerialize({ b: 2, a: 1 })).toBe(canonicalSerialize({ a: 1, b: 2 }));
+    expect(sha256(canonicalSerialize({ operations: ['first', 'second'] }))).not.toBe(
+      sha256(canonicalSerialize({ operations: ['second', 'first'] })),
+    );
+    expect(sha256(canonicalSerialize({ quote: '\u00e9' }))).not.toBe(
+      sha256(canonicalSerialize({ quote: 'e\u0301' })),
+    );
   });
 });

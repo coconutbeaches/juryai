@@ -9,6 +9,7 @@ import {
   sha256,
   validateCaseEnvelope,
   validateSourceReference,
+  validateSubstantiveObjectShape,
   type AgreementObject,
   type AuthenticatedActor,
   type CaseEnvelope,
@@ -19,6 +20,7 @@ import {
   type EvidenceObject,
   type JsonValue,
   type LockReceipt,
+  type NonPartyActor,
   type ObjectAuthority,
   type PartyId,
   type PartyStance,
@@ -34,6 +36,7 @@ import {
 export const ENVELOPE_COMMAND_VERSION = 'juryai-envelope-command-v2.0.0';
 
 type SubstantiveObject =
+  | NonPartyActor
   | AgreementObject
   | EventObject
   | PaymentObject
@@ -127,6 +130,21 @@ export interface SetPartyParticipationOperation {
   invitation_event_id: string | null;
 }
 
+export interface SetPartyIdentityOperation {
+  type: 'set_party_identity';
+  party_id: PartyId;
+  authenticated_subject_id: string;
+  identity_assurance: 'authenticated' | 'verified';
+  identity_event_id: string;
+}
+
+export interface RecordPartyConsentOperation {
+  type: 'record_party_consent';
+  party_id: PartyId;
+  consent_status: 'pending' | 'granted' | 'declined';
+  consent_event_id: string;
+}
+
 export interface SetNonParticipationRecordOperation {
   type: 'set_non_participation_record';
   notice_event_id: string;
@@ -211,6 +229,8 @@ export type EnvelopeOperation =
   | ResolveChallengeOperation
   | SetClassificationOperation
   | SetFormationRequirementsOperation
+  | SetPartyIdentityOperation
+  | RecordPartyConsentOperation
   | SetPartyParticipationOperation
   | SetNonParticipationRecordOperation
   | SetNonParticipationPolicyOperation
@@ -248,6 +268,7 @@ export type CommandLedger = Record<string, CommandLedgerEntry>;
 
 export type CommandFailureReason =
   | 'invalid_command'
+  | 'invalid_envelope'
   | 'duplicate_command_conflict'
   | 'authentication_mismatch'
   | 'case_mismatch'
@@ -344,6 +365,35 @@ export const OPERATION_PERMISSIONS: readonly OperationPermission[] = [
     operation: 'set_formation_requirements',
     actor_types: ['system'],
     workflow_states: ['triage', ...FORMATION_EDIT_STATES],
+    party_scope: 'none',
+  },
+  {
+    operation: 'set_party_identity',
+    actor_types: ['system'],
+    workflow_states: [
+      'initial_story',
+      'triage',
+      'person_a_formation',
+      'person_a_confirmation',
+      'awaiting_person_b',
+      'person_b_independent_account',
+    ],
+    party_scope: 'none',
+  },
+  {
+    operation: 'record_party_consent',
+    actor_types: ['system'],
+    workflow_states: [
+      'initial_story',
+      'triage',
+      'person_a_formation',
+      'person_a_confirmation',
+      'awaiting_person_b',
+      'person_b_independent_account',
+      'disclosure_challenge',
+      'reconciliation',
+      'final_confirmation',
+    ],
     party_scope: 'none',
   },
   {
@@ -560,6 +610,8 @@ const materialOperationTypes = new Set<EnvelopeOperation['type']>([
   'resolve_challenge',
   'set_classification',
   'set_formation_requirements',
+  'set_party_identity',
+  'record_party_consent',
   'set_party_participation',
   'set_non_participation_record',
   'set_non_participation_policy',
@@ -574,6 +626,7 @@ const materialOperationTypes = new Set<EnvelopeOperation['type']>([
 const ownFieldPermissions: Readonly<
   Record<ReplaceOwnFieldOperation['namespace'], readonly string[]>
 > = {
+  actors: ['display_label', 'asserted_role'],
   agreements: ['description', 'conditions'],
   events: ['description', 'date'],
   payments: ['amount_minor', 'currency', 'payment_status', 'due_trigger'],
@@ -590,12 +643,24 @@ const ownFieldPermissions: Readonly<
   requested_outcomes: ['description', 'transfers', 'conditions', 'priority'],
 };
 
+const challengeFieldPermissions: Readonly<Record<SubstantiveNamespace, readonly string[]>> = {
+  ...ownFieldPermissions,
+  evidence: [
+    'asserted_author_actor_id',
+    'evidence_type',
+    'availability',
+    'authenticity_status',
+    'decision_relevant',
+  ],
+};
+
 function isSystem(actor: AuthenticatedActor): boolean {
   return actor.actor_type === 'system' && actor.party_id === null;
 }
 
 function objectId(namespace: SubstantiveNamespace, object: SubstantiveObject): string {
   const idFields: Record<SubstantiveNamespace, string> = {
+    actors: 'actor_id',
     agreements: 'obligation_id',
     events: 'event_id',
     payments: 'payment_id',
@@ -613,6 +678,27 @@ function namespaceMap(
   namespace: SubstantiveNamespace,
 ): Record<string, SubstantiveObject> {
   return envelope[namespace] as Record<string, SubstantiveObject>;
+}
+
+function ownMapValue<T>(map: Record<string, T>, id: string): T | undefined {
+  return Object.hasOwn(map, id) ? map[id] : undefined;
+}
+
+function deduplicateSourceReferences(references: SourceReference[]): SourceReference[] {
+  const byIdentity = new Map<string, SourceReference>();
+  for (const reference of references) {
+    byIdentity.set(canonicalSerialize(reference), cloneCanonical(reference));
+  }
+  return [...byIdentity.values()];
+}
+
+function partyMaterialSourceReferences(command: EnvelopeCommand): SourceReference[] {
+  return deduplicateSourceReferences([
+    ...command.source_references,
+    ...command.operations.flatMap((operation) =>
+      operation.type === 'resolve_challenge' ? operation.resolution_source_references : [],
+    ),
+  ]);
 }
 
 function rejected(
@@ -647,6 +733,7 @@ const COMMAND_KEYS = [
   'operations',
   'source_references',
 ] as const;
+const COMMAND_ID_PATTERN = /^[A-Za-z][A-Za-z0-9_.:-]{0,159}$/u;
 
 const OPERATION_KEYS: Record<EnvelopeOperation['type'], readonly string[]> = {
   add_object: ['namespace', 'object', 'type'],
@@ -692,6 +779,14 @@ const OPERATION_KEYS: Record<EnvelopeOperation['type'], readonly string[]> = {
     'type',
     'uncertainties',
   ],
+  set_party_identity: [
+    'authenticated_subject_id',
+    'identity_assurance',
+    'identity_event_id',
+    'party_id',
+    'type',
+  ],
+  record_party_consent: ['consent_event_id', 'consent_status', 'party_id', 'type'],
   set_party_participation: ['invitation_event_id', 'participation_state', 'party_id', 'type'],
   set_non_participation_record: [
     'correction_opportunity',
@@ -721,6 +816,18 @@ const OPERATION_KEYS: Record<EnvelopeOperation['type'], readonly string[]> = {
   reopen_material_change: ['event_id', 'occurred_at', 'reason', 'source_references', 'type'],
 };
 
+const substantiveNamespaces = new Set<SubstantiveNamespace>([
+  'actors',
+  'agreements',
+  'events',
+  'payments',
+  'deliverables',
+  'positions',
+  'claimed_losses',
+  'requested_outcomes',
+  'evidence',
+]);
+
 function exactKeys(value: unknown, expected: readonly string[]): boolean {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   return isDeepStrictEqual(Object.keys(value).sort(), [...expected].sort());
@@ -732,8 +839,8 @@ function commandStructureFailure(value: unknown): string | null {
   const command = value as EnvelopeCommand;
   if (
     command.command_version !== ENVELOPE_COMMAND_VERSION ||
-    !command.command_id ||
-    !command.case_id ||
+    !COMMAND_ID_PATTERN.test(command.command_id) ||
+    !COMMAND_ID_PATTERN.test(command.case_id) ||
     !Number.isSafeInteger(command.base_envelope_version) ||
     command.base_envelope_version < 1 ||
     !/^[a-f0-9]{64}$/u.test(command.base_envelope_hash) ||
@@ -745,7 +852,15 @@ function commandStructureFailure(value: unknown): string | null {
       'actor_type',
       'authenticated_subject_id',
       'party_id',
-    ])
+    ]) ||
+    !COMMAND_ID_PATTERN.test(command.authenticated_actor.actor_id) ||
+    !COMMAND_ID_PATTERN.test(command.authenticated_actor.authenticated_subject_id) ||
+    !['party', 'system', 'inspector', 'adjudicator'].includes(
+      command.authenticated_actor.actor_type,
+    ) ||
+    ![null, 'party_a', 'party_b'].includes(command.authenticated_actor.party_id) ||
+    (command.authenticated_actor.actor_type === 'party') !==
+      (command.authenticated_actor.party_id !== null)
   ) {
     return 'Command identity, actor, CAS, operations, or source references are malformed.';
   }
@@ -760,10 +875,21 @@ function commandStructureFailure(value: unknown): string | null {
     if (
       !operation ||
       typeof operation !== 'object' ||
-      !(operation.type in OPERATION_KEYS) ||
+      !Object.hasOwn(OPERATION_KEYS, operation.type) ||
       !exactKeys(operation, OPERATION_KEYS[operation.type])
     ) {
       return 'Operation is absent from or malformed for the closed mutation vocabulary.';
+    }
+    if (
+      ((operation.type === 'add_object' || operation.type === 'set_own_stance') &&
+        !substantiveNamespaces.has(operation.namespace)) ||
+      (operation.type === 'replace_own_field' &&
+        (!substantiveNamespaces.has(operation.namespace) ||
+          (operation.namespace as string) === 'evidence')) ||
+      (operation.type === 'record_challenge' &&
+        !substantiveNamespaces.has(operation.target_namespace))
+    ) {
+      return 'Operation namespace is absent from the closed substantive vocabulary.';
     }
   }
   return null;
@@ -771,6 +897,55 @@ function commandStructureFailure(value: unknown): string | null {
 
 function exactActor(left: AuthenticatedActor, right: AuthenticatedActor): boolean {
   return isDeepStrictEqual(left, right);
+}
+
+function sourceAuthorityFailure(
+  operation: EnvelopeOperation,
+  actor: AuthenticatedActor,
+  registry: Record<string, SourceRecord>,
+): string | null {
+  const sourcesFor = (references: SourceReference[]): SourceRecord[] =>
+    references
+      .map((reference) => ownMapValue(registry, reference.source_id))
+      .filter((source): source is SourceRecord => Boolean(source));
+  if (operation.type === 'add_object') {
+    const sources = sourcesFor(operation.object.authority.source_references);
+    if (
+      actor.actor_type === 'party' &&
+      sources.some((source) => source.actor_id !== actor.actor_id)
+    ) {
+      return 'Party material must be grounded only in sources attributed to that party.';
+    }
+  }
+  if (operation.type === 'record_independent_account') {
+    const source = ownMapValue(registry, operation.source_reference.source_id);
+    if (source?.source_type !== 'independent_account' || source.actor_id !== actor.actor_id) {
+      return 'Person B independent account requires a Person B independent-account source.';
+    }
+  }
+  if (operation.type === 'record_evidence_inspection') {
+    const source = ownMapValue(registry, operation.source_reference.source_id);
+    if (source?.source_type !== 'evidence_inspection' || source.actor_id !== actor.actor_id) {
+      return 'Evidence inspection requires a source attributed to the authenticated inspector.';
+    }
+  }
+  if (operation.type === 'record_challenge') {
+    if (
+      sourcesFor(operation.source_references).some((source) => source.actor_id !== actor.actor_id)
+    ) {
+      return 'A challenge must be grounded only in sources attributed to its challenging party.';
+    }
+  }
+  if (operation.type === 'resolve_challenge') {
+    if (
+      sourcesFor(operation.resolution_source_references).some(
+        (source) => source.actor_id !== actor.actor_id,
+      )
+    ) {
+      return 'A challenge resolution must be grounded only in sources attributed to its owner.';
+    }
+  }
+  return null;
 }
 
 function partyAuthorizationFailure(
@@ -858,7 +1033,27 @@ function transitionGuardFailure(
         case 'no_open_challenges':
           return envelope.formation.challenges.every((challenge) => challenge.status !== 'open');
         case 'lock_mode_confirmation_guard':
-          return currentConfirmation(envelope, 'party_a') !== null;
+          if (!currentConfirmation(envelope, 'party_a')) return false;
+          if (
+            currentConfirmation(envelope, 'party_b') &&
+            envelope.formation.disclosure.person_b_independent_account_source_id &&
+            envelope.formation.disclosure.detailed_a_framing === 'disclosed'
+          ) {
+            return true;
+          }
+          return (
+            envelope.control.protocol.non_participation_mode === 'advisory_only' &&
+            envelope.parties.party_b.participation_state === 'non_participating' &&
+            Boolean(
+              envelope.formation.non_participation.invitation_event_id &&
+              envelope.formation.non_participation.notice_event_id &&
+              envelope.formation.non_participation.response_deadline &&
+              envelope.formation.non_participation.deadline_expired_event_id &&
+              ['expired', 'exhausted'].includes(
+                envelope.formation.non_participation.correction_opportunity,
+              ),
+            )
+          );
         case 'active_lock':
           return envelope.control.lock.status === 'locked';
         default:
@@ -889,10 +1084,17 @@ function validatePartyObjectAuthority(
   const own = authority.party_stances[actor.party_id].stance;
   const otherId: PartyId = actor.party_id === 'party_a' ? 'party_b' : 'party_a';
   if (
-    !['asserted', 'admitted'].includes(own) ||
+    own !== (authority.authority_kind === 'party_admission' ? 'admitted' : 'asserted') ||
     authority.party_stances[otherId].stance !== 'unresponded'
   ) {
     return 'New party material must preserve the introducing stance and the other party as unresponded.';
+  }
+  if ('position_kind' in object) {
+    const expectedKind =
+      object.position_kind === 'admission' ? 'party_admission' : 'party_assertion';
+    if (authority.authority_kind !== expectedKind) {
+      return 'Position kind and party authority kind must agree.';
+    }
   }
   authority.introduced_in_record_version = nextRecordVersion;
   authority.last_material_record_version = nextRecordVersion;
@@ -928,10 +1130,12 @@ function applyAddObject(
   nextRecordVersion: number,
   commandId: string,
 ): string | null {
+  const shapeIssues = validateSubstantiveObjectShape(operation.namespace, operation.object);
+  if (shapeIssues.length > 0) return shapeIssues[0]!.message;
   const map = namespaceMap(envelope, operation.namespace);
   const id = objectId(operation.namespace, operation.object);
-  if (!id) return 'Object identity is missing.';
-  if (map[id]) return 'Object identity already exists.';
+  if (!COMMAND_ID_PATTERN.test(id)) return 'Object identity is missing or invalid.';
+  if (Object.hasOwn(map, id)) return 'Object identity already exists.';
   const authorityFailure = validatePartyObjectAuthority(
     operation.object,
     actor,
@@ -981,6 +1185,7 @@ function applyReplaceOwnField(
   actor: AuthenticatedActor,
   nextRecordVersion: number,
   commandId: string,
+  sourceReferences: SourceReference[],
 ): { failure: string | null; reason?: CommandFailureReason } {
   if (actor.actor_type !== 'party' || !actor.party_id) {
     return {
@@ -988,12 +1193,18 @@ function applyReplaceOwnField(
       reason: 'unauthorized_actor',
     };
   }
-  const object = namespaceMap(envelope, operation.namespace)[operation.object_id];
+  const object = ownMapValue(namespaceMap(envelope, operation.namespace), operation.object_id);
   if (!object) return { failure: 'Target object does not exist.', reason: 'unknown_object' };
   if (object.authority.introduced_by.actor_id !== actor.actor_id) {
     return {
       failure: 'A party cannot mutate another party or system object.',
       reason: 'cross_party_mutation',
+    };
+  }
+  if (sourceReferences.length === 0) {
+    return {
+      failure: 'An own-field correction requires exact party-attributed source grounding.',
+      reason: 'invalid_source_reference',
     };
   }
   if (!ownFieldPermissions[operation.namespace].includes(operation.field)) {
@@ -1030,6 +1241,10 @@ function applyReplaceOwnField(
   record[operation.field] = cloneCanonical(operation.replacement_value);
   object.authority.last_material_record_version = nextRecordVersion;
   object.authority.last_material_command_id = commandId;
+  object.authority.source_references = deduplicateSourceReferences([
+    ...object.authority.source_references,
+    ...sourceReferences,
+  ]);
   return { failure: null };
 }
 
@@ -1039,10 +1254,12 @@ function applySetOwnStance(
   actor: AuthenticatedActor,
   nextRecordVersion: number,
   commandId: string,
+  sourceReferences: SourceReference[],
 ): string | null {
   if (actor.actor_type !== 'party' || !actor.party_id) return 'Only a party may set its stance.';
-  const object = namespaceMap(envelope, operation.namespace)[operation.object_id];
+  const object = ownMapValue(namespaceMap(envelope, operation.namespace), operation.object_id);
   if (!object) return 'Target object does not exist.';
+  if (sourceReferences.length === 0) return 'A stance update requires exact source grounding.';
   const ownsObject = object.authority.introduced_by.actor_id === actor.actor_id;
   const allowed = ownsObject
     ? ['asserted', 'admitted', 'withdrawn']
@@ -1056,6 +1273,10 @@ function applySetOwnStance(
   object.authority.resolution_status = deriveResolutionStatus(object.authority.party_stances);
   object.authority.last_material_record_version = nextRecordVersion;
   object.authority.last_material_command_id = commandId;
+  object.authority.source_references = deduplicateSourceReferences([
+    ...object.authority.source_references,
+    ...sourceReferences,
+  ]);
   return null;
 }
 
@@ -1073,6 +1294,7 @@ function lockGuardFailure(envelope: CaseEnvelope, mode: LockOperation['mode']): 
   if (
     envelope.formation.open_required_fields.length > 0 ||
     envelope.formation.ambiguities.length > 0 ||
+    envelope.formation.lock_prerequisites.length > 0 ||
     envelope.formation.lock_blockers.length > 0
   ) {
     return 'formation_blocker_present';
@@ -1180,6 +1402,7 @@ function applyOperation(
         actor,
         nextRecordVersion,
         command.command_id,
+        partyMaterialSourceReferences(command),
       );
     case 'set_own_stance': {
       const failure = applySetOwnStance(
@@ -1188,6 +1411,7 @@ function applyOperation(
         actor,
         nextRecordVersion,
         command.command_id,
+        partyMaterialSourceReferences(command),
       );
       return { failure, reason: failure ? 'invalid_operation' : undefined };
     }
@@ -1205,8 +1429,20 @@ function applyOperation(
       ) {
         return { failure: 'Challenge identity already exists.', reason: 'duplicate_object' };
       }
-      const target = namespaceMap(envelope, operation.target_namespace)[operation.target_object_id];
+      const target = ownMapValue(
+        namespaceMap(envelope, operation.target_namespace),
+        operation.target_object_id,
+      );
       if (!target) return { failure: 'Challenge target does not exist.', reason: 'unknown_object' };
+      if (
+        operation.target_field !== null &&
+        !challengeFieldPermissions[operation.target_namespace].includes(operation.target_field)
+      ) {
+        return {
+          failure: 'Challenge target field is absent from the closed field vocabulary.',
+          reason: 'invalid_operation',
+        };
+      }
       if (target.authority.introduced_by.actor_id === actor.actor_id) {
         return { failure: 'A party cannot challenge its own object.', reason: 'invalid_operation' };
       }
@@ -1243,7 +1479,10 @@ function applyOperation(
       if (challenge.status !== 'open') {
         return { failure: 'Challenge is already closed.', reason: 'invalid_operation' };
       }
-      const target = namespaceMap(envelope, challenge.target_namespace)[challenge.target_object_id];
+      const target = ownMapValue(
+        namespaceMap(envelope, challenge.target_namespace),
+        challenge.target_object_id,
+      );
       if (!target) return { failure: 'Challenge target does not exist.', reason: 'unknown_object' };
       const challengerMayWithdraw =
         operation.resolution === 'withdrawn' && challenge.challenging_party_id === actor.party_id;
@@ -1290,9 +1529,23 @@ function applyOperation(
     case 'set_classification': {
       if (!isSystem(actor))
         return { failure: 'Classification is system-owned.', reason: 'unauthorized_actor' };
+      if (
+        operation.authority.introduced_by.actor_id !== actor.actor_id ||
+        operation.authority.introduced_by.actor_type !== 'system' ||
+        operation.authority.authority_kind !== 'system_observation'
+      ) {
+        return {
+          failure: 'Classification requires matching deterministic system authority.',
+          reason: 'invalid_operation',
+        };
+      }
       operation.authority.introduced_in_record_version = nextRecordVersion;
       operation.authority.last_material_record_version = nextRecordVersion;
       operation.authority.last_material_command_id = command.command_id;
+      operation.authority.resolution_status = deriveResolutionStatus(
+        operation.authority.party_stances,
+      );
+      operation.authority.adjudication_eligible = false;
       envelope.classification = {
         case_category: operation.case_category,
         suitability: operation.suitability,
@@ -1320,9 +1573,92 @@ function applyOperation(
       envelope.formation.lock_prerequisites = cloneCanonical(operation.lock_prerequisites);
       envelope.formation.lock_blockers = cloneCanonical(operation.lock_blockers);
       return { failure: null };
+    case 'set_party_identity': {
+      if (!isSystem(actor)) {
+        return { failure: 'Party identity is system-owned.', reason: 'unauthorized_actor' };
+      }
+      const party = envelope.parties[operation.party_id];
+      if (operation.party_id === 'party_b' && party.participation_state === 'not_invited') {
+        return {
+          failure: 'Person B identity cannot be bound before an invitation.',
+          reason: 'invalid_operation',
+        };
+      }
+      if (
+        party.authenticated_subject_id !== null &&
+        party.authenticated_subject_id !== operation.authenticated_subject_id
+      ) {
+        return {
+          failure: 'An existing party subject binding cannot be silently replaced.',
+          reason: 'invalid_operation',
+        };
+      }
+      party.authenticated_subject_id = operation.authenticated_subject_id;
+      party.identity_assurance = operation.identity_assurance;
+      party.identity_event_id = operation.identity_event_id;
+      return { failure: null };
+    }
+    case 'record_party_consent': {
+      if (!isSystem(actor)) {
+        return { failure: 'Party consent is system-owned.', reason: 'unauthorized_actor' };
+      }
+      const party = envelope.parties[operation.party_id];
+      if (operation.party_id === 'party_b' && party.participation_state === 'not_invited') {
+        return {
+          failure: 'Person B consent cannot be recorded before an invitation.',
+          reason: 'invalid_operation',
+        };
+      }
+      if (
+        operation.consent_status === 'granted' &&
+        (party.identity_assurance === 'unverified' || !party.authenticated_subject_id)
+      ) {
+        return {
+          failure: 'Granted consent requires a prior code-owned identity binding.',
+          reason: 'invalid_operation',
+        };
+      }
+      party.consent_status = operation.consent_status;
+      party.consent_event_id = operation.consent_event_id;
+      return { failure: null };
+    }
     case 'set_party_participation':
       if (!isSystem(actor))
         return { failure: 'Participation is system-owned.', reason: 'unauthorized_actor' };
+      if (
+        operation.party_id === 'party_a' &&
+        !['active', 'withdrawn'].includes(operation.participation_state)
+      ) {
+        return {
+          failure: 'Person A participation cannot use Person B invitation states.',
+          reason: 'invalid_operation',
+        };
+      }
+      if (operation.party_id === 'party_b') {
+        const current = envelope.parties.party_b.participation_state;
+        const allowed: Record<
+          CaseEnvelope['parties']['party_b']['participation_state'],
+          CaseEnvelope['parties']['party_b']['participation_state'][]
+        > = {
+          not_invited: ['invited', 'withdrawn'],
+          invited: ['active', 'non_participating', 'withdrawn'],
+          active: ['non_participating', 'withdrawn'],
+          non_participating: ['active', 'withdrawn'],
+          withdrawn: [],
+        };
+        if (!allowed[current].includes(operation.participation_state)) {
+          return {
+            failure: 'Person B participation transition is invalid.',
+            reason: 'invalid_operation',
+          };
+        }
+        if (operation.participation_state === 'invited' && !operation.invitation_event_id) {
+          return {
+            failure: 'Person B invitation requires an event identity.',
+            reason: 'invalid_operation',
+          };
+        }
+      }
       envelope.parties[operation.party_id].participation_state = operation.participation_state;
       if (operation.party_id === 'party_b' && operation.invitation_event_id) {
         envelope.formation.non_participation.invitation_event_id = operation.invitation_event_id;
@@ -1360,8 +1696,20 @@ function applyOperation(
     case 'record_evidence_upload': {
       if (!isSystem(actor))
         return { failure: 'Evidence upload state is system-owned.', reason: 'unauthorized_actor' };
-      const evidence = envelope.evidence[operation.evidence_id];
+      const evidence = ownMapValue(envelope.evidence, operation.evidence_id);
       if (!evidence) return { failure: 'Evidence does not exist.', reason: 'unknown_object' };
+      if (['withdrawn', 'superseded'].includes(evidence.availability)) {
+        return {
+          failure: 'Withdrawn or superseded evidence cannot be revived in place.',
+          reason: 'invalid_operation',
+        };
+      }
+      if (evidence.content_hash !== null || evidence.availability === 'uploaded') {
+        return {
+          failure: 'Evidence byte identity is immutable once an upload is recorded.',
+          reason: 'invalid_operation',
+        };
+      }
       if (!/^[a-f0-9]{64}$/u.test(operation.content_hash)) {
         return {
           failure: 'Uploaded evidence requires a SHA-256 content hash.',
@@ -1382,7 +1730,7 @@ function applyOperation(
           reason: 'unauthorized_actor',
         };
       }
-      const evidence = envelope.evidence[operation.evidence_id];
+      const evidence = ownMapValue(envelope.evidence, operation.evidence_id);
       if (!evidence) return { failure: 'Evidence does not exist.', reason: 'unknown_object' };
       if (evidence.availability !== 'uploaded' || !evidence.content_hash) {
         return {
@@ -1406,7 +1754,7 @@ function applyOperation(
     case 'set_evidence_visibility': {
       if (!isSystem(actor))
         return { failure: 'Evidence visibility is system-owned.', reason: 'unauthorized_actor' };
-      const evidence = envelope.evidence[operation.evidence_id];
+      const evidence = ownMapValue(envelope.evidence, operation.evidence_id);
       if (!evidence) return { failure: 'Evidence does not exist.', reason: 'unknown_object' };
       evidence.visibility = operation.visibility;
       evidence.disclosure_event_ids.push(operation.disclosure_event_id);
@@ -1470,6 +1818,7 @@ function applyOperation(
       envelope.formation.confirmations[actor.party_id] = {
         confirmation_id: operation.confirmation_id,
         party_id: actor.party_id,
+        authenticated_subject_id: actor.authenticated_subject_id,
         bound_envelope_version: command.base_envelope_version,
         bound_envelope_hash: command.base_envelope_hash,
         bound_record_version: envelope.control.record_version,
@@ -1580,7 +1929,32 @@ export function applyEnvelopeCommand(input: ApplyEnvelopeCommandInput): ApplyEnv
   if (structureFailure) {
     return rejected(input, commandHash, 'invalid_command', structureFailure);
   }
-  const existing = input.ledger[command.command_id];
+  if (!exactActor(command.authenticated_actor, input.authenticated_actor)) {
+    return rejected(
+      input,
+      commandHash,
+      'authentication_mismatch',
+      'Authenticated execution context does not match the command actor.',
+    );
+  }
+  const inputEnvelopeIssues = validateCaseEnvelope(input.envelope);
+  if (inputEnvelopeIssues.length > 0) {
+    return rejected(
+      input,
+      commandHash,
+      'invalid_envelope',
+      `${inputEnvelopeIssues[0]!.code}: ${inputEnvelopeIssues[0]!.message}`,
+    );
+  }
+  if (command.case_id !== input.envelope.control.case_id) {
+    return rejected(
+      input,
+      commandHash,
+      'case_mismatch',
+      'Command case does not match the envelope.',
+    );
+  }
+  const existing = ownMapValue(input.ledger, command.command_id);
   if (existing) {
     if (existing.command_hash !== commandHash) {
       return rejected(
@@ -1604,25 +1978,9 @@ export function applyEnvelopeCommand(input: ApplyEnvelopeCommandInput): ApplyEnv
       material_record_changed: false,
     };
   }
-  if (!exactActor(command.authenticated_actor, input.authenticated_actor)) {
-    return rejected(
-      input,
-      commandHash,
-      'authentication_mismatch',
-      'Authenticated execution context does not match the command actor.',
-    );
-  }
   const authorizationFailure = partyAuthorizationFailure(input.envelope, input.authenticated_actor);
   if (authorizationFailure) {
     return rejected(input, commandHash, 'unauthorized_actor', authorizationFailure);
-  }
-  if (command.case_id !== input.envelope.control.case_id) {
-    return rejected(
-      input,
-      commandHash,
-      'case_mismatch',
-      'Command case does not match the envelope.',
-    );
   }
   if (command.base_envelope_version !== input.envelope.control.envelope_version) {
     return rejected(input, commandHash, 'stale_base_version', 'Command base version is stale.');
@@ -1674,6 +2032,31 @@ export function applyEnvelopeCommand(input: ApplyEnvelopeCommandInput): ApplyEnv
       'invalid_source_reference',
       'At least one source reference is absent, stale, or not exact.',
     );
+  }
+  if (
+    input.authenticated_actor.actor_type === 'party' &&
+    command.source_references.some(
+      (reference) =>
+        ownMapValue(input.source_registry, reference.source_id)?.actor_id !==
+        input.authenticated_actor.actor_id,
+    )
+  ) {
+    return rejected(
+      input,
+      commandHash,
+      'invalid_source_reference',
+      'Party command sources must be attributed to the authenticated party.',
+    );
+  }
+  for (const operation of command.operations) {
+    const sourceFailure = sourceAuthorityFailure(
+      operation,
+      input.authenticated_actor,
+      input.source_registry,
+    );
+    if (sourceFailure) {
+      return rejected(input, commandHash, 'invalid_source_reference', sourceFailure);
+    }
   }
   const materialChanged = command.operations.some((operation) =>
     materialOperationTypes.has(operation.type),

@@ -20,6 +20,7 @@ import {
 export const ADJUDICATION_INPUT_VERSION = 'juryai-adjudication-input-v2.0.0';
 
 export type AdjudicationObject =
+  | CaseEnvelope['actors'][string]
   | CaseEnvelope['agreements'][string]
   | CaseEnvelope['events'][string]
   | CaseEnvelope['payments'][string]
@@ -33,6 +34,10 @@ export interface AdjudicationObjectReference {
 
 export interface EligibleEvidenceReference {
   evidence_id: string;
+  submitted_by_party_id: PartyId;
+  asserted_author_actor_id: string | null;
+  authenticity_status: EvidenceObject['authenticity_status'];
+  authority: EvidenceObject['authority'];
   content_hash: string;
   inspection_result_id: string;
   inspection_result_version: string;
@@ -94,6 +99,7 @@ function sortedValues<T>(map: Record<string, T>): T[] {
 
 function objectId(namespace: SubstantiveNamespace, object: { [key: string]: unknown }): string {
   const key: Record<SubstantiveNamespace, string> = {
+    actors: 'actor_id',
     agreements: 'obligation_id',
     events: 'event_id',
     payments: 'payment_id',
@@ -124,6 +130,7 @@ export function buildAdjudicationInput(envelope: CaseEnvelope): AdjudicationInpu
   const unresolvedDisputes: AdjudicationInput['unresolved_disputes'] = [];
   const admittedSourceReferences: SourceReference[] = [];
   const objectNamespaces = [
+    'actors',
     'agreements',
     'events',
     'payments',
@@ -154,6 +161,20 @@ export function buildAdjudicationInput(envelope: CaseEnvelope): AdjudicationInpu
   for (const object of [...claimedLosses, ...requestedOutcomes]) {
     admittedSourceReferences.push(...cloneCanonical(object.authority.source_references));
   }
+  for (const [namespace, material] of [
+    ['claimed_losses', claimedLosses],
+    ['requested_outcomes', requestedOutcomes],
+  ] as const) {
+    for (const object of material) {
+      if (['disputed', 'unresolved'].includes(object.authority.resolution_status)) {
+        unresolvedDisputes.push({
+          namespace,
+          object_id: objectId(namespace, object as unknown as { [key: string]: unknown }),
+          resolution_status: object.authority.resolution_status as 'disputed' | 'unresolved',
+        });
+      }
+    }
+  }
   const eligibleEvidence: EligibleEvidenceReference[] = [];
   const excludedEvidence: ExcludedEvidenceReference[] = [];
   for (const evidence of sortedValues(envelope.evidence)) {
@@ -172,6 +193,10 @@ export function buildAdjudicationInput(envelope: CaseEnvelope): AdjudicationInpu
       }
       eligibleEvidence.push({
         evidence_id: evidence.evidence_id,
+        submitted_by_party_id: evidence.submitted_by_party_id,
+        asserted_author_actor_id: evidence.asserted_author_actor_id,
+        authenticity_status: evidence.authenticity_status,
+        authority: cloneCanonical(evidence.authority),
         content_hash: evidence.content_hash,
         inspection_result_id: evidence.inspection.result_id,
         inspection_result_version: evidence.inspection.result_version,
@@ -227,7 +252,7 @@ export function buildAdjudicationInput(envelope: CaseEnvelope): AdjudicationInpu
   return input;
 }
 
-export function validateAdjudicationInput(
+function validateAdjudicationInputUnchecked(
   input: AdjudicationInput,
   envelope: CaseEnvelope,
 ): ContractIssue[] {
@@ -291,4 +316,24 @@ export function validateAdjudicationInput(
     );
   }
   return issues;
+}
+
+export function validateAdjudicationInput(
+  input: AdjudicationInput,
+  envelope: CaseEnvelope,
+): ContractIssue[] {
+  try {
+    return validateAdjudicationInputUnchecked(input, envelope);
+  } catch (error) {
+    return [
+      {
+        code: 'adjudication_input_shape_invalid',
+        path: '$',
+        message:
+          error instanceof Error
+            ? `Adjudication input validation failed closed: ${error.message}`
+            : 'Adjudication input validation failed closed.',
+      },
+    ];
+  }
 }

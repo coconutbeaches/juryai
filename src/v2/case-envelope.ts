@@ -47,6 +47,7 @@ export type PartyStance =
 
 export type ResolutionStatus = 'bilaterally_agreed' | 'disputed' | 'unresolved' | 'withdrawn';
 export type SubstantiveNamespace =
+  | 'actors'
   | 'agreements'
   | 'events'
   | 'payments'
@@ -119,10 +120,10 @@ export interface PartyRecord {
   role: 'person_a' | 'person_b';
   authenticated_subject_id: string | null;
   identity_assurance: 'unverified' | 'authenticated' | 'verified';
+  identity_event_id: string | null;
   consent_status: 'not_requested' | 'pending' | 'granted' | 'declined';
   consent_event_id: string | null;
-  participation_state:
-    'not_invited' | 'invited' | 'active' | 'confirmed' | 'non_participating' | 'withdrawn';
+  participation_state: 'not_invited' | 'invited' | 'active' | 'non_participating' | 'withdrawn';
 }
 
 export interface NonPartyActor {
@@ -130,6 +131,7 @@ export interface NonPartyActor {
   display_label: string;
   asserted_role: string;
   identity_assurance: 'unverified' | 'verified';
+  authority: ObjectAuthority;
 }
 
 export interface ClassificationRecord {
@@ -289,6 +291,7 @@ export type EvidenceIneligibilityReason =
 export interface ConfirmationReceipt {
   confirmation_id: string;
   party_id: PartyId;
+  authenticated_subject_id: string;
   bound_envelope_version: number;
   bound_envelope_hash: string;
   bound_record_version: number;
@@ -418,6 +421,381 @@ const stances = new Set<PartyStance>([
   'unresponded',
   'withdrawn',
 ]);
+const workflowStates = new Set<WorkflowState>([
+  'initial_story',
+  'triage',
+  'person_a_formation',
+  'person_a_confirmation',
+  'awaiting_person_b',
+  'person_b_independent_account',
+  'disclosure_challenge',
+  'reconciliation',
+  'final_confirmation',
+  'ready_for_lock',
+  'locked',
+  'deliberation',
+  'resolved',
+  'unresolved',
+  'unsuitable',
+  'unsafe',
+  'withdrawn',
+]);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function hasExactKeys(value: unknown, keys: readonly string[]): value is Record<string, unknown> {
+  return (
+    isRecord(value) &&
+    JSON.stringify(Object.keys(value).sort()) === JSON.stringify([...keys].sort())
+  );
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === 'string');
+}
+
+function isNullableString(value: unknown): value is string | null {
+  return value === null || typeof value === 'string';
+}
+
+function sourceReferenceShapeValid(value: unknown): value is SourceReference {
+  return (
+    hasExactKeys(value, ['source_hash', 'source_id', 'span']) &&
+    ID_PATTERN.test(String(value.source_id)) &&
+    HASH_PATTERN.test(String(value.source_hash)) &&
+    (value.span === null ||
+      (hasExactKeys(value.span, ['encoding', 'end', 'quote', 'start']) &&
+        value.span.encoding === 'utf16' &&
+        typeof value.span.quote === 'string' &&
+        Number.isInteger(value.span.start) &&
+        Number.isInteger(value.span.end) &&
+        Number(value.span.start) >= 0 &&
+        Number(value.span.end) >= Number(value.span.start) &&
+        Number(value.span.end) - Number(value.span.start) === value.span.quote.length))
+  );
+}
+
+function authorityShapeValid(value: unknown): value is ObjectAuthority {
+  if (
+    !hasExactKeys(value, [
+      'adjudication_eligible',
+      'authority_detail',
+      'authority_kind',
+      'evidence_ids',
+      'introduced_by',
+      'introduced_in_record_version',
+      'last_material_command_id',
+      'last_material_record_version',
+      'party_stances',
+      'resolution_status',
+      'source_references',
+      'subject_actor_ids',
+    ]) ||
+    !hasExactKeys(value.introduced_by, ['actor_id', 'actor_type']) ||
+    !hasExactKeys(value.party_stances, ['party_a', 'party_b']) ||
+    !hasExactKeys(value.party_stances.party_a, ['response_event_id', 'stance']) ||
+    !hasExactKeys(value.party_stances.party_b, ['response_event_id', 'stance']) ||
+    !Array.isArray(value.source_references) ||
+    !isStringArray(value.subject_actor_ids) ||
+    !isStringArray(value.evidence_ids) ||
+    typeof value.adjudication_eligible !== 'boolean' ||
+    !isNullableString(value.authority_detail)
+  ) {
+    return false;
+  }
+  return value.source_references.every(sourceReferenceShapeValid);
+}
+
+const SUBSTANTIVE_KEYS: Record<SubstantiveNamespace, readonly string[]> = {
+  actors: ['actor_id', 'asserted_role', 'authority', 'display_label', 'identity_assurance'],
+  agreements: [
+    'authority',
+    'conditions',
+    'description',
+    'linked_deliverable_ids',
+    'linked_event_ids',
+    'linked_payment_ids',
+    'obligation_id',
+    'obligation_type',
+    'obligee_actor_id',
+    'obligor_actor_id',
+  ],
+  events: [
+    'actor_ids',
+    'authority',
+    'date',
+    'description',
+    'event_id',
+    'event_type',
+    'linked_deliverable_ids',
+    'linked_obligation_ids',
+    'linked_payment_ids',
+  ],
+  payments: [
+    'amount_minor',
+    'authority',
+    'currency',
+    'due_trigger',
+    'from_actor_id',
+    'linked_deliverable_ids',
+    'linked_event_ids',
+    'linked_obligation_ids',
+    'payment_id',
+    'payment_status',
+    'to_actor_id',
+  ],
+  deliverables: [
+    'authority',
+    'completion_positions',
+    'defect_positions',
+    'deliverable_id',
+    'expected_scope',
+    'linked_evidence_ids',
+    'linked_event_ids',
+    'linked_obligation_ids',
+    'name',
+    'responsible_actor_id',
+  ],
+  positions: ['authority', 'party_id', 'position_id', 'position_kind', 'statement', 'target'],
+  claimed_losses: [
+    'amount_minor',
+    'authority',
+    'causal_reference_ids',
+    'claimant_party_id',
+    'currency',
+    'loss_id',
+    'loss_type',
+    'non_monetary_description',
+    'supporting_evidence_ids',
+  ],
+  requested_outcomes: [
+    'authority',
+    'conditions',
+    'description',
+    'outcome_id',
+    'outcome_type',
+    'priority',
+    'requesting_party_id',
+    'transfers',
+  ],
+  evidence: [
+    'adjudication_eligibility',
+    'asserted_author_actor_id',
+    'authenticity_status',
+    'authority',
+    'availability',
+    'content_hash',
+    'decision_relevant',
+    'disclosure_event_ids',
+    'evidence_id',
+    'evidence_type',
+    'inspection',
+    'submitted_by_party_id',
+    'supersedes_evidence_id',
+    'visibility',
+  ],
+};
+
+export function validateSubstantiveObjectShape(
+  namespace: SubstantiveNamespace,
+  value: unknown,
+): ContractIssue[] {
+  const issue = (message: string): ContractIssue[] => [
+    { code: 'object_shape_invalid', path: `$.${namespace}`, message },
+  ];
+  if (
+    !Object.hasOwn(SUBSTANTIVE_KEYS, namespace) ||
+    !hasExactKeys(value, SUBSTANTIVE_KEYS[namespace])
+  ) {
+    return issue('Substantive object must contain exactly the fields for its namespace.');
+  }
+  const object = value;
+  if (!authorityShapeValid(object.authority)) return issue('Authority metadata shape is invalid.');
+  const stringFieldsByNamespace: Record<SubstantiveNamespace, readonly string[]> = {
+    actors: ['actor_id', 'display_label', 'asserted_role', 'identity_assurance'],
+    agreements: ['obligation_id', 'obligation_type', 'description'],
+    events: ['event_id', 'event_type', 'description'],
+    payments: ['payment_id', 'payment_status'],
+    deliverables: ['deliverable_id', 'name', 'expected_scope'],
+    positions: ['position_id', 'party_id', 'position_kind', 'statement'],
+    claimed_losses: ['loss_id', 'claimant_party_id', 'loss_type'],
+    requested_outcomes: ['outcome_id', 'requesting_party_id', 'outcome_type', 'description'],
+    evidence: [
+      'evidence_id',
+      'submitted_by_party_id',
+      'evidence_type',
+      'availability',
+      'visibility',
+      'authenticity_status',
+    ],
+  };
+  if (stringFieldsByNamespace[namespace].some((field) => typeof object[field] !== 'string')) {
+    return issue('Required scalar fields have invalid types.');
+  }
+  const stringArrayFieldsByNamespace: Record<SubstantiveNamespace, readonly string[]> = {
+    actors: [],
+    agreements: ['conditions', 'linked_event_ids', 'linked_deliverable_ids', 'linked_payment_ids'],
+    events: ['actor_ids', 'linked_obligation_ids', 'linked_deliverable_ids', 'linked_payment_ids'],
+    payments: ['linked_obligation_ids', 'linked_event_ids', 'linked_deliverable_ids'],
+    deliverables: ['linked_obligation_ids', 'linked_event_ids', 'linked_evidence_ids'],
+    positions: [],
+    claimed_losses: ['causal_reference_ids', 'supporting_evidence_ids'],
+    requested_outcomes: ['conditions'],
+    evidence: ['disclosure_event_ids'],
+  };
+  if (stringArrayFieldsByNamespace[namespace].some((field) => !isStringArray(object[field]))) {
+    return issue('Required identifier or text arrays have invalid types.');
+  }
+  if (
+    namespace === 'events' &&
+    (!hasExactKeys(object.date, ['approximate', 'end', 'precision', 'start']) ||
+      typeof object.date.approximate !== 'boolean' ||
+      !isNullableString(object.date.start) ||
+      !isNullableString(object.date.end) ||
+      !['day', 'month', 'year', 'range', 'unknown'].includes(String(object.date.precision)) ||
+      ![
+        'delivery',
+        'non_delivery',
+        'communication',
+        'cancellation',
+        'refusal',
+        'damage',
+        'service_performed',
+        'deadline_passage',
+        'other',
+      ].includes(String(object.event_type)))
+  ) {
+    return issue('Event date shape is invalid.');
+  }
+  if (
+    namespace === 'deliverables' &&
+    (!hasExactKeys(object.completion_positions, ['party_a', 'party_b']) ||
+      !hasExactKeys(object.defect_positions, ['party_a', 'party_b']) ||
+      !isNullableString(object.completion_positions.party_a) ||
+      !isNullableString(object.completion_positions.party_b) ||
+      !isStringArray(object.defect_positions.party_a) ||
+      !isStringArray(object.defect_positions.party_b))
+  ) {
+    return issue('Deliverable party-position shape is invalid.');
+  }
+  if (
+    namespace === 'positions' &&
+    (!['party_a', 'party_b'].includes(String(object.party_id)) ||
+      !['assertion', 'admission', 'denial', 'uncertainty'].includes(String(object.position_kind)) ||
+      (object.target !== null &&
+        (!hasExactKeys(object.target, ['field', 'namespace', 'object_id']) ||
+          !Object.keys(SUBSTANTIVE_KEYS)
+            .filter((candidate) => candidate !== 'positions')
+            .includes(String(object.target.namespace)) ||
+          typeof object.target.object_id !== 'string' ||
+          !isNullableString(object.target.field))))
+  ) {
+    return issue('Position target shape is invalid.');
+  }
+  if (
+    namespace === 'requested_outcomes' &&
+    (!Number.isSafeInteger(object.priority) ||
+      Number(object.priority) < 0 ||
+      !Array.isArray(object.transfers) ||
+      object.transfers.some(
+        (transfer) =>
+          !hasExactKeys(transfer, ['amount_minor', 'currency', 'from_actor_id', 'to_actor_id']) ||
+          typeof transfer.from_actor_id !== 'string' ||
+          typeof transfer.to_actor_id !== 'string' ||
+          !(transfer.amount_minor === null || Number.isSafeInteger(transfer.amount_minor)) ||
+          !isNullableString(transfer.currency),
+      ))
+  ) {
+    return issue('Requested outcome priority or transfer shape is invalid.');
+  }
+  if (
+    namespace === 'actors' &&
+    !['unverified', 'verified'].includes(String(object.identity_assurance))
+  ) {
+    return issue('Actor identity assurance is invalid.');
+  }
+  if (
+    namespace === 'agreements' &&
+    (!isNullableString(object.obligor_actor_id) || !isNullableString(object.obligee_actor_id))
+  ) {
+    return issue('Agreement party references are invalid.');
+  }
+  if (
+    namespace === 'payments' &&
+    (!(object.amount_minor === null || Number.isSafeInteger(object.amount_minor)) ||
+      !isNullableString(object.currency) ||
+      !isNullableString(object.from_actor_id) ||
+      !isNullableString(object.to_actor_id) ||
+      !isNullableString(object.due_trigger) ||
+      !['unknown', 'not_due', 'due', 'paid', 'unpaid', 'partly_paid', 'disputed'].includes(
+        String(object.payment_status),
+      ))
+  ) {
+    return issue('Payment scalar state is invalid.');
+  }
+  if (namespace === 'deliverables' && !isNullableString(object.responsible_actor_id)) {
+    return issue('Deliverable responsible actor is invalid.');
+  }
+  if (
+    namespace === 'claimed_losses' &&
+    (!['party_a', 'party_b'].includes(String(object.claimant_party_id)) ||
+      !(object.amount_minor === null || Number.isSafeInteger(object.amount_minor)) ||
+      !isNullableString(object.currency) ||
+      !isNullableString(object.non_monetary_description))
+  ) {
+    return issue('Claimed-loss scalar state is invalid.');
+  }
+  if (
+    namespace === 'requested_outcomes' &&
+    !['party_a', 'party_b'].includes(String(object.requesting_party_id))
+  ) {
+    return issue('Requested-outcome party is invalid.');
+  }
+  if (
+    namespace === 'evidence' &&
+    (typeof object.decision_relevant !== 'boolean' ||
+      !['party_a', 'party_b'].includes(String(object.submitted_by_party_id)) ||
+      !isNullableString(object.asserted_author_actor_id) ||
+      !isNullableString(object.content_hash) ||
+      !isNullableString(object.supersedes_evidence_id) ||
+      !['described_only', 'uploaded', 'unavailable', 'withdrawn', 'superseded'].includes(
+        String(object.availability),
+      ) ||
+      !['private', 'eligible_for_disclosure', 'disclosed_to_both', 'withheld'].includes(
+        String(object.visibility),
+      ) ||
+      !['not_assessed', 'asserted', 'verified', 'disputed', 'unknown'].includes(
+        String(object.authenticity_status),
+      ) ||
+      !hasExactKeys(object.inspection, [
+        'limitations',
+        'result_hash',
+        'result_id',
+        'result_version',
+        'source_reference',
+        'status',
+      ]) ||
+      !isStringArray(object.inspection.limitations) ||
+      !['uninspected', 'inspected_complete', 'inspected_incomplete', 'unreadable'].includes(
+        String(object.inspection.status),
+      ) ||
+      !isNullableString(object.inspection.result_id) ||
+      !isNullableString(object.inspection.result_version) ||
+      !isNullableString(object.inspection.result_hash) ||
+      !(
+        object.inspection.source_reference === null ||
+        sourceReferenceShapeValid(object.inspection.source_reference)
+      ) ||
+      !hasExactKeys(object.adjudication_eligibility, ['reasons', 'status']) ||
+      !isStringArray(object.adjudication_eligibility.reasons) ||
+      !['eligible', 'ineligible'].includes(String(object.adjudication_eligibility.status)))
+  ) {
+    return issue('Evidence state shape is invalid.');
+  }
+  return [];
+}
 
 interface CanonicalContext {
   active: WeakSet<object>;
@@ -465,7 +843,7 @@ function canonicalize(value: unknown, context: CanonicalContext, depth: number):
     }
     const keys = Reflect.ownKeys(value);
     if (keys.some((key) => typeof key === 'symbol')) throw new TypeError('Symbols are forbidden.');
-    const result: Record<string, JsonValue> = {};
+    const result = Object.create(null) as Record<string, JsonValue>;
     for (const key of (keys as string[]).sort()) {
       const descriptor = Object.getOwnPropertyDescriptor(value, key);
       if (!descriptor || !descriptor.enumerable || !('value' in descriptor)) {
@@ -579,6 +957,7 @@ function authorityIssues(
   authority: unknown,
   path: string,
   parties: Record<PartyId, PartyRecord>,
+  currentRecordVersion: number,
 ): ContractIssue[] {
   const issues: ContractIssue[] = [];
   const add = (code: string, suffix: string, message: string): void => {
@@ -589,7 +968,11 @@ function authorityIssues(
     return issues;
   }
   const value = authority as ObjectAuthority;
-  if (!value.introduced_by || !ID_PATTERN.test(value.introduced_by.actor_id ?? '')) {
+  if (
+    !value.introduced_by ||
+    !ID_PATTERN.test(value.introduced_by.actor_id ?? '') ||
+    !['party', 'system', 'inspector', 'adjudicator'].includes(value.introduced_by.actor_type)
+  ) {
     add(
       'authority_actor_invalid',
       '.introduced_by',
@@ -601,6 +984,13 @@ function authorityIssues(
       'authority_kind_invalid',
       '.authority_kind',
       'Canonical authority cannot be an untyped or model-inference authority.',
+    );
+  }
+  if (value.authority_kind === 'other_typed_authority' && !value.authority_detail?.trim()) {
+    add(
+      'authority_detail_missing',
+      '.authority_detail',
+      'Other typed authority requires an explicit authority detail.',
     );
   }
   if (!Array.isArray(value.source_references) || value.source_references.length === 0) {
@@ -674,6 +1064,7 @@ function authorityIssues(
     !Number.isSafeInteger(value.last_material_record_version) ||
     value.introduced_in_record_version < 1 ||
     value.last_material_record_version < value.introduced_in_record_version ||
+    value.last_material_record_version > currentRecordVersion ||
     !ID_PATTERN.test(value.last_material_command_id ?? '')
   ) {
     add(
@@ -687,12 +1078,16 @@ function authorityIssues(
 
 function mapObjectIssues<T extends { authority: ObjectAuthority }>(
   map: Record<string, T>,
-  namespace: string,
+  namespace: SubstantiveNamespace,
   idField: keyof T,
   parties: Record<PartyId, PartyRecord>,
+  currentRecordVersion: number,
 ): ContractIssue[] {
   const issues: ContractIssue[] = [];
   for (const [id, object] of Object.entries(map)) {
+    const shapeIssues = validateSubstantiveObjectShape(namespace, object);
+    issues.push(...shapeIssues);
+    if (shapeIssues.length > 0) continue;
     if (!ID_PATTERN.test(id) || object[idField] !== id) {
       issues.push({
         code: 'object_identity_invalid',
@@ -700,7 +1095,14 @@ function mapObjectIssues<T extends { authority: ObjectAuthority }>(
         message: 'Map key and object identity must be the same valid identifier.',
       });
     }
-    issues.push(...authorityIssues(object.authority, `$.${namespace}.${id}.authority`, parties));
+    issues.push(
+      ...authorityIssues(
+        object.authority,
+        `$.${namespace}.${id}.authority`,
+        parties,
+        currentRecordVersion,
+      ),
+    );
   }
   return issues;
 }
@@ -710,7 +1112,9 @@ export function validateSourceReference(
   registry: Record<string, SourceRecord>,
 ): ContractIssue[] {
   const issues: ContractIssue[] = [];
-  const source = registry[reference.source_id];
+  const source = Object.hasOwn(registry, reference.source_id)
+    ? registry[reference.source_id]
+    : undefined;
   if (
     !source ||
     source.content_hash !== reference.source_hash ||
@@ -765,6 +1169,134 @@ function validateCaseEnvelopeUnchecked(value: unknown): ContractIssue[] {
   const add = (code: string, path: string, message: string): void => {
     issues.push({ code, path, message });
   };
+  if (
+    !hasExactKeys(envelope, [
+      'actors',
+      'agreements',
+      'claimed_losses',
+      'classification',
+      'control',
+      'deliverables',
+      'events',
+      'evidence',
+      'formation',
+      'parties',
+      'payments',
+      'positions',
+      'requested_outcomes',
+    ])
+  ) {
+    add(
+      'envelope_keys_invalid',
+      '$',
+      'Case Envelope must contain exactly the closed canonical namespaces.',
+    );
+  }
+  if (
+    !hasExactKeys(envelope.control, [
+      'case_id',
+      'deadlines',
+      'eligibility',
+      'envelope_hash',
+      'envelope_version',
+      'lock',
+      'protocol',
+      'record_hash',
+      'record_version',
+      'schema_version',
+      'workflow_state',
+    ]) ||
+    !hasExactKeys(envelope.control?.protocol, [
+      'non_participation_mode',
+      'protocol_id',
+      'protocol_version',
+    ]) ||
+    !hasExactKeys(envelope.control?.eligibility, ['reason_codes', 'status']) ||
+    !hasExactKeys(envelope.control?.lock, [
+      'lock_event_id',
+      'locked_at',
+      'mode',
+      'output_scope',
+      'status',
+    ]) ||
+    !isRecord(envelope.control?.deadlines) ||
+    !Object.values(envelope.control.deadlines).every((deadline) => typeof deadline === 'string') ||
+    !workflowStates.has(envelope.control?.workflow_state) ||
+    !ID_PATTERN.test(envelope.control?.protocol?.protocol_id ?? '') ||
+    envelope.control?.protocol?.protocol_version !== CASE_ENVELOPE_PROTOCOL_VERSION ||
+    !['prohibited', 'advisory_only'].includes(envelope.control?.protocol?.non_participation_mode) ||
+    !['undetermined', 'eligible', 'ineligible'].includes(envelope.control?.eligibility?.status) ||
+    !isStringArray(envelope.control?.eligibility?.reason_codes) ||
+    !['unlocked', 'locked'].includes(envelope.control?.lock?.status) ||
+    ![null, 'bilateral', 'documented_non_participation'].includes(envelope.control?.lock?.mode) ||
+    !isNullableString(envelope.control?.lock?.lock_event_id) ||
+    !isNullableString(envelope.control?.lock?.locked_at) ||
+    ![null, 'adjudication', 'advisory_only'].includes(envelope.control?.lock?.output_scope)
+  ) {
+    add('control_shape_invalid', '$.control', 'Control state shape or enum value is invalid.');
+  }
+  if (
+    !hasExactKeys(envelope.parties, ['party_a', 'party_b']) ||
+    !hasExactKeys(envelope.classification, [
+      'authority',
+      'case_category',
+      'maturity',
+      'required_fact_profile',
+      'safety_flags',
+      'scope_flags',
+      'suitability',
+    ]) ||
+    !isNullableString(envelope.classification?.case_category) ||
+    !isNullableString(envelope.classification?.required_fact_profile) ||
+    !['undetermined', 'eligible', 'ineligible'].includes(envelope.classification?.suitability) ||
+    !['undetermined', 'immature', 'ready'].includes(envelope.classification?.maturity) ||
+    !isStringArray(envelope.classification?.safety_flags) ||
+    !isStringArray(envelope.classification?.scope_flags)
+  ) {
+    add(
+      'classification_shape_invalid',
+      '$.classification',
+      'Party or classification state shape is invalid.',
+    );
+  }
+  if (
+    !hasExactKeys(envelope.formation, [
+      'ambiguities',
+      'challenges',
+      'confirmations',
+      'disclosure',
+      'lock_blockers',
+      'lock_prerequisites',
+      'material_change_events',
+      'non_participation',
+      'open_required_fields',
+      'prior_locks',
+      'uncertainties',
+    ]) ||
+    !hasExactKeys(envelope.formation?.confirmations, ['party_a', 'party_b']) ||
+    !hasExactKeys(envelope.formation?.disclosure, [
+      'detailed_a_framing',
+      'disclosure_event_id',
+      'person_b_independent_account_source_id',
+    ]) ||
+    !hasExactKeys(envelope.formation?.non_participation, [
+      'correction_opportunity',
+      'deadline_expired_event_id',
+      'invitation_event_id',
+      'notice_event_id',
+      'response_deadline',
+    ]) ||
+    !isStringArray(envelope.formation?.open_required_fields) ||
+    !isStringArray(envelope.formation?.ambiguities) ||
+    !isStringArray(envelope.formation?.uncertainties) ||
+    !isStringArray(envelope.formation?.lock_prerequisites) ||
+    !isStringArray(envelope.formation?.lock_blockers) ||
+    !Array.isArray(envelope.formation?.challenges) ||
+    !Array.isArray(envelope.formation?.prior_locks) ||
+    !Array.isArray(envelope.formation?.material_change_events)
+  ) {
+    add('formation_shape_invalid', '$.formation', 'Formation state shape is invalid.');
+  }
   if (envelope.control?.schema_version !== CASE_ENVELOPE_SCHEMA_VERSION) {
     add(
       'schema_version_invalid',
@@ -811,10 +1343,69 @@ function validateCaseEnvelopeUnchecked(value: unknown): ContractIssue[] {
     const party = envelope.parties?.[partyId];
     if (
       !party ||
+      !hasExactKeys(party, [
+        'authenticated_subject_id',
+        'consent_event_id',
+        'consent_status',
+        'identity_assurance',
+        'identity_event_id',
+        'participation_state',
+        'party_id',
+        'role',
+      ]) ||
       party.party_id !== partyId ||
-      party.role !== (partyId === 'party_a' ? 'person_a' : 'person_b')
+      party.role !== (partyId === 'party_a' ? 'person_a' : 'person_b') ||
+      !['unverified', 'authenticated', 'verified'].includes(party.identity_assurance) ||
+      !['not_requested', 'pending', 'granted', 'declined'].includes(party.consent_status) ||
+      !['not_invited', 'invited', 'active', 'non_participating', 'withdrawn'].includes(
+        party.participation_state,
+      )
     ) {
       add('party_invalid', `$.parties.${partyId}`, 'Both canonical party records are required.');
+      continue;
+    }
+    if (
+      (party.identity_assurance === 'unverified' &&
+        (party.authenticated_subject_id !== null || party.identity_event_id !== null)) ||
+      (party.identity_assurance !== 'unverified' &&
+        (!ID_PATTERN.test(party.authenticated_subject_id ?? '') ||
+          !ID_PATTERN.test(party.identity_event_id ?? '')))
+    ) {
+      add(
+        'party_identity_binding_invalid',
+        `$.parties.${partyId}`,
+        'Identity state must be either explicitly unbound or bound to subject and event identities.',
+      );
+    }
+    if (
+      (party.consent_status === 'not_requested' && party.consent_event_id !== null) ||
+      (party.consent_status !== 'not_requested' && !ID_PATTERN.test(party.consent_event_id ?? ''))
+    ) {
+      add(
+        'party_consent_binding_invalid',
+        `$.parties.${partyId}`,
+        'Consent state must be either not requested or bound to an explicit event identity.',
+      );
+    }
+    if (
+      partyId === 'party_b' &&
+      party.participation_state === 'not_invited' &&
+      (party.identity_assurance !== 'unverified' ||
+        party.authenticated_subject_id !== null ||
+        party.consent_status !== 'not_requested')
+    ) {
+      add(
+        'person_b_preinvitation_binding_invalid',
+        `$.parties.${partyId}`,
+        'Person B must remain unbound and without consent state before invitation.',
+      );
+    }
+    if (partyId === 'party_a' && !['active', 'withdrawn'].includes(party.participation_state)) {
+      add(
+        'person_a_participation_invalid',
+        `$.parties.${partyId}.participation_state`,
+        'Person A cannot use Person B invitation or non-participation states.',
+      );
     }
   }
   if (envelope.classification?.authority) {
@@ -823,6 +1414,7 @@ function validateCaseEnvelopeUnchecked(value: unknown): ContractIssue[] {
         envelope.classification.authority,
         '$.classification.authority',
         envelope.parties,
+        envelope.control.record_version,
       ),
     );
   } else {
@@ -832,30 +1424,96 @@ function validateCaseEnvelopeUnchecked(value: unknown): ContractIssue[] {
       'Classification requires authority metadata.',
     );
   }
+  if (envelope.control.eligibility.status !== envelope.classification.suitability) {
+    add(
+      'eligibility_classification_mismatch',
+      '$.control.eligibility.status',
+      'Code-owned eligibility and canonical classification suitability must agree.',
+    );
+  }
+  for (const namespace of [
+    'actors',
+    'agreements',
+    'events',
+    'payments',
+    'deliverables',
+    'positions',
+    'claimed_losses',
+    'requested_outcomes',
+    'evidence',
+  ] as const) {
+    if (!isRecord(envelope[namespace])) {
+      add(
+        'namespace_shape_invalid',
+        `$.${namespace}`,
+        'Canonical substantive namespaces must be object maps.',
+      );
+    }
+  }
   issues.push(
-    ...mapObjectIssues(envelope.agreements ?? {}, 'agreements', 'obligation_id', envelope.parties),
-    ...mapObjectIssues(envelope.events ?? {}, 'events', 'event_id', envelope.parties),
-    ...mapObjectIssues(envelope.payments ?? {}, 'payments', 'payment_id', envelope.parties),
+    ...mapObjectIssues(
+      envelope.actors ?? {},
+      'actors',
+      'actor_id',
+      envelope.parties,
+      envelope.control.record_version,
+    ),
+    ...mapObjectIssues(
+      envelope.agreements ?? {},
+      'agreements',
+      'obligation_id',
+      envelope.parties,
+      envelope.control.record_version,
+    ),
+    ...mapObjectIssues(
+      envelope.events ?? {},
+      'events',
+      'event_id',
+      envelope.parties,
+      envelope.control.record_version,
+    ),
+    ...mapObjectIssues(
+      envelope.payments ?? {},
+      'payments',
+      'payment_id',
+      envelope.parties,
+      envelope.control.record_version,
+    ),
     ...mapObjectIssues(
       envelope.deliverables ?? {},
       'deliverables',
       'deliverable_id',
       envelope.parties,
+      envelope.control.record_version,
     ),
-    ...mapObjectIssues(envelope.positions ?? {}, 'positions', 'position_id', envelope.parties),
+    ...mapObjectIssues(
+      envelope.positions ?? {},
+      'positions',
+      'position_id',
+      envelope.parties,
+      envelope.control.record_version,
+    ),
     ...mapObjectIssues(
       envelope.claimed_losses ?? {},
       'claimed_losses',
       'loss_id',
       envelope.parties,
+      envelope.control.record_version,
     ),
     ...mapObjectIssues(
       envelope.requested_outcomes ?? {},
       'requested_outcomes',
       'outcome_id',
       envelope.parties,
+      envelope.control.record_version,
     ),
-    ...mapObjectIssues(envelope.evidence ?? {}, 'evidence', 'evidence_id', envelope.parties),
+    ...mapObjectIssues(
+      envelope.evidence ?? {},
+      'evidence',
+      'evidence_id',
+      envelope.parties,
+      envelope.control.record_version,
+    ),
   );
   for (const [evidenceId, evidence] of Object.entries(envelope.evidence ?? {})) {
     const expected = evidenceEligibility(evidence);
@@ -943,6 +1601,26 @@ function validateCaseEnvelopeUnchecked(value: unknown): ContractIssue[] {
     }
   }
   for (const [index, challenge] of (envelope.formation?.challenges ?? []).entries()) {
+    if (
+      !hasExactKeys(challenge, [
+        'challenge_id',
+        'challenging_party_id',
+        'resolution_event_id',
+        'resolution_source_references',
+        'source_references',
+        'status',
+        'target_field',
+        'target_namespace',
+        'target_object_id',
+      ])
+    ) {
+      add(
+        'challenge_shape_invalid',
+        `$.formation.challenges[${index}]`,
+        'Challenge records use a closed exact shape.',
+      );
+      continue;
+    }
     const target = (envelope[challenge.target_namespace] as Record<string, unknown> | undefined)?.[
       challenge.target_object_id
     ];
@@ -953,7 +1631,11 @@ function validateCaseEnvelopeUnchecked(value: unknown): ContractIssue[] {
         'Challenge identity and target must resolve to a canonical substantive object.',
       );
     }
-    if (!Array.isArray(challenge.source_references) || challenge.source_references.length === 0) {
+    if (
+      !Array.isArray(challenge.source_references) ||
+      challenge.source_references.length === 0 ||
+      !challenge.source_references.every(sourceReferenceShapeValid)
+    ) {
       add(
         'challenge_source_missing',
         `$.formation.challenges[${index}].source_references`,
@@ -964,7 +1646,8 @@ function validateCaseEnvelopeUnchecked(value: unknown): ContractIssue[] {
       (challenge.status === 'open' &&
         (challenge.resolution_event_id !== null ||
           challenge.resolution_source_references.length > 0)) ||
-      (challenge.status !== 'open' && !challenge.resolution_event_id)
+      (challenge.status !== 'open' && !challenge.resolution_event_id) ||
+      !challenge.resolution_source_references.every(sourceReferenceShapeValid)
     ) {
       add(
         'challenge_resolution_invalid',
@@ -977,10 +1660,31 @@ function validateCaseEnvelopeUnchecked(value: unknown): ContractIssue[] {
     const receipt = envelope.formation?.confirmations?.[partyId];
     if (
       receipt &&
-      (receipt.party_id !== partyId ||
+      (!hasExactKeys(receipt, [
+        'authenticated_subject_id',
+        'bound_envelope_hash',
+        'bound_envelope_version',
+        'bound_record_hash',
+        'bound_record_version',
+        'confirmation_id',
+        'confirmed_at',
+        'event_id',
+        'party_id',
+        'scope',
+      ]) ||
+        !ID_PATTERN.test(receipt.confirmation_id) ||
+        !ID_PATTERN.test(receipt.event_id) ||
+        !ID_PATTERN.test(receipt.authenticated_subject_id) ||
+        receipt.party_id !== partyId ||
+        receipt.authenticated_subject_id !== envelope.parties[partyId].authenticated_subject_id ||
+        !Number.isSafeInteger(receipt.bound_envelope_version) ||
+        receipt.bound_envelope_version < 1 ||
+        receipt.bound_envelope_version > envelope.control.envelope_version ||
+        !HASH_PATTERN.test(receipt.bound_envelope_hash) ||
         receipt.bound_record_version !== envelope.control.record_version ||
         receipt.bound_record_hash !== envelope.control.record_hash ||
-        !HASH_PATTERN.test(receipt.bound_envelope_hash))
+        receipt.scope !== 'party_record' ||
+        typeof receipt.confirmed_at !== 'string')
     ) {
       add(
         'confirmation_stale',
@@ -989,7 +1693,82 @@ function validateCaseEnvelopeUnchecked(value: unknown): ContractIssue[] {
       );
     }
   }
+  for (const [index, priorLock] of (envelope.formation?.prior_locks ?? []).entries()) {
+    if (
+      !hasExactKeys(priorLock, [
+        'envelope_hash',
+        'envelope_version',
+        'lock_event_id',
+        'locked_at',
+        'mode',
+        'output_scope',
+        'record_hash',
+        'record_version',
+      ]) ||
+      !ID_PATTERN.test(priorLock.lock_event_id) ||
+      !HASH_PATTERN.test(priorLock.envelope_hash) ||
+      !HASH_PATTERN.test(priorLock.record_hash) ||
+      !Number.isSafeInteger(priorLock.envelope_version) ||
+      !Number.isSafeInteger(priorLock.record_version) ||
+      priorLock.output_scope !== (priorLock.mode === 'bilateral' ? 'adjudication' : 'advisory_only')
+    ) {
+      add(
+        'prior_lock_invalid',
+        `$.formation.prior_locks[${index}]`,
+        'Historical lock receipts require exact immutable lock identities.',
+      );
+    }
+  }
+  for (const [index, event] of (envelope.formation?.material_change_events ?? []).entries()) {
+    if (
+      !hasExactKeys(event, ['event_id', 'occurred_at', 'reason', 'source_references']) ||
+      !ID_PATTERN.test(event.event_id) ||
+      typeof event.occurred_at !== 'string' ||
+      typeof event.reason !== 'string' ||
+      !Array.isArray(event.source_references) ||
+      event.source_references.length === 0 ||
+      !event.source_references.every(sourceReferenceShapeValid)
+    ) {
+      add(
+        'material_change_event_invalid',
+        `$.formation.material_change_events[${index}]`,
+        'Material-change events require exact source-bound audit identities.',
+      );
+    }
+  }
   const disclosure = envelope.formation?.disclosure;
+  if (
+    !['embargoed', 'permitted', 'disclosed'].includes(disclosure?.detailed_a_framing) ||
+    !isNullableString(disclosure?.person_b_independent_account_source_id) ||
+    !isNullableString(disclosure?.disclosure_event_id) ||
+    (disclosure?.person_b_independent_account_source_id !== null &&
+      !ID_PATTERN.test(disclosure.person_b_independent_account_source_id)) ||
+    (disclosure?.detailed_a_framing === 'disclosed'
+      ? !ID_PATTERN.test(disclosure.disclosure_event_id ?? '')
+      : disclosure?.disclosure_event_id !== null)
+  ) {
+    add(
+      'disclosure_state_invalid',
+      '$.formation.disclosure',
+      'Disclosure state requires exact independent-account and disclosure event identities.',
+    );
+  }
+  const nonParticipation = envelope.formation?.non_participation;
+  if (
+    !isNullableString(nonParticipation?.invitation_event_id) ||
+    !isNullableString(nonParticipation?.notice_event_id) ||
+    !isNullableString(nonParticipation?.response_deadline) ||
+    !isNullableString(nonParticipation?.deadline_expired_event_id) ||
+    !['not_started', 'open', 'expired', 'exhausted'].includes(
+      nonParticipation?.correction_opportunity,
+    )
+  ) {
+    add(
+      'non_participation_state_invalid',
+      '$.formation.non_participation',
+      'Non-participation state shape or enum value is invalid.',
+    );
+  }
   if (
     disclosure?.person_b_independent_account_source_id === null &&
     disclosure.detailed_a_framing !== 'embargoed'
@@ -1016,7 +1795,9 @@ function validateCaseEnvelopeUnchecked(value: unknown): ContractIssue[] {
     if (
       !envelope.control.lock.mode ||
       !envelope.control.lock.lock_event_id ||
-      !envelope.control.lock.locked_at
+      !envelope.control.lock.locked_at ||
+      envelope.control.lock.output_scope !==
+        (envelope.control.lock.mode === 'bilateral' ? 'adjudication' : 'advisory_only')
     ) {
       add(
         'lock_identity_invalid',
@@ -1027,6 +1808,7 @@ function validateCaseEnvelopeUnchecked(value: unknown): ContractIssue[] {
   } else if (
     envelope.control.lock.mode !== null ||
     envelope.control.lock.lock_event_id !== null ||
+    envelope.control.lock.locked_at !== null ||
     envelope.control.lock.output_scope !== null
   ) {
     add(
@@ -1105,19 +1887,21 @@ export function createInitialCaseEnvelope(caseId: string): CaseEnvelope {
       party_a: {
         party_id: 'party_a',
         role: 'person_a',
-        authenticated_subject_id: 'subject_party_a',
-        identity_assurance: 'authenticated',
-        consent_status: 'granted',
-        consent_event_id: 'event_consent_a',
+        authenticated_subject_id: null,
+        identity_assurance: 'unverified',
+        identity_event_id: null,
+        consent_status: 'not_requested',
+        consent_event_id: null,
         participation_state: 'active',
       },
       party_b: {
         party_id: 'party_b',
         role: 'person_b',
-        authenticated_subject_id: 'subject_party_b',
-        identity_assurance: 'authenticated',
-        consent_status: 'granted',
-        consent_event_id: 'event_consent_b',
+        authenticated_subject_id: null,
+        identity_assurance: 'unverified',
+        identity_event_id: null,
+        consent_status: 'not_requested',
+        consent_event_id: null,
         participation_state: 'not_invited',
       },
     },
