@@ -1,0 +1,2242 @@
+{
+  "case_id": "gz_case_012",
+  "coverage": {
+    "failure": [
+      "agreements_obligations",
+      "events",
+      "ambiguity"
+    ],
+    "success": [
+      "agreements_obligations",
+      "events",
+      "ambiguity"
+    ]
+  },
+  "expected_adjudication_input": null,
+  "final_envelope": {
+    "actors": {},
+    "agreements": {
+      "obligation_gz_case_012_conditional": {
+        "authority": {
+          "adjudication_eligible": true,
+          "authority_detail": "Authenticated party_a assertion",
+          "authority_kind": "party_assertion",
+          "evidence_ids": [],
+          "introduced_by": {
+            "actor_id": "subject_party_a",
+            "actor_type": "party"
+          },
+          "introduced_in_record_version": 2,
+          "last_material_command_id": "command_gz_case_012_turn_07_field_challenge",
+          "last_material_record_version": 7,
+          "party_stances": {
+            "party_a": {
+              "response_event_id": null,
+              "stance": "asserted"
+            },
+            "party_b": {
+              "response_event_id": "challenge_gz_case_012_primary",
+              "stance": "disputed"
+            }
+          },
+          "resolution_status": "disputed",
+          "source_references": [
+            {
+              "source_hash": "c65ab6fdcfa0f7120f6975ff7f5409db5a50cc0b88e37e79f9a1d6b1c9c52194",
+              "source_id": "source_gz_case_012_a",
+              "span": {
+                "encoding": "utf16",
+                "end": 70,
+                "quote": "Person A says delivery became due after client approval, around 4 May.",
+                "start": 0
+              }
+            },
+            {
+              "source_hash": "fc0bbf66e6497656659bc51eeb080b4651ed32f78e0b8232e72cf24d8724ce0d",
+              "source_id": "source_gz_case_012_b",
+              "span": {
+                "encoding": "utf16",
+                "end": 76,
+                "quote": "Person B says no written approval occurred and the date is only approximate.",
+                "start": 0
+              }
+            }
+          ],
+          "subject_actor_ids": [
+            "subject_party_a"
+          ]
+        },
+        "conditions": [
+          "after written client approval"
+        ],
+        "description": "Delivery after client approval.",
+        "linked_deliverable_ids": [],
+        "linked_event_ids": [],
+        "linked_payment_ids": [],
+        "obligation_id": "obligation_gz_case_012_conditional",
+        "obligation_type": "service_delivery",
+        "obligee_actor_id": null,
+        "obligor_actor_id": null
+      }
+    },
+    "claimed_losses": {},
+    "classification": {
+      "authority": {
+        "adjudication_eligible": false,
+        "authority_detail": "initial classification placeholder",
+        "authority_kind": "system_observation",
+        "evidence_ids": [],
+        "introduced_by": {
+          "actor_id": "juryai_system",
+          "actor_type": "system"
+        },
+        "introduced_in_record_version": 1,
+        "last_material_command_id": "command_system_initialization",
+        "last_material_record_version": 1,
+        "party_stances": {
+          "party_a": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          },
+          "party_b": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          }
+        },
+        "resolution_status": "unresolved",
+        "source_references": [
+          {
+            "source_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+            "source_id": "source_system_initialization",
+            "span": null
+          }
+        ],
+        "subject_actor_ids": []
+      },
+      "case_category": null,
+      "maturity": "undetermined",
+      "required_fact_profile": null,
+      "safety_flags": [],
+      "scope_flags": [],
+      "suitability": "undetermined"
+    },
+    "control": {
+      "case_id": "gz_case_012",
+      "deadlines": {},
+      "eligibility": {
+        "reason_codes": [],
+        "status": "undetermined"
+      },
+      "envelope_hash": "ff0c0ed6de9988db842b8efbbae867eef48f1232d8eaebffc931e6a8ad2d2b9f",
+      "envelope_version": 12,
+      "lock": {
+        "lock_event_id": null,
+        "locked_at": null,
+        "mode": null,
+        "output_scope": null,
+        "status": "unlocked"
+      },
+      "protocol": {
+        "non_participation_mode": "prohibited",
+        "protocol_id": "commercial_fairness_v2",
+        "protocol_version": "juryai-formation-protocol-v2.0.0"
+      },
+      "record_hash": "4d0777606becd43ac0c98a159c537d8b95847b63736cd5e91ad8bb06a2013d4b",
+      "record_version": 12,
+      "schema_version": "juryai-case-envelope-v2.0.0",
+      "workflow_state": "reconciliation"
+    },
+    "deliverables": {},
+    "events": {
+      "event_gz_case_012_approval": {
+        "actor_ids": [],
+        "authority": {
+          "adjudication_eligible": true,
+          "authority_detail": "Authenticated party_a assertion",
+          "authority_kind": "party_assertion",
+          "evidence_ids": [],
+          "introduced_by": {
+            "actor_id": "subject_party_a",
+            "actor_type": "party"
+          },
+          "introduced_in_record_version": 4,
+          "last_material_command_id": "command_gz_case_012_secondary",
+          "last_material_record_version": 4,
+          "party_stances": {
+            "party_a": {
+              "response_event_id": null,
+              "stance": "asserted"
+            },
+            "party_b": {
+              "response_event_id": null,
+              "stance": "unresponded"
+            }
+          },
+          "resolution_status": "unresolved",
+          "source_references": [
+            {
+              "source_hash": "c65ab6fdcfa0f7120f6975ff7f5409db5a50cc0b88e37e79f9a1d6b1c9c52194",
+              "source_id": "source_gz_case_012_a",
+              "span": {
+                "encoding": "utf16",
+                "end": 70,
+                "quote": "Person A says delivery became due after client approval, around 4 May.",
+                "start": 0
+              }
+            }
+          ],
+          "subject_actor_ids": [
+            "subject_party_a"
+          ]
+        },
+        "date": {
+          "approximate": true,
+          "end": null,
+          "precision": "day",
+          "start": "2026-05-04"
+        },
+        "description": "Person A says approval occurred around 4 May.",
+        "event_id": "event_gz_case_012_approval",
+        "event_type": "communication",
+        "linked_deliverable_ids": [],
+        "linked_obligation_ids": [
+          "obligation_gz_case_012_conditional"
+        ],
+        "linked_payment_ids": []
+      }
+    },
+    "evidence": {},
+    "formation": {
+      "ambiguities": [
+        "Whether written approval occurred and when remains disputed."
+      ],
+      "challenges": [
+        {
+          "challenge_id": "challenge_gz_case_012_primary",
+          "challenging_party_id": "party_b",
+          "resolution_event_id": "event_gz_case_012_challenge_rejected",
+          "resolution_source_references": [
+            {
+              "source_hash": "c65ab6fdcfa0f7120f6975ff7f5409db5a50cc0b88e37e79f9a1d6b1c9c52194",
+              "source_id": "source_gz_case_012_a",
+              "span": {
+                "encoding": "utf16",
+                "end": 70,
+                "quote": "Person A says delivery became due after client approval, around 4 May.",
+                "start": 0
+              }
+            }
+          ],
+          "source_references": [
+            {
+              "source_hash": "fc0bbf66e6497656659bc51eeb080b4651ed32f78e0b8232e72cf24d8724ce0d",
+              "source_id": "source_gz_case_012_b",
+              "span": {
+                "encoding": "utf16",
+                "end": 76,
+                "quote": "Person B says no written approval occurred and the date is only approximate.",
+                "start": 0
+              }
+            }
+          ],
+          "status": "rejected",
+          "target_field": "conditions",
+          "target_namespace": "agreements",
+          "target_object_id": "obligation_gz_case_012_conditional"
+        }
+      ],
+      "confirmations": {
+        "party_a": null,
+        "party_b": null
+      },
+      "disclosure": {
+        "detailed_a_framing": "embargoed",
+        "disclosure_event_id": null,
+        "person_b_independent_account_source_id": null
+      },
+      "lock_blockers": [
+        "material_dispute_open"
+      ],
+      "lock_prerequisites": [
+        "party_disagreement_preserved"
+      ],
+      "material_change_events": [],
+      "non_participation": {
+        "correction_opportunity": "not_started",
+        "deadline_expired_event_id": null,
+        "invitation_event_id": null,
+        "notice_event_id": null,
+        "response_deadline": null
+      },
+      "open_required_fields": [],
+      "prior_locks": [],
+      "uncertainties": [
+        "review_checkpoint_12"
+      ]
+    },
+    "parties": {
+      "party_a": {
+        "authenticated_subject_id": "subject_party_a",
+        "consent_event_id": "event_gz_case_012_consent_a",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_012_identity_a",
+        "participation_state": "active",
+        "party_id": "party_a",
+        "role": "person_a"
+      },
+      "party_b": {
+        "authenticated_subject_id": "subject_party_b",
+        "consent_event_id": "event_gz_case_012_consent_b",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_012_identity_b",
+        "participation_state": "active",
+        "party_id": "party_b",
+        "role": "person_b"
+      }
+    },
+    "payments": {},
+    "positions": {},
+    "requested_outcomes": {}
+  },
+  "fixture_version": "juryai-gate-zero-case-fixture-v1.0.0",
+  "initial_envelope": {
+    "actors": {},
+    "agreements": {},
+    "claimed_losses": {},
+    "classification": {
+      "authority": {
+        "adjudication_eligible": false,
+        "authority_detail": "initial classification placeholder",
+        "authority_kind": "system_observation",
+        "evidence_ids": [],
+        "introduced_by": {
+          "actor_id": "juryai_system",
+          "actor_type": "system"
+        },
+        "introduced_in_record_version": 1,
+        "last_material_command_id": "command_system_initialization",
+        "last_material_record_version": 1,
+        "party_stances": {
+          "party_a": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          },
+          "party_b": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          }
+        },
+        "resolution_status": "unresolved",
+        "source_references": [
+          {
+            "source_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+            "source_id": "source_system_initialization",
+            "span": null
+          }
+        ],
+        "subject_actor_ids": []
+      },
+      "case_category": null,
+      "maturity": "undetermined",
+      "required_fact_profile": null,
+      "safety_flags": [],
+      "scope_flags": [],
+      "suitability": "undetermined"
+    },
+    "control": {
+      "case_id": "gz_case_012",
+      "deadlines": {},
+      "eligibility": {
+        "reason_codes": [],
+        "status": "undetermined"
+      },
+      "envelope_hash": "a07553253029f79363a52abcdac890f24fd109921fd4a3f051a8586d8d659abc",
+      "envelope_version": 1,
+      "lock": {
+        "lock_event_id": null,
+        "locked_at": null,
+        "mode": null,
+        "output_scope": null,
+        "status": "unlocked"
+      },
+      "protocol": {
+        "non_participation_mode": "prohibited",
+        "protocol_id": "commercial_fairness_v2",
+        "protocol_version": "juryai-formation-protocol-v2.0.0"
+      },
+      "record_hash": "1e71bef6beebfaced692f458162792ba4cbbb923ada7519526f4b29551b6059b",
+      "record_version": 1,
+      "schema_version": "juryai-case-envelope-v2.0.0",
+      "workflow_state": "reconciliation"
+    },
+    "deliverables": {},
+    "events": {},
+    "evidence": {},
+    "formation": {
+      "ambiguities": [],
+      "challenges": [],
+      "confirmations": {
+        "party_a": null,
+        "party_b": null
+      },
+      "disclosure": {
+        "detailed_a_framing": "embargoed",
+        "disclosure_event_id": null,
+        "person_b_independent_account_source_id": null
+      },
+      "lock_blockers": [],
+      "lock_prerequisites": [],
+      "material_change_events": [],
+      "non_participation": {
+        "correction_opportunity": "not_started",
+        "deadline_expired_event_id": null,
+        "invitation_event_id": null,
+        "notice_event_id": null,
+        "response_deadline": null
+      },
+      "open_required_fields": [],
+      "prior_locks": [],
+      "uncertainties": []
+    },
+    "parties": {
+      "party_a": {
+        "authenticated_subject_id": "subject_party_a",
+        "consent_event_id": "event_gz_case_012_consent_a",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_012_identity_a",
+        "participation_state": "active",
+        "party_id": "party_a",
+        "role": "person_a"
+      },
+      "party_b": {
+        "authenticated_subject_id": "subject_party_b",
+        "consent_event_id": "event_gz_case_012_consent_b",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_012_identity_b",
+        "participation_state": "active",
+        "party_id": "party_b",
+        "role": "person_b"
+      }
+    },
+    "payments": {},
+    "positions": {},
+    "requested_outcomes": {}
+  },
+  "matrix_version": "juryai-gate-zero-coverage-matrix-v1.0.0",
+  "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+  "title": "Conditional obligation and disputed event timing",
+  "turns": [
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_a",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_a",
+        "party_id": "party_a"
+      },
+      "base_envelope_hash": "a07553253029f79363a52abcdac890f24fd109921fd4a3f051a8586d8d659abc",
+      "base_envelope_version": 1,
+      "base_record_hash": "1e71bef6beebfaced692f458162792ba4cbbb923ada7519526f4b29551b6059b",
+      "base_record_version": 1,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_a",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_a",
+          "party_id": "party_a"
+        },
+        "base_envelope_hash": "a07553253029f79363a52abcdac890f24fd109921fd4a3f051a8586d8d659abc",
+        "base_envelope_version": 1,
+        "case_id": "gz_case_012",
+        "command_id": "command_gz_case_012_primary",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "namespace": "agreements",
+            "object": {
+              "authority": {
+                "adjudication_eligible": true,
+                "authority_detail": "Authenticated party_a assertion",
+                "authority_kind": "party_assertion",
+                "evidence_ids": [],
+                "introduced_by": {
+                  "actor_id": "subject_party_a",
+                  "actor_type": "party"
+                },
+                "introduced_in_record_version": 2,
+                "last_material_command_id": "command_gz_case_012_primary",
+                "last_material_record_version": 2,
+                "party_stances": {
+                  "party_a": {
+                    "response_event_id": null,
+                    "stance": "asserted"
+                  },
+                  "party_b": {
+                    "response_event_id": null,
+                    "stance": "unresponded"
+                  }
+                },
+                "resolution_status": "unresolved",
+                "source_references": [
+                  {
+                    "source_hash": "c65ab6fdcfa0f7120f6975ff7f5409db5a50cc0b88e37e79f9a1d6b1c9c52194",
+                    "source_id": "source_gz_case_012_a",
+                    "span": {
+                      "encoding": "utf16",
+                      "end": 70,
+                      "quote": "Person A says delivery became due after client approval, around 4 May.",
+                      "start": 0
+                    }
+                  }
+                ],
+                "subject_actor_ids": [
+                  "subject_party_a"
+                ]
+              },
+              "conditions": [
+                "after client approval"
+              ],
+              "description": "Delivery after client approval.",
+              "linked_deliverable_ids": [],
+              "linked_event_ids": [],
+              "linked_payment_ids": [],
+              "obligation_id": "obligation_gz_case_012_conditional",
+              "obligation_type": "service_delivery",
+              "obligee_actor_id": null,
+              "obligor_actor_id": null
+            },
+            "type": "add_object"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "c65ab6fdcfa0f7120f6975ff7f5409db5a50cc0b88e37e79f9a1d6b1c9c52194",
+            "source_id": "source_gz_case_012_a",
+            "span": {
+              "encoding": "utf16",
+              "end": 70,
+              "quote": "Person A says delivery became due after client approval, around 4 May.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [
+          {
+            "basis": "party_attributed_assertion",
+            "fact_id": "fact_gz_case_012_primary",
+            "party_attribution": "party_a",
+            "source_references": [
+              {
+                "source_hash": "c65ab6fdcfa0f7120f6975ff7f5409db5a50cc0b88e37e79f9a1d6b1c9c52194",
+                "source_id": "source_gz_case_012_a",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 70,
+                  "quote": "Person A says delivery became due after client approval, around 4 May.",
+                  "start": 0
+                }
+              }
+            ],
+            "statement": "Person A says delivery became due after client approval, around 4 May."
+          }
+        ],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [
+          {
+            "prohibited_promotion": "objective_fact",
+            "proposition": "The introducing party assertion is objectively established.",
+            "proposition_id": "proposition_gz_case_012_objective",
+            "reason_code": "single_party_assertion_only",
+            "source_references": [
+              {
+                "source_hash": "c65ab6fdcfa0f7120f6975ff7f5409db5a50cc0b88e37e79f9a1d6b1c9c52194",
+                "source_id": "source_gz_case_012_a",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 70,
+                  "quote": "Person A says delivery became due after client approval, around 4 May.",
+                  "start": 0
+                }
+              }
+            ]
+          }
+        ],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [
+          {
+            "source_hash": "c65ab6fdcfa0f7120f6975ff7f5409db5a50cc0b88e37e79f9a1d6b1c9c52194",
+            "source_id": "source_gz_case_012_a",
+            "span": {
+              "encoding": "utf16",
+              "end": 70,
+              "quote": "Person A says delivery became due after client approval, around 4 May.",
+              "start": 0
+            }
+          }
+        ],
+        "resulting_envelope_hash": "be0c596203d3a7bd72f6c09114c62100d05ee81f2c7b5185f6c509231de7dcad",
+        "resulting_envelope_version": 2,
+        "resulting_record_hash": "996aaf129834dd6fad071b90e15f839db0f0dfc959ee4320a3e5d676eb11ce95",
+        "resulting_record_version": 2,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_challenge",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says delivery became due after client approval, around 4 May.",
+          "content_hash": "c65ab6fdcfa0f7120f6975ff7f5409db5a50cc0b88e37e79f9a1d6b1c9c52194",
+          "source_id": "source_gz_case_012_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_012_turn_01_primary_assertion",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_012_a",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "be0c596203d3a7bd72f6c09114c62100d05ee81f2c7b5185f6c509231de7dcad",
+      "base_envelope_version": 2,
+      "base_record_hash": "996aaf129834dd6fad071b90e15f839db0f0dfc959ee4320a3e5d676eb11ce95",
+      "base_record_version": 2,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "be0c596203d3a7bd72f6c09114c62100d05ee81f2c7b5185f6c509231de7dcad",
+        "base_envelope_version": 2,
+        "case_id": "gz_case_012",
+        "command_id": "command_gz_case_012_turn_02_ambiguity_drives_question",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [
+              "Whether written approval occurred and when remains disputed."
+            ],
+            "lock_blockers": [
+              "material_ambiguity"
+            ],
+            "lock_prerequisites": [
+              "material_ambiguity_resolved"
+            ],
+            "open_required_fields": [
+              "agreements.obligation_gz_case_012_conditional.conditions"
+            ],
+            "type": "set_formation_requirements",
+            "uncertainties": []
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": {
+          "addressed_to_party": "party_a",
+          "field": "conditions",
+          "namespace": "agreements",
+          "object_id": "obligation_gz_case_012_conditional",
+          "reason_code": "resolve_gz_case_012_material_ambiguity"
+        },
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "d6b3e9ef430c5a521dcda988615b133aa970cbad7ca861d5f5e642ce31722702",
+        "resulting_envelope_version": 3,
+        "resulting_record_hash": "91153fbc47c36f5d7d2f1bd6b3b1639708301da4e2e46467398fdee7a120995b",
+        "resulting_record_version": 3,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_identity"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_party_participation",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says delivery became due after client approval, around 4 May.",
+          "content_hash": "c65ab6fdcfa0f7120f6975ff7f5409db5a50cc0b88e37e79f9a1d6b1c9c52194",
+          "source_id": "source_gz_case_012_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_012_turn_02_ambiguity_drives_question",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_012_a",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_a",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_a",
+        "party_id": "party_a"
+      },
+      "base_envelope_hash": "d6b3e9ef430c5a521dcda988615b133aa970cbad7ca861d5f5e642ce31722702",
+      "base_envelope_version": 3,
+      "base_record_hash": "91153fbc47c36f5d7d2f1bd6b3b1639708301da4e2e46467398fdee7a120995b",
+      "base_record_version": 3,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_a",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_a",
+          "party_id": "party_a"
+        },
+        "base_envelope_hash": "d6b3e9ef430c5a521dcda988615b133aa970cbad7ca861d5f5e642ce31722702",
+        "base_envelope_version": 3,
+        "case_id": "gz_case_012",
+        "command_id": "command_gz_case_012_secondary",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "namespace": "events",
+            "object": {
+              "actor_ids": [],
+              "authority": {
+                "adjudication_eligible": true,
+                "authority_detail": "Authenticated party_a assertion",
+                "authority_kind": "party_assertion",
+                "evidence_ids": [],
+                "introduced_by": {
+                  "actor_id": "subject_party_a",
+                  "actor_type": "party"
+                },
+                "introduced_in_record_version": 4,
+                "last_material_command_id": "command_gz_case_012_secondary",
+                "last_material_record_version": 4,
+                "party_stances": {
+                  "party_a": {
+                    "response_event_id": null,
+                    "stance": "asserted"
+                  },
+                  "party_b": {
+                    "response_event_id": null,
+                    "stance": "unresponded"
+                  }
+                },
+                "resolution_status": "unresolved",
+                "source_references": [
+                  {
+                    "source_hash": "c65ab6fdcfa0f7120f6975ff7f5409db5a50cc0b88e37e79f9a1d6b1c9c52194",
+                    "source_id": "source_gz_case_012_a",
+                    "span": {
+                      "encoding": "utf16",
+                      "end": 70,
+                      "quote": "Person A says delivery became due after client approval, around 4 May.",
+                      "start": 0
+                    }
+                  }
+                ],
+                "subject_actor_ids": [
+                  "subject_party_a"
+                ]
+              },
+              "date": {
+                "approximate": true,
+                "end": null,
+                "precision": "day",
+                "start": "2026-05-04"
+              },
+              "description": "Person A says approval occurred around 4 May.",
+              "event_id": "event_gz_case_012_approval",
+              "event_type": "communication",
+              "linked_deliverable_ids": [],
+              "linked_obligation_ids": [
+                "obligation_gz_case_012_conditional"
+              ],
+              "linked_payment_ids": []
+            },
+            "type": "add_object"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "c65ab6fdcfa0f7120f6975ff7f5409db5a50cc0b88e37e79f9a1d6b1c9c52194",
+            "source_id": "source_gz_case_012_a",
+            "span": {
+              "encoding": "utf16",
+              "end": 70,
+              "quote": "Person A says delivery became due after client approval, around 4 May.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [
+          {
+            "source_hash": "c65ab6fdcfa0f7120f6975ff7f5409db5a50cc0b88e37e79f9a1d6b1c9c52194",
+            "source_id": "source_gz_case_012_a",
+            "span": {
+              "encoding": "utf16",
+              "end": 70,
+              "quote": "Person A says delivery became due after client approval, around 4 May.",
+              "start": 0
+            }
+          }
+        ],
+        "resulting_envelope_hash": "d42c593317fd213f82e00b03c8789e08a0698fa869adb1327e5d8743490e5b28",
+        "resulting_envelope_version": 4,
+        "resulting_record_hash": "d24014486b353e4618e565ff02f799ce4f1cc5e7650c55e743b3790e6c3bbc75",
+        "resulting_record_version": 4,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_challenge",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says delivery became due after client approval, around 4 May.",
+          "content_hash": "c65ab6fdcfa0f7120f6975ff7f5409db5a50cc0b88e37e79f9a1d6b1c9c52194",
+          "source_id": "source_gz_case_012_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B says no written approval occurred and the date is only approximate.",
+          "content_hash": "fc0bbf66e6497656659bc51eeb080b4651ed32f78e0b8232e72cf24d8724ce0d",
+          "source_id": "source_gz_case_012_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_012_turn_03_linked_or_counter_object",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_012_a",
+        "source_gz_case_012_b",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_b",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_b",
+        "party_id": "party_b"
+      },
+      "base_envelope_hash": "d42c593317fd213f82e00b03c8789e08a0698fa869adb1327e5d8743490e5b28",
+      "base_envelope_version": 4,
+      "base_record_hash": "d24014486b353e4618e565ff02f799ce4f1cc5e7650c55e743b3790e6c3bbc75",
+      "base_record_version": 4,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_b",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_b",
+          "party_id": "party_b"
+        },
+        "base_envelope_hash": "d42c593317fd213f82e00b03c8789e08a0698fa869adb1327e5d8743490e5b28",
+        "base_envelope_version": 4,
+        "case_id": "gz_case_012",
+        "command_id": "command_gz_case_012_turn_04_person_b_disputes",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "namespace": "agreements",
+            "object_id": "obligation_gz_case_012_conditional",
+            "response_event_id": "event_gz_case_012_b_disputes",
+            "stance": "disputed",
+            "type": "set_own_stance"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "fc0bbf66e6497656659bc51eeb080b4651ed32f78e0b8232e72cf24d8724ce0d",
+            "source_id": "source_gz_case_012_b",
+            "span": {
+              "encoding": "utf16",
+              "end": 76,
+              "quote": "Person B says no written approval occurred and the date is only approximate.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [
+          {
+            "prohibited_promotion": "bilateral_agreement",
+            "proposition": "The parties agree on the disputed proposition.",
+            "proposition_id": "proposition_gz_case_012_bilateral",
+            "reason_code": "person_b_explicitly_disputes",
+            "source_references": [
+              {
+                "source_hash": "c65ab6fdcfa0f7120f6975ff7f5409db5a50cc0b88e37e79f9a1d6b1c9c52194",
+                "source_id": "source_gz_case_012_a",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 70,
+                  "quote": "Person A says delivery became due after client approval, around 4 May.",
+                  "start": 0
+                }
+              },
+              {
+                "source_hash": "fc0bbf66e6497656659bc51eeb080b4651ed32f78e0b8232e72cf24d8724ce0d",
+                "source_id": "source_gz_case_012_b",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 76,
+                  "quote": "Person B says no written approval occurred and the date is only approximate.",
+                  "start": 0
+                }
+              }
+            ]
+          }
+        ],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [
+          {
+            "source_hash": "fc0bbf66e6497656659bc51eeb080b4651ed32f78e0b8232e72cf24d8724ce0d",
+            "source_id": "source_gz_case_012_b",
+            "span": {
+              "encoding": "utf16",
+              "end": 76,
+              "quote": "Person B says no written approval occurred and the date is only approximate.",
+              "start": 0
+            }
+          }
+        ],
+        "resulting_envelope_hash": "fce074f5f8d2981b559e635ed68121313a619ebb5f478c89de2543cd8a4b6452",
+        "resulting_envelope_version": 5,
+        "resulting_record_hash": "a0b640a16b3db10f3eede93a0c591ae9ac6e4ef78a427de06f4363e0715cbb5f",
+        "resulting_record_version": 5,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_challenge",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says delivery became due after client approval, around 4 May.",
+          "content_hash": "c65ab6fdcfa0f7120f6975ff7f5409db5a50cc0b88e37e79f9a1d6b1c9c52194",
+          "source_id": "source_gz_case_012_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B says no written approval occurred and the date is only approximate.",
+          "content_hash": "fc0bbf66e6497656659bc51eeb080b4651ed32f78e0b8232e72cf24d8724ce0d",
+          "source_id": "source_gz_case_012_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_012_turn_04_person_b_disputes",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_012_a",
+        "source_gz_case_012_b",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_b",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_b",
+        "party_id": "party_b"
+      },
+      "base_envelope_hash": "fce074f5f8d2981b559e635ed68121313a619ebb5f478c89de2543cd8a4b6452",
+      "base_envelope_version": 5,
+      "base_record_hash": "a0b640a16b3db10f3eede93a0c591ae9ac6e4ef78a427de06f4363e0715cbb5f",
+      "base_record_version": 5,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_b",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_b",
+          "party_id": "party_b"
+        },
+        "base_envelope_hash": "fce074f5f8d2981b559e635ed68121313a619ebb5f478c89de2543cd8a4b6452",
+        "base_envelope_version": 5,
+        "case_id": "gz_case_012",
+        "command_id": "command_gz_case_012_turn_05_cross_party_overwrite_rejected",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "expected_prior_value": [
+              "after client approval"
+            ],
+            "field": "conditions",
+            "namespace": "agreements",
+            "object_id": "obligation_gz_case_012_conditional",
+            "replacement_value": [
+              "after written client approval"
+            ],
+            "type": "replace_own_field"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "fc0bbf66e6497656659bc51eeb080b4651ed32f78e0b8232e72cf24d8724ce0d",
+            "source_id": "source_gz_case_012_b",
+            "span": {
+              "encoding": "utf16",
+              "end": 76,
+              "quote": "Person B says no written approval occurred and the date is only approximate.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "rejected",
+        "envelope_version_delta": 0,
+        "evidence_actions": [],
+        "exact_no_mutation": true,
+        "failure_reason": "cross_party_mutation",
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 0,
+        "required_source_references": [],
+        "resulting_envelope_hash": "fce074f5f8d2981b559e635ed68121313a619ebb5f478c89de2543cd8a4b6452",
+        "resulting_envelope_version": 5,
+        "resulting_record_hash": "a0b640a16b3db10f3eede93a0c591ae9ac6e4ef78a427de06f4363e0715cbb5f",
+        "resulting_record_version": 5,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_challenge",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says delivery became due after client approval, around 4 May.",
+          "content_hash": "c65ab6fdcfa0f7120f6975ff7f5409db5a50cc0b88e37e79f9a1d6b1c9c52194",
+          "source_id": "source_gz_case_012_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B says no written approval occurred and the date is only approximate.",
+          "content_hash": "fc0bbf66e6497656659bc51eeb080b4651ed32f78e0b8232e72cf24d8724ce0d",
+          "source_id": "source_gz_case_012_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_012_turn_05_cross_party_overwrite_rejected",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_012_a",
+        "source_gz_case_012_b",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_a",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_a",
+        "party_id": "party_a"
+      },
+      "base_envelope_hash": "fce074f5f8d2981b559e635ed68121313a619ebb5f478c89de2543cd8a4b6452",
+      "base_envelope_version": 5,
+      "base_record_hash": "a0b640a16b3db10f3eede93a0c591ae9ac6e4ef78a427de06f4363e0715cbb5f",
+      "base_record_version": 5,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_a",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_a",
+          "party_id": "party_a"
+        },
+        "base_envelope_hash": "fce074f5f8d2981b559e635ed68121313a619ebb5f478c89de2543cd8a4b6452",
+        "base_envelope_version": 5,
+        "case_id": "gz_case_012",
+        "command_id": "command_gz_case_012_turn_06_owner_correction",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "expected_prior_value": [
+              "after client approval"
+            ],
+            "field": "conditions",
+            "namespace": "agreements",
+            "object_id": "obligation_gz_case_012_conditional",
+            "replacement_value": [
+              "after written client approval"
+            ],
+            "type": "replace_own_field"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "c65ab6fdcfa0f7120f6975ff7f5409db5a50cc0b88e37e79f9a1d6b1c9c52194",
+            "source_id": "source_gz_case_012_a",
+            "span": {
+              "encoding": "utf16",
+              "end": 70,
+              "quote": "Person A says delivery became due after client approval, around 4 May.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [
+          {
+            "source_hash": "c65ab6fdcfa0f7120f6975ff7f5409db5a50cc0b88e37e79f9a1d6b1c9c52194",
+            "source_id": "source_gz_case_012_a",
+            "span": {
+              "encoding": "utf16",
+              "end": 70,
+              "quote": "Person A says delivery became due after client approval, around 4 May.",
+              "start": 0
+            }
+          }
+        ],
+        "resulting_envelope_hash": "08e4892ceae387fbc86363c8ad0e79554d3d125a533df6021c03e5c90fcdc260",
+        "resulting_envelope_version": 6,
+        "resulting_record_hash": "669fb1e946afe2e8822f38c5e6d87ecbf89673b187c13216f9dc1ddab8e9bea8",
+        "resulting_record_version": 6,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_challenge",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says delivery became due after client approval, around 4 May.",
+          "content_hash": "c65ab6fdcfa0f7120f6975ff7f5409db5a50cc0b88e37e79f9a1d6b1c9c52194",
+          "source_id": "source_gz_case_012_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B says no written approval occurred and the date is only approximate.",
+          "content_hash": "fc0bbf66e6497656659bc51eeb080b4651ed32f78e0b8232e72cf24d8724ce0d",
+          "source_id": "source_gz_case_012_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_012_turn_06_owner_correction",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_012_a",
+        "source_gz_case_012_b",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_b",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_b",
+        "party_id": "party_b"
+      },
+      "base_envelope_hash": "08e4892ceae387fbc86363c8ad0e79554d3d125a533df6021c03e5c90fcdc260",
+      "base_envelope_version": 6,
+      "base_record_hash": "669fb1e946afe2e8822f38c5e6d87ecbf89673b187c13216f9dc1ddab8e9bea8",
+      "base_record_version": 6,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_b",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_b",
+          "party_id": "party_b"
+        },
+        "base_envelope_hash": "08e4892ceae387fbc86363c8ad0e79554d3d125a533df6021c03e5c90fcdc260",
+        "base_envelope_version": 6,
+        "case_id": "gz_case_012",
+        "command_id": "command_gz_case_012_turn_07_field_challenge",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "challenge_id": "challenge_gz_case_012_primary",
+            "source_references": [
+              {
+                "source_hash": "fc0bbf66e6497656659bc51eeb080b4651ed32f78e0b8232e72cf24d8724ce0d",
+                "source_id": "source_gz_case_012_b",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 76,
+                  "quote": "Person B says no written approval occurred and the date is only approximate.",
+                  "start": 0
+                }
+              }
+            ],
+            "target_field": "conditions",
+            "target_namespace": "agreements",
+            "target_object_id": "obligation_gz_case_012_conditional",
+            "type": "record_challenge"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "fc0bbf66e6497656659bc51eeb080b4651ed32f78e0b8232e72cf24d8724ce0d",
+            "source_id": "source_gz_case_012_b",
+            "span": {
+              "encoding": "utf16",
+              "end": 76,
+              "quote": "Person B says no written approval occurred and the date is only approximate.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [
+          {
+            "source_hash": "fc0bbf66e6497656659bc51eeb080b4651ed32f78e0b8232e72cf24d8724ce0d",
+            "source_id": "source_gz_case_012_b",
+            "span": {
+              "encoding": "utf16",
+              "end": 76,
+              "quote": "Person B says no written approval occurred and the date is only approximate.",
+              "start": 0
+            }
+          }
+        ],
+        "resulting_envelope_hash": "66499efc47c54828bbffa3b6cb3b2acea3fa56fd42ee4368a3bfc6e9f3b5af70",
+        "resulting_envelope_version": 7,
+        "resulting_record_hash": "4aff02afc86d8b85e9a9c62db1446a7fe058afea8e2711033197268f71182e0a",
+        "resulting_record_version": 7,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_challenge",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says delivery became due after client approval, around 4 May.",
+          "content_hash": "c65ab6fdcfa0f7120f6975ff7f5409db5a50cc0b88e37e79f9a1d6b1c9c52194",
+          "source_id": "source_gz_case_012_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B says no written approval occurred and the date is only approximate.",
+          "content_hash": "fc0bbf66e6497656659bc51eeb080b4651ed32f78e0b8232e72cf24d8724ce0d",
+          "source_id": "source_gz_case_012_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_012_turn_07_field_challenge",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_012_a",
+        "source_gz_case_012_b",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_a",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_a",
+        "party_id": "party_a"
+      },
+      "base_envelope_hash": "66499efc47c54828bbffa3b6cb3b2acea3fa56fd42ee4368a3bfc6e9f3b5af70",
+      "base_envelope_version": 7,
+      "base_record_hash": "4aff02afc86d8b85e9a9c62db1446a7fe058afea8e2711033197268f71182e0a",
+      "base_record_version": 7,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_a",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_a",
+          "party_id": "party_a"
+        },
+        "base_envelope_hash": "66499efc47c54828bbffa3b6cb3b2acea3fa56fd42ee4368a3bfc6e9f3b5af70",
+        "base_envelope_version": 7,
+        "case_id": "gz_case_012",
+        "command_id": "command_gz_case_012_turn_08_owner_rejects_challenge",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "challenge_id": "challenge_gz_case_012_primary",
+            "resolution": "rejected",
+            "resolution_event_id": "event_gz_case_012_challenge_rejected",
+            "resolution_source_references": [
+              {
+                "source_hash": "c65ab6fdcfa0f7120f6975ff7f5409db5a50cc0b88e37e79f9a1d6b1c9c52194",
+                "source_id": "source_gz_case_012_a",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 70,
+                  "quote": "Person A says delivery became due after client approval, around 4 May.",
+                  "start": 0
+                }
+              }
+            ],
+            "type": "resolve_challenge"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "c65ab6fdcfa0f7120f6975ff7f5409db5a50cc0b88e37e79f9a1d6b1c9c52194",
+            "source_id": "source_gz_case_012_a",
+            "span": {
+              "encoding": "utf16",
+              "end": 70,
+              "quote": "Person A says delivery became due after client approval, around 4 May.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [
+          {
+            "source_hash": "c65ab6fdcfa0f7120f6975ff7f5409db5a50cc0b88e37e79f9a1d6b1c9c52194",
+            "source_id": "source_gz_case_012_a",
+            "span": {
+              "encoding": "utf16",
+              "end": 70,
+              "quote": "Person A says delivery became due after client approval, around 4 May.",
+              "start": 0
+            }
+          }
+        ],
+        "resulting_envelope_hash": "4b6017fee714103ca569782a6320f3cdebbbc0e49e845133aaa86ba4644b55b2",
+        "resulting_envelope_version": 8,
+        "resulting_record_hash": "ae3fd98956bdabf361409b41d787e020e27b4290c977470a71a42a3c7af4a63e",
+        "resulting_record_version": 8,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_challenge",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says delivery became due after client approval, around 4 May.",
+          "content_hash": "c65ab6fdcfa0f7120f6975ff7f5409db5a50cc0b88e37e79f9a1d6b1c9c52194",
+          "source_id": "source_gz_case_012_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B says no written approval occurred and the date is only approximate.",
+          "content_hash": "fc0bbf66e6497656659bc51eeb080b4651ed32f78e0b8232e72cf24d8724ce0d",
+          "source_id": "source_gz_case_012_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_012_turn_08_owner_rejects_challenge",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_012_a",
+        "source_gz_case_012_b",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "4b6017fee714103ca569782a6320f3cdebbbc0e49e845133aaa86ba4644b55b2",
+      "base_envelope_version": 8,
+      "base_record_hash": "ae3fd98956bdabf361409b41d787e020e27b4290c977470a71a42a3c7af4a63e",
+      "base_record_version": 8,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "4b6017fee714103ca569782a6320f3cdebbbc0e49e845133aaa86ba4644b55b2",
+        "base_envelope_version": 8,
+        "case_id": "gz_case_012",
+        "command_id": "command_gz_case_012_turn_09_formation_check",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [
+              "Whether written approval occurred and when remains disputed."
+            ],
+            "lock_blockers": [
+              "material_dispute_open"
+            ],
+            "lock_prerequisites": [
+              "party_disagreement_preserved"
+            ],
+            "open_required_fields": [],
+            "type": "set_formation_requirements",
+            "uncertainties": [
+              "review_checkpoint_9"
+            ]
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "35742ede548f273bfaad55e6bb0dd41e8e188e441eb8b1bc11090697daa2a817",
+        "resulting_envelope_version": 9,
+        "resulting_record_hash": "1268104af1206987568101dd50af016e74aa8679de4c4cf793434e5db087dfb3",
+        "resulting_record_version": 9,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_identity"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_party_participation",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says delivery became due after client approval, around 4 May.",
+          "content_hash": "c65ab6fdcfa0f7120f6975ff7f5409db5a50cc0b88e37e79f9a1d6b1c9c52194",
+          "source_id": "source_gz_case_012_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B says no written approval occurred and the date is only approximate.",
+          "content_hash": "fc0bbf66e6497656659bc51eeb080b4651ed32f78e0b8232e72cf24d8724ce0d",
+          "source_id": "source_gz_case_012_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_012_turn_09_formation_check",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_012_a",
+        "source_gz_case_012_b",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "35742ede548f273bfaad55e6bb0dd41e8e188e441eb8b1bc11090697daa2a817",
+      "base_envelope_version": 9,
+      "base_record_hash": "1268104af1206987568101dd50af016e74aa8679de4c4cf793434e5db087dfb3",
+      "base_record_version": 9,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "35742ede548f273bfaad55e6bb0dd41e8e188e441eb8b1bc11090697daa2a817",
+        "base_envelope_version": 9,
+        "case_id": "gz_case_012",
+        "command_id": "command_gz_case_012_turn_10_formation_check",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [
+              "Whether written approval occurred and when remains disputed."
+            ],
+            "lock_blockers": [
+              "material_dispute_open"
+            ],
+            "lock_prerequisites": [
+              "party_disagreement_preserved"
+            ],
+            "open_required_fields": [],
+            "type": "set_formation_requirements",
+            "uncertainties": [
+              "review_checkpoint_10"
+            ]
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "ff1010a0c95fd0ec679458a291a7648060ee1b63fec1e467fa2e489dfd1b6683",
+        "resulting_envelope_version": 10,
+        "resulting_record_hash": "e37829da639fc0d6f14ea7fc34ac3e56bb10c5c7f7a9bd675cea20613a98581d",
+        "resulting_record_version": 10,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_identity"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_party_participation",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says delivery became due after client approval, around 4 May.",
+          "content_hash": "c65ab6fdcfa0f7120f6975ff7f5409db5a50cc0b88e37e79f9a1d6b1c9c52194",
+          "source_id": "source_gz_case_012_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B says no written approval occurred and the date is only approximate.",
+          "content_hash": "fc0bbf66e6497656659bc51eeb080b4651ed32f78e0b8232e72cf24d8724ce0d",
+          "source_id": "source_gz_case_012_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_012_turn_10_formation_check",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_012_a",
+        "source_gz_case_012_b",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "ff1010a0c95fd0ec679458a291a7648060ee1b63fec1e467fa2e489dfd1b6683",
+      "base_envelope_version": 10,
+      "base_record_hash": "e37829da639fc0d6f14ea7fc34ac3e56bb10c5c7f7a9bd675cea20613a98581d",
+      "base_record_version": 10,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "ff1010a0c95fd0ec679458a291a7648060ee1b63fec1e467fa2e489dfd1b6683",
+        "base_envelope_version": 10,
+        "case_id": "gz_case_012",
+        "command_id": "command_gz_case_012_turn_11_formation_check",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [
+              "Whether written approval occurred and when remains disputed."
+            ],
+            "lock_blockers": [
+              "material_dispute_open"
+            ],
+            "lock_prerequisites": [
+              "party_disagreement_preserved"
+            ],
+            "open_required_fields": [],
+            "type": "set_formation_requirements",
+            "uncertainties": [
+              "review_checkpoint_11"
+            ]
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "ce3da961bd8ca0888646db53aa5a0633ec1b9a2bed8b39cd9292e33075405234",
+        "resulting_envelope_version": 11,
+        "resulting_record_hash": "07d6ea2c1e742cb9580adecd011a75a4957faa73af2b33ee68589022dea7f4cd",
+        "resulting_record_version": 11,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_identity"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_party_participation",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says delivery became due after client approval, around 4 May.",
+          "content_hash": "c65ab6fdcfa0f7120f6975ff7f5409db5a50cc0b88e37e79f9a1d6b1c9c52194",
+          "source_id": "source_gz_case_012_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B says no written approval occurred and the date is only approximate.",
+          "content_hash": "fc0bbf66e6497656659bc51eeb080b4651ed32f78e0b8232e72cf24d8724ce0d",
+          "source_id": "source_gz_case_012_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_012_turn_11_formation_check",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_012_a",
+        "source_gz_case_012_b",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "ce3da961bd8ca0888646db53aa5a0633ec1b9a2bed8b39cd9292e33075405234",
+      "base_envelope_version": 11,
+      "base_record_hash": "07d6ea2c1e742cb9580adecd011a75a4957faa73af2b33ee68589022dea7f4cd",
+      "base_record_version": 11,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "ce3da961bd8ca0888646db53aa5a0633ec1b9a2bed8b39cd9292e33075405234",
+        "base_envelope_version": 11,
+        "case_id": "gz_case_012",
+        "command_id": "command_gz_case_012_turn_12_formation_check",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [
+              "Whether written approval occurred and when remains disputed."
+            ],
+            "lock_blockers": [
+              "material_dispute_open"
+            ],
+            "lock_prerequisites": [
+              "party_disagreement_preserved"
+            ],
+            "open_required_fields": [],
+            "type": "set_formation_requirements",
+            "uncertainties": [
+              "review_checkpoint_12"
+            ]
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "ff0c0ed6de9988db842b8efbbae867eef48f1232d8eaebffc931e6a8ad2d2b9f",
+        "resulting_envelope_version": 12,
+        "resulting_record_hash": "4d0777606becd43ac0c98a159c537d8b95847b63736cd5e91ad8bb06a2013d4b",
+        "resulting_record_version": 12,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_identity"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_party_participation",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says delivery became due after client approval, around 4 May.",
+          "content_hash": "c65ab6fdcfa0f7120f6975ff7f5409db5a50cc0b88e37e79f9a1d6b1c9c52194",
+          "source_id": "source_gz_case_012_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B says no written approval occurred and the date is only approximate.",
+          "content_hash": "fc0bbf66e6497656659bc51eeb080b4651ed32f78e0b8232e72cf24d8724ce0d",
+          "source_id": "source_gz_case_012_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_012_turn_12_formation_check",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_012_a",
+        "source_gz_case_012_b",
+        "source_system_initialization"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1573 @@
+{
+  "case_id": "gz_case_006",
+  "coverage": {
+    "failure": [
+      "cross_party_mutation",
+      "atomic_command_failure",
+      "unauthorized_mutation"
+    ],
+    "success": [
+      "cross_party_mutation",
+      "atomic_command_failure",
+      "exact_party_assertions"
+    ]
+  },
+  "expected_adjudication_input": null,
+  "final_envelope": {
+    "actors": {},
+    "agreements": {},
+    "claimed_losses": {},
+    "classification": {
+      "authority": {
+        "adjudication_eligible": false,
+        "authority_detail": "initial classification placeholder",
+        "authority_kind": "system_observation",
+        "evidence_ids": [],
+        "introduced_by": {
+          "actor_id": "juryai_system",
+          "actor_type": "system"
+        },
+        "introduced_in_record_version": 1,
+        "last_material_command_id": "command_system_initialization",
+        "last_material_record_version": 1,
+        "party_stances": {
+          "party_a": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          },
+          "party_b": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          }
+        },
+        "resolution_status": "unresolved",
+        "source_references": [
+          {
+            "source_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+            "source_id": "source_system_initialization",
+            "span": null
+          }
+        ],
+        "subject_actor_ids": []
+      },
+      "case_category": null,
+      "maturity": "undetermined",
+      "required_fact_profile": null,
+      "safety_flags": [],
+      "scope_flags": [],
+      "suitability": "undetermined"
+    },
+    "control": {
+      "case_id": "gz_case_006",
+      "deadlines": {},
+      "eligibility": {
+        "reason_codes": [],
+        "status": "undetermined"
+      },
+      "envelope_hash": "29bca194c1588982cab3a8ef633f6cc9df90ebb5557dbe2169610c44616e06ca",
+      "envelope_version": 5,
+      "lock": {
+        "lock_event_id": null,
+        "locked_at": null,
+        "mode": null,
+        "output_scope": null,
+        "status": "unlocked"
+      },
+      "protocol": {
+        "non_participation_mode": "prohibited",
+        "protocol_id": "commercial_fairness_v2",
+        "protocol_version": "juryai-formation-protocol-v2.0.0"
+      },
+      "record_hash": "e5f24bd2ee1a402fe0d031087559b6979d596acf7fba90bfcd1db8fa98295dbb",
+      "record_version": 5,
+      "schema_version": "juryai-case-envelope-v2.0.0",
+      "workflow_state": "reconciliation"
+    },
+    "deliverables": {},
+    "events": {},
+    "evidence": {},
+    "formation": {
+      "ambiguities": [
+        "The parties assert different deadlines."
+      ],
+      "challenges": [],
+      "confirmations": {
+        "party_a": null,
+        "party_b": null
+      },
+      "disclosure": {
+        "detailed_a_framing": "embargoed",
+        "disclosure_event_id": null,
+        "person_b_independent_account_source_id": null
+      },
+      "lock_blockers": [
+        "deadline_disputed"
+      ],
+      "lock_prerequisites": [],
+      "material_change_events": [],
+      "non_participation": {
+        "correction_opportunity": "not_started",
+        "deadline_expired_event_id": null,
+        "invitation_event_id": null,
+        "notice_event_id": null,
+        "response_deadline": null
+      },
+      "open_required_fields": [],
+      "prior_locks": [],
+      "uncertainties": []
+    },
+    "parties": {
+      "party_a": {
+        "authenticated_subject_id": "subject_party_a",
+        "consent_event_id": "event_gz_case_006_consent_a",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_006_identity_a",
+        "participation_state": "active",
+        "party_id": "party_a",
+        "role": "person_a"
+      },
+      "party_b": {
+        "authenticated_subject_id": "subject_party_b",
+        "consent_event_id": "event_gz_case_006_consent_b",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_006_identity_b",
+        "participation_state": "active",
+        "party_id": "party_b",
+        "role": "person_b"
+      }
+    },
+    "payments": {},
+    "positions": {
+      "position_gz_case_006_a": {
+        "authority": {
+          "adjudication_eligible": true,
+          "authority_detail": "Authenticated party_a assertion",
+          "authority_kind": "party_assertion",
+          "evidence_ids": [],
+          "introduced_by": {
+            "actor_id": "subject_party_a",
+            "actor_type": "party"
+          },
+          "introduced_in_record_version": 2,
+          "last_material_command_id": "command_gz_case_006_turn_07_b_disputes_a",
+          "last_material_record_version": 4,
+          "party_stances": {
+            "party_a": {
+              "response_event_id": null,
+              "stance": "asserted"
+            },
+            "party_b": {
+              "response_event_id": "event_gz_case_006_b_disputes_a",
+              "stance": "disputed"
+            }
+          },
+          "resolution_status": "disputed",
+          "source_references": [
+            {
+              "source_hash": "ca5eeb68e752a15f8b0c99520815b32493664c684833b0c6b76a7310f7ded77c",
+              "source_id": "source_gz_case_006_a",
+              "span": {
+                "encoding": "utf16",
+                "end": 14,
+                "quote": "A says Friday.",
+                "start": 0
+              }
+            },
+            {
+              "source_hash": "50258286a9ce12775a286851f86c92d2e44da2c0e5d5ff5dd9e368b6ca652094",
+              "source_id": "source_gz_case_006_b",
+              "span": {
+                "encoding": "utf16",
+                "end": 14,
+                "quote": "B says Monday.",
+                "start": 0
+              }
+            }
+          ],
+          "subject_actor_ids": [
+            "subject_party_a"
+          ]
+        },
+        "party_id": "party_a",
+        "position_id": "position_gz_case_006_a",
+        "position_kind": "assertion",
+        "statement": "Person A says Friday.",
+        "target": null
+      },
+      "position_gz_case_006_b": {
+        "authority": {
+          "adjudication_eligible": true,
+          "authority_detail": "Authenticated party_b assertion",
+          "authority_kind": "party_assertion",
+          "evidence_ids": [],
+          "introduced_by": {
+            "actor_id": "subject_party_b",
+            "actor_type": "party"
+          },
+          "introduced_in_record_version": 3,
+          "last_material_command_id": "command_gz_case_006_add_b",
+          "last_material_record_version": 3,
+          "party_stances": {
+            "party_a": {
+              "response_event_id": null,
+              "stance": "unresponded"
+            },
+            "party_b": {
+              "response_event_id": null,
+              "stance": "asserted"
+            }
+          },
+          "resolution_status": "unresolved",
+          "source_references": [
+            {
+              "source_hash": "50258286a9ce12775a286851f86c92d2e44da2c0e5d5ff5dd9e368b6ca652094",
+              "source_id": "source_gz_case_006_b",
+              "span": {
+                "encoding": "utf16",
+                "end": 14,
+                "quote": "B says Monday.",
+                "start": 0
+              }
+            }
+          ],
+          "subject_actor_ids": [
+            "subject_party_b"
+          ]
+        },
+        "party_id": "party_b",
+        "position_id": "position_gz_case_006_b",
+        "position_kind": "assertion",
+        "statement": "Person B says Monday.",
+        "target": null
+      }
+    },
+    "requested_outcomes": {}
+  },
+  "fixture_version": "juryai-gate-zero-case-fixture-v1.0.0",
+  "initial_envelope": {
+    "actors": {},
+    "agreements": {},
+    "claimed_losses": {},
+    "classification": {
+      "authority": {
+        "adjudication_eligible": false,
+        "authority_detail": "initial classification placeholder",
+        "authority_kind": "system_observation",
+        "evidence_ids": [],
+        "introduced_by": {
+          "actor_id": "juryai_system",
+          "actor_type": "system"
+        },
+        "introduced_in_record_version": 1,
+        "last_material_command_id": "command_system_initialization",
+        "last_material_record_version": 1,
+        "party_stances": {
+          "party_a": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          },
+          "party_b": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          }
+        },
+        "resolution_status": "unresolved",
+        "source_references": [
+          {
+            "source_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+            "source_id": "source_system_initialization",
+            "span": null
+          }
+        ],
+        "subject_actor_ids": []
+      },
+      "case_category": null,
+      "maturity": "undetermined",
+      "required_fact_profile": null,
+      "safety_flags": [],
+      "scope_flags": [],
+      "suitability": "undetermined"
+    },
+    "control": {
+      "case_id": "gz_case_006",
+      "deadlines": {},
+      "eligibility": {
+        "reason_codes": [],
+        "status": "undetermined"
+      },
+      "envelope_hash": "fc06531c9f44cfe58be9382d1b091e8d4b40f991003bb89138551f5c70a7afea",
+      "envelope_version": 1,
+      "lock": {
+        "lock_event_id": null,
+        "locked_at": null,
+        "mode": null,
+        "output_scope": null,
+        "status": "unlocked"
+      },
+      "protocol": {
+        "non_participation_mode": "prohibited",
+        "protocol_id": "commercial_fairness_v2",
+        "protocol_version": "juryai-formation-protocol-v2.0.0"
+      },
+      "record_hash": "f3a1f4882bf6a4a417444e6838ec7583740b7ee3f32f922da86534d1b1824ac5",
+      "record_version": 1,
+      "schema_version": "juryai-case-envelope-v2.0.0",
+      "workflow_state": "reconciliation"
+    },
+    "deliverables": {},
+    "events": {},
+    "evidence": {},
+    "formation": {
+      "ambiguities": [],
+      "challenges": [],
+      "confirmations": {
+        "party_a": null,
+        "party_b": null
+      },
+      "disclosure": {
+        "detailed_a_framing": "embargoed",
+        "disclosure_event_id": null,
+        "person_b_independent_account_source_id": null
+      },
+      "lock_blockers": [],
+      "lock_prerequisites": [],
+      "material_change_events": [],
+      "non_participation": {
+        "correction_opportunity": "not_started",
+        "deadline_expired_event_id": null,
+        "invitation_event_id": null,
+        "notice_event_id": null,
+        "response_deadline": null
+      },
+      "open_required_fields": [],
+      "prior_locks": [],
+      "uncertainties": []
+    },
+    "parties": {
+      "party_a": {
+        "authenticated_subject_id": "subject_party_a",
+        "consent_event_id": "event_gz_case_006_consent_a",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_006_identity_a",
+        "participation_state": "active",
+        "party_id": "party_a",
+        "role": "person_a"
+      },
+      "party_b": {
+        "authenticated_subject_id": "subject_party_b",
+        "consent_event_id": "event_gz_case_006_consent_b",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_006_identity_b",
+        "participation_state": "active",
+        "party_id": "party_b",
+        "role": "person_b"
+      }
+    },
+    "payments": {},
+    "positions": {},
+    "requested_outcomes": {}
+  },
+  "matrix_version": "juryai-gate-zero-coverage-matrix-v1.0.0",
+  "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+  "title": "Cross-party and atomic mutation defenses",
+  "turns": [
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_a",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_a",
+        "party_id": "party_a"
+      },
+      "base_envelope_hash": "fc06531c9f44cfe58be9382d1b091e8d4b40f991003bb89138551f5c70a7afea",
+      "base_envelope_version": 1,
+      "base_record_hash": "f3a1f4882bf6a4a417444e6838ec7583740b7ee3f32f922da86534d1b1824ac5",
+      "base_record_version": 1,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_a",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_a",
+          "party_id": "party_a"
+        },
+        "base_envelope_hash": "fc06531c9f44cfe58be9382d1b091e8d4b40f991003bb89138551f5c70a7afea",
+        "base_envelope_version": 1,
+        "case_id": "gz_case_006",
+        "command_id": "command_gz_case_006_add_a",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "namespace": "positions",
+            "object": {
+              "authority": {
+                "adjudication_eligible": true,
+                "authority_detail": "Authenticated party_a assertion",
+                "authority_kind": "party_assertion",
+                "evidence_ids": [],
+                "introduced_by": {
+                  "actor_id": "subject_party_a",
+                  "actor_type": "party"
+                },
+                "introduced_in_record_version": 2,
+                "last_material_command_id": "command_gz_case_006_add_a",
+                "last_material_record_version": 2,
+                "party_stances": {
+                  "party_a": {
+                    "response_event_id": null,
+                    "stance": "asserted"
+                  },
+                  "party_b": {
+                    "response_event_id": null,
+                    "stance": "unresponded"
+                  }
+                },
+                "resolution_status": "unresolved",
+                "source_references": [
+                  {
+                    "source_hash": "ca5eeb68e752a15f8b0c99520815b32493664c684833b0c6b76a7310f7ded77c",
+                    "source_id": "source_gz_case_006_a",
+                    "span": {
+                      "encoding": "utf16",
+                      "end": 14,
+                      "quote": "A says Friday.",
+                      "start": 0
+                    }
+                  }
+                ],
+                "subject_actor_ids": [
+                  "subject_party_a"
+                ]
+              },
+              "party_id": "party_a",
+              "position_id": "position_gz_case_006_a",
+              "position_kind": "assertion",
+              "statement": "Person A says Friday.",
+              "target": null
+            },
+            "type": "add_object"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "ca5eeb68e752a15f8b0c99520815b32493664c684833b0c6b76a7310f7ded77c",
+            "source_id": "source_gz_case_006_a",
+            "span": {
+              "encoding": "utf16",
+              "end": 14,
+              "quote": "A says Friday.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "a3f22925aecca2fca6edc8e3d3d942410bbd02ed3dfd2625453e5b0a94702f53",
+        "resulting_envelope_version": 2,
+        "resulting_record_hash": "0dcd627670814cc7700c83e6bc326918529e2045a8b734e3522b128d4d958649",
+        "resulting_record_version": 2,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_challenge",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "A says Friday.",
+          "content_hash": "ca5eeb68e752a15f8b0c99520815b32493664c684833b0c6b76a7310f7ded77c",
+          "source_id": "source_gz_case_006_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_006_turn_01_a_adds_own_assertion",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_006_a",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_b",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_b",
+        "party_id": "party_b"
+      },
+      "base_envelope_hash": "a3f22925aecca2fca6edc8e3d3d942410bbd02ed3dfd2625453e5b0a94702f53",
+      "base_envelope_version": 2,
+      "base_record_hash": "0dcd627670814cc7700c83e6bc326918529e2045a8b734e3522b128d4d958649",
+      "base_record_version": 2,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_b",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_b",
+          "party_id": "party_b"
+        },
+        "base_envelope_hash": "a3f22925aecca2fca6edc8e3d3d942410bbd02ed3dfd2625453e5b0a94702f53",
+        "base_envelope_version": 2,
+        "case_id": "gz_case_006",
+        "command_id": "command_gz_case_006_add_b",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "namespace": "positions",
+            "object": {
+              "authority": {
+                "adjudication_eligible": true,
+                "authority_detail": "Authenticated party_b assertion",
+                "authority_kind": "party_assertion",
+                "evidence_ids": [],
+                "introduced_by": {
+                  "actor_id": "subject_party_b",
+                  "actor_type": "party"
+                },
+                "introduced_in_record_version": 3,
+                "last_material_command_id": "command_gz_case_006_add_b",
+                "last_material_record_version": 3,
+                "party_stances": {
+                  "party_a": {
+                    "response_event_id": null,
+                    "stance": "unresponded"
+                  },
+                  "party_b": {
+                    "response_event_id": null,
+                    "stance": "asserted"
+                  }
+                },
+                "resolution_status": "unresolved",
+                "source_references": [
+                  {
+                    "source_hash": "50258286a9ce12775a286851f86c92d2e44da2c0e5d5ff5dd9e368b6ca652094",
+                    "source_id": "source_gz_case_006_b",
+                    "span": {
+                      "encoding": "utf16",
+                      "end": 14,
+                      "quote": "B says Monday.",
+                      "start": 0
+                    }
+                  }
+                ],
+                "subject_actor_ids": [
+                  "subject_party_b"
+                ]
+              },
+              "party_id": "party_b",
+              "position_id": "position_gz_case_006_b",
+              "position_kind": "assertion",
+              "statement": "Person B says Monday.",
+              "target": null
+            },
+            "type": "add_object"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "50258286a9ce12775a286851f86c92d2e44da2c0e5d5ff5dd9e368b6ca652094",
+            "source_id": "source_gz_case_006_b",
+            "span": {
+              "encoding": "utf16",
+              "end": 14,
+              "quote": "B says Monday.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "85bd149f98b4ab490e9b85c5c5b95a4fb970091754d2013ada97267e53ddc9ae",
+        "resulting_envelope_version": 3,
+        "resulting_record_hash": "7cf561df04d1db2d7fdc99660ceb371186fd3eb01776cd79a2679231f5702802",
+        "resulting_record_version": 3,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_challenge",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "A says Friday.",
+          "content_hash": "ca5eeb68e752a15f8b0c99520815b32493664c684833b0c6b76a7310f7ded77c",
+          "source_id": "source_gz_case_006_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "B says Monday.",
+          "content_hash": "50258286a9ce12775a286851f86c92d2e44da2c0e5d5ff5dd9e368b6ca652094",
+          "source_id": "source_gz_case_006_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_006_turn_02_b_adds_own_assertion",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_006_a",
+        "source_gz_case_006_b",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_a",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_a",
+        "party_id": "party_a"
+      },
+      "base_envelope_hash": "85bd149f98b4ab490e9b85c5c5b95a4fb970091754d2013ada97267e53ddc9ae",
+      "base_envelope_version": 3,
+      "base_record_hash": "7cf561df04d1db2d7fdc99660ceb371186fd3eb01776cd79a2679231f5702802",
+      "base_record_version": 3,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_a",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_a",
+          "party_id": "party_a"
+        },
+        "base_envelope_hash": "85bd149f98b4ab490e9b85c5c5b95a4fb970091754d2013ada97267e53ddc9ae",
+        "base_envelope_version": 3,
+        "case_id": "gz_case_006",
+        "command_id": "command_gz_case_006_turn_03_a_cannot_edit_b",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "expected_prior_value": "Person B says Monday.",
+            "field": "statement",
+            "namespace": "positions",
+            "object_id": "position_gz_case_006_b",
+            "replacement_value": "Person A overwrote B.",
+            "type": "replace_own_field"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "ca5eeb68e752a15f8b0c99520815b32493664c684833b0c6b76a7310f7ded77c",
+            "source_id": "source_gz_case_006_a",
+            "span": {
+              "encoding": "utf16",
+              "end": 14,
+              "quote": "A says Friday.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "rejected",
+        "envelope_version_delta": 0,
+        "evidence_actions": [],
+        "exact_no_mutation": true,
+        "failure_reason": "cross_party_mutation",
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 0,
+        "required_source_references": [],
+        "resulting_envelope_hash": "85bd149f98b4ab490e9b85c5c5b95a4fb970091754d2013ada97267e53ddc9ae",
+        "resulting_envelope_version": 3,
+        "resulting_record_hash": "7cf561df04d1db2d7fdc99660ceb371186fd3eb01776cd79a2679231f5702802",
+        "resulting_record_version": 3,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_challenge",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "A says Friday.",
+          "content_hash": "ca5eeb68e752a15f8b0c99520815b32493664c684833b0c6b76a7310f7ded77c",
+          "source_id": "source_gz_case_006_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "B says Monday.",
+          "content_hash": "50258286a9ce12775a286851f86c92d2e44da2c0e5d5ff5dd9e368b6ca652094",
+          "source_id": "source_gz_case_006_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_006_turn_03_a_cannot_edit_b",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_006_a",
+        "source_gz_case_006_b",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_b",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_b",
+        "party_id": "party_b"
+      },
+      "base_envelope_hash": "85bd149f98b4ab490e9b85c5c5b95a4fb970091754d2013ada97267e53ddc9ae",
+      "base_envelope_version": 3,
+      "base_record_hash": "7cf561df04d1db2d7fdc99660ceb371186fd3eb01776cd79a2679231f5702802",
+      "base_record_version": 3,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_b",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_b",
+          "party_id": "party_b"
+        },
+        "base_envelope_hash": "85bd149f98b4ab490e9b85c5c5b95a4fb970091754d2013ada97267e53ddc9ae",
+        "base_envelope_version": 3,
+        "case_id": "gz_case_006",
+        "command_id": "command_gz_case_006_turn_04_b_cannot_withdraw_a",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "namespace": "positions",
+            "object_id": "position_gz_case_006_a",
+            "response_event_id": "event_gz_case_006_b_withdraw_a",
+            "stance": "withdrawn",
+            "type": "set_own_stance"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "50258286a9ce12775a286851f86c92d2e44da2c0e5d5ff5dd9e368b6ca652094",
+            "source_id": "source_gz_case_006_b",
+            "span": {
+              "encoding": "utf16",
+              "end": 14,
+              "quote": "B says Monday.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "rejected",
+        "envelope_version_delta": 0,
+        "evidence_actions": [],
+        "exact_no_mutation": true,
+        "failure_reason": "invalid_operation",
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 0,
+        "required_source_references": [],
+        "resulting_envelope_hash": "85bd149f98b4ab490e9b85c5c5b95a4fb970091754d2013ada97267e53ddc9ae",
+        "resulting_envelope_version": 3,
+        "resulting_record_hash": "7cf561df04d1db2d7fdc99660ceb371186fd3eb01776cd79a2679231f5702802",
+        "resulting_record_version": 3,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_challenge",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "A says Friday.",
+          "content_hash": "ca5eeb68e752a15f8b0c99520815b32493664c684833b0c6b76a7310f7ded77c",
+          "source_id": "source_gz_case_006_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "B says Monday.",
+          "content_hash": "50258286a9ce12775a286851f86c92d2e44da2c0e5d5ff5dd9e368b6ca652094",
+          "source_id": "source_gz_case_006_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_006_turn_04_b_cannot_withdraw_a",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_006_a",
+        "source_gz_case_006_b",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_a",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_a",
+        "party_id": "party_a"
+      },
+      "base_envelope_hash": "85bd149f98b4ab490e9b85c5c5b95a4fb970091754d2013ada97267e53ddc9ae",
+      "base_envelope_version": 3,
+      "base_record_hash": "7cf561df04d1db2d7fdc99660ceb371186fd3eb01776cd79a2679231f5702802",
+      "base_record_version": 3,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_a",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_a",
+          "party_id": "party_a"
+        },
+        "base_envelope_hash": "85bd149f98b4ab490e9b85c5c5b95a4fb970091754d2013ada97267e53ddc9ae",
+        "base_envelope_version": 3,
+        "case_id": "gz_case_006",
+        "command_id": "command_gz_case_006_atomic",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "namespace": "positions",
+            "object": {
+              "authority": {
+                "adjudication_eligible": true,
+                "authority_detail": "Authenticated party_a assertion",
+                "authority_kind": "party_assertion",
+                "evidence_ids": [],
+                "introduced_by": {
+                  "actor_id": "subject_party_a",
+                  "actor_type": "party"
+                },
+                "introduced_in_record_version": 4,
+                "last_material_command_id": "command_gz_case_006_atomic",
+                "last_material_record_version": 4,
+                "party_stances": {
+                  "party_a": {
+                    "response_event_id": null,
+                    "stance": "asserted"
+                  },
+                  "party_b": {
+                    "response_event_id": null,
+                    "stance": "unresponded"
+                  }
+                },
+                "resolution_status": "unresolved",
+                "source_references": [
+                  {
+                    "source_hash": "ca5eeb68e752a15f8b0c99520815b32493664c684833b0c6b76a7310f7ded77c",
+                    "source_id": "source_gz_case_006_a",
+                    "span": {
+                      "encoding": "utf16",
+                      "end": 14,
+                      "quote": "A says Friday.",
+                      "start": 0
+                    }
+                  }
+                ],
+                "subject_actor_ids": [
+                  "subject_party_a"
+                ]
+              },
+              "party_id": "party_a",
+              "position_id": "position_gz_case_006_rolled_back",
+              "position_kind": "assertion",
+              "statement": "This valid first operation must roll back.",
+              "target": null
+            },
+            "type": "add_object"
+          },
+          {
+            "expected_prior_value": "Person B says Monday.",
+            "field": "statement",
+            "namespace": "positions",
+            "object_id": "position_gz_case_006_b",
+            "replacement_value": "Forbidden second operation.",
+            "type": "replace_own_field"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "ca5eeb68e752a15f8b0c99520815b32493664c684833b0c6b76a7310f7ded77c",
+            "source_id": "source_gz_case_006_a",
+            "span": {
+              "encoding": "utf16",
+              "end": 14,
+              "quote": "A says Friday.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "rejected",
+        "envelope_version_delta": 0,
+        "evidence_actions": [],
+        "exact_no_mutation": true,
+        "failure_reason": "cross_party_mutation",
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 0,
+        "required_source_references": [],
+        "resulting_envelope_hash": "85bd149f98b4ab490e9b85c5c5b95a4fb970091754d2013ada97267e53ddc9ae",
+        "resulting_envelope_version": 3,
+        "resulting_record_hash": "7cf561df04d1db2d7fdc99660ceb371186fd3eb01776cd79a2679231f5702802",
+        "resulting_record_version": 3,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_challenge",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "A says Friday.",
+          "content_hash": "ca5eeb68e752a15f8b0c99520815b32493664c684833b0c6b76a7310f7ded77c",
+          "source_id": "source_gz_case_006_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "B says Monday.",
+          "content_hash": "50258286a9ce12775a286851f86c92d2e44da2c0e5d5ff5dd9e368b6ca652094",
+          "source_id": "source_gz_case_006_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_006_turn_05_atomic_second_operation_fails",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_006_a",
+        "source_gz_case_006_b",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_a",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_a",
+        "party_id": "party_a"
+      },
+      "base_envelope_hash": "85bd149f98b4ab490e9b85c5c5b95a4fb970091754d2013ada97267e53ddc9ae",
+      "base_envelope_version": 3,
+      "base_record_hash": "7cf561df04d1db2d7fdc99660ceb371186fd3eb01776cd79a2679231f5702802",
+      "base_record_version": 3,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_a",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_a",
+          "party_id": "party_a"
+        },
+        "base_envelope_hash": "85bd149f98b4ab490e9b85c5c5b95a4fb970091754d2013ada97267e53ddc9ae",
+        "base_envelope_version": 3,
+        "case_id": "gz_case_006",
+        "command_id": "command_gz_case_006_turn_06_rolled_back_object_absent",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "expected_prior_value": "This valid first operation must roll back.",
+            "field": "statement",
+            "namespace": "positions",
+            "object_id": "position_gz_case_006_rolled_back",
+            "replacement_value": "Should remain absent.",
+            "type": "replace_own_field"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "ca5eeb68e752a15f8b0c99520815b32493664c684833b0c6b76a7310f7ded77c",
+            "source_id": "source_gz_case_006_a",
+            "span": {
+              "encoding": "utf16",
+              "end": 14,
+              "quote": "A says Friday.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "rejected",
+        "envelope_version_delta": 0,
+        "evidence_actions": [],
+        "exact_no_mutation": true,
+        "failure_reason": "unknown_object",
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 0,
+        "required_source_references": [],
+        "resulting_envelope_hash": "85bd149f98b4ab490e9b85c5c5b95a4fb970091754d2013ada97267e53ddc9ae",
+        "resulting_envelope_version": 3,
+        "resulting_record_hash": "7cf561df04d1db2d7fdc99660ceb371186fd3eb01776cd79a2679231f5702802",
+        "resulting_record_version": 3,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_challenge",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "A says Friday.",
+          "content_hash": "ca5eeb68e752a15f8b0c99520815b32493664c684833b0c6b76a7310f7ded77c",
+          "source_id": "source_gz_case_006_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "B says Monday.",
+          "content_hash": "50258286a9ce12775a286851f86c92d2e44da2c0e5d5ff5dd9e368b6ca652094",
+          "source_id": "source_gz_case_006_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_006_turn_06_rolled_back_object_absent",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_006_a",
+        "source_gz_case_006_b",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_b",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_b",
+        "party_id": "party_b"
+      },
+      "base_envelope_hash": "85bd149f98b4ab490e9b85c5c5b95a4fb970091754d2013ada97267e53ddc9ae",
+      "base_envelope_version": 3,
+      "base_record_hash": "7cf561df04d1db2d7fdc99660ceb371186fd3eb01776cd79a2679231f5702802",
+      "base_record_version": 3,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_b",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_b",
+          "party_id": "party_b"
+        },
+        "base_envelope_hash": "85bd149f98b4ab490e9b85c5c5b95a4fb970091754d2013ada97267e53ddc9ae",
+        "base_envelope_version": 3,
+        "case_id": "gz_case_006",
+        "command_id": "command_gz_case_006_turn_07_b_disputes_a",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "namespace": "positions",
+            "object_id": "position_gz_case_006_a",
+            "response_event_id": "event_gz_case_006_b_disputes_a",
+            "stance": "disputed",
+            "type": "set_own_stance"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "50258286a9ce12775a286851f86c92d2e44da2c0e5d5ff5dd9e368b6ca652094",
+            "source_id": "source_gz_case_006_b",
+            "span": {
+              "encoding": "utf16",
+              "end": 14,
+              "quote": "B says Monday.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "745b69e1b5db0fc71132557f9abcfaa4e73a4464f55e2f32a47a9a4edd88afd8",
+        "resulting_envelope_version": 4,
+        "resulting_record_hash": "238047c340095ef1a80473bd2356d371510547c9bc27d0520fa4887721f7d01c",
+        "resulting_record_version": 4,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_challenge",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "A says Friday.",
+          "content_hash": "ca5eeb68e752a15f8b0c99520815b32493664c684833b0c6b76a7310f7ded77c",
+          "source_id": "source_gz_case_006_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "B says Monday.",
+          "content_hash": "50258286a9ce12775a286851f86c92d2e44da2c0e5d5ff5dd9e368b6ca652094",
+          "source_id": "source_gz_case_006_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_006_turn_07_b_disputes_a",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_006_a",
+        "source_gz_case_006_b",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "745b69e1b5db0fc71132557f9abcfaa4e73a4464f55e2f32a47a9a4edd88afd8",
+      "base_envelope_version": 4,
+      "base_record_hash": "238047c340095ef1a80473bd2356d371510547c9bc27d0520fa4887721f7d01c",
+      "base_record_version": 4,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "745b69e1b5db0fc71132557f9abcfaa4e73a4464f55e2f32a47a9a4edd88afd8",
+        "base_envelope_version": 4,
+        "case_id": "gz_case_006",
+        "command_id": "command_gz_case_006_turn_08_disagreement_not_agreement",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [
+              "The parties assert different deadlines."
+            ],
+            "lock_blockers": [
+              "deadline_disputed"
+            ],
+            "lock_prerequisites": [],
+            "open_required_fields": [],
+            "type": "set_formation_requirements",
+            "uncertainties": []
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [
+          {
+            "prohibited_promotion": "bilateral_agreement",
+            "proposition": "The parties agreed on Friday.",
+            "proposition_id": "proposition_gz_case_006_silence_agreement",
+            "reason_code": "party_b_disputed_person_a",
+            "source_references": [
+              {
+                "source_hash": "ca5eeb68e752a15f8b0c99520815b32493664c684833b0c6b76a7310f7ded77c",
+                "source_id": "source_gz_case_006_a",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 14,
+                  "quote": "A says Friday.",
+                  "start": 0
+                }
+              },
+              {
+                "source_hash": "50258286a9ce12775a286851f86c92d2e44da2c0e5d5ff5dd9e368b6ca652094",
+                "source_id": "source_gz_case_006_b",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 14,
+                  "quote": "B says Monday.",
+                  "start": 0
+                }
+              }
+            ]
+          }
+        ],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "29bca194c1588982cab3a8ef633f6cc9df90ebb5557dbe2169610c44616e06ca",
+        "resulting_envelope_version": 5,
+        "resulting_record_hash": "e5f24bd2ee1a402fe0d031087559b6979d596acf7fba90bfcd1db8fa98295dbb",
+        "resulting_record_version": 5,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_identity"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_party_participation",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "A says Friday.",
+          "content_hash": "ca5eeb68e752a15f8b0c99520815b32493664c684833b0c6b76a7310f7ded77c",
+          "source_id": "source_gz_case_006_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "B says Monday.",
+          "content_hash": "50258286a9ce12775a286851f86c92d2e44da2c0e5d5ff5dd9e368b6ca652094",
+          "source_id": "source_gz_case_006_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_006_turn_08_disagreement_not_agreement",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_006_a",
+        "source_gz_case_006_b",
+        "source_system_initialization"
+      ]
+    }
+  ]
+}

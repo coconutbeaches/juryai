@@ -1,0 +1,1845 @@
+{
+  "case_id": "gz_case_004",
+  "coverage": {
+    "failure": [
+      "exact_party_assertions",
+      "ambiguity",
+      "delayed_corrections",
+      "source_span_grounding"
+    ],
+    "success": [
+      "exact_party_assertions",
+      "ambiguity",
+      "delayed_corrections",
+      "source_span_grounding"
+    ]
+  },
+  "expected_adjudication_input": null,
+  "final_envelope": {
+    "actors": {},
+    "agreements": {},
+    "claimed_losses": {},
+    "classification": {
+      "authority": {
+        "adjudication_eligible": false,
+        "authority_detail": "initial classification placeholder",
+        "authority_kind": "system_observation",
+        "evidence_ids": [],
+        "introduced_by": {
+          "actor_id": "juryai_system",
+          "actor_type": "system"
+        },
+        "introduced_in_record_version": 1,
+        "last_material_command_id": "command_system_initialization",
+        "last_material_record_version": 1,
+        "party_stances": {
+          "party_a": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          },
+          "party_b": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          }
+        },
+        "resolution_status": "unresolved",
+        "source_references": [
+          {
+            "source_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+            "source_id": "source_system_initialization",
+            "span": null
+          }
+        ],
+        "subject_actor_ids": []
+      },
+      "case_category": null,
+      "maturity": "undetermined",
+      "required_fact_profile": null,
+      "safety_flags": [],
+      "scope_flags": [],
+      "suitability": "undetermined"
+    },
+    "control": {
+      "case_id": "gz_case_004",
+      "deadlines": {},
+      "eligibility": {
+        "reason_codes": [],
+        "status": "undetermined"
+      },
+      "envelope_hash": "1a08149023457af6f56f3e053cb6aedddc6fb58794dcb3910a3679dd75ae06b0",
+      "envelope_version": 9,
+      "lock": {
+        "lock_event_id": null,
+        "locked_at": null,
+        "mode": null,
+        "output_scope": null,
+        "status": "unlocked"
+      },
+      "protocol": {
+        "non_participation_mode": "prohibited",
+        "protocol_id": "commercial_fairness_v2",
+        "protocol_version": "juryai-formation-protocol-v2.0.0"
+      },
+      "record_hash": "dce592f69fdae1b19eff99cdd28a1cb4f8203e4f2a247bd063ec0ecea7ee4a79",
+      "record_version": 9,
+      "schema_version": "juryai-case-envelope-v2.0.0",
+      "workflow_state": "person_a_formation"
+    },
+    "deliverables": {},
+    "events": {},
+    "evidence": {},
+    "formation": {
+      "ambiguities": [],
+      "challenges": [],
+      "confirmations": {
+        "party_a": null,
+        "party_b": null
+      },
+      "disclosure": {
+        "detailed_a_framing": "embargoed",
+        "disclosure_event_id": null,
+        "person_b_independent_account_source_id": null
+      },
+      "lock_blockers": [],
+      "lock_prerequisites": [],
+      "material_change_events": [],
+      "non_participation": {
+        "correction_opportunity": "not_started",
+        "deadline_expired_event_id": null,
+        "invitation_event_id": null,
+        "notice_event_id": null,
+        "response_deadline": null
+      },
+      "open_required_fields": [],
+      "prior_locks": [],
+      "uncertainties": []
+    },
+    "parties": {
+      "party_a": {
+        "authenticated_subject_id": "subject_party_a",
+        "consent_event_id": "event_gz_case_004_consent_a",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_004_identity_a",
+        "participation_state": "active",
+        "party_id": "party_a",
+        "role": "person_a"
+      },
+      "party_b": {
+        "authenticated_subject_id": "subject_party_b",
+        "consent_event_id": "event_gz_case_004_consent_b",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_004_identity_b",
+        "participation_state": "active",
+        "party_id": "party_b",
+        "role": "person_b"
+      }
+    },
+    "payments": {},
+    "positions": {
+      "position_gz_case_004_deadline": {
+        "authority": {
+          "adjudication_eligible": true,
+          "authority_detail": "Authenticated party_a assertion",
+          "authority_kind": "party_assertion",
+          "evidence_ids": [],
+          "introduced_by": {
+            "actor_id": "subject_party_a",
+            "actor_type": "party"
+          },
+          "introduced_in_record_version": 2,
+          "last_material_command_id": "command_gz_case_004_turn_06_delayed_correction",
+          "last_material_record_version": 6,
+          "party_stances": {
+            "party_a": {
+              "response_event_id": null,
+              "stance": "asserted"
+            },
+            "party_b": {
+              "response_event_id": null,
+              "stance": "unresponded"
+            }
+          },
+          "resolution_status": "unresolved",
+          "source_references": [
+            {
+              "source_hash": "692018ee35331171378ebe579824b68297bd1b95374d1106d088c0c51d41a50d",
+              "source_id": "source_gz_case_004_original",
+              "span": {
+                "encoding": "utf16",
+                "end": 62,
+                "quote": "The launch was due Friday 🚀, or perhaps the following Monday.",
+                "start": 0
+              }
+            },
+            {
+              "source_hash": "7ad3419b74fe089e2acaeb784eccf1d781a4158264987c5c13a68cc2b30e667a",
+              "source_id": "source_gz_case_004_correction",
+              "span": {
+                "encoding": "utf16",
+                "end": 47,
+                "quote": "I checked. The message says Monday, not Friday.",
+                "start": 0
+              }
+            }
+          ],
+          "subject_actor_ids": [
+            "subject_party_a"
+          ]
+        },
+        "party_id": "party_a",
+        "position_id": "position_gz_case_004_deadline",
+        "position_kind": "assertion",
+        "statement": "Person A says the checked message states Monday, not Friday.",
+        "target": null
+      }
+    },
+    "requested_outcomes": {}
+  },
+  "fixture_version": "juryai-gate-zero-case-fixture-v1.0.0",
+  "initial_envelope": {
+    "actors": {},
+    "agreements": {},
+    "claimed_losses": {},
+    "classification": {
+      "authority": {
+        "adjudication_eligible": false,
+        "authority_detail": "initial classification placeholder",
+        "authority_kind": "system_observation",
+        "evidence_ids": [],
+        "introduced_by": {
+          "actor_id": "juryai_system",
+          "actor_type": "system"
+        },
+        "introduced_in_record_version": 1,
+        "last_material_command_id": "command_system_initialization",
+        "last_material_record_version": 1,
+        "party_stances": {
+          "party_a": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          },
+          "party_b": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          }
+        },
+        "resolution_status": "unresolved",
+        "source_references": [
+          {
+            "source_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+            "source_id": "source_system_initialization",
+            "span": null
+          }
+        ],
+        "subject_actor_ids": []
+      },
+      "case_category": null,
+      "maturity": "undetermined",
+      "required_fact_profile": null,
+      "safety_flags": [],
+      "scope_flags": [],
+      "suitability": "undetermined"
+    },
+    "control": {
+      "case_id": "gz_case_004",
+      "deadlines": {},
+      "eligibility": {
+        "reason_codes": [],
+        "status": "undetermined"
+      },
+      "envelope_hash": "52a9c6ed9d663e042cec3969e630ad1173b94c3fec4f44cdc21cb29da4cdbe01",
+      "envelope_version": 1,
+      "lock": {
+        "lock_event_id": null,
+        "locked_at": null,
+        "mode": null,
+        "output_scope": null,
+        "status": "unlocked"
+      },
+      "protocol": {
+        "non_participation_mode": "prohibited",
+        "protocol_id": "commercial_fairness_v2",
+        "protocol_version": "juryai-formation-protocol-v2.0.0"
+      },
+      "record_hash": "937623246762bab7321a6294522ff4bbf7bc00a5315370550480a449f2220a37",
+      "record_version": 1,
+      "schema_version": "juryai-case-envelope-v2.0.0",
+      "workflow_state": "person_a_formation"
+    },
+    "deliverables": {},
+    "events": {},
+    "evidence": {},
+    "formation": {
+      "ambiguities": [],
+      "challenges": [],
+      "confirmations": {
+        "party_a": null,
+        "party_b": null
+      },
+      "disclosure": {
+        "detailed_a_framing": "embargoed",
+        "disclosure_event_id": null,
+        "person_b_independent_account_source_id": null
+      },
+      "lock_blockers": [],
+      "lock_prerequisites": [],
+      "material_change_events": [],
+      "non_participation": {
+        "correction_opportunity": "not_started",
+        "deadline_expired_event_id": null,
+        "invitation_event_id": null,
+        "notice_event_id": null,
+        "response_deadline": null
+      },
+      "open_required_fields": [],
+      "prior_locks": [],
+      "uncertainties": []
+    },
+    "parties": {
+      "party_a": {
+        "authenticated_subject_id": "subject_party_a",
+        "consent_event_id": "event_gz_case_004_consent_a",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_004_identity_a",
+        "participation_state": "active",
+        "party_id": "party_a",
+        "role": "person_a"
+      },
+      "party_b": {
+        "authenticated_subject_id": "subject_party_b",
+        "consent_event_id": "event_gz_case_004_consent_b",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_004_identity_b",
+        "participation_state": "active",
+        "party_id": "party_b",
+        "role": "person_b"
+      }
+    },
+    "payments": {},
+    "positions": {},
+    "requested_outcomes": {}
+  },
+  "matrix_version": "juryai-gate-zero-coverage-matrix-v1.0.0",
+  "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+  "title": "Exact assertions, ambiguity, and delayed correction",
+  "turns": [
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_a",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_a",
+        "party_id": "party_a"
+      },
+      "base_envelope_hash": "52a9c6ed9d663e042cec3969e630ad1173b94c3fec4f44cdc21cb29da4cdbe01",
+      "base_envelope_version": 1,
+      "base_record_hash": "937623246762bab7321a6294522ff4bbf7bc00a5315370550480a449f2220a37",
+      "base_record_version": 1,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_a",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_a",
+          "party_id": "party_a"
+        },
+        "base_envelope_hash": "52a9c6ed9d663e042cec3969e630ad1173b94c3fec4f44cdc21cb29da4cdbe01",
+        "base_envelope_version": 1,
+        "case_id": "gz_case_004",
+        "command_id": "command_gz_case_004_original",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "namespace": "positions",
+            "object": {
+              "authority": {
+                "adjudication_eligible": true,
+                "authority_detail": "Authenticated party_a assertion",
+                "authority_kind": "party_assertion",
+                "evidence_ids": [],
+                "introduced_by": {
+                  "actor_id": "subject_party_a",
+                  "actor_type": "party"
+                },
+                "introduced_in_record_version": 2,
+                "last_material_command_id": "command_gz_case_004_original",
+                "last_material_record_version": 2,
+                "party_stances": {
+                  "party_a": {
+                    "response_event_id": null,
+                    "stance": "asserted"
+                  },
+                  "party_b": {
+                    "response_event_id": null,
+                    "stance": "unresponded"
+                  }
+                },
+                "resolution_status": "unresolved",
+                "source_references": [
+                  {
+                    "source_hash": "692018ee35331171378ebe579824b68297bd1b95374d1106d088c0c51d41a50d",
+                    "source_id": "source_gz_case_004_original",
+                    "span": {
+                      "encoding": "utf16",
+                      "end": 62,
+                      "quote": "The launch was due Friday 🚀, or perhaps the following Monday.",
+                      "start": 0
+                    }
+                  }
+                ],
+                "subject_actor_ids": [
+                  "subject_party_a"
+                ]
+              },
+              "party_id": "party_a",
+              "position_id": "position_gz_case_004_deadline",
+              "position_kind": "assertion",
+              "statement": "Person A is unsure whether the deadline was Friday or the following Monday.",
+              "target": null
+            },
+            "type": "add_object"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "692018ee35331171378ebe579824b68297bd1b95374d1106d088c0c51d41a50d",
+            "source_id": "source_gz_case_004_original",
+            "span": {
+              "encoding": "utf16",
+              "end": 62,
+              "quote": "The launch was due Friday 🚀, or perhaps the following Monday.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [
+          {
+            "authority": {
+              "adjudication_eligible": true,
+              "authority_detail": "Authenticated party_a assertion",
+              "authority_kind": "party_assertion",
+              "evidence_ids": [],
+              "introduced_by": {
+                "actor_id": "subject_party_a",
+                "actor_type": "party"
+              },
+              "introduced_in_record_version": 2,
+              "last_material_command_id": "command_gz_case_004_original",
+              "last_material_record_version": 2,
+              "party_stances": {
+                "party_a": {
+                  "response_event_id": null,
+                  "stance": "asserted"
+                },
+                "party_b": {
+                  "response_event_id": null,
+                  "stance": "unresponded"
+                }
+              },
+              "resolution_status": "unresolved",
+              "source_references": [
+                {
+                  "source_hash": "692018ee35331171378ebe579824b68297bd1b95374d1106d088c0c51d41a50d",
+                  "source_id": "source_gz_case_004_original",
+                  "span": {
+                    "encoding": "utf16",
+                    "end": 62,
+                    "quote": "The launch was due Friday 🚀, or perhaps the following Monday.",
+                    "start": 0
+                  }
+                }
+              ],
+              "subject_actor_ids": [
+                "subject_party_a"
+              ]
+            },
+            "namespace": "positions",
+            "object_id": "position_gz_case_004_deadline"
+          }
+        ],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [
+          {
+            "prohibited_promotion": "objective_fact",
+            "proposition": "The deadline was Friday.",
+            "proposition_id": "proposition_gz_case_004_certain_friday",
+            "reason_code": "party_expressed_ambiguity",
+            "source_references": [
+              {
+                "source_hash": "692018ee35331171378ebe579824b68297bd1b95374d1106d088c0c51d41a50d",
+                "source_id": "source_gz_case_004_original",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 62,
+                  "quote": "The launch was due Friday 🚀, or perhaps the following Monday.",
+                  "start": 0
+                }
+              }
+            ]
+          }
+        ],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [
+          {
+            "source_hash": "692018ee35331171378ebe579824b68297bd1b95374d1106d088c0c51d41a50d",
+            "source_id": "source_gz_case_004_original",
+            "span": {
+              "encoding": "utf16",
+              "end": 62,
+              "quote": "The launch was due Friday 🚀, or perhaps the following Monday.",
+              "start": 0
+            }
+          }
+        ],
+        "resulting_envelope_hash": "29454dd667303c981abadc72137dff75466984283874c4cdc4a8bdba876ca8cf",
+        "resulting_envelope_version": 2,
+        "resulting_record_hash": "e7750e04c40705a91b3efd905f52cf6c4441109eb2ee3d96240da6da8879e60e",
+        "resulting_record_version": 2,
+        "workflow_state": "person_a_formation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "replace_own_field",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "The launch was due Friday 🚀, or perhaps the following Monday.",
+          "content_hash": "692018ee35331171378ebe579824b68297bd1b95374d1106d088c0c51d41a50d",
+          "source_id": "source_gz_case_004_original",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_004_turn_01_exact_assertion",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_004_original",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_a",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_a",
+        "party_id": "party_a"
+      },
+      "base_envelope_hash": "29454dd667303c981abadc72137dff75466984283874c4cdc4a8bdba876ca8cf",
+      "base_envelope_version": 2,
+      "base_record_hash": "e7750e04c40705a91b3efd905f52cf6c4441109eb2ee3d96240da6da8879e60e",
+      "base_record_version": 2,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_a",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_a",
+          "party_id": "party_a"
+        },
+        "base_envelope_hash": "29454dd667303c981abadc72137dff75466984283874c4cdc4a8bdba876ca8cf",
+        "base_envelope_version": 2,
+        "case_id": "gz_case_004",
+        "command_id": "command_gz_case_004_turn_02_utf16_off_by_one_rejected",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "expected_prior_value": "Person A is unsure whether the deadline was Friday or the following Monday.",
+            "field": "statement",
+            "namespace": "positions",
+            "object_id": "position_gz_case_004_deadline",
+            "replacement_value": "The deadline was Friday.",
+            "type": "replace_own_field"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "692018ee35331171378ebe579824b68297bd1b95374d1106d088c0c51d41a50d",
+            "source_id": "source_gz_case_004_original",
+            "span": {
+              "encoding": "utf16",
+              "end": 61,
+              "quote": "The launch was due Friday 🚀, or perhaps the following Monday.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "rejected",
+        "envelope_version_delta": 0,
+        "evidence_actions": [],
+        "exact_no_mutation": true,
+        "failure_reason": "invalid_source_reference",
+        "forbidden_factual_promotions": [
+          {
+            "prohibited_promotion": "objective_fact",
+            "proposition": "An inexact UTF-16 span supports a deadline correction.",
+            "proposition_id": "proposition_gz_case_004_bad_span",
+            "reason_code": "source_span_not_exact",
+            "source_references": [
+              {
+                "source_hash": "692018ee35331171378ebe579824b68297bd1b95374d1106d088c0c51d41a50d",
+                "source_id": "source_gz_case_004_original",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 62,
+                  "quote": "The launch was due Friday 🚀, or perhaps the following Monday.",
+                  "start": 0
+                }
+              }
+            ]
+          }
+        ],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 0,
+        "required_source_references": [],
+        "resulting_envelope_hash": "29454dd667303c981abadc72137dff75466984283874c4cdc4a8bdba876ca8cf",
+        "resulting_envelope_version": 2,
+        "resulting_record_hash": "e7750e04c40705a91b3efd905f52cf6c4441109eb2ee3d96240da6da8879e60e",
+        "resulting_record_version": 2,
+        "workflow_state": "person_a_formation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "replace_own_field",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "The launch was due Friday 🚀, or perhaps the following Monday.",
+          "content_hash": "692018ee35331171378ebe579824b68297bd1b95374d1106d088c0c51d41a50d",
+          "source_id": "source_gz_case_004_original",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_004_turn_02_utf16_off_by_one_rejected",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_004_original",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "29454dd667303c981abadc72137dff75466984283874c4cdc4a8bdba876ca8cf",
+      "base_envelope_version": 2,
+      "base_record_hash": "e7750e04c40705a91b3efd905f52cf6c4441109eb2ee3d96240da6da8879e60e",
+      "base_record_version": 2,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "29454dd667303c981abadc72137dff75466984283874c4cdc4a8bdba876ca8cf",
+        "base_envelope_version": 2,
+        "case_id": "gz_case_004",
+        "command_id": "command_gz_case_004_turn_03_ambiguity_recorded",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [
+              "Friday and following Monday are both asserted as possible deadlines."
+            ],
+            "lock_blockers": [
+              "deadline_ambiguous"
+            ],
+            "lock_prerequisites": [
+              "deadline_clarified"
+            ],
+            "open_required_fields": [
+              "events.delivery_due.date"
+            ],
+            "type": "set_formation_requirements",
+            "uncertainties": []
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": {
+          "addressed_to_party": "party_a",
+          "field": "date",
+          "namespace": "events",
+          "object_id": "position_gz_case_004_deadline",
+          "reason_code": "resolve_deadline_ambiguity"
+        },
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "3e761d4eabd4a0f3a8e473c27a9f471bea177e3f37bef2ca54a9af96d570255d",
+        "resulting_envelope_version": 3,
+        "resulting_record_hash": "413a2a6b8d45c5faaaf9bbe502c408b56c3de9375068b7200e50e617a80ea53c",
+        "resulting_record_version": 3,
+        "workflow_state": "person_a_formation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_party_identity",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "The launch was due Friday 🚀, or perhaps the following Monday.",
+          "content_hash": "692018ee35331171378ebe579824b68297bd1b95374d1106d088c0c51d41a50d",
+          "source_id": "source_gz_case_004_original",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_004_turn_03_ambiguity_recorded",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_004_original",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "3e761d4eabd4a0f3a8e473c27a9f471bea177e3f37bef2ca54a9af96d570255d",
+      "base_envelope_version": 3,
+      "base_record_hash": "413a2a6b8d45c5faaaf9bbe502c408b56c3de9375068b7200e50e617a80ea53c",
+      "base_record_version": 3,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "3e761d4eabd4a0f3a8e473c27a9f471bea177e3f37bef2ca54a9af96d570255d",
+        "base_envelope_version": 3,
+        "case_id": "gz_case_004",
+        "command_id": "command_gz_case_004_turn_04_uncertainty_preserved",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [
+              "Friday and following Monday remain possible deadlines."
+            ],
+            "lock_blockers": [
+              "deadline_ambiguous"
+            ],
+            "lock_prerequisites": [
+              "deadline_clarified"
+            ],
+            "open_required_fields": [
+              "events.delivery_due.date"
+            ],
+            "type": "set_formation_requirements",
+            "uncertainties": [
+              "Person A must inspect the underlying messages."
+            ]
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "f2aa5bf38e184565f3e3bd58ec73aebf5eae07bb524d25743e04d3bde8318ddb",
+            "source_id": "source_gz_case_004_uncertain",
+            "span": {
+              "encoding": "utf16",
+              "end": 50,
+              "quote": "I still do not know; I need to check the messages.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": {
+          "addressed_to_party": "party_a",
+          "field": "date",
+          "namespace": "events",
+          "object_id": "position_gz_case_004_deadline",
+          "reason_code": "request_checked_deadline"
+        },
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [
+          {
+            "source_hash": "f2aa5bf38e184565f3e3bd58ec73aebf5eae07bb524d25743e04d3bde8318ddb",
+            "source_id": "source_gz_case_004_uncertain",
+            "span": {
+              "encoding": "utf16",
+              "end": 50,
+              "quote": "I still do not know; I need to check the messages.",
+              "start": 0
+            }
+          }
+        ],
+        "resulting_envelope_hash": "72450e09a0b6db1e2d987e489aba62580436bf969c67e60b6ddfa33062d61295",
+        "resulting_envelope_version": 4,
+        "resulting_record_hash": "7f241e62b8ca7b8acb59b4c599c990113822b4ef32f2b48df366e6041cc6e35b",
+        "resulting_record_version": 4,
+        "workflow_state": "person_a_formation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_party_identity",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "The launch was due Friday 🚀, or perhaps the following Monday.",
+          "content_hash": "692018ee35331171378ebe579824b68297bd1b95374d1106d088c0c51d41a50d",
+          "source_id": "source_gz_case_004_original",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "I still do not know; I need to check the messages.",
+          "content_hash": "f2aa5bf38e184565f3e3bd58ec73aebf5eae07bb524d25743e04d3bde8318ddb",
+          "source_id": "source_gz_case_004_uncertain",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_004_turn_04_uncertainty_preserved",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_004_original",
+        "source_gz_case_004_uncertain",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "72450e09a0b6db1e2d987e489aba62580436bf969c67e60b6ddfa33062d61295",
+      "base_envelope_version": 4,
+      "base_record_hash": "7f241e62b8ca7b8acb59b4c599c990113822b4ef32f2b48df366e6041cc6e35b",
+      "base_record_version": 4,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "72450e09a0b6db1e2d987e489aba62580436bf969c67e60b6ddfa33062d61295",
+        "base_envelope_version": 4,
+        "case_id": "gz_case_004",
+        "command_id": "command_gz_case_004_turn_05_unrelated_state_keeps_ambiguity",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [
+              "Friday and following Monday remain possible deadlines."
+            ],
+            "lock_blockers": [
+              "deadline_ambiguous"
+            ],
+            "lock_prerequisites": [
+              "deadline_clarified"
+            ],
+            "open_required_fields": [
+              "events.delivery_due.date"
+            ],
+            "type": "set_formation_requirements",
+            "uncertainties": [
+              "Awaiting the underlying message."
+            ]
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": {
+          "addressed_to_party": "party_a",
+          "field": "date",
+          "namespace": "events",
+          "object_id": "position_gz_case_004_deadline",
+          "reason_code": "highest_value_unresolved_deadline"
+        },
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "d8a14c05b2ff2877a5bc425f0b751e033dd41798edb3972a43081c09bea9295a",
+        "resulting_envelope_version": 5,
+        "resulting_record_hash": "5350083d6c16d17015ab80c672e5d74873664d960c63dd4beabeb8672b01b937",
+        "resulting_record_version": 5,
+        "workflow_state": "person_a_formation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_party_identity",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "The launch was due Friday 🚀, or perhaps the following Monday.",
+          "content_hash": "692018ee35331171378ebe579824b68297bd1b95374d1106d088c0c51d41a50d",
+          "source_id": "source_gz_case_004_original",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "I still do not know; I need to check the messages.",
+          "content_hash": "f2aa5bf38e184565f3e3bd58ec73aebf5eae07bb524d25743e04d3bde8318ddb",
+          "source_id": "source_gz_case_004_uncertain",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_004_turn_05_unrelated_state_keeps_ambiguity",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_004_original",
+        "source_gz_case_004_uncertain",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_a",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_a",
+        "party_id": "party_a"
+      },
+      "base_envelope_hash": "d8a14c05b2ff2877a5bc425f0b751e033dd41798edb3972a43081c09bea9295a",
+      "base_envelope_version": 5,
+      "base_record_hash": "5350083d6c16d17015ab80c672e5d74873664d960c63dd4beabeb8672b01b937",
+      "base_record_version": 5,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_a",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_a",
+          "party_id": "party_a"
+        },
+        "base_envelope_hash": "d8a14c05b2ff2877a5bc425f0b751e033dd41798edb3972a43081c09bea9295a",
+        "base_envelope_version": 5,
+        "case_id": "gz_case_004",
+        "command_id": "command_gz_case_004_turn_06_delayed_correction",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "expected_prior_value": "Person A is unsure whether the deadline was Friday or the following Monday.",
+            "field": "statement",
+            "namespace": "positions",
+            "object_id": "position_gz_case_004_deadline",
+            "replacement_value": "Person A says the checked message states Monday, not Friday.",
+            "type": "replace_own_field"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "7ad3419b74fe089e2acaeb784eccf1d781a4158264987c5c13a68cc2b30e667a",
+            "source_id": "source_gz_case_004_correction",
+            "span": {
+              "encoding": "utf16",
+              "end": 47,
+              "quote": "I checked. The message says Monday, not Friday.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [
+          {
+            "basis": "party_attributed_assertion",
+            "fact_id": "fact_gz_case_004_corrected_deadline",
+            "party_attribution": "party_a",
+            "source_references": [
+              {
+                "source_hash": "7ad3419b74fe089e2acaeb784eccf1d781a4158264987c5c13a68cc2b30e667a",
+                "source_id": "source_gz_case_004_correction",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 47,
+                  "quote": "I checked. The message says Monday, not Friday.",
+                  "start": 0
+                }
+              }
+            ],
+            "statement": "Person A says a checked message states Monday, not Friday."
+          }
+        ],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [
+          {
+            "source_hash": "7ad3419b74fe089e2acaeb784eccf1d781a4158264987c5c13a68cc2b30e667a",
+            "source_id": "source_gz_case_004_correction",
+            "span": {
+              "encoding": "utf16",
+              "end": 47,
+              "quote": "I checked. The message says Monday, not Friday.",
+              "start": 0
+            }
+          }
+        ],
+        "resulting_envelope_hash": "032ec6396360db04927d2f4041c271a15ed1998aa41ea2ba47e883e9ae9ea908",
+        "resulting_envelope_version": 6,
+        "resulting_record_hash": "aa9f2f149a582ff87ab0684d1ce26c0db4534b49974ae42dbbdd6e7ebdb45498",
+        "resulting_record_version": 6,
+        "workflow_state": "person_a_formation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "replace_own_field",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "I checked. The message says Monday, not Friday.",
+          "content_hash": "7ad3419b74fe089e2acaeb784eccf1d781a4158264987c5c13a68cc2b30e667a",
+          "source_id": "source_gz_case_004_correction",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "The launch was due Friday 🚀, or perhaps the following Monday.",
+          "content_hash": "692018ee35331171378ebe579824b68297bd1b95374d1106d088c0c51d41a50d",
+          "source_id": "source_gz_case_004_original",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "I still do not know; I need to check the messages.",
+          "content_hash": "f2aa5bf38e184565f3e3bd58ec73aebf5eae07bb524d25743e04d3bde8318ddb",
+          "source_id": "source_gz_case_004_uncertain",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_004_turn_06_delayed_correction",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_004_correction",
+        "source_gz_case_004_original",
+        "source_gz_case_004_uncertain",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_a",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_a",
+        "party_id": "party_a"
+      },
+      "base_envelope_hash": "032ec6396360db04927d2f4041c271a15ed1998aa41ea2ba47e883e9ae9ea908",
+      "base_envelope_version": 6,
+      "base_record_hash": "aa9f2f149a582ff87ab0684d1ce26c0db4534b49974ae42dbbdd6e7ebdb45498",
+      "base_record_version": 6,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_a",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_a",
+          "party_id": "party_a"
+        },
+        "base_envelope_hash": "032ec6396360db04927d2f4041c271a15ed1998aa41ea2ba47e883e9ae9ea908",
+        "base_envelope_version": 6,
+        "case_id": "gz_case_004",
+        "command_id": "command_gz_case_004_turn_07_stale_prior_rejected",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "expected_prior_value": "Person A is unsure whether the deadline was Friday or the following Monday.",
+            "field": "statement",
+            "namespace": "positions",
+            "object_id": "position_gz_case_004_deadline",
+            "replacement_value": "The stale overwrite must not apply.",
+            "type": "replace_own_field"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "7ad3419b74fe089e2acaeb784eccf1d781a4158264987c5c13a68cc2b30e667a",
+            "source_id": "source_gz_case_004_correction",
+            "span": {
+              "encoding": "utf16",
+              "end": 47,
+              "quote": "I checked. The message says Monday, not Friday.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "rejected",
+        "envelope_version_delta": 0,
+        "evidence_actions": [],
+        "exact_no_mutation": true,
+        "failure_reason": "stale_prior_value",
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 0,
+        "required_source_references": [],
+        "resulting_envelope_hash": "032ec6396360db04927d2f4041c271a15ed1998aa41ea2ba47e883e9ae9ea908",
+        "resulting_envelope_version": 6,
+        "resulting_record_hash": "aa9f2f149a582ff87ab0684d1ce26c0db4534b49974ae42dbbdd6e7ebdb45498",
+        "resulting_record_version": 6,
+        "workflow_state": "person_a_formation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "replace_own_field",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "I checked. The message says Monday, not Friday.",
+          "content_hash": "7ad3419b74fe089e2acaeb784eccf1d781a4158264987c5c13a68cc2b30e667a",
+          "source_id": "source_gz_case_004_correction",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "The launch was due Friday 🚀, or perhaps the following Monday.",
+          "content_hash": "692018ee35331171378ebe579824b68297bd1b95374d1106d088c0c51d41a50d",
+          "source_id": "source_gz_case_004_original",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "I still do not know; I need to check the messages.",
+          "content_hash": "f2aa5bf38e184565f3e3bd58ec73aebf5eae07bb524d25743e04d3bde8318ddb",
+          "source_id": "source_gz_case_004_uncertain",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_004_turn_07_stale_prior_rejected",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_004_correction",
+        "source_gz_case_004_original",
+        "source_gz_case_004_uncertain",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "032ec6396360db04927d2f4041c271a15ed1998aa41ea2ba47e883e9ae9ea908",
+      "base_envelope_version": 6,
+      "base_record_hash": "aa9f2f149a582ff87ab0684d1ce26c0db4534b49974ae42dbbdd6e7ebdb45498",
+      "base_record_version": 6,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "032ec6396360db04927d2f4041c271a15ed1998aa41ea2ba47e883e9ae9ea908",
+        "base_envelope_version": 6,
+        "case_id": "gz_case_004",
+        "command_id": "command_gz_case_004_turn_08_ambiguity_cleared",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [],
+            "lock_blockers": [],
+            "lock_prerequisites": [
+              "final_catch_all"
+            ],
+            "open_required_fields": [],
+            "type": "set_formation_requirements",
+            "uncertainties": []
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "08654b22fd0aec6c1a1d0f7482c387494d4bcbe4eb915845bbb37a6129a9c8af",
+        "resulting_envelope_version": 7,
+        "resulting_record_hash": "9ab6b0c26f99d6c5113cfbbcf0bc51ceeffd4a14ad77baedb598588eb166e63a",
+        "resulting_record_version": 7,
+        "workflow_state": "person_a_formation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_party_identity",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "I checked. The message says Monday, not Friday.",
+          "content_hash": "7ad3419b74fe089e2acaeb784eccf1d781a4158264987c5c13a68cc2b30e667a",
+          "source_id": "source_gz_case_004_correction",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "The launch was due Friday 🚀, or perhaps the following Monday.",
+          "content_hash": "692018ee35331171378ebe579824b68297bd1b95374d1106d088c0c51d41a50d",
+          "source_id": "source_gz_case_004_original",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "I still do not know; I need to check the messages.",
+          "content_hash": "f2aa5bf38e184565f3e3bd58ec73aebf5eae07bb524d25743e04d3bde8318ddb",
+          "source_id": "source_gz_case_004_uncertain",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_004_turn_08_ambiguity_cleared",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_004_correction",
+        "source_gz_case_004_original",
+        "source_gz_case_004_uncertain",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "08654b22fd0aec6c1a1d0f7482c387494d4bcbe4eb915845bbb37a6129a9c8af",
+      "base_envelope_version": 7,
+      "base_record_hash": "9ab6b0c26f99d6c5113cfbbcf0bc51ceeffd4a14ad77baedb598588eb166e63a",
+      "base_record_version": 7,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "08654b22fd0aec6c1a1d0f7482c387494d4bcbe4eb915845bbb37a6129a9c8af",
+        "base_envelope_version": 7,
+        "case_id": "gz_case_004",
+        "command_id": "command_gz_case_004_turn_09_assertion_remains_attributed",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [],
+            "lock_blockers": [],
+            "lock_prerequisites": [],
+            "open_required_fields": [],
+            "type": "set_formation_requirements",
+            "uncertainties": []
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [
+          {
+            "prohibited_promotion": "objective_fact",
+            "proposition": "The deadline objectively was Monday.",
+            "proposition_id": "proposition_gz_case_004_monday_objective",
+            "reason_code": "only_person_a_asserted_monday",
+            "source_references": [
+              {
+                "source_hash": "7ad3419b74fe089e2acaeb784eccf1d781a4158264987c5c13a68cc2b30e667a",
+                "source_id": "source_gz_case_004_correction",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 47,
+                  "quote": "I checked. The message says Monday, not Friday.",
+                  "start": 0
+                }
+              }
+            ]
+          }
+        ],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "99b1669c604eac66fd7f93e728938f9b6630f9a91aa3f65cccc52bbd962b4f6a",
+        "resulting_envelope_version": 8,
+        "resulting_record_hash": "cb2019d525a6bba7a3ffa8e7673876437e2fa2127e57f5a54a17c73651a6864a",
+        "resulting_record_version": 8,
+        "workflow_state": "person_a_formation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_party_identity",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "I checked. The message says Monday, not Friday.",
+          "content_hash": "7ad3419b74fe089e2acaeb784eccf1d781a4158264987c5c13a68cc2b30e667a",
+          "source_id": "source_gz_case_004_correction",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "The launch was due Friday 🚀, or perhaps the following Monday.",
+          "content_hash": "692018ee35331171378ebe579824b68297bd1b95374d1106d088c0c51d41a50d",
+          "source_id": "source_gz_case_004_original",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "I still do not know; I need to check the messages.",
+          "content_hash": "f2aa5bf38e184565f3e3bd58ec73aebf5eae07bb524d25743e04d3bde8318ddb",
+          "source_id": "source_gz_case_004_uncertain",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_004_turn_09_assertion_remains_attributed",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_004_correction",
+        "source_gz_case_004_original",
+        "source_gz_case_004_uncertain",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "99b1669c604eac66fd7f93e728938f9b6630f9a91aa3f65cccc52bbd962b4f6a",
+      "base_envelope_version": 8,
+      "base_record_hash": "cb2019d525a6bba7a3ffa8e7673876437e2fa2127e57f5a54a17c73651a6864a",
+      "base_record_version": 8,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "99b1669c604eac66fd7f93e728938f9b6630f9a91aa3f65cccc52bbd962b4f6a",
+        "base_envelope_version": 8,
+        "case_id": "gz_case_004",
+        "command_id": "command_gz_case_004_turn_10_ready_question_none",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [],
+            "lock_blockers": [],
+            "lock_prerequisites": [],
+            "open_required_fields": [],
+            "type": "set_formation_requirements",
+            "uncertainties": []
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "1a08149023457af6f56f3e053cb6aedddc6fb58794dcb3910a3679dd75ae06b0",
+        "resulting_envelope_version": 9,
+        "resulting_record_hash": "dce592f69fdae1b19eff99cdd28a1cb4f8203e4f2a247bd063ec0ecea7ee4a79",
+        "resulting_record_version": 9,
+        "workflow_state": "person_a_formation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_party_identity",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "I checked. The message says Monday, not Friday.",
+          "content_hash": "7ad3419b74fe089e2acaeb784eccf1d781a4158264987c5c13a68cc2b30e667a",
+          "source_id": "source_gz_case_004_correction",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "The launch was due Friday 🚀, or perhaps the following Monday.",
+          "content_hash": "692018ee35331171378ebe579824b68297bd1b95374d1106d088c0c51d41a50d",
+          "source_id": "source_gz_case_004_original",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "I still do not know; I need to check the messages.",
+          "content_hash": "f2aa5bf38e184565f3e3bd58ec73aebf5eae07bb524d25743e04d3bde8318ddb",
+          "source_id": "source_gz_case_004_uncertain",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_004_turn_10_ready_question_none",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_004_correction",
+        "source_gz_case_004_original",
+        "source_gz_case_004_uncertain",
+        "source_system_initialization"
+      ]
+    }
+  ]
+}

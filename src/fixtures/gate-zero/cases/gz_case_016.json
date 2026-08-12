@@ -1,0 +1,2256 @@
+{
+  "case_id": "gz_case_016",
+  "coverage": {
+    "failure": [
+      "delayed_corrections",
+      "atomic_command_failure",
+      "stale_cas"
+    ],
+    "success": [
+      "delayed_corrections",
+      "events",
+      "payments"
+    ]
+  },
+  "expected_adjudication_input": null,
+  "final_envelope": {
+    "actors": {},
+    "agreements": {},
+    "claimed_losses": {},
+    "classification": {
+      "authority": {
+        "adjudication_eligible": false,
+        "authority_detail": "initial classification placeholder",
+        "authority_kind": "system_observation",
+        "evidence_ids": [],
+        "introduced_by": {
+          "actor_id": "juryai_system",
+          "actor_type": "system"
+        },
+        "introduced_in_record_version": 1,
+        "last_material_command_id": "command_system_initialization",
+        "last_material_record_version": 1,
+        "party_stances": {
+          "party_a": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          },
+          "party_b": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          }
+        },
+        "resolution_status": "unresolved",
+        "source_references": [
+          {
+            "source_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+            "source_id": "source_system_initialization",
+            "span": null
+          }
+        ],
+        "subject_actor_ids": []
+      },
+      "case_category": null,
+      "maturity": "undetermined",
+      "required_fact_profile": null,
+      "safety_flags": [],
+      "scope_flags": [],
+      "suitability": "undetermined"
+    },
+    "control": {
+      "case_id": "gz_case_016",
+      "deadlines": {},
+      "eligibility": {
+        "reason_codes": [],
+        "status": "undetermined"
+      },
+      "envelope_hash": "e2ecc7a42b5ad2cd9ac81b418514bab9c36d98b232e6ac4d7281225e8aa37c5a",
+      "envelope_version": 12,
+      "lock": {
+        "lock_event_id": null,
+        "locked_at": null,
+        "mode": null,
+        "output_scope": null,
+        "status": "unlocked"
+      },
+      "protocol": {
+        "non_participation_mode": "prohibited",
+        "protocol_id": "commercial_fairness_v2",
+        "protocol_version": "juryai-formation-protocol-v2.0.0"
+      },
+      "record_hash": "70a0a345f85a29b3e32a530e19718c72ac40b2a6b631511ab7a6593570276760",
+      "record_version": 12,
+      "schema_version": "juryai-case-envelope-v2.0.0",
+      "workflow_state": "reconciliation"
+    },
+    "deliverables": {},
+    "events": {
+      "event_gz_case_016_due": {
+        "actor_ids": [],
+        "authority": {
+          "adjudication_eligible": true,
+          "authority_detail": "Authenticated party_a assertion",
+          "authority_kind": "party_assertion",
+          "evidence_ids": [],
+          "introduced_by": {
+            "actor_id": "subject_party_a",
+            "actor_type": "party"
+          },
+          "introduced_in_record_version": 2,
+          "last_material_command_id": "command_gz_case_016_turn_07_field_challenge",
+          "last_material_record_version": 7,
+          "party_stances": {
+            "party_a": {
+              "response_event_id": null,
+              "stance": "asserted"
+            },
+            "party_b": {
+              "response_event_id": "challenge_gz_case_016_primary",
+              "stance": "disputed"
+            }
+          },
+          "resolution_status": "disputed",
+          "source_references": [
+            {
+              "source_hash": "90d195faa932ebf194e495bc0dc3651ee585eb0a8555c0e7d668747d6c57d144",
+              "source_id": "source_gz_case_016_a",
+              "span": {
+                "encoding": "utf16",
+                "end": 81,
+                "quote": "Person A corrects the due date from 1 June to 3 June after linked payment exists.",
+                "start": 0
+              }
+            },
+            {
+              "source_hash": "eedba2ca4bc50cbcc42c641ebc3f6439a193c8a30504b09fcf3f2fe7bb4459d8",
+              "source_id": "source_gz_case_016_b",
+              "span": {
+                "encoding": "utf16",
+                "end": 68,
+                "quote": "Person B disputes the corrected date and the linked payment trigger.",
+                "start": 0
+              }
+            }
+          ],
+          "subject_actor_ids": [
+            "subject_party_a"
+          ]
+        },
+        "date": {
+          "approximate": false,
+          "end": null,
+          "precision": "day",
+          "start": "2026-06-03"
+        },
+        "description": "Person A initially says payment was due 1 June.",
+        "event_id": "event_gz_case_016_due",
+        "event_type": "deadline_passage",
+        "linked_deliverable_ids": [],
+        "linked_obligation_ids": [],
+        "linked_payment_ids": [
+          "payment_gz_case_016_balance"
+        ]
+      }
+    },
+    "evidence": {},
+    "formation": {
+      "ambiguities": [
+        "A later correction changes the linked due event and must not split identities."
+      ],
+      "challenges": [
+        {
+          "challenge_id": "challenge_gz_case_016_primary",
+          "challenging_party_id": "party_b",
+          "resolution_event_id": "event_gz_case_016_challenge_rejected",
+          "resolution_source_references": [
+            {
+              "source_hash": "90d195faa932ebf194e495bc0dc3651ee585eb0a8555c0e7d668747d6c57d144",
+              "source_id": "source_gz_case_016_a",
+              "span": {
+                "encoding": "utf16",
+                "end": 81,
+                "quote": "Person A corrects the due date from 1 June to 3 June after linked payment exists.",
+                "start": 0
+              }
+            }
+          ],
+          "source_references": [
+            {
+              "source_hash": "eedba2ca4bc50cbcc42c641ebc3f6439a193c8a30504b09fcf3f2fe7bb4459d8",
+              "source_id": "source_gz_case_016_b",
+              "span": {
+                "encoding": "utf16",
+                "end": 68,
+                "quote": "Person B disputes the corrected date and the linked payment trigger.",
+                "start": 0
+              }
+            }
+          ],
+          "status": "rejected",
+          "target_field": "date",
+          "target_namespace": "events",
+          "target_object_id": "event_gz_case_016_due"
+        }
+      ],
+      "confirmations": {
+        "party_a": null,
+        "party_b": null
+      },
+      "disclosure": {
+        "detailed_a_framing": "embargoed",
+        "disclosure_event_id": null,
+        "person_b_independent_account_source_id": null
+      },
+      "lock_blockers": [
+        "material_dispute_open"
+      ],
+      "lock_prerequisites": [
+        "party_disagreement_preserved"
+      ],
+      "material_change_events": [],
+      "non_participation": {
+        "correction_opportunity": "not_started",
+        "deadline_expired_event_id": null,
+        "invitation_event_id": null,
+        "notice_event_id": null,
+        "response_deadline": null
+      },
+      "open_required_fields": [],
+      "prior_locks": [],
+      "uncertainties": [
+        "review_checkpoint_12"
+      ]
+    },
+    "parties": {
+      "party_a": {
+        "authenticated_subject_id": "subject_party_a",
+        "consent_event_id": "event_gz_case_016_consent_a",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_016_identity_a",
+        "participation_state": "active",
+        "party_id": "party_a",
+        "role": "person_a"
+      },
+      "party_b": {
+        "authenticated_subject_id": "subject_party_b",
+        "consent_event_id": "event_gz_case_016_consent_b",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_016_identity_b",
+        "participation_state": "active",
+        "party_id": "party_b",
+        "role": "person_b"
+      }
+    },
+    "payments": {
+      "payment_gz_case_016_balance": {
+        "amount_minor": 40000,
+        "authority": {
+          "adjudication_eligible": true,
+          "authority_detail": "Authenticated party_a assertion",
+          "authority_kind": "party_assertion",
+          "evidence_ids": [],
+          "introduced_by": {
+            "actor_id": "subject_party_a",
+            "actor_type": "party"
+          },
+          "introduced_in_record_version": 4,
+          "last_material_command_id": "command_gz_case_016_secondary",
+          "last_material_record_version": 4,
+          "party_stances": {
+            "party_a": {
+              "response_event_id": null,
+              "stance": "asserted"
+            },
+            "party_b": {
+              "response_event_id": null,
+              "stance": "unresponded"
+            }
+          },
+          "resolution_status": "unresolved",
+          "source_references": [
+            {
+              "source_hash": "90d195faa932ebf194e495bc0dc3651ee585eb0a8555c0e7d668747d6c57d144",
+              "source_id": "source_gz_case_016_a",
+              "span": {
+                "encoding": "utf16",
+                "end": 81,
+                "quote": "Person A corrects the due date from 1 June to 3 June after linked payment exists.",
+                "start": 0
+              }
+            }
+          ],
+          "subject_actor_ids": [
+            "subject_party_a"
+          ]
+        },
+        "currency": "USD",
+        "due_trigger": "event_gz_case_016_due",
+        "from_actor_id": null,
+        "linked_deliverable_ids": [],
+        "linked_event_ids": [
+          "event_gz_case_016_due"
+        ],
+        "linked_obligation_ids": [],
+        "payment_id": "payment_gz_case_016_balance",
+        "payment_status": "disputed",
+        "to_actor_id": null
+      }
+    },
+    "positions": {},
+    "requested_outcomes": {}
+  },
+  "fixture_version": "juryai-gate-zero-case-fixture-v1.0.0",
+  "initial_envelope": {
+    "actors": {},
+    "agreements": {},
+    "claimed_losses": {},
+    "classification": {
+      "authority": {
+        "adjudication_eligible": false,
+        "authority_detail": "initial classification placeholder",
+        "authority_kind": "system_observation",
+        "evidence_ids": [],
+        "introduced_by": {
+          "actor_id": "juryai_system",
+          "actor_type": "system"
+        },
+        "introduced_in_record_version": 1,
+        "last_material_command_id": "command_system_initialization",
+        "last_material_record_version": 1,
+        "party_stances": {
+          "party_a": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          },
+          "party_b": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          }
+        },
+        "resolution_status": "unresolved",
+        "source_references": [
+          {
+            "source_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+            "source_id": "source_system_initialization",
+            "span": null
+          }
+        ],
+        "subject_actor_ids": []
+      },
+      "case_category": null,
+      "maturity": "undetermined",
+      "required_fact_profile": null,
+      "safety_flags": [],
+      "scope_flags": [],
+      "suitability": "undetermined"
+    },
+    "control": {
+      "case_id": "gz_case_016",
+      "deadlines": {},
+      "eligibility": {
+        "reason_codes": [],
+        "status": "undetermined"
+      },
+      "envelope_hash": "08414fd0ce5bcbfae7c30b55c10d0ac856c2074a3539ade7cf5ec9d006b2e92e",
+      "envelope_version": 1,
+      "lock": {
+        "lock_event_id": null,
+        "locked_at": null,
+        "mode": null,
+        "output_scope": null,
+        "status": "unlocked"
+      },
+      "protocol": {
+        "non_participation_mode": "prohibited",
+        "protocol_id": "commercial_fairness_v2",
+        "protocol_version": "juryai-formation-protocol-v2.0.0"
+      },
+      "record_hash": "9e9ee517a2c6b3099f9f5ea3886231977e7ffd13b72a44750847884c57654429",
+      "record_version": 1,
+      "schema_version": "juryai-case-envelope-v2.0.0",
+      "workflow_state": "reconciliation"
+    },
+    "deliverables": {},
+    "events": {},
+    "evidence": {},
+    "formation": {
+      "ambiguities": [],
+      "challenges": [],
+      "confirmations": {
+        "party_a": null,
+        "party_b": null
+      },
+      "disclosure": {
+        "detailed_a_framing": "embargoed",
+        "disclosure_event_id": null,
+        "person_b_independent_account_source_id": null
+      },
+      "lock_blockers": [],
+      "lock_prerequisites": [],
+      "material_change_events": [],
+      "non_participation": {
+        "correction_opportunity": "not_started",
+        "deadline_expired_event_id": null,
+        "invitation_event_id": null,
+        "notice_event_id": null,
+        "response_deadline": null
+      },
+      "open_required_fields": [],
+      "prior_locks": [],
+      "uncertainties": []
+    },
+    "parties": {
+      "party_a": {
+        "authenticated_subject_id": "subject_party_a",
+        "consent_event_id": "event_gz_case_016_consent_a",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_016_identity_a",
+        "participation_state": "active",
+        "party_id": "party_a",
+        "role": "person_a"
+      },
+      "party_b": {
+        "authenticated_subject_id": "subject_party_b",
+        "consent_event_id": "event_gz_case_016_consent_b",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_016_identity_b",
+        "participation_state": "active",
+        "party_id": "party_b",
+        "role": "person_b"
+      }
+    },
+    "payments": {},
+    "positions": {},
+    "requested_outcomes": {}
+  },
+  "matrix_version": "juryai-gate-zero-coverage-matrix-v1.0.0",
+  "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+  "title": "Late correction after linked objects exist",
+  "turns": [
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_a",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_a",
+        "party_id": "party_a"
+      },
+      "base_envelope_hash": "08414fd0ce5bcbfae7c30b55c10d0ac856c2074a3539ade7cf5ec9d006b2e92e",
+      "base_envelope_version": 1,
+      "base_record_hash": "9e9ee517a2c6b3099f9f5ea3886231977e7ffd13b72a44750847884c57654429",
+      "base_record_version": 1,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_a",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_a",
+          "party_id": "party_a"
+        },
+        "base_envelope_hash": "08414fd0ce5bcbfae7c30b55c10d0ac856c2074a3539ade7cf5ec9d006b2e92e",
+        "base_envelope_version": 1,
+        "case_id": "gz_case_016",
+        "command_id": "command_gz_case_016_primary",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "namespace": "events",
+            "object": {
+              "actor_ids": [],
+              "authority": {
+                "adjudication_eligible": true,
+                "authority_detail": "Authenticated party_a assertion",
+                "authority_kind": "party_assertion",
+                "evidence_ids": [],
+                "introduced_by": {
+                  "actor_id": "subject_party_a",
+                  "actor_type": "party"
+                },
+                "introduced_in_record_version": 2,
+                "last_material_command_id": "command_gz_case_016_primary",
+                "last_material_record_version": 2,
+                "party_stances": {
+                  "party_a": {
+                    "response_event_id": null,
+                    "stance": "asserted"
+                  },
+                  "party_b": {
+                    "response_event_id": null,
+                    "stance": "unresponded"
+                  }
+                },
+                "resolution_status": "unresolved",
+                "source_references": [
+                  {
+                    "source_hash": "90d195faa932ebf194e495bc0dc3651ee585eb0a8555c0e7d668747d6c57d144",
+                    "source_id": "source_gz_case_016_a",
+                    "span": {
+                      "encoding": "utf16",
+                      "end": 81,
+                      "quote": "Person A corrects the due date from 1 June to 3 June after linked payment exists.",
+                      "start": 0
+                    }
+                  }
+                ],
+                "subject_actor_ids": [
+                  "subject_party_a"
+                ]
+              },
+              "date": {
+                "approximate": false,
+                "end": null,
+                "precision": "day",
+                "start": "2026-06-01"
+              },
+              "description": "Person A initially says payment was due 1 June.",
+              "event_id": "event_gz_case_016_due",
+              "event_type": "deadline_passage",
+              "linked_deliverable_ids": [],
+              "linked_obligation_ids": [],
+              "linked_payment_ids": [
+                "payment_gz_case_016_balance"
+              ]
+            },
+            "type": "add_object"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "90d195faa932ebf194e495bc0dc3651ee585eb0a8555c0e7d668747d6c57d144",
+            "source_id": "source_gz_case_016_a",
+            "span": {
+              "encoding": "utf16",
+              "end": 81,
+              "quote": "Person A corrects the due date from 1 June to 3 June after linked payment exists.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [
+          {
+            "basis": "party_attributed_assertion",
+            "fact_id": "fact_gz_case_016_primary",
+            "party_attribution": "party_a",
+            "source_references": [
+              {
+                "source_hash": "90d195faa932ebf194e495bc0dc3651ee585eb0a8555c0e7d668747d6c57d144",
+                "source_id": "source_gz_case_016_a",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 81,
+                  "quote": "Person A corrects the due date from 1 June to 3 June after linked payment exists.",
+                  "start": 0
+                }
+              }
+            ],
+            "statement": "Person A corrects the due date from 1 June to 3 June after linked payment exists."
+          }
+        ],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [
+          {
+            "prohibited_promotion": "objective_fact",
+            "proposition": "The introducing party assertion is objectively established.",
+            "proposition_id": "proposition_gz_case_016_objective",
+            "reason_code": "single_party_assertion_only",
+            "source_references": [
+              {
+                "source_hash": "90d195faa932ebf194e495bc0dc3651ee585eb0a8555c0e7d668747d6c57d144",
+                "source_id": "source_gz_case_016_a",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 81,
+                  "quote": "Person A corrects the due date from 1 June to 3 June after linked payment exists.",
+                  "start": 0
+                }
+              }
+            ]
+          }
+        ],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [
+          {
+            "source_hash": "90d195faa932ebf194e495bc0dc3651ee585eb0a8555c0e7d668747d6c57d144",
+            "source_id": "source_gz_case_016_a",
+            "span": {
+              "encoding": "utf16",
+              "end": 81,
+              "quote": "Person A corrects the due date from 1 June to 3 June after linked payment exists.",
+              "start": 0
+            }
+          }
+        ],
+        "resulting_envelope_hash": "16a8d8037420d00119b73a408f372a7a647547e83b7ceef44dda1e9a355c552c",
+        "resulting_envelope_version": 2,
+        "resulting_record_hash": "732bf60363ef3818562d2ea544bf4464175e236f869a1be7f50a50ec4f71115e",
+        "resulting_record_version": 2,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_challenge",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A corrects the due date from 1 June to 3 June after linked payment exists.",
+          "content_hash": "90d195faa932ebf194e495bc0dc3651ee585eb0a8555c0e7d668747d6c57d144",
+          "source_id": "source_gz_case_016_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_016_turn_01_primary_assertion",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_016_a",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "16a8d8037420d00119b73a408f372a7a647547e83b7ceef44dda1e9a355c552c",
+      "base_envelope_version": 2,
+      "base_record_hash": "732bf60363ef3818562d2ea544bf4464175e236f869a1be7f50a50ec4f71115e",
+      "base_record_version": 2,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "16a8d8037420d00119b73a408f372a7a647547e83b7ceef44dda1e9a355c552c",
+        "base_envelope_version": 2,
+        "case_id": "gz_case_016",
+        "command_id": "command_gz_case_016_turn_02_ambiguity_drives_question",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [
+              "A later correction changes the linked due event and must not split identities."
+            ],
+            "lock_blockers": [
+              "material_ambiguity"
+            ],
+            "lock_prerequisites": [
+              "material_ambiguity_resolved"
+            ],
+            "open_required_fields": [
+              "events.event_gz_case_016_due.date"
+            ],
+            "type": "set_formation_requirements",
+            "uncertainties": []
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": {
+          "addressed_to_party": "party_a",
+          "field": "date",
+          "namespace": "events",
+          "object_id": "event_gz_case_016_due",
+          "reason_code": "resolve_gz_case_016_material_ambiguity"
+        },
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "a9468ec18ca294ffc16d4840535effffd462d52247a9973c52b229651367ba0f",
+        "resulting_envelope_version": 3,
+        "resulting_record_hash": "d0cff03391607f7904adaac049606416586caef04f1c52468f41712ffe733d56",
+        "resulting_record_version": 3,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_identity"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_party_participation",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A corrects the due date from 1 June to 3 June after linked payment exists.",
+          "content_hash": "90d195faa932ebf194e495bc0dc3651ee585eb0a8555c0e7d668747d6c57d144",
+          "source_id": "source_gz_case_016_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_016_turn_02_ambiguity_drives_question",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_016_a",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_a",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_a",
+        "party_id": "party_a"
+      },
+      "base_envelope_hash": "a9468ec18ca294ffc16d4840535effffd462d52247a9973c52b229651367ba0f",
+      "base_envelope_version": 3,
+      "base_record_hash": "d0cff03391607f7904adaac049606416586caef04f1c52468f41712ffe733d56",
+      "base_record_version": 3,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_a",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_a",
+          "party_id": "party_a"
+        },
+        "base_envelope_hash": "a9468ec18ca294ffc16d4840535effffd462d52247a9973c52b229651367ba0f",
+        "base_envelope_version": 3,
+        "case_id": "gz_case_016",
+        "command_id": "command_gz_case_016_secondary",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "namespace": "payments",
+            "object": {
+              "amount_minor": 40000,
+              "authority": {
+                "adjudication_eligible": true,
+                "authority_detail": "Authenticated party_a assertion",
+                "authority_kind": "party_assertion",
+                "evidence_ids": [],
+                "introduced_by": {
+                  "actor_id": "subject_party_a",
+                  "actor_type": "party"
+                },
+                "introduced_in_record_version": 4,
+                "last_material_command_id": "command_gz_case_016_secondary",
+                "last_material_record_version": 4,
+                "party_stances": {
+                  "party_a": {
+                    "response_event_id": null,
+                    "stance": "asserted"
+                  },
+                  "party_b": {
+                    "response_event_id": null,
+                    "stance": "unresponded"
+                  }
+                },
+                "resolution_status": "unresolved",
+                "source_references": [
+                  {
+                    "source_hash": "90d195faa932ebf194e495bc0dc3651ee585eb0a8555c0e7d668747d6c57d144",
+                    "source_id": "source_gz_case_016_a",
+                    "span": {
+                      "encoding": "utf16",
+                      "end": 81,
+                      "quote": "Person A corrects the due date from 1 June to 3 June after linked payment exists.",
+                      "start": 0
+                    }
+                  }
+                ],
+                "subject_actor_ids": [
+                  "subject_party_a"
+                ]
+              },
+              "currency": "USD",
+              "due_trigger": "event_gz_case_016_due",
+              "from_actor_id": null,
+              "linked_deliverable_ids": [],
+              "linked_event_ids": [
+                "event_gz_case_016_due"
+              ],
+              "linked_obligation_ids": [],
+              "payment_id": "payment_gz_case_016_balance",
+              "payment_status": "disputed",
+              "to_actor_id": null
+            },
+            "type": "add_object"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "90d195faa932ebf194e495bc0dc3651ee585eb0a8555c0e7d668747d6c57d144",
+            "source_id": "source_gz_case_016_a",
+            "span": {
+              "encoding": "utf16",
+              "end": 81,
+              "quote": "Person A corrects the due date from 1 June to 3 June after linked payment exists.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [
+          {
+            "source_hash": "90d195faa932ebf194e495bc0dc3651ee585eb0a8555c0e7d668747d6c57d144",
+            "source_id": "source_gz_case_016_a",
+            "span": {
+              "encoding": "utf16",
+              "end": 81,
+              "quote": "Person A corrects the due date from 1 June to 3 June after linked payment exists.",
+              "start": 0
+            }
+          }
+        ],
+        "resulting_envelope_hash": "236c35b8f922d64e622436bb12890660dba14aee15f5779526944d7da22f6663",
+        "resulting_envelope_version": 4,
+        "resulting_record_hash": "ad07fa1766fae5ea1a83d81ba32911991aaa5c10ab7acda5a5998572ab47661e",
+        "resulting_record_version": 4,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_challenge",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A corrects the due date from 1 June to 3 June after linked payment exists.",
+          "content_hash": "90d195faa932ebf194e495bc0dc3651ee585eb0a8555c0e7d668747d6c57d144",
+          "source_id": "source_gz_case_016_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B disputes the corrected date and the linked payment trigger.",
+          "content_hash": "eedba2ca4bc50cbcc42c641ebc3f6439a193c8a30504b09fcf3f2fe7bb4459d8",
+          "source_id": "source_gz_case_016_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_016_turn_03_linked_or_counter_object",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_016_a",
+        "source_gz_case_016_b",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_b",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_b",
+        "party_id": "party_b"
+      },
+      "base_envelope_hash": "236c35b8f922d64e622436bb12890660dba14aee15f5779526944d7da22f6663",
+      "base_envelope_version": 4,
+      "base_record_hash": "ad07fa1766fae5ea1a83d81ba32911991aaa5c10ab7acda5a5998572ab47661e",
+      "base_record_version": 4,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_b",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_b",
+          "party_id": "party_b"
+        },
+        "base_envelope_hash": "236c35b8f922d64e622436bb12890660dba14aee15f5779526944d7da22f6663",
+        "base_envelope_version": 4,
+        "case_id": "gz_case_016",
+        "command_id": "command_gz_case_016_turn_04_person_b_disputes",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "namespace": "events",
+            "object_id": "event_gz_case_016_due",
+            "response_event_id": "event_gz_case_016_b_disputes",
+            "stance": "disputed",
+            "type": "set_own_stance"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "eedba2ca4bc50cbcc42c641ebc3f6439a193c8a30504b09fcf3f2fe7bb4459d8",
+            "source_id": "source_gz_case_016_b",
+            "span": {
+              "encoding": "utf16",
+              "end": 68,
+              "quote": "Person B disputes the corrected date and the linked payment trigger.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [
+          {
+            "prohibited_promotion": "bilateral_agreement",
+            "proposition": "The parties agree on the disputed proposition.",
+            "proposition_id": "proposition_gz_case_016_bilateral",
+            "reason_code": "person_b_explicitly_disputes",
+            "source_references": [
+              {
+                "source_hash": "90d195faa932ebf194e495bc0dc3651ee585eb0a8555c0e7d668747d6c57d144",
+                "source_id": "source_gz_case_016_a",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 81,
+                  "quote": "Person A corrects the due date from 1 June to 3 June after linked payment exists.",
+                  "start": 0
+                }
+              },
+              {
+                "source_hash": "eedba2ca4bc50cbcc42c641ebc3f6439a193c8a30504b09fcf3f2fe7bb4459d8",
+                "source_id": "source_gz_case_016_b",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 68,
+                  "quote": "Person B disputes the corrected date and the linked payment trigger.",
+                  "start": 0
+                }
+              }
+            ]
+          }
+        ],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [
+          {
+            "source_hash": "eedba2ca4bc50cbcc42c641ebc3f6439a193c8a30504b09fcf3f2fe7bb4459d8",
+            "source_id": "source_gz_case_016_b",
+            "span": {
+              "encoding": "utf16",
+              "end": 68,
+              "quote": "Person B disputes the corrected date and the linked payment trigger.",
+              "start": 0
+            }
+          }
+        ],
+        "resulting_envelope_hash": "1e6e2bbf97a4b9d27f86f392fbc58405ca78327596b20d18ba46d093993d3f3d",
+        "resulting_envelope_version": 5,
+        "resulting_record_hash": "e6cbc60006800cfa28c3cced40ee68e6d5558f05fc0fe88ee0db534bbe4f803a",
+        "resulting_record_version": 5,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_challenge",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A corrects the due date from 1 June to 3 June after linked payment exists.",
+          "content_hash": "90d195faa932ebf194e495bc0dc3651ee585eb0a8555c0e7d668747d6c57d144",
+          "source_id": "source_gz_case_016_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B disputes the corrected date and the linked payment trigger.",
+          "content_hash": "eedba2ca4bc50cbcc42c641ebc3f6439a193c8a30504b09fcf3f2fe7bb4459d8",
+          "source_id": "source_gz_case_016_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_016_turn_04_person_b_disputes",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_016_a",
+        "source_gz_case_016_b",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_b",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_b",
+        "party_id": "party_b"
+      },
+      "base_envelope_hash": "1e6e2bbf97a4b9d27f86f392fbc58405ca78327596b20d18ba46d093993d3f3d",
+      "base_envelope_version": 5,
+      "base_record_hash": "e6cbc60006800cfa28c3cced40ee68e6d5558f05fc0fe88ee0db534bbe4f803a",
+      "base_record_version": 5,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_b",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_b",
+          "party_id": "party_b"
+        },
+        "base_envelope_hash": "1e6e2bbf97a4b9d27f86f392fbc58405ca78327596b20d18ba46d093993d3f3d",
+        "base_envelope_version": 5,
+        "case_id": "gz_case_016",
+        "command_id": "command_gz_case_016_turn_05_cross_party_overwrite_rejected",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "expected_prior_value": {
+              "approximate": false,
+              "end": null,
+              "precision": "day",
+              "start": "2026-06-01"
+            },
+            "field": "date",
+            "namespace": "events",
+            "object_id": "event_gz_case_016_due",
+            "replacement_value": {
+              "approximate": false,
+              "end": null,
+              "precision": "day",
+              "start": "2026-06-03"
+            },
+            "type": "replace_own_field"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "eedba2ca4bc50cbcc42c641ebc3f6439a193c8a30504b09fcf3f2fe7bb4459d8",
+            "source_id": "source_gz_case_016_b",
+            "span": {
+              "encoding": "utf16",
+              "end": 68,
+              "quote": "Person B disputes the corrected date and the linked payment trigger.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "rejected",
+        "envelope_version_delta": 0,
+        "evidence_actions": [],
+        "exact_no_mutation": true,
+        "failure_reason": "cross_party_mutation",
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 0,
+        "required_source_references": [],
+        "resulting_envelope_hash": "1e6e2bbf97a4b9d27f86f392fbc58405ca78327596b20d18ba46d093993d3f3d",
+        "resulting_envelope_version": 5,
+        "resulting_record_hash": "e6cbc60006800cfa28c3cced40ee68e6d5558f05fc0fe88ee0db534bbe4f803a",
+        "resulting_record_version": 5,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_challenge",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A corrects the due date from 1 June to 3 June after linked payment exists.",
+          "content_hash": "90d195faa932ebf194e495bc0dc3651ee585eb0a8555c0e7d668747d6c57d144",
+          "source_id": "source_gz_case_016_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B disputes the corrected date and the linked payment trigger.",
+          "content_hash": "eedba2ca4bc50cbcc42c641ebc3f6439a193c8a30504b09fcf3f2fe7bb4459d8",
+          "source_id": "source_gz_case_016_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_016_turn_05_cross_party_overwrite_rejected",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_016_a",
+        "source_gz_case_016_b",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_a",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_a",
+        "party_id": "party_a"
+      },
+      "base_envelope_hash": "1e6e2bbf97a4b9d27f86f392fbc58405ca78327596b20d18ba46d093993d3f3d",
+      "base_envelope_version": 5,
+      "base_record_hash": "e6cbc60006800cfa28c3cced40ee68e6d5558f05fc0fe88ee0db534bbe4f803a",
+      "base_record_version": 5,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_a",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_a",
+          "party_id": "party_a"
+        },
+        "base_envelope_hash": "1e6e2bbf97a4b9d27f86f392fbc58405ca78327596b20d18ba46d093993d3f3d",
+        "base_envelope_version": 5,
+        "case_id": "gz_case_016",
+        "command_id": "command_gz_case_016_turn_06_owner_correction",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "expected_prior_value": {
+              "approximate": false,
+              "end": null,
+              "precision": "day",
+              "start": "2026-06-01"
+            },
+            "field": "date",
+            "namespace": "events",
+            "object_id": "event_gz_case_016_due",
+            "replacement_value": {
+              "approximate": false,
+              "end": null,
+              "precision": "day",
+              "start": "2026-06-03"
+            },
+            "type": "replace_own_field"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "90d195faa932ebf194e495bc0dc3651ee585eb0a8555c0e7d668747d6c57d144",
+            "source_id": "source_gz_case_016_a",
+            "span": {
+              "encoding": "utf16",
+              "end": 81,
+              "quote": "Person A corrects the due date from 1 June to 3 June after linked payment exists.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [
+          {
+            "source_hash": "90d195faa932ebf194e495bc0dc3651ee585eb0a8555c0e7d668747d6c57d144",
+            "source_id": "source_gz_case_016_a",
+            "span": {
+              "encoding": "utf16",
+              "end": 81,
+              "quote": "Person A corrects the due date from 1 June to 3 June after linked payment exists.",
+              "start": 0
+            }
+          }
+        ],
+        "resulting_envelope_hash": "093abda60af4891d7eae2a10343adf335a8872c9f5c48c9fd1caa1267aee4c20",
+        "resulting_envelope_version": 6,
+        "resulting_record_hash": "ef702847235ba2c35f15a1dd02157f09b01955fb7662dd140e8ede7f8dbbf6e2",
+        "resulting_record_version": 6,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_challenge",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A corrects the due date from 1 June to 3 June after linked payment exists.",
+          "content_hash": "90d195faa932ebf194e495bc0dc3651ee585eb0a8555c0e7d668747d6c57d144",
+          "source_id": "source_gz_case_016_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B disputes the corrected date and the linked payment trigger.",
+          "content_hash": "eedba2ca4bc50cbcc42c641ebc3f6439a193c8a30504b09fcf3f2fe7bb4459d8",
+          "source_id": "source_gz_case_016_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_016_turn_06_owner_correction",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_016_a",
+        "source_gz_case_016_b",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_b",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_b",
+        "party_id": "party_b"
+      },
+      "base_envelope_hash": "093abda60af4891d7eae2a10343adf335a8872c9f5c48c9fd1caa1267aee4c20",
+      "base_envelope_version": 6,
+      "base_record_hash": "ef702847235ba2c35f15a1dd02157f09b01955fb7662dd140e8ede7f8dbbf6e2",
+      "base_record_version": 6,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_b",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_b",
+          "party_id": "party_b"
+        },
+        "base_envelope_hash": "093abda60af4891d7eae2a10343adf335a8872c9f5c48c9fd1caa1267aee4c20",
+        "base_envelope_version": 6,
+        "case_id": "gz_case_016",
+        "command_id": "command_gz_case_016_turn_07_field_challenge",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "challenge_id": "challenge_gz_case_016_primary",
+            "source_references": [
+              {
+                "source_hash": "eedba2ca4bc50cbcc42c641ebc3f6439a193c8a30504b09fcf3f2fe7bb4459d8",
+                "source_id": "source_gz_case_016_b",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 68,
+                  "quote": "Person B disputes the corrected date and the linked payment trigger.",
+                  "start": 0
+                }
+              }
+            ],
+            "target_field": "date",
+            "target_namespace": "events",
+            "target_object_id": "event_gz_case_016_due",
+            "type": "record_challenge"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "eedba2ca4bc50cbcc42c641ebc3f6439a193c8a30504b09fcf3f2fe7bb4459d8",
+            "source_id": "source_gz_case_016_b",
+            "span": {
+              "encoding": "utf16",
+              "end": 68,
+              "quote": "Person B disputes the corrected date and the linked payment trigger.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [
+          {
+            "source_hash": "eedba2ca4bc50cbcc42c641ebc3f6439a193c8a30504b09fcf3f2fe7bb4459d8",
+            "source_id": "source_gz_case_016_b",
+            "span": {
+              "encoding": "utf16",
+              "end": 68,
+              "quote": "Person B disputes the corrected date and the linked payment trigger.",
+              "start": 0
+            }
+          }
+        ],
+        "resulting_envelope_hash": "0fafed489b1874afeadc81a6ad8a521e4377fd583e4f0a5d33a868b237cf1589",
+        "resulting_envelope_version": 7,
+        "resulting_record_hash": "d8fc9e52e8f4903ab1d0728bd13c1ed62ddebfe547d8a85d0ed5feab537a9869",
+        "resulting_record_version": 7,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_challenge",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A corrects the due date from 1 June to 3 June after linked payment exists.",
+          "content_hash": "90d195faa932ebf194e495bc0dc3651ee585eb0a8555c0e7d668747d6c57d144",
+          "source_id": "source_gz_case_016_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B disputes the corrected date and the linked payment trigger.",
+          "content_hash": "eedba2ca4bc50cbcc42c641ebc3f6439a193c8a30504b09fcf3f2fe7bb4459d8",
+          "source_id": "source_gz_case_016_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_016_turn_07_field_challenge",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_016_a",
+        "source_gz_case_016_b",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_a",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_a",
+        "party_id": "party_a"
+      },
+      "base_envelope_hash": "0fafed489b1874afeadc81a6ad8a521e4377fd583e4f0a5d33a868b237cf1589",
+      "base_envelope_version": 7,
+      "base_record_hash": "d8fc9e52e8f4903ab1d0728bd13c1ed62ddebfe547d8a85d0ed5feab537a9869",
+      "base_record_version": 7,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_a",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_a",
+          "party_id": "party_a"
+        },
+        "base_envelope_hash": "0fafed489b1874afeadc81a6ad8a521e4377fd583e4f0a5d33a868b237cf1589",
+        "base_envelope_version": 7,
+        "case_id": "gz_case_016",
+        "command_id": "command_gz_case_016_turn_08_owner_rejects_challenge",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "challenge_id": "challenge_gz_case_016_primary",
+            "resolution": "rejected",
+            "resolution_event_id": "event_gz_case_016_challenge_rejected",
+            "resolution_source_references": [
+              {
+                "source_hash": "90d195faa932ebf194e495bc0dc3651ee585eb0a8555c0e7d668747d6c57d144",
+                "source_id": "source_gz_case_016_a",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 81,
+                  "quote": "Person A corrects the due date from 1 June to 3 June after linked payment exists.",
+                  "start": 0
+                }
+              }
+            ],
+            "type": "resolve_challenge"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "90d195faa932ebf194e495bc0dc3651ee585eb0a8555c0e7d668747d6c57d144",
+            "source_id": "source_gz_case_016_a",
+            "span": {
+              "encoding": "utf16",
+              "end": 81,
+              "quote": "Person A corrects the due date from 1 June to 3 June after linked payment exists.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [
+          {
+            "source_hash": "90d195faa932ebf194e495bc0dc3651ee585eb0a8555c0e7d668747d6c57d144",
+            "source_id": "source_gz_case_016_a",
+            "span": {
+              "encoding": "utf16",
+              "end": 81,
+              "quote": "Person A corrects the due date from 1 June to 3 June after linked payment exists.",
+              "start": 0
+            }
+          }
+        ],
+        "resulting_envelope_hash": "9bcbfdc61edce292f6d7208e473c578cf0039db7c3976c92a396db893887cfc1",
+        "resulting_envelope_version": 8,
+        "resulting_record_hash": "4f6de4343832ceb8c9de8b8195f12172cc0fd5d265020a91684e6318566a21bd",
+        "resulting_record_version": 8,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_challenge",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A corrects the due date from 1 June to 3 June after linked payment exists.",
+          "content_hash": "90d195faa932ebf194e495bc0dc3651ee585eb0a8555c0e7d668747d6c57d144",
+          "source_id": "source_gz_case_016_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B disputes the corrected date and the linked payment trigger.",
+          "content_hash": "eedba2ca4bc50cbcc42c641ebc3f6439a193c8a30504b09fcf3f2fe7bb4459d8",
+          "source_id": "source_gz_case_016_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_016_turn_08_owner_rejects_challenge",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_016_a",
+        "source_gz_case_016_b",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "9bcbfdc61edce292f6d7208e473c578cf0039db7c3976c92a396db893887cfc1",
+      "base_envelope_version": 8,
+      "base_record_hash": "4f6de4343832ceb8c9de8b8195f12172cc0fd5d265020a91684e6318566a21bd",
+      "base_record_version": 8,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "9bcbfdc61edce292f6d7208e473c578cf0039db7c3976c92a396db893887cfc1",
+        "base_envelope_version": 8,
+        "case_id": "gz_case_016",
+        "command_id": "command_gz_case_016_turn_09_formation_check",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [
+              "A later correction changes the linked due event and must not split identities."
+            ],
+            "lock_blockers": [
+              "material_dispute_open"
+            ],
+            "lock_prerequisites": [
+              "party_disagreement_preserved"
+            ],
+            "open_required_fields": [],
+            "type": "set_formation_requirements",
+            "uncertainties": [
+              "review_checkpoint_9"
+            ]
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "ec0323141929a29cd036a5f79026fd2f1514dbc6c88778b3d11096c643e61b59",
+        "resulting_envelope_version": 9,
+        "resulting_record_hash": "164fe09bd25dc9821a0c2840fc68e4f9b0aa00737170a775ca009d425fc06055",
+        "resulting_record_version": 9,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_identity"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_party_participation",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A corrects the due date from 1 June to 3 June after linked payment exists.",
+          "content_hash": "90d195faa932ebf194e495bc0dc3651ee585eb0a8555c0e7d668747d6c57d144",
+          "source_id": "source_gz_case_016_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B disputes the corrected date and the linked payment trigger.",
+          "content_hash": "eedba2ca4bc50cbcc42c641ebc3f6439a193c8a30504b09fcf3f2fe7bb4459d8",
+          "source_id": "source_gz_case_016_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_016_turn_09_formation_check",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_016_a",
+        "source_gz_case_016_b",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "ec0323141929a29cd036a5f79026fd2f1514dbc6c88778b3d11096c643e61b59",
+      "base_envelope_version": 9,
+      "base_record_hash": "164fe09bd25dc9821a0c2840fc68e4f9b0aa00737170a775ca009d425fc06055",
+      "base_record_version": 9,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "ec0323141929a29cd036a5f79026fd2f1514dbc6c88778b3d11096c643e61b59",
+        "base_envelope_version": 9,
+        "case_id": "gz_case_016",
+        "command_id": "command_gz_case_016_turn_10_formation_check",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [
+              "A later correction changes the linked due event and must not split identities."
+            ],
+            "lock_blockers": [
+              "material_dispute_open"
+            ],
+            "lock_prerequisites": [
+              "party_disagreement_preserved"
+            ],
+            "open_required_fields": [],
+            "type": "set_formation_requirements",
+            "uncertainties": [
+              "review_checkpoint_10"
+            ]
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "32db962db9e54ff673b8d9e4927c53c716308ea8f781cac04f2137f3cc910fe5",
+        "resulting_envelope_version": 10,
+        "resulting_record_hash": "aaeedc865ec9c601672e659606b2e929965011dedb93ac33772a6d8ff773cf3c",
+        "resulting_record_version": 10,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_identity"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_party_participation",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A corrects the due date from 1 June to 3 June after linked payment exists.",
+          "content_hash": "90d195faa932ebf194e495bc0dc3651ee585eb0a8555c0e7d668747d6c57d144",
+          "source_id": "source_gz_case_016_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B disputes the corrected date and the linked payment trigger.",
+          "content_hash": "eedba2ca4bc50cbcc42c641ebc3f6439a193c8a30504b09fcf3f2fe7bb4459d8",
+          "source_id": "source_gz_case_016_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_016_turn_10_formation_check",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_016_a",
+        "source_gz_case_016_b",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "32db962db9e54ff673b8d9e4927c53c716308ea8f781cac04f2137f3cc910fe5",
+      "base_envelope_version": 10,
+      "base_record_hash": "aaeedc865ec9c601672e659606b2e929965011dedb93ac33772a6d8ff773cf3c",
+      "base_record_version": 10,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "32db962db9e54ff673b8d9e4927c53c716308ea8f781cac04f2137f3cc910fe5",
+        "base_envelope_version": 10,
+        "case_id": "gz_case_016",
+        "command_id": "command_gz_case_016_turn_11_formation_check",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [
+              "A later correction changes the linked due event and must not split identities."
+            ],
+            "lock_blockers": [
+              "material_dispute_open"
+            ],
+            "lock_prerequisites": [
+              "party_disagreement_preserved"
+            ],
+            "open_required_fields": [],
+            "type": "set_formation_requirements",
+            "uncertainties": [
+              "review_checkpoint_11"
+            ]
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "e2a2a78ae3fb4dbabb8cb9cb4b1ca243d08f2eb4ba8433c9339e7eb8df788883",
+        "resulting_envelope_version": 11,
+        "resulting_record_hash": "bbdfec8bc0ce82ab014c91e8b80d303323d9253ea56d6c624627aed9c0500a72",
+        "resulting_record_version": 11,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_identity"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_party_participation",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A corrects the due date from 1 June to 3 June after linked payment exists.",
+          "content_hash": "90d195faa932ebf194e495bc0dc3651ee585eb0a8555c0e7d668747d6c57d144",
+          "source_id": "source_gz_case_016_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B disputes the corrected date and the linked payment trigger.",
+          "content_hash": "eedba2ca4bc50cbcc42c641ebc3f6439a193c8a30504b09fcf3f2fe7bb4459d8",
+          "source_id": "source_gz_case_016_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_016_turn_11_formation_check",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_016_a",
+        "source_gz_case_016_b",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "e2a2a78ae3fb4dbabb8cb9cb4b1ca243d08f2eb4ba8433c9339e7eb8df788883",
+      "base_envelope_version": 11,
+      "base_record_hash": "bbdfec8bc0ce82ab014c91e8b80d303323d9253ea56d6c624627aed9c0500a72",
+      "base_record_version": 11,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "e2a2a78ae3fb4dbabb8cb9cb4b1ca243d08f2eb4ba8433c9339e7eb8df788883",
+        "base_envelope_version": 11,
+        "case_id": "gz_case_016",
+        "command_id": "command_gz_case_016_turn_12_formation_check",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [
+              "A later correction changes the linked due event and must not split identities."
+            ],
+            "lock_blockers": [
+              "material_dispute_open"
+            ],
+            "lock_prerequisites": [
+              "party_disagreement_preserved"
+            ],
+            "open_required_fields": [],
+            "type": "set_formation_requirements",
+            "uncertainties": [
+              "review_checkpoint_12"
+            ]
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "e2ecc7a42b5ad2cd9ac81b418514bab9c36d98b232e6ac4d7281225e8aa37c5a",
+        "resulting_envelope_version": 12,
+        "resulting_record_hash": "70a0a345f85a29b3e32a530e19718c72ac40b2a6b631511ab7a6593570276760",
+        "resulting_record_version": 12,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_identity"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_party_participation",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A corrects the due date from 1 June to 3 June after linked payment exists.",
+          "content_hash": "90d195faa932ebf194e495bc0dc3651ee585eb0a8555c0e7d668747d6c57d144",
+          "source_id": "source_gz_case_016_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B disputes the corrected date and the linked payment trigger.",
+          "content_hash": "eedba2ca4bc50cbcc42c641ebc3f6439a193c8a30504b09fcf3f2fe7bb4459d8",
+          "source_id": "source_gz_case_016_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_016_turn_12_formation_check",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_016_a",
+        "source_gz_case_016_b",
+        "source_system_initialization"
+      ]
+    }
+  ]
+}

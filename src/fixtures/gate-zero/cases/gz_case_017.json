@@ -1,0 +1,1406 @@
+{
+  "case_id": "gz_case_017",
+  "coverage": {
+    "failure": [
+      "source_span_grounding",
+      "fail_closed_paths"
+    ],
+    "success": [
+      "source_span_grounding",
+      "incremental_question_formation"
+    ]
+  },
+  "expected_adjudication_input": null,
+  "final_envelope": {
+    "actors": {},
+    "agreements": {},
+    "claimed_losses": {},
+    "classification": {
+      "authority": {
+        "adjudication_eligible": false,
+        "authority_detail": "initial classification placeholder",
+        "authority_kind": "system_observation",
+        "evidence_ids": [],
+        "introduced_by": {
+          "actor_id": "juryai_system",
+          "actor_type": "system"
+        },
+        "introduced_in_record_version": 1,
+        "last_material_command_id": "command_system_initialization",
+        "last_material_record_version": 1,
+        "party_stances": {
+          "party_a": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          },
+          "party_b": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          }
+        },
+        "resolution_status": "unresolved",
+        "source_references": [
+          {
+            "source_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+            "source_id": "source_system_initialization",
+            "span": null
+          }
+        ],
+        "subject_actor_ids": []
+      },
+      "case_category": null,
+      "maturity": "undetermined",
+      "required_fact_profile": null,
+      "safety_flags": [],
+      "scope_flags": [],
+      "suitability": "undetermined"
+    },
+    "control": {
+      "case_id": "gz_case_017",
+      "deadlines": {},
+      "eligibility": {
+        "reason_codes": [],
+        "status": "undetermined"
+      },
+      "envelope_hash": "5c04946b838390a5942158847c92870d86b38cac4bdb144508628b79e51fca01",
+      "envelope_version": 6,
+      "lock": {
+        "lock_event_id": null,
+        "locked_at": null,
+        "mode": null,
+        "output_scope": null,
+        "status": "unlocked"
+      },
+      "protocol": {
+        "non_participation_mode": "prohibited",
+        "protocol_id": "commercial_fairness_v2",
+        "protocol_version": "juryai-formation-protocol-v2.0.0"
+      },
+      "record_hash": "7db647a0e77dc184ab3c4f6e8d0e4937616a18b1950d52e33fac014d93457dd9",
+      "record_version": 6,
+      "schema_version": "juryai-case-envelope-v2.0.0",
+      "workflow_state": "person_a_formation"
+    },
+    "deliverables": {},
+    "events": {},
+    "evidence": {},
+    "formation": {
+      "ambiguities": [],
+      "challenges": [],
+      "confirmations": {
+        "party_a": null,
+        "party_b": null
+      },
+      "disclosure": {
+        "detailed_a_framing": "embargoed",
+        "disclosure_event_id": null,
+        "person_b_independent_account_source_id": null
+      },
+      "lock_blockers": [],
+      "lock_prerequisites": [],
+      "material_change_events": [],
+      "non_participation": {
+        "correction_opportunity": "not_started",
+        "deadline_expired_event_id": null,
+        "invitation_event_id": null,
+        "notice_event_id": null,
+        "response_deadline": null
+      },
+      "open_required_fields": [],
+      "prior_locks": [],
+      "uncertainties": []
+    },
+    "parties": {
+      "party_a": {
+        "authenticated_subject_id": "subject_party_a",
+        "consent_event_id": "event_gz_case_017_consent_a",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_017_identity_a",
+        "participation_state": "active",
+        "party_id": "party_a",
+        "role": "person_a"
+      },
+      "party_b": {
+        "authenticated_subject_id": "subject_party_b",
+        "consent_event_id": "event_gz_case_017_consent_b",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_017_identity_b",
+        "participation_state": "active",
+        "party_id": "party_b",
+        "role": "person_b"
+      }
+    },
+    "payments": {
+      "payment_gz_case_017_deposit": {
+        "amount_minor": 500000,
+        "authority": {
+          "adjudication_eligible": true,
+          "authority_detail": "Authenticated party_a assertion",
+          "authority_kind": "party_assertion",
+          "evidence_ids": [],
+          "introduced_by": {
+            "actor_id": "subject_party_a",
+            "actor_type": "party"
+          },
+          "introduced_in_record_version": 2,
+          "last_material_command_id": "command_gz_case_017_turn_04_distinct_unicode_source",
+          "last_material_record_version": 3,
+          "party_stances": {
+            "party_a": {
+              "response_event_id": null,
+              "stance": "asserted"
+            },
+            "party_b": {
+              "response_event_id": null,
+              "stance": "unresponded"
+            }
+          },
+          "resolution_status": "unresolved",
+          "source_references": [
+            {
+              "source_hash": "18a1705ecbb6004a52347409a0fd4de79db9822611074795851bf05274b09d36",
+              "source_id": "source_gz_case_017_unicode",
+              "span": {
+                "encoding": "utf16",
+                "end": 51,
+                "quote": "Deposit 💰 was THB 5,000; café approval came later.",
+                "start": 0
+              }
+            },
+            {
+              "source_hash": "01f7295c7ef6d7eae11f6650e95412278f750e97ddda01d2d957ccdc4d7d2e4b",
+              "source_id": "source_gz_case_017_decomposed",
+              "span": {
+                "encoding": "utf16",
+                "end": 63,
+                "quote": "café is visually similar but has different Unicode code units.",
+                "start": 0
+              }
+            }
+          ],
+          "subject_actor_ids": [
+            "subject_party_a"
+          ]
+        },
+        "currency": "THB",
+        "due_trigger": "after approval stated in the decomposed source",
+        "from_actor_id": null,
+        "linked_deliverable_ids": [],
+        "linked_event_ids": [],
+        "linked_obligation_ids": [],
+        "payment_id": "payment_gz_case_017_deposit",
+        "payment_status": "paid",
+        "to_actor_id": null
+      }
+    },
+    "positions": {},
+    "requested_outcomes": {}
+  },
+  "fixture_version": "juryai-gate-zero-case-fixture-v1.0.0",
+  "initial_envelope": {
+    "actors": {},
+    "agreements": {},
+    "claimed_losses": {},
+    "classification": {
+      "authority": {
+        "adjudication_eligible": false,
+        "authority_detail": "initial classification placeholder",
+        "authority_kind": "system_observation",
+        "evidence_ids": [],
+        "introduced_by": {
+          "actor_id": "juryai_system",
+          "actor_type": "system"
+        },
+        "introduced_in_record_version": 1,
+        "last_material_command_id": "command_system_initialization",
+        "last_material_record_version": 1,
+        "party_stances": {
+          "party_a": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          },
+          "party_b": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          }
+        },
+        "resolution_status": "unresolved",
+        "source_references": [
+          {
+            "source_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+            "source_id": "source_system_initialization",
+            "span": null
+          }
+        ],
+        "subject_actor_ids": []
+      },
+      "case_category": null,
+      "maturity": "undetermined",
+      "required_fact_profile": null,
+      "safety_flags": [],
+      "scope_flags": [],
+      "suitability": "undetermined"
+    },
+    "control": {
+      "case_id": "gz_case_017",
+      "deadlines": {},
+      "eligibility": {
+        "reason_codes": [],
+        "status": "undetermined"
+      },
+      "envelope_hash": "6fee051fdbb5ede8bda0de6d8617dca5b954a8fc39667ff8382f006185d55dcf",
+      "envelope_version": 1,
+      "lock": {
+        "lock_event_id": null,
+        "locked_at": null,
+        "mode": null,
+        "output_scope": null,
+        "status": "unlocked"
+      },
+      "protocol": {
+        "non_participation_mode": "prohibited",
+        "protocol_id": "commercial_fairness_v2",
+        "protocol_version": "juryai-formation-protocol-v2.0.0"
+      },
+      "record_hash": "8e6eb3ebcab54ac09e90fa037ff1aea30c394a8439a76718387b0b2f41795ec4",
+      "record_version": 1,
+      "schema_version": "juryai-case-envelope-v2.0.0",
+      "workflow_state": "person_a_formation"
+    },
+    "deliverables": {},
+    "events": {},
+    "evidence": {},
+    "formation": {
+      "ambiguities": [],
+      "challenges": [],
+      "confirmations": {
+        "party_a": null,
+        "party_b": null
+      },
+      "disclosure": {
+        "detailed_a_framing": "embargoed",
+        "disclosure_event_id": null,
+        "person_b_independent_account_source_id": null
+      },
+      "lock_blockers": [],
+      "lock_prerequisites": [],
+      "material_change_events": [],
+      "non_participation": {
+        "correction_opportunity": "not_started",
+        "deadline_expired_event_id": null,
+        "invitation_event_id": null,
+        "notice_event_id": null,
+        "response_deadline": null
+      },
+      "open_required_fields": [],
+      "prior_locks": [],
+      "uncertainties": []
+    },
+    "parties": {
+      "party_a": {
+        "authenticated_subject_id": "subject_party_a",
+        "consent_event_id": "event_gz_case_017_consent_a",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_017_identity_a",
+        "participation_state": "active",
+        "party_id": "party_a",
+        "role": "person_a"
+      },
+      "party_b": {
+        "authenticated_subject_id": "subject_party_b",
+        "consent_event_id": "event_gz_case_017_consent_b",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_017_identity_b",
+        "participation_state": "active",
+        "party_id": "party_b",
+        "role": "person_b"
+      }
+    },
+    "payments": {},
+    "positions": {},
+    "requested_outcomes": {}
+  },
+  "matrix_version": "juryai-gate-zero-coverage-matrix-v1.0.0",
+  "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+  "title": "Unicode and surrogate-pair source spans",
+  "turns": [
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_a",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_a",
+        "party_id": "party_a"
+      },
+      "base_envelope_hash": "6fee051fdbb5ede8bda0de6d8617dca5b954a8fc39667ff8382f006185d55dcf",
+      "base_envelope_version": 1,
+      "base_record_hash": "8e6eb3ebcab54ac09e90fa037ff1aea30c394a8439a76718387b0b2f41795ec4",
+      "base_record_version": 1,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_a",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_a",
+          "party_id": "party_a"
+        },
+        "base_envelope_hash": "6fee051fdbb5ede8bda0de6d8617dca5b954a8fc39667ff8382f006185d55dcf",
+        "base_envelope_version": 1,
+        "case_id": "gz_case_017",
+        "command_id": "command_gz_case_017_exact",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "namespace": "payments",
+            "object": {
+              "amount_minor": 500000,
+              "authority": {
+                "adjudication_eligible": true,
+                "authority_detail": "Authenticated party_a assertion",
+                "authority_kind": "party_assertion",
+                "evidence_ids": [],
+                "introduced_by": {
+                  "actor_id": "subject_party_a",
+                  "actor_type": "party"
+                },
+                "introduced_in_record_version": 2,
+                "last_material_command_id": "command_gz_case_017_exact",
+                "last_material_record_version": 2,
+                "party_stances": {
+                  "party_a": {
+                    "response_event_id": null,
+                    "stance": "asserted"
+                  },
+                  "party_b": {
+                    "response_event_id": null,
+                    "stance": "unresponded"
+                  }
+                },
+                "resolution_status": "unresolved",
+                "source_references": [
+                  {
+                    "source_hash": "18a1705ecbb6004a52347409a0fd4de79db9822611074795851bf05274b09d36",
+                    "source_id": "source_gz_case_017_unicode",
+                    "span": {
+                      "encoding": "utf16",
+                      "end": 51,
+                      "quote": "Deposit 💰 was THB 5,000; café approval came later.",
+                      "start": 0
+                    }
+                  }
+                ],
+                "subject_actor_ids": [
+                  "subject_party_a"
+                ]
+              },
+              "currency": "THB",
+              "due_trigger": null,
+              "from_actor_id": null,
+              "linked_deliverable_ids": [],
+              "linked_event_ids": [],
+              "linked_obligation_ids": [],
+              "payment_id": "payment_gz_case_017_deposit",
+              "payment_status": "paid",
+              "to_actor_id": null
+            },
+            "type": "add_object"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "18a1705ecbb6004a52347409a0fd4de79db9822611074795851bf05274b09d36",
+            "source_id": "source_gz_case_017_unicode",
+            "span": {
+              "encoding": "utf16",
+              "end": 51,
+              "quote": "Deposit 💰 was THB 5,000; café approval came later.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [
+          {
+            "source_hash": "18a1705ecbb6004a52347409a0fd4de79db9822611074795851bf05274b09d36",
+            "source_id": "source_gz_case_017_unicode",
+            "span": {
+              "encoding": "utf16",
+              "end": 51,
+              "quote": "Deposit 💰 was THB 5,000; café approval came later.",
+              "start": 0
+            }
+          }
+        ],
+        "resulting_envelope_hash": "fbbb02482c365961c2885ce410264a5f2c5376d419ddb477d6ab71c4292064ae",
+        "resulting_envelope_version": 2,
+        "resulting_record_hash": "a54eb9d343f0f6221ba20e7ad6a2061d6770b260ee960399fbc733b6d702f470",
+        "resulting_record_version": 2,
+        "workflow_state": "person_a_formation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "replace_own_field",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Deposit 💰 was THB 5,000; café approval came later.",
+          "content_hash": "18a1705ecbb6004a52347409a0fd4de79db9822611074795851bf05274b09d36",
+          "source_id": "source_gz_case_017_unicode",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_017_turn_01_exact_surrogate_pair_span",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_017_unicode",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_a",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_a",
+        "party_id": "party_a"
+      },
+      "base_envelope_hash": "fbbb02482c365961c2885ce410264a5f2c5376d419ddb477d6ab71c4292064ae",
+      "base_envelope_version": 2,
+      "base_record_hash": "a54eb9d343f0f6221ba20e7ad6a2061d6770b260ee960399fbc733b6d702f470",
+      "base_record_version": 2,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_a",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_a",
+          "party_id": "party_a"
+        },
+        "base_envelope_hash": "fbbb02482c365961c2885ce410264a5f2c5376d419ddb477d6ab71c4292064ae",
+        "base_envelope_version": 2,
+        "case_id": "gz_case_017",
+        "command_id": "command_gz_case_017_turn_02_surrogate_offset_rejected",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "expected_prior_value": null,
+            "field": "due_trigger",
+            "namespace": "payments",
+            "object_id": "payment_gz_case_017_deposit",
+            "replacement_value": "after approval",
+            "type": "replace_own_field"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "18a1705ecbb6004a52347409a0fd4de79db9822611074795851bf05274b09d36",
+            "source_id": "source_gz_case_017_unicode",
+            "span": {
+              "encoding": "utf16",
+              "end": 50,
+              "quote": "Deposit 💰 was THB 5,000; café approval came later.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "rejected",
+        "envelope_version_delta": 0,
+        "evidence_actions": [],
+        "exact_no_mutation": true,
+        "failure_reason": "invalid_source_reference",
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 0,
+        "required_source_references": [],
+        "resulting_envelope_hash": "fbbb02482c365961c2885ce410264a5f2c5376d419ddb477d6ab71c4292064ae",
+        "resulting_envelope_version": 2,
+        "resulting_record_hash": "a54eb9d343f0f6221ba20e7ad6a2061d6770b260ee960399fbc733b6d702f470",
+        "resulting_record_version": 2,
+        "workflow_state": "person_a_formation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "replace_own_field",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Deposit 💰 was THB 5,000; café approval came later.",
+          "content_hash": "18a1705ecbb6004a52347409a0fd4de79db9822611074795851bf05274b09d36",
+          "source_id": "source_gz_case_017_unicode",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_017_turn_02_surrogate_offset_rejected",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_017_unicode",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_a",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_a",
+        "party_id": "party_a"
+      },
+      "base_envelope_hash": "fbbb02482c365961c2885ce410264a5f2c5376d419ddb477d6ab71c4292064ae",
+      "base_envelope_version": 2,
+      "base_record_hash": "a54eb9d343f0f6221ba20e7ad6a2061d6770b260ee960399fbc733b6d702f470",
+      "base_record_version": 2,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_a",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_a",
+          "party_id": "party_a"
+        },
+        "base_envelope_hash": "fbbb02482c365961c2885ce410264a5f2c5376d419ddb477d6ab71c4292064ae",
+        "base_envelope_version": 2,
+        "case_id": "gz_case_017",
+        "command_id": "command_gz_case_017_turn_03_wrong_hash_rejected",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "expected_prior_value": null,
+            "field": "due_trigger",
+            "namespace": "payments",
+            "object_id": "payment_gz_case_017_deposit",
+            "replacement_value": "after approval",
+            "type": "replace_own_field"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "source_id": "source_gz_case_017_unicode",
+            "span": {
+              "encoding": "utf16",
+              "end": 51,
+              "quote": "Deposit 💰 was THB 5,000; café approval came later.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "rejected",
+        "envelope_version_delta": 0,
+        "evidence_actions": [],
+        "exact_no_mutation": true,
+        "failure_reason": "invalid_source_reference",
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 0,
+        "required_source_references": [],
+        "resulting_envelope_hash": "fbbb02482c365961c2885ce410264a5f2c5376d419ddb477d6ab71c4292064ae",
+        "resulting_envelope_version": 2,
+        "resulting_record_hash": "a54eb9d343f0f6221ba20e7ad6a2061d6770b260ee960399fbc733b6d702f470",
+        "resulting_record_version": 2,
+        "workflow_state": "person_a_formation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "replace_own_field",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Deposit 💰 was THB 5,000; café approval came later.",
+          "content_hash": "18a1705ecbb6004a52347409a0fd4de79db9822611074795851bf05274b09d36",
+          "source_id": "source_gz_case_017_unicode",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_017_turn_03_wrong_hash_rejected",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_017_unicode",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_a",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_a",
+        "party_id": "party_a"
+      },
+      "base_envelope_hash": "fbbb02482c365961c2885ce410264a5f2c5376d419ddb477d6ab71c4292064ae",
+      "base_envelope_version": 2,
+      "base_record_hash": "a54eb9d343f0f6221ba20e7ad6a2061d6770b260ee960399fbc733b6d702f470",
+      "base_record_version": 2,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_a",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_a",
+          "party_id": "party_a"
+        },
+        "base_envelope_hash": "fbbb02482c365961c2885ce410264a5f2c5376d419ddb477d6ab71c4292064ae",
+        "base_envelope_version": 2,
+        "case_id": "gz_case_017",
+        "command_id": "command_gz_case_017_turn_04_distinct_unicode_source",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "expected_prior_value": null,
+            "field": "due_trigger",
+            "namespace": "payments",
+            "object_id": "payment_gz_case_017_deposit",
+            "replacement_value": "after approval stated in the decomposed source",
+            "type": "replace_own_field"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "01f7295c7ef6d7eae11f6650e95412278f750e97ddda01d2d957ccdc4d7d2e4b",
+            "source_id": "source_gz_case_017_decomposed",
+            "span": {
+              "encoding": "utf16",
+              "end": 63,
+              "quote": "café is visually similar but has different Unicode code units.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [
+          {
+            "source_hash": "01f7295c7ef6d7eae11f6650e95412278f750e97ddda01d2d957ccdc4d7d2e4b",
+            "source_id": "source_gz_case_017_decomposed",
+            "span": {
+              "encoding": "utf16",
+              "end": 63,
+              "quote": "café is visually similar but has different Unicode code units.",
+              "start": 0
+            }
+          }
+        ],
+        "resulting_envelope_hash": "628876269596778fab9f31fcd6f23118b8c7eb20960b1693f56bf6542eef5b1a",
+        "resulting_envelope_version": 3,
+        "resulting_record_hash": "bfe3771e8e77c79ee7124e3fed7724122e1e252d83862b8abc336460ca3bca4e",
+        "resulting_record_version": 3,
+        "workflow_state": "person_a_formation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "replace_own_field",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "café is visually similar but has different Unicode code units.",
+          "content_hash": "01f7295c7ef6d7eae11f6650e95412278f750e97ddda01d2d957ccdc4d7d2e4b",
+          "source_id": "source_gz_case_017_decomposed",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "Deposit 💰 was THB 5,000; café approval came later.",
+          "content_hash": "18a1705ecbb6004a52347409a0fd4de79db9822611074795851bf05274b09d36",
+          "source_id": "source_gz_case_017_unicode",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_017_turn_04_distinct_unicode_source",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_017_decomposed",
+        "source_gz_case_017_unicode",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_a",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_a",
+        "party_id": "party_a"
+      },
+      "base_envelope_hash": "628876269596778fab9f31fcd6f23118b8c7eb20960b1693f56bf6542eef5b1a",
+      "base_envelope_version": 3,
+      "base_record_hash": "bfe3771e8e77c79ee7124e3fed7724122e1e252d83862b8abc336460ca3bca4e",
+      "base_record_version": 3,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_a",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_a",
+          "party_id": "party_a"
+        },
+        "base_envelope_hash": "628876269596778fab9f31fcd6f23118b8c7eb20960b1693f56bf6542eef5b1a",
+        "base_envelope_version": 3,
+        "case_id": "gz_case_017",
+        "command_id": "command_gz_case_017_turn_05_stale_unicode_correction_rejected",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "expected_prior_value": null,
+            "field": "due_trigger",
+            "namespace": "payments",
+            "object_id": "payment_gz_case_017_deposit",
+            "replacement_value": "stale overwrite",
+            "type": "replace_own_field"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "18a1705ecbb6004a52347409a0fd4de79db9822611074795851bf05274b09d36",
+            "source_id": "source_gz_case_017_unicode",
+            "span": {
+              "encoding": "utf16",
+              "end": 51,
+              "quote": "Deposit 💰 was THB 5,000; café approval came later.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "rejected",
+        "envelope_version_delta": 0,
+        "evidence_actions": [],
+        "exact_no_mutation": true,
+        "failure_reason": "stale_prior_value",
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 0,
+        "required_source_references": [],
+        "resulting_envelope_hash": "628876269596778fab9f31fcd6f23118b8c7eb20960b1693f56bf6542eef5b1a",
+        "resulting_envelope_version": 3,
+        "resulting_record_hash": "bfe3771e8e77c79ee7124e3fed7724122e1e252d83862b8abc336460ca3bca4e",
+        "resulting_record_version": 3,
+        "workflow_state": "person_a_formation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "replace_own_field",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "café is visually similar but has different Unicode code units.",
+          "content_hash": "01f7295c7ef6d7eae11f6650e95412278f750e97ddda01d2d957ccdc4d7d2e4b",
+          "source_id": "source_gz_case_017_decomposed",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "Deposit 💰 was THB 5,000; café approval came later.",
+          "content_hash": "18a1705ecbb6004a52347409a0fd4de79db9822611074795851bf05274b09d36",
+          "source_id": "source_gz_case_017_unicode",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_017_turn_05_stale_unicode_correction_rejected",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_017_decomposed",
+        "source_gz_case_017_unicode",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "628876269596778fab9f31fcd6f23118b8c7eb20960b1693f56bf6542eef5b1a",
+      "base_envelope_version": 3,
+      "base_record_hash": "bfe3771e8e77c79ee7124e3fed7724122e1e252d83862b8abc336460ca3bca4e",
+      "base_record_version": 3,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "628876269596778fab9f31fcd6f23118b8c7eb20960b1693f56bf6542eef5b1a",
+        "base_envelope_version": 3,
+        "case_id": "gz_case_017",
+        "command_id": "command_gz_case_017_turn_06_grounding_checkpoint",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [],
+            "lock_blockers": [],
+            "lock_prerequisites": [],
+            "open_required_fields": [
+              "payments.payment_gz_case_017_deposit.due_trigger"
+            ],
+            "type": "set_formation_requirements",
+            "uncertainties": [
+              "Unicode source identity remains explicit."
+            ]
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": {
+          "addressed_to_party": "party_a",
+          "field": "due_trigger",
+          "namespace": "payments",
+          "object_id": "payment_gz_case_017_deposit",
+          "reason_code": "verify_exact_unicode_grounding"
+        },
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "df240fb8e3b7e879d2300870cb354f647d2de7fddfe902b8c6d255c4815cba4b",
+        "resulting_envelope_version": 4,
+        "resulting_record_hash": "e4305aa826c2df5d0e0499cb8ba7ea8d10f9742e169ab38c0b9e06fc2d017600",
+        "resulting_record_version": 4,
+        "workflow_state": "person_a_formation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_party_identity",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "café is visually similar but has different Unicode code units.",
+          "content_hash": "01f7295c7ef6d7eae11f6650e95412278f750e97ddda01d2d957ccdc4d7d2e4b",
+          "source_id": "source_gz_case_017_decomposed",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "Deposit 💰 was THB 5,000; café approval came later.",
+          "content_hash": "18a1705ecbb6004a52347409a0fd4de79db9822611074795851bf05274b09d36",
+          "source_id": "source_gz_case_017_unicode",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_017_turn_06_grounding_checkpoint",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_017_decomposed",
+        "source_gz_case_017_unicode",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "df240fb8e3b7e879d2300870cb354f647d2de7fddfe902b8c6d255c4815cba4b",
+      "base_envelope_version": 4,
+      "base_record_hash": "e4305aa826c2df5d0e0499cb8ba7ea8d10f9742e169ab38c0b9e06fc2d017600",
+      "base_record_version": 4,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "df240fb8e3b7e879d2300870cb354f647d2de7fddfe902b8c6d255c4815cba4b",
+        "base_envelope_version": 4,
+        "case_id": "gz_case_017",
+        "command_id": "command_gz_case_017_turn_07_grounding_checkpoint",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [],
+            "lock_blockers": [],
+            "lock_prerequisites": [],
+            "open_required_fields": [
+              "payments.payment_gz_case_017_deposit.due_trigger"
+            ],
+            "type": "set_formation_requirements",
+            "uncertainties": [
+              "Unicode source identity remains explicit."
+            ]
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "5e8107bcc14cbd91a2c6f9ddb4ee300b6b5c156a098356e36aa42c147eb4fee6",
+        "resulting_envelope_version": 5,
+        "resulting_record_hash": "13d2e12c8a976f05d86c2f690e084dd702a95d29adbdd8715a0c8ef59926d175",
+        "resulting_record_version": 5,
+        "workflow_state": "person_a_formation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_party_identity",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "café is visually similar but has different Unicode code units.",
+          "content_hash": "01f7295c7ef6d7eae11f6650e95412278f750e97ddda01d2d957ccdc4d7d2e4b",
+          "source_id": "source_gz_case_017_decomposed",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "Deposit 💰 was THB 5,000; café approval came later.",
+          "content_hash": "18a1705ecbb6004a52347409a0fd4de79db9822611074795851bf05274b09d36",
+          "source_id": "source_gz_case_017_unicode",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_017_turn_07_grounding_checkpoint",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_017_decomposed",
+        "source_gz_case_017_unicode",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "5e8107bcc14cbd91a2c6f9ddb4ee300b6b5c156a098356e36aa42c147eb4fee6",
+      "base_envelope_version": 5,
+      "base_record_hash": "13d2e12c8a976f05d86c2f690e084dd702a95d29adbdd8715a0c8ef59926d175",
+      "base_record_version": 5,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "5e8107bcc14cbd91a2c6f9ddb4ee300b6b5c156a098356e36aa42c147eb4fee6",
+        "base_envelope_version": 5,
+        "case_id": "gz_case_017",
+        "command_id": "command_gz_case_017_turn_08_grounding_checkpoint",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [],
+            "lock_blockers": [],
+            "lock_prerequisites": [],
+            "open_required_fields": [],
+            "type": "set_formation_requirements",
+            "uncertainties": []
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "5c04946b838390a5942158847c92870d86b38cac4bdb144508628b79e51fca01",
+        "resulting_envelope_version": 6,
+        "resulting_record_hash": "7db647a0e77dc184ab3c4f6e8d0e4937616a18b1950d52e33fac014d93457dd9",
+        "resulting_record_version": 6,
+        "workflow_state": "person_a_formation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_party_identity",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "café is visually similar but has different Unicode code units.",
+          "content_hash": "01f7295c7ef6d7eae11f6650e95412278f750e97ddda01d2d957ccdc4d7d2e4b",
+          "source_id": "source_gz_case_017_decomposed",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "Deposit 💰 was THB 5,000; café approval came later.",
+          "content_hash": "18a1705ecbb6004a52347409a0fd4de79db9822611074795851bf05274b09d36",
+          "source_id": "source_gz_case_017_unicode",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_017_turn_08_grounding_checkpoint",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_017_decomposed",
+        "source_gz_case_017_unicode",
+        "source_system_initialization"
+      ]
+    }
+  ]
+}

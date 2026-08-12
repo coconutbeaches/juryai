@@ -8,6 +8,8 @@
     "test:person-a": "vitest run src/tests/person-a-validation.test.ts src/tests/person-a-evaluation.test.ts src/tests/openai-responses.test.ts",
     "typecheck": "tsc --noEmit",
     "validate:golden": "tsx src/validation/validate-case-record.ts src/fixtures/dry_run_001.golden.json",
+    "freeze:gate-zero-corpus": "tsx src/commands/freeze-gate-zero-corpus.ts --write",
+    "validate:gate-zero-corpus": "tsx src/commands/freeze-gate-zero-corpus.ts",
     "check:ci-test-coverage": "tsx src/commands/check-ci-test-coverage.ts",
     "extract:person-a": "tsx src/commands/extract-person-a.ts",
     "provenance:person-a": "tsx src/commands/run-person-a-provenance.ts",

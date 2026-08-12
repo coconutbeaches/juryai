@@ -1,0 +1,1800 @@
+{
+  "case_id": "gz_case_007",
+  "coverage": {
+    "failure": [
+      "person_b_independent_account",
+      "disclosure_embargo",
+      "consent"
+    ],
+    "success": [
+      "person_a_confirmation",
+      "person_b_independent_account",
+      "disclosure_embargo"
+    ]
+  },
+  "expected_adjudication_input": null,
+  "final_envelope": {
+    "actors": {},
+    "agreements": {},
+    "claimed_losses": {},
+    "classification": {
+      "authority": {
+        "adjudication_eligible": false,
+        "authority_detail": "initial classification placeholder",
+        "authority_kind": "system_observation",
+        "evidence_ids": [],
+        "introduced_by": {
+          "actor_id": "juryai_system",
+          "actor_type": "system"
+        },
+        "introduced_in_record_version": 1,
+        "last_material_command_id": "command_system_initialization",
+        "last_material_record_version": 1,
+        "party_stances": {
+          "party_a": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          },
+          "party_b": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          }
+        },
+        "resolution_status": "unresolved",
+        "source_references": [
+          {
+            "source_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+            "source_id": "source_system_initialization",
+            "span": null
+          }
+        ],
+        "subject_actor_ids": []
+      },
+      "case_category": null,
+      "maturity": "undetermined",
+      "required_fact_profile": null,
+      "safety_flags": [],
+      "scope_flags": [],
+      "suitability": "undetermined"
+    },
+    "control": {
+      "case_id": "gz_case_007",
+      "deadlines": {},
+      "eligibility": {
+        "reason_codes": [],
+        "status": "undetermined"
+      },
+      "envelope_hash": "b37b6ff942b436aaca902cf101239963b106ddfb62e134fed2be3f2e145be27f",
+      "envelope_version": 10,
+      "lock": {
+        "lock_event_id": null,
+        "locked_at": null,
+        "mode": null,
+        "output_scope": null,
+        "status": "unlocked"
+      },
+      "protocol": {
+        "non_participation_mode": "prohibited",
+        "protocol_id": "commercial_fairness_v2",
+        "protocol_version": "juryai-formation-protocol-v2.0.0"
+      },
+      "record_hash": "b67aa341b6a32d00eca2b281a3cf44e8e1f7637e9dfd7662be8ecd1523dc38ef",
+      "record_version": 6,
+      "schema_version": "juryai-case-envelope-v2.0.0",
+      "workflow_state": "disclosure_challenge"
+    },
+    "deliverables": {},
+    "events": {},
+    "evidence": {},
+    "formation": {
+      "ambiguities": [],
+      "challenges": [],
+      "confirmations": {
+        "party_a": null,
+        "party_b": null
+      },
+      "disclosure": {
+        "detailed_a_framing": "disclosed",
+        "disclosure_event_id": "event_gz_case_007_disclosure",
+        "person_b_independent_account_source_id": "source_gz_case_007_b_account"
+      },
+      "lock_blockers": [],
+      "lock_prerequisites": [],
+      "material_change_events": [],
+      "non_participation": {
+        "correction_opportunity": "not_started",
+        "deadline_expired_event_id": null,
+        "invitation_event_id": "event_gz_case_007_invite_b",
+        "notice_event_id": null,
+        "response_deadline": null
+      },
+      "open_required_fields": [],
+      "prior_locks": [],
+      "uncertainties": []
+    },
+    "parties": {
+      "party_a": {
+        "authenticated_subject_id": "subject_party_a",
+        "consent_event_id": "event_gz_case_007_consent_a",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_007_identity_a",
+        "participation_state": "active",
+        "party_id": "party_a",
+        "role": "person_a"
+      },
+      "party_b": {
+        "authenticated_subject_id": "subject_party_b",
+        "consent_event_id": "event_gz_case_007_consent_b",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_007_identity_b",
+        "participation_state": "active",
+        "party_id": "party_b",
+        "role": "person_b"
+      }
+    },
+    "payments": {},
+    "positions": {},
+    "requested_outcomes": {}
+  },
+  "fixture_version": "juryai-gate-zero-case-fixture-v1.0.0",
+  "initial_envelope": {
+    "actors": {},
+    "agreements": {},
+    "claimed_losses": {},
+    "classification": {
+      "authority": {
+        "adjudication_eligible": false,
+        "authority_detail": "initial classification placeholder",
+        "authority_kind": "system_observation",
+        "evidence_ids": [],
+        "introduced_by": {
+          "actor_id": "juryai_system",
+          "actor_type": "system"
+        },
+        "introduced_in_record_version": 1,
+        "last_material_command_id": "command_system_initialization",
+        "last_material_record_version": 1,
+        "party_stances": {
+          "party_a": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          },
+          "party_b": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          }
+        },
+        "resolution_status": "unresolved",
+        "source_references": [
+          {
+            "source_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+            "source_id": "source_system_initialization",
+            "span": null
+          }
+        ],
+        "subject_actor_ids": []
+      },
+      "case_category": null,
+      "maturity": "undetermined",
+      "required_fact_profile": null,
+      "safety_flags": [],
+      "scope_flags": [],
+      "suitability": "undetermined"
+    },
+    "control": {
+      "case_id": "gz_case_007",
+      "deadlines": {},
+      "eligibility": {
+        "reason_codes": [],
+        "status": "undetermined"
+      },
+      "envelope_hash": "f58296b077c5de2abf3290d4d84e2f4d921fa8dfe3ce097ee9df1d6a4be4cc2e",
+      "envelope_version": 1,
+      "lock": {
+        "lock_event_id": null,
+        "locked_at": null,
+        "mode": null,
+        "output_scope": null,
+        "status": "unlocked"
+      },
+      "protocol": {
+        "non_participation_mode": "prohibited",
+        "protocol_id": "commercial_fairness_v2",
+        "protocol_version": "juryai-formation-protocol-v2.0.0"
+      },
+      "record_hash": "cefbd319ef4e69dafbd141c5e720e6fa73eaf38eb9c0aa853e1f8e9543e19ded",
+      "record_version": 1,
+      "schema_version": "juryai-case-envelope-v2.0.0",
+      "workflow_state": "person_a_formation"
+    },
+    "deliverables": {},
+    "events": {},
+    "evidence": {},
+    "formation": {
+      "ambiguities": [],
+      "challenges": [],
+      "confirmations": {
+        "party_a": null,
+        "party_b": null
+      },
+      "disclosure": {
+        "detailed_a_framing": "embargoed",
+        "disclosure_event_id": null,
+        "person_b_independent_account_source_id": null
+      },
+      "lock_blockers": [],
+      "lock_prerequisites": [],
+      "material_change_events": [],
+      "non_participation": {
+        "correction_opportunity": "not_started",
+        "deadline_expired_event_id": null,
+        "invitation_event_id": null,
+        "notice_event_id": null,
+        "response_deadline": null
+      },
+      "open_required_fields": [],
+      "prior_locks": [],
+      "uncertainties": []
+    },
+    "parties": {
+      "party_a": {
+        "authenticated_subject_id": "subject_party_a",
+        "consent_event_id": "event_gz_case_007_consent_a",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_007_identity_a",
+        "participation_state": "active",
+        "party_id": "party_a",
+        "role": "person_a"
+      },
+      "party_b": {
+        "authenticated_subject_id": null,
+        "consent_event_id": null,
+        "consent_status": "not_requested",
+        "identity_assurance": "unverified",
+        "identity_event_id": null,
+        "participation_state": "not_invited",
+        "party_id": "party_b",
+        "role": "person_b"
+      }
+    },
+    "payments": {},
+    "positions": {},
+    "requested_outcomes": {}
+  },
+  "matrix_version": "juryai-gate-zero-coverage-matrix-v1.0.0",
+  "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+  "title": "Person B independent account and disclosure embargo",
+  "turns": [
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "f58296b077c5de2abf3290d4d84e2f4d921fa8dfe3ce097ee9df1d6a4be4cc2e",
+      "base_envelope_version": 1,
+      "base_record_hash": "cefbd319ef4e69dafbd141c5e720e6fa73eaf38eb9c0aa853e1f8e9543e19ded",
+      "base_record_version": 1,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "f58296b077c5de2abf3290d4d84e2f4d921fa8dfe3ce097ee9df1d6a4be4cc2e",
+        "base_envelope_version": 1,
+        "case_id": "gz_case_007",
+        "command_id": "command_gz_case_007_turn_01_person_a_record_ready",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "event": "person_a_record_ready",
+            "event_id": "event_gz_case_007_a_ready",
+            "type": "transition"
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 0,
+        "required_source_references": [],
+        "resulting_envelope_hash": "af969bbb4aca3cc1b7153878dd33261c8b6cd2b06d645815c5d6680b03c0fc26",
+        "resulting_envelope_version": 2,
+        "resulting_record_hash": "cefbd319ef4e69dafbd141c5e720e6fa73eaf38eb9c0aa853e1f8e9543e19ded",
+        "resulting_record_version": 1,
+        "workflow_state": "person_a_confirmation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_party_identity",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says Person B promised a Friday delivery and kept the deposit.",
+          "content_hash": "1810fa3c41c0508a546bb17d6e4cb3ebf659afd85895ae5c38e807507e1870f7",
+          "source_id": "source_gz_case_007_detailed_a",
+          "source_type": "initial_story"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_007_turn_01_person_a_record_ready",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_007_detailed_a",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_a",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_a",
+        "party_id": "party_a"
+      },
+      "base_envelope_hash": "af969bbb4aca3cc1b7153878dd33261c8b6cd2b06d645815c5d6680b03c0fc26",
+      "base_envelope_version": 2,
+      "base_record_hash": "cefbd319ef4e69dafbd141c5e720e6fa73eaf38eb9c0aa853e1f8e9543e19ded",
+      "base_record_version": 1,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_a",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_a",
+          "party_id": "party_a"
+        },
+        "base_envelope_hash": "af969bbb4aca3cc1b7153878dd33261c8b6cd2b06d645815c5d6680b03c0fc26",
+        "base_envelope_version": 2,
+        "case_id": "gz_case_007",
+        "command_id": "command_gz_case_007_turn_02_person_a_confirms",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "confirmation_id": "confirmation_gz_case_007_a",
+            "confirmed_at": "2026-08-12T01:00:00.000Z",
+            "event_id": "event_gz_case_007_a_confirms",
+            "type": "record_confirmation"
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 0,
+        "required_source_references": [],
+        "resulting_envelope_hash": "ec1b8e50424da8bb32a204a76eb9b13edf6f623fd43f1c72d196e530956999cf",
+        "resulting_envelope_version": 3,
+        "resulting_record_hash": "cefbd319ef4e69dafbd141c5e720e6fa73eaf38eb9c0aa853e1f8e9543e19ded",
+        "resulting_record_version": 1,
+        "workflow_state": "person_a_confirmation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_challenge",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_confirmation",
+        "replace_own_field",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says Person B promised a Friday delivery and kept the deposit.",
+          "content_hash": "1810fa3c41c0508a546bb17d6e4cb3ebf659afd85895ae5c38e807507e1870f7",
+          "source_id": "source_gz_case_007_detailed_a",
+          "source_type": "initial_story"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_007_turn_02_person_a_confirms",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_007_detailed_a",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "ec1b8e50424da8bb32a204a76eb9b13edf6f623fd43f1c72d196e530956999cf",
+      "base_envelope_version": 3,
+      "base_record_hash": "cefbd319ef4e69dafbd141c5e720e6fa73eaf38eb9c0aa853e1f8e9543e19ded",
+      "base_record_version": 1,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "ec1b8e50424da8bb32a204a76eb9b13edf6f623fd43f1c72d196e530956999cf",
+        "base_envelope_version": 3,
+        "case_id": "gz_case_007",
+        "command_id": "command_gz_case_007_turn_03_person_a_confirmed_transition",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "event": "person_a_confirmed",
+            "event_id": "event_gz_case_007_a_confirmed",
+            "type": "transition"
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 0,
+        "required_source_references": [],
+        "resulting_envelope_hash": "a97805940ef40eb68c7e2dd050f75960da39b6591e093c770a5e124ba5fea078",
+        "resulting_envelope_version": 4,
+        "resulting_record_hash": "cefbd319ef4e69dafbd141c5e720e6fa73eaf38eb9c0aa853e1f8e9543e19ded",
+        "resulting_record_version": 1,
+        "workflow_state": "awaiting_person_b"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_party_identity",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says Person B promised a Friday delivery and kept the deposit.",
+          "content_hash": "1810fa3c41c0508a546bb17d6e4cb3ebf659afd85895ae5c38e807507e1870f7",
+          "source_id": "source_gz_case_007_detailed_a",
+          "source_type": "initial_story"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_007_turn_03_person_a_confirmed_transition",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_007_detailed_a",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "a97805940ef40eb68c7e2dd050f75960da39b6591e093c770a5e124ba5fea078",
+      "base_envelope_version": 4,
+      "base_record_hash": "cefbd319ef4e69dafbd141c5e720e6fa73eaf38eb9c0aa853e1f8e9543e19ded",
+      "base_record_version": 1,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "a97805940ef40eb68c7e2dd050f75960da39b6591e093c770a5e124ba5fea078",
+        "base_envelope_version": 4,
+        "case_id": "gz_case_007",
+        "command_id": "command_gz_case_007_turn_04_premature_detailed_disclosure",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "event_id": "event_gz_case_007_premature_disclosure",
+            "type": "record_detailed_disclosure"
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "rejected",
+        "envelope_version_delta": 0,
+        "evidence_actions": [],
+        "exact_no_mutation": true,
+        "failure_reason": "operation_not_permitted_in_state",
+        "forbidden_factual_promotions": [
+          {
+            "prohibited_promotion": "disclosed_context",
+            "proposition": "Person A says Person B promised Friday and kept the deposit.",
+            "proposition_id": "proposition_gz_case_007_embargoed_a_detail",
+            "reason_code": "person_b_has_not_given_independent_account",
+            "source_references": [
+              {
+                "source_hash": "1810fa3c41c0508a546bb17d6e4cb3ebf659afd85895ae5c38e807507e1870f7",
+                "source_id": "source_gz_case_007_detailed_a",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 71,
+                  "quote": "Person A says Person B promised a Friday delivery and kept the deposit.",
+                  "start": 0
+                }
+              }
+            ]
+          }
+        ],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 0,
+        "required_source_references": [],
+        "resulting_envelope_hash": "a97805940ef40eb68c7e2dd050f75960da39b6591e093c770a5e124ba5fea078",
+        "resulting_envelope_version": 4,
+        "resulting_record_hash": "cefbd319ef4e69dafbd141c5e720e6fa73eaf38eb9c0aa853e1f8e9543e19ded",
+        "resulting_record_version": 1,
+        "workflow_state": "awaiting_person_b"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_party_consent",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says Person B promised a Friday delivery and kept the deposit.",
+          "content_hash": "1810fa3c41c0508a546bb17d6e4cb3ebf659afd85895ae5c38e807507e1870f7",
+          "source_id": "source_gz_case_007_detailed_a",
+          "source_type": "initial_story"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_007_turn_04_premature_detailed_disclosure",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_007_detailed_a",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "a97805940ef40eb68c7e2dd050f75960da39b6591e093c770a5e124ba5fea078",
+      "base_envelope_version": 4,
+      "base_record_hash": "cefbd319ef4e69dafbd141c5e720e6fa73eaf38eb9c0aa853e1f8e9543e19ded",
+      "base_record_version": 1,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "a97805940ef40eb68c7e2dd050f75960da39b6591e093c770a5e124ba5fea078",
+        "base_envelope_version": 4,
+        "case_id": "gz_case_007",
+        "command_id": "command_gz_case_007_turn_05_invite_person_b",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "invitation_event_id": "event_gz_case_007_invite_b",
+            "participation_state": "invited",
+            "party_id": "party_b",
+            "type": "set_party_participation"
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [
+          "party_a"
+        ],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "0e1379d0e4700f175fbbedd67f9fc3eeac011518a1b7d182abb5bb85fdd06d39",
+        "resulting_envelope_version": 5,
+        "resulting_record_hash": "72023a56e1d796cc1bbcba6a223cfd6a97fe0a5e2c2364efa83138ad0b486f72",
+        "resulting_record_version": 2,
+        "workflow_state": "awaiting_person_b"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_party_consent",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says Person B promised a Friday delivery and kept the deposit.",
+          "content_hash": "1810fa3c41c0508a546bb17d6e4cb3ebf659afd85895ae5c38e807507e1870f7",
+          "source_id": "source_gz_case_007_detailed_a",
+          "source_type": "initial_story"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_007_turn_05_invite_person_b",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_007_detailed_a",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "0e1379d0e4700f175fbbedd67f9fc3eeac011518a1b7d182abb5bb85fdd06d39",
+      "base_envelope_version": 5,
+      "base_record_hash": "72023a56e1d796cc1bbcba6a223cfd6a97fe0a5e2c2364efa83138ad0b486f72",
+      "base_record_version": 2,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "0e1379d0e4700f175fbbedd67f9fc3eeac011518a1b7d182abb5bb85fdd06d39",
+        "base_envelope_version": 5,
+        "case_id": "gz_case_007",
+        "command_id": "command_gz_case_007_turn_06_enter_independent_account",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "event": "person_b_invited",
+            "event_id": "event_gz_case_007_b_invited",
+            "type": "transition"
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [
+        "/formation/disclosure",
+        "/positions"
+      ],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 0,
+        "required_source_references": [],
+        "resulting_envelope_hash": "79a4140b5f8e35add27dbad6fe82e89e9f24e6bb944e188a6582e99d9b7307ce",
+        "resulting_envelope_version": 6,
+        "resulting_record_hash": "72023a56e1d796cc1bbcba6a223cfd6a97fe0a5e2c2364efa83138ad0b486f72",
+        "resulting_record_version": 2,
+        "workflow_state": "person_b_independent_account"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "hidden_source_ids": [
+        "source_gz_case_007_detailed_a",
+        "source_system_initialization"
+      ],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_party_consent",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says Person B promised a Friday delivery and kept the deposit.",
+          "content_hash": "1810fa3c41c0508a546bb17d6e4cb3ebf659afd85895ae5c38e807507e1870f7",
+          "source_id": "source_gz_case_007_detailed_a",
+          "source_type": "initial_story"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_007_turn_06_enter_independent_account",
+      "visible_envelope_paths": [
+        "/classification",
+        "/control/workflow_state",
+        "/parties/party_b"
+      ],
+      "visible_source_ids": []
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "79a4140b5f8e35add27dbad6fe82e89e9f24e6bb944e188a6582e99d9b7307ce",
+      "base_envelope_version": 6,
+      "base_record_hash": "72023a56e1d796cc1bbcba6a223cfd6a97fe0a5e2c2364efa83138ad0b486f72",
+      "base_record_version": 2,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "79a4140b5f8e35add27dbad6fe82e89e9f24e6bb944e188a6582e99d9b7307ce",
+        "base_envelope_version": 6,
+        "case_id": "gz_case_007",
+        "command_id": "command_gz_case_007_turn_07_bind_person_b",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "authenticated_subject_id": "subject_party_b",
+            "identity_assurance": "authenticated",
+            "identity_event_id": "event_gz_case_007_identity_b",
+            "party_id": "party_b",
+            "type": "set_party_identity"
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [
+        "/formation/disclosure",
+        "/positions"
+      ],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "6cba3402dcc0eb958a13904c5c56ff0023a82b6ac4fde955fa519b6e94c5bb2c",
+        "resulting_envelope_version": 7,
+        "resulting_record_hash": "f69b638b4c7df721a1c51e8940ed650e87c320afba9f65d0580af588586eba52",
+        "resulting_record_version": 3,
+        "workflow_state": "person_b_independent_account"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_non_participation_policy",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "hidden_source_ids": [
+        "source_gz_case_007_detailed_a",
+        "source_system_initialization"
+      ],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_detailed_disclosure",
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_formation_requirements",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says Person B promised a Friday delivery and kept the deposit.",
+          "content_hash": "1810fa3c41c0508a546bb17d6e4cb3ebf659afd85895ae5c38e807507e1870f7",
+          "source_id": "source_gz_case_007_detailed_a",
+          "source_type": "initial_story"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_007_turn_07_bind_person_b",
+      "visible_envelope_paths": [
+        "/classification",
+        "/control/workflow_state",
+        "/parties/party_b"
+      ],
+      "visible_source_ids": []
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_b",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_b",
+        "party_id": "party_b"
+      },
+      "base_envelope_hash": "6cba3402dcc0eb958a13904c5c56ff0023a82b6ac4fde955fa519b6e94c5bb2c",
+      "base_envelope_version": 7,
+      "base_record_hash": "f69b638b4c7df721a1c51e8940ed650e87c320afba9f65d0580af588586eba52",
+      "base_record_version": 3,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_b",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_b",
+          "party_id": "party_b"
+        },
+        "base_envelope_hash": "6cba3402dcc0eb958a13904c5c56ff0023a82b6ac4fde955fa519b6e94c5bb2c",
+        "base_envelope_version": 7,
+        "case_id": "gz_case_007",
+        "command_id": "command_gz_case_007_turn_08_unconsented_b_rejected",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "event_id": "event_gz_case_007_b_unconsented",
+            "source_reference": {
+              "source_hash": "a43a61aa97b647805885b2184b6832643d882887105d1fb5b590ab8eb7e52adf",
+              "source_id": "source_gz_case_007_b_account",
+              "span": {
+                "encoding": "utf16",
+                "end": 79,
+                "quote": "I was hired for a draft page. I did not agree that final files were due Friday.",
+                "start": 0
+              }
+            },
+            "type": "record_independent_account"
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [
+        "/formation/disclosure",
+        "/positions"
+      ],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "rejected",
+        "envelope_version_delta": 0,
+        "evidence_actions": [],
+        "exact_no_mutation": true,
+        "failure_reason": "unauthorized_actor",
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 0,
+        "required_source_references": [
+          {
+            "source_hash": "a43a61aa97b647805885b2184b6832643d882887105d1fb5b590ab8eb7e52adf",
+            "source_id": "source_gz_case_007_b_account",
+            "span": {
+              "encoding": "utf16",
+              "end": 79,
+              "quote": "I was hired for a draft page. I did not agree that final files were due Friday.",
+              "start": 0
+            }
+          }
+        ],
+        "resulting_envelope_hash": "6cba3402dcc0eb958a13904c5c56ff0023a82b6ac4fde955fa519b6e94c5bb2c",
+        "resulting_envelope_version": 7,
+        "resulting_record_hash": "f69b638b4c7df721a1c51e8940ed650e87c320afba9f65d0580af588586eba52",
+        "resulting_record_version": 3,
+        "workflow_state": "person_b_independent_account"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_party_consent",
+        "reopen_material_change",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [
+        "source_gz_case_007_detailed_a",
+        "source_system_initialization"
+      ],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_independent_account",
+        "replace_own_field",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_b",
+          "content": "I was hired for a draft page. I did not agree that final files were due Friday.",
+          "content_hash": "a43a61aa97b647805885b2184b6832643d882887105d1fb5b590ab8eb7e52adf",
+          "source_id": "source_gz_case_007_b_account",
+          "source_type": "independent_account"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says Person B promised a Friday delivery and kept the deposit.",
+          "content_hash": "1810fa3c41c0508a546bb17d6e4cb3ebf659afd85895ae5c38e807507e1870f7",
+          "source_id": "source_gz_case_007_detailed_a",
+          "source_type": "initial_story"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_007_turn_08_unconsented_b_rejected",
+      "visible_envelope_paths": [
+        "/classification",
+        "/control/workflow_state",
+        "/parties/party_b"
+      ],
+      "visible_source_ids": [
+        "source_gz_case_007_b_account"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "6cba3402dcc0eb958a13904c5c56ff0023a82b6ac4fde955fa519b6e94c5bb2c",
+      "base_envelope_version": 7,
+      "base_record_hash": "f69b638b4c7df721a1c51e8940ed650e87c320afba9f65d0580af588586eba52",
+      "base_record_version": 3,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "6cba3402dcc0eb958a13904c5c56ff0023a82b6ac4fde955fa519b6e94c5bb2c",
+        "base_envelope_version": 7,
+        "case_id": "gz_case_007",
+        "command_id": "command_gz_case_007_turn_09_consent_person_b",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "consent_event_id": "event_gz_case_007_consent_b",
+            "consent_status": "granted",
+            "party_id": "party_b",
+            "type": "record_party_consent"
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [
+        "/formation/disclosure",
+        "/positions"
+      ],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "3c077ff2717168570f314e325fd94b6cd59cc2ad425c62a0bc162d0c75a83441",
+        "resulting_envelope_version": 8,
+        "resulting_record_hash": "2fe248220460b68339695e9013f3df0e12e7cf78fde7c0e95d512d164135d6a1",
+        "resulting_record_version": 4,
+        "workflow_state": "person_b_independent_account"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_non_participation_policy",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "hidden_source_ids": [
+        "source_gz_case_007_b_account",
+        "source_gz_case_007_detailed_a",
+        "source_system_initialization"
+      ],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_detailed_disclosure",
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_formation_requirements",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_b",
+          "content": "I was hired for a draft page. I did not agree that final files were due Friday.",
+          "content_hash": "a43a61aa97b647805885b2184b6832643d882887105d1fb5b590ab8eb7e52adf",
+          "source_id": "source_gz_case_007_b_account",
+          "source_type": "independent_account"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says Person B promised a Friday delivery and kept the deposit.",
+          "content_hash": "1810fa3c41c0508a546bb17d6e4cb3ebf659afd85895ae5c38e807507e1870f7",
+          "source_id": "source_gz_case_007_detailed_a",
+          "source_type": "initial_story"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_007_turn_09_consent_person_b",
+      "visible_envelope_paths": [
+        "/classification",
+        "/control/workflow_state",
+        "/parties/party_b"
+      ],
+      "visible_source_ids": []
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_a",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_a",
+        "party_id": "party_a"
+      },
+      "base_envelope_hash": "3c077ff2717168570f314e325fd94b6cd59cc2ad425c62a0bc162d0c75a83441",
+      "base_envelope_version": 8,
+      "base_record_hash": "2fe248220460b68339695e9013f3df0e12e7cf78fde7c0e95d512d164135d6a1",
+      "base_record_version": 4,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_a",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_a",
+          "party_id": "party_a"
+        },
+        "base_envelope_hash": "3c077ff2717168570f314e325fd94b6cd59cc2ad425c62a0bc162d0c75a83441",
+        "base_envelope_version": 8,
+        "case_id": "gz_case_007",
+        "command_id": "command_gz_case_007_turn_10_person_a_cannot_answer_for_b",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "event_id": "event_gz_case_007_a_fake_b",
+            "source_reference": {
+              "source_hash": "6f92c77594322f502a0b8a5cfc32b6b31d8f0a539770a95eebbb17136fc13f12",
+              "source_id": "source_gz_case_007_a_fake_account",
+              "span": {
+                "encoding": "utf16",
+                "end": 53,
+                "quote": "Person A cannot provide Person B independent account.",
+                "start": 0
+              }
+            },
+            "type": "record_independent_account"
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [
+        "/formation/disclosure",
+        "/positions"
+      ],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "rejected",
+        "envelope_version_delta": 0,
+        "evidence_actions": [],
+        "exact_no_mutation": true,
+        "failure_reason": "unauthorized_actor",
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 0,
+        "required_source_references": [
+          {
+            "source_hash": "6f92c77594322f502a0b8a5cfc32b6b31d8f0a539770a95eebbb17136fc13f12",
+            "source_id": "source_gz_case_007_a_fake_account",
+            "span": {
+              "encoding": "utf16",
+              "end": 53,
+              "quote": "Person A cannot provide Person B independent account.",
+              "start": 0
+            }
+          }
+        ],
+        "resulting_envelope_hash": "3c077ff2717168570f314e325fd94b6cd59cc2ad425c62a0bc162d0c75a83441",
+        "resulting_envelope_version": 8,
+        "resulting_record_hash": "2fe248220460b68339695e9013f3df0e12e7cf78fde7c0e95d512d164135d6a1",
+        "resulting_record_version": 4,
+        "workflow_state": "person_b_independent_account"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [
+        "source_gz_case_007_b_account",
+        "source_gz_case_007_detailed_a",
+        "source_system_initialization"
+      ],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "replace_own_field",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A cannot provide Person B independent account.",
+          "content_hash": "6f92c77594322f502a0b8a5cfc32b6b31d8f0a539770a95eebbb17136fc13f12",
+          "source_id": "source_gz_case_007_a_fake_account",
+          "source_type": "independent_account"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "I was hired for a draft page. I did not agree that final files were due Friday.",
+          "content_hash": "a43a61aa97b647805885b2184b6832643d882887105d1fb5b590ab8eb7e52adf",
+          "source_id": "source_gz_case_007_b_account",
+          "source_type": "independent_account"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says Person B promised a Friday delivery and kept the deposit.",
+          "content_hash": "1810fa3c41c0508a546bb17d6e4cb3ebf659afd85895ae5c38e807507e1870f7",
+          "source_id": "source_gz_case_007_detailed_a",
+          "source_type": "initial_story"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_007_turn_10_person_a_cannot_answer_for_b",
+      "visible_envelope_paths": [
+        "/classification",
+        "/control/workflow_state",
+        "/parties/party_b"
+      ],
+      "visible_source_ids": [
+        "source_gz_case_007_a_fake_account"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_b",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_b",
+        "party_id": "party_b"
+      },
+      "base_envelope_hash": "3c077ff2717168570f314e325fd94b6cd59cc2ad425c62a0bc162d0c75a83441",
+      "base_envelope_version": 8,
+      "base_record_hash": "2fe248220460b68339695e9013f3df0e12e7cf78fde7c0e95d512d164135d6a1",
+      "base_record_version": 4,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_b",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_b",
+          "party_id": "party_b"
+        },
+        "base_envelope_hash": "3c077ff2717168570f314e325fd94b6cd59cc2ad425c62a0bc162d0c75a83441",
+        "base_envelope_version": 8,
+        "case_id": "gz_case_007",
+        "command_id": "command_gz_case_007_turn_11_person_b_independent_account",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "event_id": "event_gz_case_007_b_account",
+            "source_reference": {
+              "source_hash": "a43a61aa97b647805885b2184b6832643d882887105d1fb5b590ab8eb7e52adf",
+              "source_id": "source_gz_case_007_b_account",
+              "span": {
+                "encoding": "utf16",
+                "end": 79,
+                "quote": "I was hired for a draft page. I did not agree that final files were due Friday.",
+                "start": 0
+              }
+            },
+            "type": "record_independent_account"
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [
+        "/formation/disclosure",
+        "/positions"
+      ],
+      "expected": {
+        "allowed_user_visible_facts": [
+          {
+            "basis": "party_attributed_assertion",
+            "fact_id": "fact_gz_case_007_b_account",
+            "party_attribution": "party_b",
+            "source_references": [
+              {
+                "source_hash": "a43a61aa97b647805885b2184b6832643d882887105d1fb5b590ab8eb7e52adf",
+                "source_id": "source_gz_case_007_b_account",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 79,
+                  "quote": "I was hired for a draft page. I did not agree that final files were due Friday.",
+                  "start": 0
+                }
+              }
+            ],
+            "statement": "Person B says the work was a draft and denies a Friday final-file deadline."
+          }
+        ],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [
+          {
+            "source_hash": "a43a61aa97b647805885b2184b6832643d882887105d1fb5b590ab8eb7e52adf",
+            "source_id": "source_gz_case_007_b_account",
+            "span": {
+              "encoding": "utf16",
+              "end": 79,
+              "quote": "I was hired for a draft page. I did not agree that final files were due Friday.",
+              "start": 0
+            }
+          }
+        ],
+        "resulting_envelope_hash": "bda9dd097bf68c672df85760659cac1bc677ed3dddfe2755d0bc3306fc8d8ff8",
+        "resulting_envelope_version": 9,
+        "resulting_record_hash": "bc6373a4d13e9604bdd63124db1cc7ddb7870db64430ea25aa5e2b8f79734997",
+        "resulting_record_version": 5,
+        "workflow_state": "disclosure_challenge"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_party_consent",
+        "reopen_material_change",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [
+        "source_gz_case_007_a_fake_account",
+        "source_gz_case_007_detailed_a",
+        "source_system_initialization"
+      ],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_independent_account",
+        "replace_own_field",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A cannot provide Person B independent account.",
+          "content_hash": "6f92c77594322f502a0b8a5cfc32b6b31d8f0a539770a95eebbb17136fc13f12",
+          "source_id": "source_gz_case_007_a_fake_account",
+          "source_type": "independent_account"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "I was hired for a draft page. I did not agree that final files were due Friday.",
+          "content_hash": "a43a61aa97b647805885b2184b6832643d882887105d1fb5b590ab8eb7e52adf",
+          "source_id": "source_gz_case_007_b_account",
+          "source_type": "independent_account"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says Person B promised a Friday delivery and kept the deposit.",
+          "content_hash": "1810fa3c41c0508a546bb17d6e4cb3ebf659afd85895ae5c38e807507e1870f7",
+          "source_id": "source_gz_case_007_detailed_a",
+          "source_type": "initial_story"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_007_turn_11_person_b_independent_account",
+      "visible_envelope_paths": [
+        "/classification",
+        "/control/workflow_state",
+        "/parties/party_b"
+      ],
+      "visible_source_ids": [
+        "source_gz_case_007_b_account"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "bda9dd097bf68c672df85760659cac1bc677ed3dddfe2755d0bc3306fc8d8ff8",
+      "base_envelope_version": 9,
+      "base_record_hash": "bc6373a4d13e9604bdd63124db1cc7ddb7870db64430ea25aa5e2b8f79734997",
+      "base_record_version": 5,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "bda9dd097bf68c672df85760659cac1bc677ed3dddfe2755d0bc3306fc8d8ff8",
+        "base_envelope_version": 9,
+        "case_id": "gz_case_007",
+        "command_id": "command_gz_case_007_turn_12_detailed_disclosure_after_account",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "event_id": "event_gz_case_007_disclosure",
+            "type": "record_detailed_disclosure"
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [
+          {
+            "basis": "party_attributed_assertion",
+            "fact_id": "fact_gz_case_007_a_detail_now_disclosed",
+            "party_attribution": "party_a",
+            "source_references": [
+              {
+                "source_hash": "1810fa3c41c0508a546bb17d6e4cb3ebf659afd85895ae5c38e807507e1870f7",
+                "source_id": "source_gz_case_007_detailed_a",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 71,
+                  "quote": "Person A says Person B promised a Friday delivery and kept the deposit.",
+                  "start": 0
+                }
+              }
+            ],
+            "statement": "Person A says Person B promised Friday and kept the deposit."
+          }
+        ],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "b37b6ff942b436aaca902cf101239963b106ddfb62e134fed2be3f2e145be27f",
+        "resulting_envelope_version": 10,
+        "resulting_record_hash": "b67aa341b6a32d00eca2b281a3cf44e8e1f7637e9dfd7662be8ecd1523dc38ef",
+        "resulting_record_version": 6,
+        "workflow_state": "disclosure_challenge"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_identity",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [
+        "source_gz_case_007_a_fake_account",
+        "source_system_initialization"
+      ],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_detailed_disclosure",
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A cannot provide Person B independent account.",
+          "content_hash": "6f92c77594322f502a0b8a5cfc32b6b31d8f0a539770a95eebbb17136fc13f12",
+          "source_id": "source_gz_case_007_a_fake_account",
+          "source_type": "independent_account"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "I was hired for a draft page. I did not agree that final files were due Friday.",
+          "content_hash": "a43a61aa97b647805885b2184b6832643d882887105d1fb5b590ab8eb7e52adf",
+          "source_id": "source_gz_case_007_b_account",
+          "source_type": "independent_account"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says Person B promised a Friday delivery and kept the deposit.",
+          "content_hash": "1810fa3c41c0508a546bb17d6e4cb3ebf659afd85895ae5c38e807507e1870f7",
+          "source_id": "source_gz_case_007_detailed_a",
+          "source_type": "initial_story"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_007_turn_12_detailed_disclosure_after_account",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_007_b_account",
+        "source_gz_case_007_detailed_a"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1715 @@
+{
+  "case_id": "gz_case_020",
+  "coverage": {
+    "failure": [
+      "challenge_reconciliation",
+      "atomic_command_failure"
+    ],
+    "success": [
+      "party_disagreement",
+      "challenge_reconciliation",
+      "delayed_corrections"
+    ]
+  },
+  "expected_adjudication_input": null,
+  "final_envelope": {
+    "actors": {},
+    "agreements": {},
+    "claimed_losses": {},
+    "classification": {
+      "authority": {
+        "adjudication_eligible": false,
+        "authority_detail": "initial classification placeholder",
+        "authority_kind": "system_observation",
+        "evidence_ids": [],
+        "introduced_by": {
+          "actor_id": "juryai_system",
+          "actor_type": "system"
+        },
+        "introduced_in_record_version": 1,
+        "last_material_command_id": "command_system_initialization",
+        "last_material_record_version": 1,
+        "party_stances": {
+          "party_a": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          },
+          "party_b": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          }
+        },
+        "resolution_status": "unresolved",
+        "source_references": [
+          {
+            "source_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+            "source_id": "source_system_initialization",
+            "span": null
+          }
+        ],
+        "subject_actor_ids": []
+      },
+      "case_category": null,
+      "maturity": "undetermined",
+      "required_fact_profile": null,
+      "safety_flags": [],
+      "scope_flags": [],
+      "suitability": "undetermined"
+    },
+    "control": {
+      "case_id": "gz_case_020",
+      "deadlines": {},
+      "eligibility": {
+        "reason_codes": [],
+        "status": "undetermined"
+      },
+      "envelope_hash": "b9e01a45ad45dd091c8bcffd977900b0bfa3f8003cb750118c1ad9af08d101d6",
+      "envelope_version": 9,
+      "lock": {
+        "lock_event_id": null,
+        "locked_at": null,
+        "mode": null,
+        "output_scope": null,
+        "status": "unlocked"
+      },
+      "protocol": {
+        "non_participation_mode": "prohibited",
+        "protocol_id": "commercial_fairness_v2",
+        "protocol_version": "juryai-formation-protocol-v2.0.0"
+      },
+      "record_hash": "5a7b384cb122a48de2935f9486b25dea50a1df0ae289d876df6d6a61941f0284",
+      "record_version": 8,
+      "schema_version": "juryai-case-envelope-v2.0.0",
+      "workflow_state": "reconciliation"
+    },
+    "deliverables": {},
+    "events": {},
+    "evidence": {},
+    "formation": {
+      "ambiguities": [],
+      "challenges": [
+        {
+          "challenge_id": "challenge_gz_case_020_date",
+          "challenging_party_id": "party_a",
+          "resolution_event_id": "event_gz_case_020_accept",
+          "resolution_source_references": [
+            {
+              "source_hash": "9f1a62265d38a75e2d241191af73ea4eb10741536b921bef20d98afb00c0d43b",
+              "source_id": "source_gz_case_020_b",
+              "span": {
+                "encoding": "utf16",
+                "end": 34,
+                "quote": "Person B says delivery was Monday.",
+                "start": 0
+              }
+            }
+          ],
+          "source_references": [
+            {
+              "source_hash": "ac10be6d4ad02daacd0d692ab32dc9fb53b1e123ceee8c6b6fe61de764c917e7",
+              "source_id": "source_gz_case_020_challenge",
+              "span": {
+                "encoding": "utf16",
+                "end": 44,
+                "quote": "Person A challenges Monday and cites Friday.",
+                "start": 0
+              }
+            }
+          ],
+          "status": "accepted",
+          "target_field": "statement",
+          "target_namespace": "positions",
+          "target_object_id": "position_gz_case_020_b"
+        }
+      ],
+      "confirmations": {
+        "party_a": null,
+        "party_b": null
+      },
+      "disclosure": {
+        "detailed_a_framing": "embargoed",
+        "disclosure_event_id": null,
+        "person_b_independent_account_source_id": null
+      },
+      "lock_blockers": [],
+      "lock_prerequisites": [],
+      "material_change_events": [],
+      "non_participation": {
+        "correction_opportunity": "not_started",
+        "deadline_expired_event_id": null,
+        "invitation_event_id": null,
+        "notice_event_id": null,
+        "response_deadline": null
+      },
+      "open_required_fields": [],
+      "prior_locks": [],
+      "uncertainties": [
+        "accepted_challenge_checkpoint_9"
+      ]
+    },
+    "parties": {
+      "party_a": {
+        "authenticated_subject_id": "subject_party_a",
+        "consent_event_id": "event_gz_case_020_consent_a",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_020_identity_a",
+        "participation_state": "active",
+        "party_id": "party_a",
+        "role": "person_a"
+      },
+      "party_b": {
+        "authenticated_subject_id": "subject_party_b",
+        "consent_event_id": "event_gz_case_020_consent_b",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_020_identity_b",
+        "participation_state": "active",
+        "party_id": "party_b",
+        "role": "person_b"
+      }
+    },
+    "payments": {},
+    "positions": {
+      "position_gz_case_020_b": {
+        "authority": {
+          "adjudication_eligible": true,
+          "authority_detail": "Authenticated party_b assertion",
+          "authority_kind": "party_assertion",
+          "evidence_ids": [],
+          "introduced_by": {
+            "actor_id": "subject_party_b",
+            "actor_type": "party"
+          },
+          "introduced_in_record_version": 2,
+          "last_material_command_id": "command_gz_case_020_turn_04_atomic_accept_and_correction",
+          "last_material_record_version": 4,
+          "party_stances": {
+            "party_a": {
+              "response_event_id": "challenge_gz_case_020_date",
+              "stance": "disputed"
+            },
+            "party_b": {
+              "response_event_id": null,
+              "stance": "asserted"
+            }
+          },
+          "resolution_status": "disputed",
+          "source_references": [
+            {
+              "source_hash": "9f1a62265d38a75e2d241191af73ea4eb10741536b921bef20d98afb00c0d43b",
+              "source_id": "source_gz_case_020_b",
+              "span": {
+                "encoding": "utf16",
+                "end": 34,
+                "quote": "Person B says delivery was Monday.",
+                "start": 0
+              }
+            },
+            {
+              "source_hash": "ac10be6d4ad02daacd0d692ab32dc9fb53b1e123ceee8c6b6fe61de764c917e7",
+              "source_id": "source_gz_case_020_challenge",
+              "span": {
+                "encoding": "utf16",
+                "end": 44,
+                "quote": "Person A challenges Monday and cites Friday.",
+                "start": 0
+              }
+            }
+          ],
+          "subject_actor_ids": [
+            "subject_party_b"
+          ]
+        },
+        "party_id": "party_b",
+        "position_id": "position_gz_case_020_b",
+        "position_kind": "assertion",
+        "statement": "Person B clarifies that the written message said Friday.",
+        "target": null
+      }
+    },
+    "requested_outcomes": {}
+  },
+  "fixture_version": "juryai-gate-zero-case-fixture-v1.0.0",
+  "initial_envelope": {
+    "actors": {},
+    "agreements": {},
+    "claimed_losses": {},
+    "classification": {
+      "authority": {
+        "adjudication_eligible": false,
+        "authority_detail": "initial classification placeholder",
+        "authority_kind": "system_observation",
+        "evidence_ids": [],
+        "introduced_by": {
+          "actor_id": "juryai_system",
+          "actor_type": "system"
+        },
+        "introduced_in_record_version": 1,
+        "last_material_command_id": "command_system_initialization",
+        "last_material_record_version": 1,
+        "party_stances": {
+          "party_a": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          },
+          "party_b": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          }
+        },
+        "resolution_status": "unresolved",
+        "source_references": [
+          {
+            "source_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+            "source_id": "source_system_initialization",
+            "span": null
+          }
+        ],
+        "subject_actor_ids": []
+      },
+      "case_category": null,
+      "maturity": "undetermined",
+      "required_fact_profile": null,
+      "safety_flags": [],
+      "scope_flags": [],
+      "suitability": "undetermined"
+    },
+    "control": {
+      "case_id": "gz_case_020",
+      "deadlines": {},
+      "eligibility": {
+        "reason_codes": [],
+        "status": "undetermined"
+      },
+      "envelope_hash": "dac5e9d0c2c69c6a7002eb2989f46edf760546c52cc3609a1760f33338064e01",
+      "envelope_version": 1,
+      "lock": {
+        "lock_event_id": null,
+        "locked_at": null,
+        "mode": null,
+        "output_scope": null,
+        "status": "unlocked"
+      },
+      "protocol": {
+        "non_participation_mode": "prohibited",
+        "protocol_id": "commercial_fairness_v2",
+        "protocol_version": "juryai-formation-protocol-v2.0.0"
+      },
+      "record_hash": "3a9a4b6d061fdb5bc5781b232a994ba021ec573b3eaa66b26afecbac963275f9",
+      "record_version": 1,
+      "schema_version": "juryai-case-envelope-v2.0.0",
+      "workflow_state": "disclosure_challenge"
+    },
+    "deliverables": {},
+    "events": {},
+    "evidence": {},
+    "formation": {
+      "ambiguities": [],
+      "challenges": [],
+      "confirmations": {
+        "party_a": null,
+        "party_b": null
+      },
+      "disclosure": {
+        "detailed_a_framing": "embargoed",
+        "disclosure_event_id": null,
+        "person_b_independent_account_source_id": null
+      },
+      "lock_blockers": [],
+      "lock_prerequisites": [],
+      "material_change_events": [],
+      "non_participation": {
+        "correction_opportunity": "not_started",
+        "deadline_expired_event_id": null,
+        "invitation_event_id": null,
+        "notice_event_id": null,
+        "response_deadline": null
+      },
+      "open_required_fields": [],
+      "prior_locks": [],
+      "uncertainties": []
+    },
+    "parties": {
+      "party_a": {
+        "authenticated_subject_id": "subject_party_a",
+        "consent_event_id": "event_gz_case_020_consent_a",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_020_identity_a",
+        "participation_state": "active",
+        "party_id": "party_a",
+        "role": "person_a"
+      },
+      "party_b": {
+        "authenticated_subject_id": "subject_party_b",
+        "consent_event_id": "event_gz_case_020_consent_b",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_020_identity_b",
+        "participation_state": "active",
+        "party_id": "party_b",
+        "role": "person_b"
+      }
+    },
+    "payments": {},
+    "positions": {},
+    "requested_outcomes": {}
+  },
+  "matrix_version": "juryai-gate-zero-coverage-matrix-v1.0.0",
+  "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+  "title": "Challenge accepted only with atomic correction",
+  "turns": [
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_b",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_b",
+        "party_id": "party_b"
+      },
+      "base_envelope_hash": "dac5e9d0c2c69c6a7002eb2989f46edf760546c52cc3609a1760f33338064e01",
+      "base_envelope_version": 1,
+      "base_record_hash": "3a9a4b6d061fdb5bc5781b232a994ba021ec573b3eaa66b26afecbac963275f9",
+      "base_record_version": 1,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_b",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_b",
+          "party_id": "party_b"
+        },
+        "base_envelope_hash": "dac5e9d0c2c69c6a7002eb2989f46edf760546c52cc3609a1760f33338064e01",
+        "base_envelope_version": 1,
+        "case_id": "gz_case_020",
+        "command_id": "command_gz_case_020_add_b",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "namespace": "positions",
+            "object": {
+              "authority": {
+                "adjudication_eligible": true,
+                "authority_detail": "Authenticated party_b assertion",
+                "authority_kind": "party_assertion",
+                "evidence_ids": [],
+                "introduced_by": {
+                  "actor_id": "subject_party_b",
+                  "actor_type": "party"
+                },
+                "introduced_in_record_version": 2,
+                "last_material_command_id": "command_gz_case_020_add_b",
+                "last_material_record_version": 2,
+                "party_stances": {
+                  "party_a": {
+                    "response_event_id": null,
+                    "stance": "unresponded"
+                  },
+                  "party_b": {
+                    "response_event_id": null,
+                    "stance": "asserted"
+                  }
+                },
+                "resolution_status": "unresolved",
+                "source_references": [
+                  {
+                    "source_hash": "9f1a62265d38a75e2d241191af73ea4eb10741536b921bef20d98afb00c0d43b",
+                    "source_id": "source_gz_case_020_b",
+                    "span": {
+                      "encoding": "utf16",
+                      "end": 34,
+                      "quote": "Person B says delivery was Monday.",
+                      "start": 0
+                    }
+                  }
+                ],
+                "subject_actor_ids": [
+                  "subject_party_b"
+                ]
+              },
+              "party_id": "party_b",
+              "position_id": "position_gz_case_020_b",
+              "position_kind": "assertion",
+              "statement": "Person B says delivery was Monday.",
+              "target": null
+            },
+            "type": "add_object"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "9f1a62265d38a75e2d241191af73ea4eb10741536b921bef20d98afb00c0d43b",
+            "source_id": "source_gz_case_020_b",
+            "span": {
+              "encoding": "utf16",
+              "end": 34,
+              "quote": "Person B says delivery was Monday.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "932594b42c3532f654d707b5004d8ec4cdd9ad7b46e28069dc14e7307cd53360",
+        "resulting_envelope_version": 2,
+        "resulting_record_hash": "3bd6d35d4aa44ea55ff283b6f492de5fa505c55e1ec65c1caecaed04f3d1f245",
+        "resulting_record_version": 2,
+        "workflow_state": "disclosure_challenge"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_challenge",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B says delivery was Monday.",
+          "content_hash": "9f1a62265d38a75e2d241191af73ea4eb10741536b921bef20d98afb00c0d43b",
+          "source_id": "source_gz_case_020_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_020_turn_01_b_assertion",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_020_b",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_a",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_a",
+        "party_id": "party_a"
+      },
+      "base_envelope_hash": "932594b42c3532f654d707b5004d8ec4cdd9ad7b46e28069dc14e7307cd53360",
+      "base_envelope_version": 2,
+      "base_record_hash": "3bd6d35d4aa44ea55ff283b6f492de5fa505c55e1ec65c1caecaed04f3d1f245",
+      "base_record_version": 2,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_a",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_a",
+          "party_id": "party_a"
+        },
+        "base_envelope_hash": "932594b42c3532f654d707b5004d8ec4cdd9ad7b46e28069dc14e7307cd53360",
+        "base_envelope_version": 2,
+        "case_id": "gz_case_020",
+        "command_id": "command_gz_case_020_turn_02_a_challenges",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "challenge_id": "challenge_gz_case_020_date",
+            "source_references": [
+              {
+                "source_hash": "ac10be6d4ad02daacd0d692ab32dc9fb53b1e123ceee8c6b6fe61de764c917e7",
+                "source_id": "source_gz_case_020_challenge",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 44,
+                  "quote": "Person A challenges Monday and cites Friday.",
+                  "start": 0
+                }
+              }
+            ],
+            "target_field": "statement",
+            "target_namespace": "positions",
+            "target_object_id": "position_gz_case_020_b",
+            "type": "record_challenge"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "ac10be6d4ad02daacd0d692ab32dc9fb53b1e123ceee8c6b6fe61de764c917e7",
+            "source_id": "source_gz_case_020_challenge",
+            "span": {
+              "encoding": "utf16",
+              "end": 44,
+              "quote": "Person A challenges Monday and cites Friday.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "3d88f325be0df385041dbdd4a3ccf22a1315534a902dab3db5b7a29c82c49705",
+        "resulting_envelope_version": 3,
+        "resulting_record_hash": "0dcc228a6263a97e26f6971cea48fef596fc5d66cc5df4f64e2cab3d2b62e398",
+        "resulting_record_version": 3,
+        "workflow_state": "disclosure_challenge"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_challenge",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B says delivery was Monday.",
+          "content_hash": "9f1a62265d38a75e2d241191af73ea4eb10741536b921bef20d98afb00c0d43b",
+          "source_id": "source_gz_case_020_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A challenges Monday and cites Friday.",
+          "content_hash": "ac10be6d4ad02daacd0d692ab32dc9fb53b1e123ceee8c6b6fe61de764c917e7",
+          "source_id": "source_gz_case_020_challenge",
+          "source_type": "challenge"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_020_turn_02_a_challenges",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_020_b",
+        "source_gz_case_020_challenge",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_b",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_b",
+        "party_id": "party_b"
+      },
+      "base_envelope_hash": "3d88f325be0df385041dbdd4a3ccf22a1315534a902dab3db5b7a29c82c49705",
+      "base_envelope_version": 3,
+      "base_record_hash": "0dcc228a6263a97e26f6971cea48fef596fc5d66cc5df4f64e2cab3d2b62e398",
+      "base_record_version": 3,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_b",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_b",
+          "party_id": "party_b"
+        },
+        "base_envelope_hash": "3d88f325be0df385041dbdd4a3ccf22a1315534a902dab3db5b7a29c82c49705",
+        "base_envelope_version": 3,
+        "case_id": "gz_case_020",
+        "command_id": "command_gz_case_020_turn_03_accept_without_correction_rejected",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "challenge_id": "challenge_gz_case_020_date",
+            "resolution": "accepted",
+            "resolution_event_id": "event_gz_case_020_bad_accept",
+            "resolution_source_references": [
+              {
+                "source_hash": "9f1a62265d38a75e2d241191af73ea4eb10741536b921bef20d98afb00c0d43b",
+                "source_id": "source_gz_case_020_b",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 34,
+                  "quote": "Person B says delivery was Monday.",
+                  "start": 0
+                }
+              }
+            ],
+            "type": "resolve_challenge"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "9f1a62265d38a75e2d241191af73ea4eb10741536b921bef20d98afb00c0d43b",
+            "source_id": "source_gz_case_020_b",
+            "span": {
+              "encoding": "utf16",
+              "end": 34,
+              "quote": "Person B says delivery was Monday.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "rejected",
+        "envelope_version_delta": 0,
+        "evidence_actions": [],
+        "exact_no_mutation": true,
+        "failure_reason": "invalid_operation",
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 0,
+        "required_source_references": [],
+        "resulting_envelope_hash": "3d88f325be0df385041dbdd4a3ccf22a1315534a902dab3db5b7a29c82c49705",
+        "resulting_envelope_version": 3,
+        "resulting_record_hash": "0dcc228a6263a97e26f6971cea48fef596fc5d66cc5df4f64e2cab3d2b62e398",
+        "resulting_record_version": 3,
+        "workflow_state": "disclosure_challenge"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_challenge",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B says delivery was Monday.",
+          "content_hash": "9f1a62265d38a75e2d241191af73ea4eb10741536b921bef20d98afb00c0d43b",
+          "source_id": "source_gz_case_020_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A challenges Monday and cites Friday.",
+          "content_hash": "ac10be6d4ad02daacd0d692ab32dc9fb53b1e123ceee8c6b6fe61de764c917e7",
+          "source_id": "source_gz_case_020_challenge",
+          "source_type": "challenge"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_020_turn_03_accept_without_correction_rejected",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_020_b",
+        "source_gz_case_020_challenge",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_b",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_b",
+        "party_id": "party_b"
+      },
+      "base_envelope_hash": "3d88f325be0df385041dbdd4a3ccf22a1315534a902dab3db5b7a29c82c49705",
+      "base_envelope_version": 3,
+      "base_record_hash": "0dcc228a6263a97e26f6971cea48fef596fc5d66cc5df4f64e2cab3d2b62e398",
+      "base_record_version": 3,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_b",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_b",
+          "party_id": "party_b"
+        },
+        "base_envelope_hash": "3d88f325be0df385041dbdd4a3ccf22a1315534a902dab3db5b7a29c82c49705",
+        "base_envelope_version": 3,
+        "case_id": "gz_case_020",
+        "command_id": "command_gz_case_020_turn_04_atomic_accept_and_correction",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "challenge_id": "challenge_gz_case_020_date",
+            "resolution": "accepted",
+            "resolution_event_id": "event_gz_case_020_accept",
+            "resolution_source_references": [
+              {
+                "source_hash": "9f1a62265d38a75e2d241191af73ea4eb10741536b921bef20d98afb00c0d43b",
+                "source_id": "source_gz_case_020_b",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 34,
+                  "quote": "Person B says delivery was Monday.",
+                  "start": 0
+                }
+              }
+            ],
+            "type": "resolve_challenge"
+          },
+          {
+            "expected_prior_value": "Person B says delivery was Monday.",
+            "field": "statement",
+            "namespace": "positions",
+            "object_id": "position_gz_case_020_b",
+            "replacement_value": "Person B clarifies that the written message said Friday.",
+            "type": "replace_own_field"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "9f1a62265d38a75e2d241191af73ea4eb10741536b921bef20d98afb00c0d43b",
+            "source_id": "source_gz_case_020_b",
+            "span": {
+              "encoding": "utf16",
+              "end": 34,
+              "quote": "Person B says delivery was Monday.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "f6e31234e6ee253ca9510db0f052df2524438aea9349625e49086a545e2d638a",
+        "resulting_envelope_version": 4,
+        "resulting_record_hash": "e9101f0163cf03233362e541e454dab3178f6391f674bf8f1ca829c94d372d02",
+        "resulting_record_version": 4,
+        "workflow_state": "disclosure_challenge"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_challenge",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B says delivery was Monday.",
+          "content_hash": "9f1a62265d38a75e2d241191af73ea4eb10741536b921bef20d98afb00c0d43b",
+          "source_id": "source_gz_case_020_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A challenges Monday and cites Friday.",
+          "content_hash": "ac10be6d4ad02daacd0d692ab32dc9fb53b1e123ceee8c6b6fe61de764c917e7",
+          "source_id": "source_gz_case_020_challenge",
+          "source_type": "challenge"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_020_turn_04_atomic_accept_and_correction",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_020_b",
+        "source_gz_case_020_challenge",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_b",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_b",
+        "party_id": "party_b"
+      },
+      "base_envelope_hash": "f6e31234e6ee253ca9510db0f052df2524438aea9349625e49086a545e2d638a",
+      "base_envelope_version": 4,
+      "base_record_hash": "e9101f0163cf03233362e541e454dab3178f6391f674bf8f1ca829c94d372d02",
+      "base_record_version": 4,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_b",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_b",
+          "party_id": "party_b"
+        },
+        "base_envelope_hash": "f6e31234e6ee253ca9510db0f052df2524438aea9349625e49086a545e2d638a",
+        "base_envelope_version": 4,
+        "case_id": "gz_case_020",
+        "command_id": "command_gz_case_020_turn_05_closed_challenge_cannot_repeat",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "challenge_id": "challenge_gz_case_020_date",
+            "resolution": "accepted",
+            "resolution_event_id": "event_gz_case_020_repeat",
+            "resolution_source_references": [
+              {
+                "source_hash": "9f1a62265d38a75e2d241191af73ea4eb10741536b921bef20d98afb00c0d43b",
+                "source_id": "source_gz_case_020_b",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 34,
+                  "quote": "Person B says delivery was Monday.",
+                  "start": 0
+                }
+              }
+            ],
+            "type": "resolve_challenge"
+          },
+          {
+            "expected_prior_value": "Person B clarifies that the written message said Friday.",
+            "field": "statement",
+            "namespace": "positions",
+            "object_id": "position_gz_case_020_b",
+            "replacement_value": "Repeat must not apply.",
+            "type": "replace_own_field"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "9f1a62265d38a75e2d241191af73ea4eb10741536b921bef20d98afb00c0d43b",
+            "source_id": "source_gz_case_020_b",
+            "span": {
+              "encoding": "utf16",
+              "end": 34,
+              "quote": "Person B says delivery was Monday.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "rejected",
+        "envelope_version_delta": 0,
+        "evidence_actions": [],
+        "exact_no_mutation": true,
+        "failure_reason": "invalid_operation",
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 0,
+        "required_source_references": [],
+        "resulting_envelope_hash": "f6e31234e6ee253ca9510db0f052df2524438aea9349625e49086a545e2d638a",
+        "resulting_envelope_version": 4,
+        "resulting_record_hash": "e9101f0163cf03233362e541e454dab3178f6391f674bf8f1ca829c94d372d02",
+        "resulting_record_version": 4,
+        "workflow_state": "disclosure_challenge"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_challenge",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B says delivery was Monday.",
+          "content_hash": "9f1a62265d38a75e2d241191af73ea4eb10741536b921bef20d98afb00c0d43b",
+          "source_id": "source_gz_case_020_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A challenges Monday and cites Friday.",
+          "content_hash": "ac10be6d4ad02daacd0d692ab32dc9fb53b1e123ceee8c6b6fe61de764c917e7",
+          "source_id": "source_gz_case_020_challenge",
+          "source_type": "challenge"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_020_turn_05_closed_challenge_cannot_repeat",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_020_b",
+        "source_gz_case_020_challenge",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "f6e31234e6ee253ca9510db0f052df2524438aea9349625e49086a545e2d638a",
+      "base_envelope_version": 4,
+      "base_record_hash": "e9101f0163cf03233362e541e454dab3178f6391f674bf8f1ca829c94d372d02",
+      "base_record_version": 4,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "f6e31234e6ee253ca9510db0f052df2524438aea9349625e49086a545e2d638a",
+        "base_envelope_version": 4,
+        "case_id": "gz_case_020",
+        "command_id": "command_gz_case_020_turn_06_reconciliation_checkpoint",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [],
+            "lock_blockers": [],
+            "lock_prerequisites": [],
+            "open_required_fields": [],
+            "type": "set_formation_requirements",
+            "uncertainties": [
+              "accepted_challenge_checkpoint_6"
+            ]
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "246aafd5547728750832ee318f2946a5a5d6906c42b4b7a17ea86754a6a7e422",
+        "resulting_envelope_version": 5,
+        "resulting_record_hash": "f57ad82e1c78e679ee10944a370d6cf19b27bf4a2b9072c5f800ca03ce21696b",
+        "resulting_record_version": 5,
+        "workflow_state": "disclosure_challenge"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_identity",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_detailed_disclosure",
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B says delivery was Monday.",
+          "content_hash": "9f1a62265d38a75e2d241191af73ea4eb10741536b921bef20d98afb00c0d43b",
+          "source_id": "source_gz_case_020_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A challenges Monday and cites Friday.",
+          "content_hash": "ac10be6d4ad02daacd0d692ab32dc9fb53b1e123ceee8c6b6fe61de764c917e7",
+          "source_id": "source_gz_case_020_challenge",
+          "source_type": "challenge"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_020_turn_06_reconciliation_checkpoint",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_020_b",
+        "source_gz_case_020_challenge",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "246aafd5547728750832ee318f2946a5a5d6906c42b4b7a17ea86754a6a7e422",
+      "base_envelope_version": 5,
+      "base_record_hash": "f57ad82e1c78e679ee10944a370d6cf19b27bf4a2b9072c5f800ca03ce21696b",
+      "base_record_version": 5,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "246aafd5547728750832ee318f2946a5a5d6906c42b4b7a17ea86754a6a7e422",
+        "base_envelope_version": 5,
+        "case_id": "gz_case_020",
+        "command_id": "command_gz_case_020_turn_07_reconciliation_checkpoint",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [],
+            "lock_blockers": [],
+            "lock_prerequisites": [],
+            "open_required_fields": [],
+            "type": "set_formation_requirements",
+            "uncertainties": [
+              "accepted_challenge_checkpoint_7"
+            ]
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "ced7481c2adc1c047466c5c1bfeceddca982692dc4950c86257351ec2a59177f",
+        "resulting_envelope_version": 6,
+        "resulting_record_hash": "0f44775b4a1cdc73f38708b76136494f01c44feada9055ed84b3c382d709c0b4",
+        "resulting_record_version": 6,
+        "workflow_state": "disclosure_challenge"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_identity",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_detailed_disclosure",
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B says delivery was Monday.",
+          "content_hash": "9f1a62265d38a75e2d241191af73ea4eb10741536b921bef20d98afb00c0d43b",
+          "source_id": "source_gz_case_020_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A challenges Monday and cites Friday.",
+          "content_hash": "ac10be6d4ad02daacd0d692ab32dc9fb53b1e123ceee8c6b6fe61de764c917e7",
+          "source_id": "source_gz_case_020_challenge",
+          "source_type": "challenge"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_020_turn_07_reconciliation_checkpoint",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_020_b",
+        "source_gz_case_020_challenge",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "ced7481c2adc1c047466c5c1bfeceddca982692dc4950c86257351ec2a59177f",
+      "base_envelope_version": 6,
+      "base_record_hash": "0f44775b4a1cdc73f38708b76136494f01c44feada9055ed84b3c382d709c0b4",
+      "base_record_version": 6,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "ced7481c2adc1c047466c5c1bfeceddca982692dc4950c86257351ec2a59177f",
+        "base_envelope_version": 6,
+        "case_id": "gz_case_020",
+        "command_id": "command_gz_case_020_turn_08_reconciliation_checkpoint",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [],
+            "lock_blockers": [],
+            "lock_prerequisites": [],
+            "open_required_fields": [],
+            "type": "set_formation_requirements",
+            "uncertainties": [
+              "accepted_challenge_checkpoint_8"
+            ]
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "534473f16b8624f9dddc6d7454f64df196b7252f3a771202047917b90f615e1f",
+        "resulting_envelope_version": 7,
+        "resulting_record_hash": "348331e6733260f756664c20d7347c5303d52b1001350459685a343ada597769",
+        "resulting_record_version": 7,
+        "workflow_state": "disclosure_challenge"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_identity",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_detailed_disclosure",
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B says delivery was Monday.",
+          "content_hash": "9f1a62265d38a75e2d241191af73ea4eb10741536b921bef20d98afb00c0d43b",
+          "source_id": "source_gz_case_020_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A challenges Monday and cites Friday.",
+          "content_hash": "ac10be6d4ad02daacd0d692ab32dc9fb53b1e123ceee8c6b6fe61de764c917e7",
+          "source_id": "source_gz_case_020_challenge",
+          "source_type": "challenge"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_020_turn_08_reconciliation_checkpoint",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_020_b",
+        "source_gz_case_020_challenge",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "534473f16b8624f9dddc6d7454f64df196b7252f3a771202047917b90f615e1f",
+      "base_envelope_version": 7,
+      "base_record_hash": "348331e6733260f756664c20d7347c5303d52b1001350459685a343ada597769",
+      "base_record_version": 7,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "534473f16b8624f9dddc6d7454f64df196b7252f3a771202047917b90f615e1f",
+        "base_envelope_version": 7,
+        "case_id": "gz_case_020",
+        "command_id": "command_gz_case_020_turn_09_reconciliation_checkpoint",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [],
+            "lock_blockers": [],
+            "lock_prerequisites": [],
+            "open_required_fields": [],
+            "type": "set_formation_requirements",
+            "uncertainties": [
+              "accepted_challenge_checkpoint_9"
+            ]
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "d239baaa811ed7c0703eab5e6793008f3cab29737a172b715b1c7d2e40562968",
+        "resulting_envelope_version": 8,
+        "resulting_record_hash": "5a7b384cb122a48de2935f9486b25dea50a1df0ae289d876df6d6a61941f0284",
+        "resulting_record_version": 8,
+        "workflow_state": "disclosure_challenge"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_identity",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_detailed_disclosure",
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B says delivery was Monday.",
+          "content_hash": "9f1a62265d38a75e2d241191af73ea4eb10741536b921bef20d98afb00c0d43b",
+          "source_id": "source_gz_case_020_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A challenges Monday and cites Friday.",
+          "content_hash": "ac10be6d4ad02daacd0d692ab32dc9fb53b1e123ceee8c6b6fe61de764c917e7",
+          "source_id": "source_gz_case_020_challenge",
+          "source_type": "challenge"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_020_turn_09_reconciliation_checkpoint",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_020_b",
+        "source_gz_case_020_challenge",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "d239baaa811ed7c0703eab5e6793008f3cab29737a172b715b1c7d2e40562968",
+      "base_envelope_version": 8,
+      "base_record_hash": "5a7b384cb122a48de2935f9486b25dea50a1df0ae289d876df6d6a61941f0284",
+      "base_record_version": 8,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "d239baaa811ed7c0703eab5e6793008f3cab29737a172b715b1c7d2e40562968",
+        "base_envelope_version": 8,
+        "case_id": "gz_case_020",
+        "command_id": "command_gz_case_020_turn_10_responses_complete",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "event": "responses_complete",
+            "event_id": "event_gz_case_020_responses_complete",
+            "type": "transition"
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 0,
+        "required_source_references": [],
+        "resulting_envelope_hash": "b9e01a45ad45dd091c8bcffd977900b0bfa3f8003cb750118c1ad9af08d101d6",
+        "resulting_envelope_version": 9,
+        "resulting_record_hash": "5a7b384cb122a48de2935f9486b25dea50a1df0ae289d876df6d6a61941f0284",
+        "resulting_record_version": 8,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_identity",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_detailed_disclosure",
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B says delivery was Monday.",
+          "content_hash": "9f1a62265d38a75e2d241191af73ea4eb10741536b921bef20d98afb00c0d43b",
+          "source_id": "source_gz_case_020_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A challenges Monday and cites Friday.",
+          "content_hash": "ac10be6d4ad02daacd0d692ab32dc9fb53b1e123ceee8c6b6fe61de764c917e7",
+          "source_id": "source_gz_case_020_challenge",
+          "source_type": "challenge"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_020_turn_10_responses_complete",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_020_b",
+        "source_gz_case_020_challenge",
+        "source_system_initialization"
+      ]
+    }
+  ]
+}

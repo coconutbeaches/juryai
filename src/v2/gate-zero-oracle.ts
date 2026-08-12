@@ -253,7 +253,11 @@ function validateGateZeroTurnOracleUnchecked(oracle: GateZeroTurnOracle): string
   ) {
     issues.push('oracle_command_actor_binding_invalid');
   }
-  if (validateEnvelopeCommandStructure(oracle.command) !== null) {
+  const commandStructureInvalid = validateEnvelopeCommandStructure(oracle.command) !== null;
+  if (
+    (commandStructureInvalid && oracle.expected.failure_reason !== 'invalid_command') ||
+    (!commandStructureInvalid && oracle.expected.failure_reason === 'invalid_command')
+  ) {
     issues.push('oracle_command_shape_invalid');
   }
   if (

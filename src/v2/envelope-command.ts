@@ -1737,6 +1737,17 @@ function applyOperation(
       if (!envelope.formation.non_participation.invitation_event_id) {
         return { failure: 'Invitation must be recorded first.', reason: 'invalid_operation' };
       }
+      if (
+        !COMMAND_ID_PATTERN.test(operation.notice_event_id) ||
+        !COMMAND_ID_PATTERN.test(operation.deadline_expired_event_id) ||
+        Number.isNaN(Date.parse(operation.response_deadline)) ||
+        !['expired', 'exhausted'].includes(operation.correction_opportunity)
+      ) {
+        return {
+          failure: 'Non-participation requires complete event identities and a valid deadline.',
+          reason: 'invalid_operation',
+        };
+      }
       envelope.formation.non_participation = {
         ...envelope.formation.non_participation,
         notice_event_id: operation.notice_event_id,
@@ -1875,6 +1886,7 @@ function applyOperation(
         }
       }
       evidence.availability = operation.availability;
+      evidence.decision_relevant = false;
       evidence.adjudication_eligibility = evidenceEligibility(evidence);
       evidence.authority.last_material_record_version = nextRecordVersion;
       evidence.authority.last_material_command_id = command.command_id;
