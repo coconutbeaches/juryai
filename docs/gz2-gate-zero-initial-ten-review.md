@@ -36,6 +36,8 @@ Each authored turn declares the actor, visible and embargoed context, immutable 
 4. **Authorship dispute state.** Recording an evidence-authorship challenge now sets the challenging party's canonical stance and the evidence `authenticity_status` to `disputed`; the challenge is not left only in a journal.
 5. **Reopen grounding.** `reopen_material_change` now requires at least one exact source. Party-attributed sources remain valid because reopening is the safe action: it unlocks, retains the prior lock receipt, invalidates confirmations, and requires reconfirmation rather than promoting the assertion as fact.
 6. **Projection oracle.** Case fixtures may freeze an exact deterministic adjudication input for a final locked envelope. This makes projection exclusion testable without inventing a chat or evaluator runtime.
+7. **Permission and confirmation precision.** The permission partition now honors Person-B-only scope, and confirmation invalidation lists only receipts that actually existed before a material change.
+8. **Closed fixture provenance.** Every source already referenced by a synthetic starting envelope is registered and exact; fixture classification cannot rely on an unsupported placeholder source.
 
 No oracle was weakened to match current product behavior. These changes close unreachable or unrepresented states in the merged boundary contract and remain deterministic.
 

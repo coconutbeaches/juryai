@@ -1942,6 +1942,12 @@ function authorCase008(): GateZeroCanonicalCase {
 }
 
 function authorCase009(): GateZeroCanonicalCase {
+  const fixtureSetup = source(
+    'source_gz_case_009_fixture_setup',
+    'system_event',
+    SYSTEM_ACTOR.actor_id,
+    'Deterministic fixture setup establishes eligible commercial classification.',
+  );
   const independentAccount = source(
     'source_gz_case_009_b_account',
     'independent_account',
@@ -1953,13 +1959,16 @@ function authorCase009(): GateZeroCanonicalCase {
   initial.classification.suitability = 'eligible';
   initial.classification.maturity = 'ready';
   initial.classification.required_fact_profile = 'commercial_delivery';
+  initial.classification.authority.authority_detail =
+    'Deterministic eligible commercial fixture classification';
+  initial.classification.authority.source_references = [exactReference(fixtureSetup)];
   initial.formation.disclosure = {
     person_b_independent_account_source_id: 'source_gz_case_009_b_account',
     detailed_a_framing: 'disclosed',
     disclosure_event_id: 'event_gz_case_009_disclosure',
   };
   rehashEnvelope(initial);
-  const session = new CanonicalCaseAuthoringSession(initial, [independentAccount]);
+  const session = new CanonicalCaseAuthoringSession(initial, [fixtureSetup, independentAccount]);
   const actorA = partyActor('party_a', session.context.envelope);
   const actorB = partyActor('party_b', session.context.envelope);
   session.turn({
@@ -2159,12 +2168,25 @@ function authorCase009(): GateZeroCanonicalCase {
 function authorCase010(): GateZeroCanonicalCase {
   const lockedFixture = createBilateralLockedFixture();
   const locked = lockedFixture.envelope;
-  locked.control.case_id = 'gz_case_010';
-  rehashEnvelope(locked);
-  const session = new CanonicalCaseAuthoringSession(
-    locked,
-    Object.values(lockedFixture.source_registry),
+  const fixtureSetup = source(
+    'source_gz_case_010_fixture_setup',
+    'system_event',
+    SYSTEM_ACTOR.actor_id,
+    'Deterministic fixture setup establishes the eligible locked commercial case.',
   );
+  locked.control.case_id = 'gz_case_010';
+  locked.classification.authority.authority_detail =
+    'Deterministic eligible locked commercial fixture classification';
+  locked.classification.authority.source_references = [exactReference(fixtureSetup)];
+  rehashEnvelope(locked);
+  for (const partyId of ['party_a', 'party_b'] as const) {
+    locked.formation.confirmations[partyId]!.bound_record_hash = locked.control.record_hash;
+  }
+  rehashEnvelope(locked);
+  const session = new CanonicalCaseAuthoringSession(locked, [
+    fixtureSetup,
+    ...Object.values(lockedFixture.source_registry),
+  ]);
   const actorA = partyActor('party_a', session.context.envelope);
   const actorB = partyActor('party_b', session.context.envelope);
   const lockedEdit = source(

@@ -493,6 +493,13 @@ export function validateGateZeroCanonicalCase(fixture: GateZeroCanonicalCase): s
       issues.push('case_fixture_adjudication_projection_invalid');
     }
   }
+  if (
+    plan &&
+    plan.journey_phases.includes('adjudication_projection') !==
+      (fixture.expected_adjudication_input !== null)
+  ) {
+    issues.push('case_fixture_adjudication_projection_missing_or_unexpected');
+  }
   if (new Set(fixture.turns.map((turn) => turn.turn_id)).size !== fixture.turns.length) {
     issues.push('case_fixture_turn_id_duplicate');
   }

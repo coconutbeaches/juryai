@@ -505,7 +505,19 @@ function validateGateZeroTurnOracleUnchecked(oracle: GateZeroTurnOracle): string
     issues.push('oracle_evidence_action_invalid');
   }
 
-  const commandReferences = oracle.command.source_references;
+  const commandReferences = [
+    ...oracle.command.source_references,
+    ...oracle.command.operations.flatMap((operation) => {
+      if (operation.type === 'record_evidence_inspection') return [operation.source_reference];
+      if (operation.type === 'record_independent_account') return [operation.source_reference];
+      if (operation.type === 'record_challenge') return operation.source_references;
+      if (operation.type === 'resolve_challenge') return operation.resolution_source_references;
+      if (operation.type === 'reopen_material_change') return operation.source_references;
+      if (operation.type === 'add_object') return operation.object.authority.source_references;
+      if (operation.type === 'set_classification') return operation.authority.source_references;
+      return [];
+    }),
+  ];
   const expectedReferences = [
     ...oracle.expected.required_source_references,
     ...oracle.expected.authority_fragments.flatMap((fragment) =>
