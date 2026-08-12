@@ -1290,6 +1290,22 @@ describe('v2 lock, reopening, adjudication projection, and Gate Zero oracle', ()
       'oracle_set_order_invalid',
     );
 
+    const unknownFailureOracle = cloneCanonical(oracle);
+    unknownFailureOracle.expected.disposition = 'rejected';
+    unknownFailureOracle.expected.exact_no_mutation = true;
+    unknownFailureOracle.expected.envelope_version_delta = 0;
+    unknownFailureOracle.expected.record_version_delta = 0;
+    unknownFailureOracle.expected.resulting_envelope_version =
+      unknownFailureOracle.base_envelope_version;
+    unknownFailureOracle.expected.resulting_envelope_hash = unknownFailureOracle.base_envelope_hash;
+    unknownFailureOracle.expected.resulting_record_version =
+      unknownFailureOracle.base_record_version;
+    unknownFailureOracle.expected.resulting_record_hash = unknownFailureOracle.base_record_hash;
+    unknownFailureOracle.expected.failure_reason = 'invented_failure' as never;
+    expect(validateGateZeroTurnOracle(unknownFailureOracle)).toContain(
+      'oracle_failure_reason_invalid',
+    );
+
     const staleOracle = cloneCanonical(oracle);
     staleOracle.command.base_envelope_version += 1;
     staleOracle.expected = {

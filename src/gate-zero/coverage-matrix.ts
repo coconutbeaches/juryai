@@ -862,10 +862,17 @@ export function validateGateZeroCoverageMatrix(): string[] {
   if (
     GATE_ZERO_CASE_PLANS.some(
       (casePlan) =>
+        !/^gz_case_\d{3}$/u.test(casePlan.case_id) ||
+        casePlan.title.length === 0 ||
+        casePlan.adversarial_focus.length === 0 ||
+        !Number.isSafeInteger(casePlan.planned_turns) ||
         casePlan.planned_turns < 2 ||
         casePlan.journey_phases.length === 0 ||
         casePlan.success_coverage.length === 0 ||
-        casePlan.failure_coverage.length === 0,
+        casePlan.failure_coverage.length === 0 ||
+        new Set(casePlan.journey_phases).size !== casePlan.journey_phases.length ||
+        new Set(casePlan.success_coverage).size !== casePlan.success_coverage.length ||
+        new Set(casePlan.failure_coverage).size !== casePlan.failure_coverage.length,
     )
   ) {
     issues.push('matrix_case_plan_incomplete');
@@ -875,6 +882,14 @@ export function validateGateZeroCoverageMatrix(): string[] {
   );
   if (new Set(requirementIds).size !== requirementIds.length) {
     issues.push('matrix_requirement_id_duplicate');
+  }
+  if (
+    GATE_ZERO_COVERAGE_REQUIREMENTS.some(
+      (requirement) =>
+        requirement.success_oracle.length === 0 || requirement.failure_oracle.length === 0,
+    )
+  ) {
+    issues.push('matrix_requirement_oracle_missing');
   }
   const known = new Set(requirementIds);
   const unknownCoverage = GATE_ZERO_CASE_PLANS.flatMap((casePlan) => [

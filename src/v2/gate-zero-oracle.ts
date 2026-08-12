@@ -13,6 +13,7 @@ import {
   type WorkflowState,
 } from './case-envelope.js';
 import {
+  COMMAND_FAILURE_REASONS,
   OPERATION_PERMISSIONS,
   validateEnvelopeCommandStructure,
   type CommandFailureReason,
@@ -384,6 +385,12 @@ function validateGateZeroTurnOracleUnchecked(oracle: GateZeroTurnOracle): string
   }
   if (oracle.expected.disposition !== 'rejected' && oracle.expected.failure_reason !== null) {
     issues.push('oracle_unexpected_failure_reason');
+  }
+  if (
+    oracle.expected.failure_reason !== null &&
+    !COMMAND_FAILURE_REASONS.includes(oracle.expected.failure_reason)
+  ) {
+    issues.push('oracle_failure_reason_invalid');
   }
   if (
     oracle.expected.resulting_envelope_version !==

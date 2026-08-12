@@ -80,5 +80,14 @@ describe('Gate Zero GZ1 frozen coverage matrix', () => {
     );
     expect(GATE_ZERO_CASE_PLANS.some((casePlan) => casePlan.planned_turns >= 14)).toBe(true);
     expect(GATE_ZERO_CASE_PLANS.every((casePlan) => casePlan.planned_turns >= 2)).toBe(true);
+    expect(
+      GATE_ZERO_CASE_PLANS.every(
+        (casePlan) =>
+          Number.isSafeInteger(casePlan.planned_turns) &&
+          new Set(casePlan.journey_phases).size === casePlan.journey_phases.length &&
+          new Set(casePlan.success_coverage).size === casePlan.success_coverage.length &&
+          new Set(casePlan.failure_coverage).size === casePlan.failure_coverage.length,
+      ),
+    ).toBe(true);
   });
 });

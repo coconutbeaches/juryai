@@ -290,6 +290,31 @@ export type CommandFailureReason =
   | 'atomic_command_rejected'
   | 'resulting_envelope_invalid';
 
+export const COMMAND_FAILURE_REASONS: readonly CommandFailureReason[] = Object.freeze([
+  'invalid_command',
+  'invalid_envelope',
+  'duplicate_command_conflict',
+  'authentication_mismatch',
+  'case_mismatch',
+  'stale_base_version',
+  'stale_base_hash',
+  'invalid_source_reference',
+  'unauthorized_actor',
+  'cross_party_mutation',
+  'unknown_object',
+  'duplicate_object',
+  'invalid_operation',
+  'operation_not_permitted_in_state',
+  'stale_prior_value',
+  'invalid_transition',
+  'disclosure_embargo',
+  'confirmation_binding_invalid',
+  'lock_guard_failed',
+  'locked_envelope',
+  'atomic_command_rejected',
+  'resulting_envelope_invalid',
+]);
+
 export interface ApplyEnvelopeCommandResult {
   status: 'applied' | 'idempotent' | 'rejected';
   reason_code: CommandFailureReason | null;
