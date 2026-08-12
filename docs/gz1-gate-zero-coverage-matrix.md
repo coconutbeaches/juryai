@@ -30,9 +30,9 @@ decisions. Any matrix change must update the version or fingerprint in an explic
 5. The next-question oracle is a single nullable target, not a list. `null` means no question is
    expected on that turn. The field identifies party, namespace, optional object, field, and a
    stable reason code; it does not freeze model prose.
-6. User-visible facts are typed and source-bound. Forbidden promotions separately name
-   propositions that must not become objective fact, bilateral agreement, party admission,
-   verified evidence, or disclosed context.
+6. User-visible facts include the exact allowed statement, type, party attribution, and sources.
+   Forbidden promotions include the exact proposition and separately name what it must not become:
+   objective fact, bilateral agreement, party admission, verified evidence, or disclosed context.
 7. Exact command/result identities remain authoritative. A model-quality output cannot compensate
    for the wrong actor, source visibility, mutation, version/hash, transition, confirmation, lock,
    or factual authority.
@@ -49,16 +49,17 @@ Each GZ2/GZ3 turn must populate all of the following:
 | Proposal      | One canonical command with closed operations and exact source references                                          |
 | Authorization | Complete disjoint partition of every closed operation type into permitted or forbidden for this actor/state       |
 | Mutation      | Applied/idempotent/rejected, exact no-mutation flag, version deltas, and resulting hashes                         |
-| Authority     | Expected object-authority fragments and exact required source references                                          |
+| Authority     | Expected namespace/object-targeted authority fragments and exact required source references                       |
 | Conversation  | Zero or one next-question target; no frozen natural-language question wording                                     |
 | Output        | Typed allowed user-visible facts and forbidden factual promotions                                                 |
 | Evidence      | Expected evidence lifecycle actions without implied authenticity                                                  |
 | Confirmation  | Exact parties whose receipts must be invalidated                                                                  |
 | Workflow      | Resulting state, lock status/mode/output scope, and typed failure reason                                          |
 
-The validator rejects malformed plain-JSON shape; duplicate/overlapping visibility or operation
-sets; unregistered, hash-invalid, or span-invalid sources; facts citing hidden sources; inconsistent
-mutation/version/hash claims; missing/unexpected failure codes; and incoherent lock effects.
+The validator rejects malformed plain-JSON, command, authority, fact, promotion, or question shape;
+duplicate/overlapping/incomplete visibility or operation partitions; unregistered, hash-invalid, or
+span-invalid sources; facts citing hidden sources; inconsistent mutation/version/hash claims;
+missing/unexpected failure codes; and incoherent lock effects.
 
 ## Coverage taxonomy
 

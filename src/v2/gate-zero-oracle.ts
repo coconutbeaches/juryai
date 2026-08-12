@@ -1,6 +1,7 @@
 import {
   canonicalSerialize,
   hashSourceContent,
+  validateObjectAuthorityShape,
   validateSourceReference,
   type AuthenticatedActor,
   type CaseEnvelope,
@@ -13,6 +14,7 @@ import {
 } from './case-envelope.js';
 import {
   OPERATION_PERMISSIONS,
+  validateEnvelopeCommandStructure,
   type CommandFailureReason,
   type EnvelopeCommand,
   type EnvelopeOperation,
@@ -40,6 +42,7 @@ export interface ExpectedNextQuestionTarget {
 
 export interface ExpectedUserVisibleFact {
   fact_id: string;
+  statement: string;
   basis: 'source_quote' | 'party_attributed_assertion' | 'system_state' | 'inspected_evidence';
   party_attribution: PartyId | null;
   source_references: SourceReference[];
@@ -47,6 +50,7 @@ export interface ExpectedUserVisibleFact {
 
 export interface ForbiddenFactualPromotion {
   proposition_id: string;
+  proposition: string;
   prohibited_promotion:
     | 'objective_fact'
     | 'bilateral_agreement'
@@ -55,6 +59,12 @@ export interface ForbiddenFactualPromotion {
     | 'disclosed_context';
   source_references: SourceReference[];
   reason_code: string;
+}
+
+export interface ExpectedAuthorityFragment {
+  namespace: SubstantiveNamespace | 'classification';
+  object_id: string;
+  authority: ObjectAuthority;
 }
 
 export interface GateZeroTurnOracle {
@@ -82,7 +92,7 @@ export interface GateZeroTurnOracle {
     resulting_envelope_hash: string;
     resulting_record_version: number;
     resulting_record_hash: string;
-    authority_fragments: ObjectAuthority[];
+    authority_fragments: ExpectedAuthorityFragment[];
     evidence_actions: ExpectedEvidenceAction[];
     invalidated_confirmation_parties: PartyId[];
     workflow_state: WorkflowState;
@@ -232,6 +242,9 @@ function validateGateZeroTurnOracleUnchecked(oracle: GateZeroTurnOracle): string
     canonicalSerialize(oracle.command.authenticated_actor)
   ) {
     issues.push('oracle_command_actor_binding_invalid');
+  }
+  if (validateEnvelopeCommandStructure(oracle.command) !== null) {
+    issues.push('oracle_command_shape_invalid');
   }
   if (
     oracle.expected.disposition === 'applied' &&
@@ -411,6 +424,17 @@ function validateGateZeroTurnOracleUnchecked(oracle: GateZeroTurnOracle): string
     issues.push('oracle_workflow_effect_invalid');
   }
   if (
+    oracle.expected.authority_fragments.some(
+      (fragment) =>
+        !hasExactKeys(fragment, ['authority', 'namespace', 'object_id']) ||
+        !QUESTION_NAMESPACES.has(fragment.namespace) ||
+        !ID_PATTERN.test(fragment.object_id) ||
+        !validateObjectAuthorityShape(fragment.authority),
+    )
+  ) {
+    issues.push('oracle_authority_fragment_invalid');
+  }
+  if (
     !unique(oracle.expected.invalidated_confirmation_parties) ||
     oracle.expected.invalidated_confirmation_parties.some((partyId) => !PARTY_IDS.has(partyId))
   ) {
@@ -441,6 +465,9 @@ function validateGateZeroTurnOracleUnchecked(oracle: GateZeroTurnOracle): string
   const referencedSources = [
     ...oracle.command.source_references,
     ...oracle.expected.required_source_references,
+    ...oracle.expected.authority_fragments.flatMap((fragment) =>
+      validateObjectAuthorityShape(fragment.authority) ? fragment.authority.source_references : [],
+    ),
     ...oracle.expected.allowed_user_visible_facts.flatMap((fact) => fact.source_references),
     ...oracle.expected.forbidden_factual_promotions.flatMap(
       (promotion) => promotion.source_references,
@@ -471,8 +498,16 @@ function validateGateZeroTurnOracleUnchecked(oracle: GateZeroTurnOracle): string
   if (
     oracle.expected.allowed_user_visible_facts.some(
       (fact) =>
-        !hasExactKeys(fact, ['basis', 'fact_id', 'party_attribution', 'source_references']) ||
+        !hasExactKeys(fact, [
+          'basis',
+          'fact_id',
+          'party_attribution',
+          'source_references',
+          'statement',
+        ]) ||
         !ID_PATTERN.test(fact.fact_id) ||
+        typeof fact.statement !== 'string' ||
+        fact.statement.length === 0 ||
         ![
           'source_quote',
           'party_attributed_assertion',
@@ -486,11 +521,14 @@ function validateGateZeroTurnOracleUnchecked(oracle: GateZeroTurnOracle): string
       (promotion) =>
         !hasExactKeys(promotion, [
           'prohibited_promotion',
+          'proposition',
           'proposition_id',
           'reason_code',
           'source_references',
         ]) ||
         !ID_PATTERN.test(promotion.proposition_id) ||
+        typeof promotion.proposition !== 'string' ||
+        promotion.proposition.length === 0 ||
         !ID_PATTERN.test(promotion.reason_code) ||
         ![
           'objective_fact',
@@ -506,10 +544,19 @@ function validateGateZeroTurnOracleUnchecked(oracle: GateZeroTurnOracle): string
   }
   if (
     oracle.expected.allowed_user_visible_facts.some(
-      (fact) => fact.basis === 'party_attributed_assertion' && fact.party_attribution === null,
+      (fact) =>
+        (fact.basis === 'party_attributed_assertion' && fact.party_attribution === null) ||
+        (fact.basis !== 'system_state' && fact.source_references.length === 0),
     )
   ) {
     issues.push('oracle_party_attribution_missing');
+  }
+  if (
+    oracle.expected.forbidden_factual_promotions.some(
+      (promotion) => promotion.source_references.length === 0,
+    )
+  ) {
+    issues.push('oracle_forbidden_promotion_source_missing');
   }
   if (
     oracle.expected.next_question_target !== null &&

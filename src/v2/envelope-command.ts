@@ -895,6 +895,10 @@ function commandStructureFailure(value: unknown): string | null {
   return null;
 }
 
+export function validateEnvelopeCommandStructure(value: unknown): string | null {
+  return commandStructureFailure(value);
+}
+
 function exactActor(left: AuthenticatedActor, right: AuthenticatedActor): boolean {
   return isDeepStrictEqual(left, right);
 }

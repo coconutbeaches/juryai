@@ -1179,6 +1179,7 @@ describe('v2 lock, reopening, adjudication projection, and Gate Zero oracle', ()
         allowed_user_visible_facts: [
           {
             fact_id: 'fact_a_asserted_friday_delivery',
+            statement: 'Person A says the agreed delivery date was Friday.',
             basis: 'party_attributed_assertion',
             party_attribution: 'party_a',
             source_references: [
@@ -1189,6 +1190,7 @@ describe('v2 lock, reopening, adjudication projection, and Gate Zero oracle', ()
         forbidden_factual_promotions: [
           {
             proposition_id: 'proposition_friday_delivery_objective',
+            proposition: 'The parties objectively agreed that delivery was due Friday.',
             prohibited_promotion: 'objective_fact',
             source_references: [
               exactSourceReference(context.source_registry.source_party_a_story!),
@@ -1254,6 +1256,30 @@ describe('v2 lock, reopening, adjudication projection, and Gate Zero oracle', ()
     invalidQuestionOracle.expected.next_question_target!.field = '';
     expect(validateGateZeroTurnOracle(invalidQuestionOracle)).toContain(
       'oracle_next_question_target_invalid',
+    );
+
+    const malformedCommandOracle = cloneCanonical(oracle);
+    delete (malformedCommandOracle.command as unknown as Record<string, unknown>).case_id;
+    expect(validateGateZeroTurnOracle(malformedCommandOracle)).toContain(
+      'oracle_command_shape_invalid',
+    );
+
+    const malformedAuthorityOracle = cloneCanonical(oracle);
+    malformedAuthorityOracle.expected.authority_fragments = [
+      { namespace: 'positions', object_id: 'position_oracle', authority: {} as never },
+    ];
+    expect(validateGateZeroTurnOracle(malformedAuthorityOracle)).toContain(
+      'oracle_authority_fragment_invalid',
+    );
+
+    const emptyFactOracle = cloneCanonical(oracle);
+    emptyFactOracle.expected.allowed_user_visible_facts[0]!.statement = '';
+    expect(validateGateZeroTurnOracle(emptyFactOracle)).toContain('oracle_fact_shape_invalid');
+
+    const ungroundedPromotionOracle = cloneCanonical(oracle);
+    ungroundedPromotionOracle.expected.forbidden_factual_promotions[0]!.source_references = [];
+    expect(validateGateZeroTurnOracle(ungroundedPromotionOracle)).toContain(
+      'oracle_forbidden_promotion_source_missing',
     );
 
     const staleOracle = cloneCanonical(oracle);
