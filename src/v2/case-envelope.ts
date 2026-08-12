@@ -477,7 +477,7 @@ function sourceReferenceShapeValid(value: unknown): value is SourceReference {
   );
 }
 
-function authorityShapeValid(value: unknown): value is ObjectAuthority {
+export function validateObjectAuthorityShape(value: unknown): value is ObjectAuthority {
   if (
     !hasExactKeys(value, [
       'adjudication_eligible',
@@ -501,7 +501,30 @@ function authorityShapeValid(value: unknown): value is ObjectAuthority {
     !isStringArray(value.subject_actor_ids) ||
     !isStringArray(value.evidence_ids) ||
     typeof value.adjudication_eligible !== 'boolean' ||
-    !isNullableString(value.authority_detail)
+    !isNullableString(value.authority_detail) ||
+    !ID_PATTERN.test(String(value.introduced_by.actor_id)) ||
+    !['party', 'system', 'inspector', 'adjudicator'].includes(
+      String(value.introduced_by.actor_type),
+    ) ||
+    !authorityKinds.has(value.authority_kind as AuthorityKind) ||
+    !stances.has(value.party_stances.party_a.stance as PartyStance) ||
+    !stances.has(value.party_stances.party_b.stance as PartyStance) ||
+    !isNullableString(value.party_stances.party_a.response_event_id) ||
+    !isNullableString(value.party_stances.party_b.response_event_id) ||
+    (value.party_stances.party_a.response_event_id !== null &&
+      !ID_PATTERN.test(value.party_stances.party_a.response_event_id)) ||
+    (value.party_stances.party_b.response_event_id !== null &&
+      !ID_PATTERN.test(value.party_stances.party_b.response_event_id)) ||
+    !['bilaterally_agreed', 'disputed', 'unresolved', 'withdrawn'].includes(
+      String(value.resolution_status),
+    ) ||
+    !Number.isSafeInteger(value.introduced_in_record_version) ||
+    !Number.isSafeInteger(value.last_material_record_version) ||
+    Number(value.introduced_in_record_version) < 1 ||
+    Number(value.last_material_record_version) < Number(value.introduced_in_record_version) ||
+    !ID_PATTERN.test(String(value.last_material_command_id)) ||
+    value.subject_actor_ids.some((actorId) => !ID_PATTERN.test(actorId)) ||
+    value.evidence_ids.some((evidenceId) => !ID_PATTERN.test(evidenceId))
   ) {
     return false;
   }
@@ -612,7 +635,9 @@ export function validateSubstantiveObjectShape(
     return issue('Substantive object must contain exactly the fields for its namespace.');
   }
   const object = value;
-  if (!authorityShapeValid(object.authority)) return issue('Authority metadata shape is invalid.');
+  if (!validateObjectAuthorityShape(object.authority)) {
+    return issue('Authority metadata shape is invalid.');
+  }
   const stringFieldsByNamespace: Record<SubstantiveNamespace, readonly string[]> = {
     actors: ['actor_id', 'display_label', 'asserted_role', 'identity_assurance'],
     agreements: ['obligation_id', 'obligation_type', 'description'],
