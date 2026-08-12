@@ -1,5 +1,10 @@
 # JuryAI Extraction Lab
 
+The frozen v2 formation/adjudication boundary is documented in
+[`docs/gz0-v2-formation-adjudication-boundary.md`](docs/gz0-v2-formation-adjudication-boundary.md).
+It is deterministic contract infrastructure; it does not add the conversational v2 runtime or Gate
+Zero corpus.
+
 A deliberately small, local validation lab for JuryAI’s machine-readable case record and narrative extraction pipeline.
 
 The repository now answers two measurable questions:
