@@ -25,8 +25,8 @@ decisions. Any matrix change must update the version or fingerprint in an explic
    before authoring cases 11–36.
 4. A turn’s source universe is closed. Every immutable `SourceRecord` available at that turn is
    classified as visible or hidden, exactly once. Visible and embargoed Case Envelope context is
-   separately identified by disjoint canonical paths. A fact allowed in user-visible output may
-   cite only visible sources.
+   separately identified by disjoint RFC 6901 JSON Pointers. A fact allowed in user-visible output
+   may cite only visible sources.
 5. The next-question oracle is a single nullable target, not a list. `null` means no question is
    expected on that turn. The field identifies party, namespace, optional object, field, and a
    stable reason code; it does not freeze model prose.

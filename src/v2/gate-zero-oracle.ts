@@ -269,13 +269,14 @@ function validateGateZeroTurnOracleUnchecked(oracle: GateZeroTurnOracle): string
   }
   const visiblePaths = oracle.visible_envelope_paths;
   const embargoedPaths = oracle.embargoed_envelope_paths;
-  const pathValid = (path: string): boolean => path === '$' || path.startsWith('$.');
+  const pathValid = (path: string): boolean =>
+    path === '' || /^(?:\/(?:[^~/]|~[01])*)+$/u.test(path);
   const pathsOverlap = (left: string, right: string): boolean =>
     left === right ||
-    left === '$' ||
-    right === '$' ||
-    left.startsWith(`${right}.`) ||
-    right.startsWith(`${left}.`);
+    left === '' ||
+    right === '' ||
+    left.startsWith(`${right}/`) ||
+    right.startsWith(`${left}/`);
   if (
     !unique(visiblePaths) ||
     !unique(embargoedPaths) ||

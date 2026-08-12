@@ -1139,7 +1139,7 @@ describe('v2 lock, reopening, adjudication projection, and Gate Zero oracle', ()
       source_records: Object.values(context.source_registry),
       visible_source_ids: ['source_party_a_story'],
       hidden_source_ids: ['source_inspection', 'source_material_change', 'source_party_b_story'],
-      visible_envelope_paths: ['$'],
+      visible_envelope_paths: [''],
       embargoed_envelope_paths: [],
       base_envelope_version: context.envelope.control.envelope_version,
       base_envelope_hash: context.envelope.control.envelope_hash,
@@ -1227,9 +1227,15 @@ describe('v2 lock, reopening, adjudication projection, and Gate Zero oracle', ()
     );
 
     const embargoOverlapOracle = cloneCanonical(oracle);
-    embargoOverlapOracle.embargoed_envelope_paths = ['$.payments'];
+    embargoOverlapOracle.embargoed_envelope_paths = ['/payments'];
     expect(validateGateZeroTurnOracle(embargoOverlapOracle)).toContain(
       'oracle_envelope_visibility_overlap',
+    );
+
+    const malformedVisibilityPathOracle = cloneCanonical(oracle);
+    malformedVisibilityPathOracle.visible_envelope_paths = ['$.payments'];
+    expect(validateGateZeroTurnOracle(malformedVisibilityPathOracle)).toContain(
+      'oracle_envelope_visibility_path_invalid',
     );
 
     const actorMismatchOracle = cloneCanonical(oracle);
