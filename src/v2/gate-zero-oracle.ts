@@ -168,6 +168,10 @@ function unique(values: readonly string[]): boolean {
   return new Set(values).size === values.length;
 }
 
+function lexicallySorted(values: readonly string[]): boolean {
+  return JSON.stringify(values) === JSON.stringify([...values].sort());
+}
+
 function validateGateZeroTurnOracleUnchecked(oracle: GateZeroTurnOracle): string[] {
   const issues: string[] = [];
   try {
@@ -273,10 +277,16 @@ function validateGateZeroTurnOracleUnchecked(oracle: GateZeroTurnOracle): string
     registry[source.source_id] = source;
   }
   if (sourceRecordInvalid) issues.push('oracle_source_record_invalid');
+  if (!lexicallySorted(oracle.source_records.map((source) => source.source_id))) {
+    issues.push('oracle_set_order_invalid');
+  }
 
   const visible = oracle.visible_source_ids;
   const hidden = oracle.hidden_source_ids;
   if (!unique(visible) || !unique(hidden)) issues.push('oracle_visibility_duplicate');
+  if (!lexicallySorted(visible) || !lexicallySorted(hidden)) {
+    issues.push('oracle_set_order_invalid');
+  }
   if (visible.some((sourceId) => hidden.includes(sourceId))) {
     issues.push('oracle_visibility_overlap');
   }
@@ -302,6 +312,9 @@ function validateGateZeroTurnOracleUnchecked(oracle: GateZeroTurnOracle): string
   ) {
     issues.push('oracle_envelope_visibility_path_invalid');
   }
+  if (!lexicallySorted(visiblePaths) || !lexicallySorted(embargoedPaths)) {
+    issues.push('oracle_set_order_invalid');
+  }
   if (
     visiblePaths.some((visiblePath) =>
       embargoedPaths.some((path) => pathsOverlap(visiblePath, path)),
@@ -315,6 +328,12 @@ function validateGateZeroTurnOracleUnchecked(oracle: GateZeroTurnOracle): string
   );
   if (!unique(oracle.permitted_operation_types) || !unique(oracle.forbidden_operation_types)) {
     issues.push('oracle_operation_permission_duplicate');
+  }
+  if (
+    !lexicallySorted(oracle.permitted_operation_types) ||
+    !lexicallySorted(oracle.forbidden_operation_types)
+  ) {
+    issues.push('oracle_set_order_invalid');
   }
   if (operationOverlap.length > 0) issues.push('oracle_operation_permission_overlap');
   const classifiedOperationTypes = new Set([
@@ -435,10 +454,22 @@ function validateGateZeroTurnOracleUnchecked(oracle: GateZeroTurnOracle): string
     issues.push('oracle_authority_fragment_invalid');
   }
   if (
+    !lexicallySorted(
+      oracle.expected.authority_fragments.map(
+        (fragment) => `${fragment.namespace}:${fragment.object_id}`,
+      ),
+    )
+  ) {
+    issues.push('oracle_set_order_invalid');
+  }
+  if (
     !unique(oracle.expected.invalidated_confirmation_parties) ||
     oracle.expected.invalidated_confirmation_parties.some((partyId) => !PARTY_IDS.has(partyId))
   ) {
     issues.push('oracle_confirmation_invalidation_invalid');
+  }
+  if (!lexicallySorted(oracle.expected.invalidated_confirmation_parties)) {
+    issues.push('oracle_set_order_invalid');
   }
   const evidenceActionIds = oracle.expected.evidence_actions.map(
     (action) => `${action.evidence_id}:${action.action}`,
@@ -494,6 +525,14 @@ function validateGateZeroTurnOracleUnchecked(oracle: GateZeroTurnOracle): string
     )
   ) {
     issues.push('oracle_fact_identity_duplicate');
+  }
+  if (
+    !lexicallySorted(oracle.expected.allowed_user_visible_facts.map((fact) => fact.fact_id)) ||
+    !lexicallySorted(
+      oracle.expected.forbidden_factual_promotions.map((promotion) => promotion.proposition_id),
+    )
+  ) {
+    issues.push('oracle_set_order_invalid');
   }
   if (
     oracle.expected.allowed_user_visible_facts.some(

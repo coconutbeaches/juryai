@@ -1137,7 +1137,9 @@ describe('v2 lock, reopening, adjudication projection, and Gate Zero oracle', ()
       oracle_version: GATE_ZERO_ORACLE_VERSION,
       turn_id: 'turn_oracle_fixture',
       authenticated_actor: actor,
-      source_records: Object.values(context.source_registry),
+      source_records: Object.values(context.source_registry).sort((left, right) =>
+        left.source_id < right.source_id ? -1 : left.source_id > right.source_id ? 1 : 0,
+      ),
       visible_source_ids: ['source_party_a_story'],
       hidden_source_ids: ['source_inspection', 'source_material_change', 'source_party_b_story'],
       visible_envelope_paths: [''],
@@ -1280,6 +1282,12 @@ describe('v2 lock, reopening, adjudication projection, and Gate Zero oracle', ()
     ungroundedPromotionOracle.expected.forbidden_factual_promotions[0]!.source_references = [];
     expect(validateGateZeroTurnOracle(ungroundedPromotionOracle)).toContain(
       'oracle_forbidden_promotion_source_missing',
+    );
+
+    const noncanonicalSetOrderOracle = cloneCanonical(oracle);
+    noncanonicalSetOrderOracle.hidden_source_ids.reverse();
+    expect(validateGateZeroTurnOracle(noncanonicalSetOrderOracle)).toContain(
+      'oracle_set_order_invalid',
     );
 
     const staleOracle = cloneCanonical(oracle);

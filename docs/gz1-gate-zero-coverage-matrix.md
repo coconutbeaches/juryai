@@ -61,6 +61,9 @@ duplicate/overlapping/incomplete visibility or operation partitions; unregistere
 span-invalid sources; facts citing hidden sources; inconsistent mutation/version/hash claims;
 missing/unexpected failure codes; and incoherent lock effects.
 
+Set-like oracle arrays use canonical lexical ordering. Command operation order and other explicitly
+sequence-bearing arrays remain identity-bearing.
+
 ## Coverage taxonomy
 
 The 48 requirements cover the complete formation and adjudication-input journey:
