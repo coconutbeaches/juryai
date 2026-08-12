@@ -182,6 +182,12 @@ export interface SetEvidenceVisibilityOperation {
   disclosure_event_id: string;
 }
 
+export interface SetOwnEvidenceAvailabilityOperation {
+  type: 'set_own_evidence_availability';
+  evidence_id: string;
+  availability: 'withdrawn' | 'superseded';
+}
+
 export interface RecordIndependentAccountOperation {
   type: 'record_independent_account';
   source_reference: SourceReference;
@@ -237,6 +243,7 @@ export type EnvelopeOperation =
   | RecordEvidenceUploadOperation
   | RecordEvidenceInspectionOperation
   | SetEvidenceVisibilityOperation
+  | SetOwnEvidenceAvailabilityOperation
   | RecordIndependentAccountOperation
   | RecordDetailedDisclosureOperation
   | RecordConfirmationOperation
@@ -458,6 +465,12 @@ export const OPERATION_PERMISSIONS: readonly OperationPermission[] = [
     party_scope: 'none',
   },
   {
+    operation: 'set_own_evidence_availability',
+    actor_types: ['party'],
+    workflow_states: FORMATION_EDIT_STATES,
+    party_scope: 'own_material',
+  },
+  {
     operation: 'record_independent_account',
     actor_types: ['party'],
     workflow_states: ['person_b_independent_account'],
@@ -643,6 +656,7 @@ const materialOperationTypes = new Set<EnvelopeOperation['type']>([
   'record_evidence_upload',
   'record_evidence_inspection',
   'set_evidence_visibility',
+  'set_own_evidence_availability',
   'record_independent_account',
   'record_detailed_disclosure',
   'reopen_material_change',
@@ -833,6 +847,7 @@ const OPERATION_KEYS: Record<EnvelopeOperation['type'], readonly string[]> = {
     'type',
   ],
   set_evidence_visibility: ['disclosure_event_id', 'evidence_id', 'type', 'visibility'],
+  set_own_evidence_availability: ['availability', 'evidence_id', 'type'],
   record_independent_account: ['event_id', 'source_reference', 'type'],
   record_detailed_disclosure: ['event_id', 'type'],
   record_confirmation: ['confirmation_id', 'confirmed_at', 'event_id', 'type'],
@@ -972,6 +987,12 @@ function sourceAuthorityFailure(
       )
     ) {
       return 'A challenge resolution must be grounded only in sources attributed to its owner.';
+    }
+  }
+  if (operation.type === 'reopen_material_change') {
+    const sources = sourcesFor(operation.source_references);
+    if (sources.length === 0) {
+      return 'A post-lock material change requires at least one exact source reference.';
     }
   }
   return null;
@@ -1492,6 +1513,23 @@ function applyOperation(
         resolution_event_id: null,
         resolution_source_references: [],
       });
+      target.authority.party_stances[actor.party_id] = {
+        stance: 'disputed',
+        response_event_id: operation.challenge_id,
+      };
+      target.authority.resolution_status = deriveResolutionStatus(target.authority.party_stances);
+      target.authority.source_references = deduplicateSourceReferences([
+        ...target.authority.source_references,
+        ...operation.source_references,
+      ]);
+      target.authority.last_material_record_version = nextRecordVersion;
+      target.authority.last_material_command_id = command.command_id;
+      if (
+        operation.target_namespace === 'evidence' &&
+        ['asserted_author_actor_id', 'authenticity_status'].includes(operation.target_field ?? '')
+      ) {
+        (target as EvidenceObject).authenticity_status = 'disputed';
+      }
       return { failure: null };
     }
     case 'resolve_challenge': {
@@ -1787,6 +1825,56 @@ function applyOperation(
       if (!evidence) return { failure: 'Evidence does not exist.', reason: 'unknown_object' };
       evidence.visibility = operation.visibility;
       evidence.disclosure_event_ids.push(operation.disclosure_event_id);
+      evidence.adjudication_eligibility = evidenceEligibility(evidence);
+      evidence.authority.last_material_record_version = nextRecordVersion;
+      evidence.authority.last_material_command_id = command.command_id;
+      return { failure: null };
+    }
+    case 'set_own_evidence_availability': {
+      if (actor.actor_type !== 'party' || !actor.party_id) {
+        return {
+          failure: 'Only an authenticated party may withdraw or supersede its evidence.',
+          reason: 'unauthorized_actor',
+        };
+      }
+      const evidence = ownMapValue(envelope.evidence, operation.evidence_id);
+      if (!evidence) return { failure: 'Evidence does not exist.', reason: 'unknown_object' };
+      if (evidence.submitted_by_party_id !== actor.party_id) {
+        return {
+          failure: 'A party cannot withdraw or supersede another party evidence.',
+          reason: 'cross_party_mutation',
+        };
+      }
+      if (command.source_references.length === 0) {
+        return {
+          failure: 'Evidence withdrawal or supersession requires exact source grounding.',
+          reason: 'invalid_source_reference',
+        };
+      }
+      if (['withdrawn', 'superseded'].includes(evidence.availability)) {
+        return {
+          failure: 'Evidence is already withdrawn or superseded.',
+          reason: 'invalid_operation',
+        };
+      }
+      if (operation.availability === 'superseded') {
+        const replacement = command.operations.find(
+          (candidate): candidate is AddObjectOperation =>
+            candidate.type === 'add_object' &&
+            candidate.namespace === 'evidence' &&
+            (candidate.object as EvidenceObject).supersedes_evidence_id === evidence.evidence_id,
+        );
+        if (
+          !replacement ||
+          (replacement.object as EvidenceObject).submitted_by_party_id !== actor.party_id
+        ) {
+          return {
+            failure: 'Superseding evidence requires an atomic same-party replacement.',
+            reason: 'invalid_operation',
+          };
+        }
+      }
+      evidence.availability = operation.availability;
       evidence.adjudication_eligibility = evidenceEligibility(evidence);
       evidence.authority.last_material_record_version = nextRecordVersion;
       evidence.authority.last_material_command_id = command.command_id;
