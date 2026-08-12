@@ -1,0 +1,1668 @@
+{
+  "case_id": "gz_case_018",
+  "coverage": {
+    "failure": [
+      "one_question_per_turn",
+      "incremental_question_formation"
+    ],
+    "success": [
+      "one_question_per_turn",
+      "incremental_question_formation",
+      "ambiguity"
+    ]
+  },
+  "expected_adjudication_input": null,
+  "final_envelope": {
+    "actors": {},
+    "agreements": {},
+    "claimed_losses": {},
+    "classification": {
+      "authority": {
+        "adjudication_eligible": false,
+        "authority_detail": "initial classification placeholder",
+        "authority_kind": "system_observation",
+        "evidence_ids": [],
+        "introduced_by": {
+          "actor_id": "juryai_system",
+          "actor_type": "system"
+        },
+        "introduced_in_record_version": 1,
+        "last_material_command_id": "command_system_initialization",
+        "last_material_record_version": 1,
+        "party_stances": {
+          "party_a": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          },
+          "party_b": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          }
+        },
+        "resolution_status": "unresolved",
+        "source_references": [
+          {
+            "source_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+            "source_id": "source_system_initialization",
+            "span": null
+          }
+        ],
+        "subject_actor_ids": []
+      },
+      "case_category": null,
+      "maturity": "undetermined",
+      "required_fact_profile": null,
+      "safety_flags": [],
+      "scope_flags": [],
+      "suitability": "undetermined"
+    },
+    "control": {
+      "case_id": "gz_case_018",
+      "deadlines": {},
+      "eligibility": {
+        "reason_codes": [],
+        "status": "undetermined"
+      },
+      "envelope_hash": "1642e6501a5e2c4b6c5d2670577a43f8048bc2080fd879a1a168bdb790210eb6",
+      "envelope_version": 11,
+      "lock": {
+        "lock_event_id": null,
+        "locked_at": null,
+        "mode": null,
+        "output_scope": null,
+        "status": "unlocked"
+      },
+      "protocol": {
+        "non_participation_mode": "prohibited",
+        "protocol_id": "commercial_fairness_v2",
+        "protocol_version": "juryai-formation-protocol-v2.0.0"
+      },
+      "record_hash": "213d781ac148176b58afa6d0600c5b1a3d03b03fb5bf813578ebaa3c3cf833d4",
+      "record_version": 11,
+      "schema_version": "juryai-case-envelope-v2.0.0",
+      "workflow_state": "person_a_formation"
+    },
+    "deliverables": {},
+    "events": {},
+    "evidence": {},
+    "formation": {
+      "ambiguities": [],
+      "challenges": [],
+      "confirmations": {
+        "party_a": null,
+        "party_b": null
+      },
+      "disclosure": {
+        "detailed_a_framing": "embargoed",
+        "disclosure_event_id": null,
+        "person_b_independent_account_source_id": null
+      },
+      "lock_blockers": [],
+      "lock_prerequisites": [],
+      "material_change_events": [],
+      "non_participation": {
+        "correction_opportunity": "not_started",
+        "deadline_expired_event_id": null,
+        "invitation_event_id": null,
+        "notice_event_id": null,
+        "response_deadline": null
+      },
+      "open_required_fields": [],
+      "prior_locks": [],
+      "uncertainties": []
+    },
+    "parties": {
+      "party_a": {
+        "authenticated_subject_id": "subject_party_a",
+        "consent_event_id": "event_gz_case_018_consent_a",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_018_identity_a",
+        "participation_state": "active",
+        "party_id": "party_a",
+        "role": "person_a"
+      },
+      "party_b": {
+        "authenticated_subject_id": "subject_party_b",
+        "consent_event_id": "event_gz_case_018_consent_b",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_018_identity_b",
+        "participation_state": "active",
+        "party_id": "party_b",
+        "role": "person_b"
+      }
+    },
+    "payments": {
+      "payment_gz_case_018_balance": {
+        "amount_minor": null,
+        "authority": {
+          "adjudication_eligible": true,
+          "authority_detail": "Authenticated party_a assertion",
+          "authority_kind": "party_assertion",
+          "evidence_ids": [],
+          "introduced_by": {
+            "actor_id": "subject_party_a",
+            "actor_type": "party"
+          },
+          "introduced_in_record_version": 3,
+          "last_material_command_id": "command_gz_case_018_payment",
+          "last_material_record_version": 3,
+          "party_stances": {
+            "party_a": {
+              "response_event_id": null,
+              "stance": "asserted"
+            },
+            "party_b": {
+              "response_event_id": null,
+              "stance": "unresponded"
+            }
+          },
+          "resolution_status": "unresolved",
+          "source_references": [
+            {
+              "source_hash": "49d7eb910306a74b6377051af988c08fab8a1f2575ae8a41278cf1286bde7043",
+              "source_id": "source_gz_case_018_payment_answer",
+              "span": {
+                "encoding": "utf16",
+                "end": 65,
+                "quote": "The remaining balance was due only after accepted final delivery.",
+                "start": 0
+              }
+            }
+          ],
+          "subject_actor_ids": [
+            "subject_party_a"
+          ]
+        },
+        "currency": null,
+        "due_trigger": "after accepted final delivery",
+        "from_actor_id": null,
+        "linked_deliverable_ids": [],
+        "linked_event_ids": [],
+        "linked_obligation_ids": [],
+        "payment_id": "payment_gz_case_018_balance",
+        "payment_status": "disputed",
+        "to_actor_id": null
+      }
+    },
+    "positions": {},
+    "requested_outcomes": {}
+  },
+  "fixture_version": "juryai-gate-zero-case-fixture-v1.0.0",
+  "initial_envelope": {
+    "actors": {},
+    "agreements": {},
+    "claimed_losses": {},
+    "classification": {
+      "authority": {
+        "adjudication_eligible": false,
+        "authority_detail": "initial classification placeholder",
+        "authority_kind": "system_observation",
+        "evidence_ids": [],
+        "introduced_by": {
+          "actor_id": "juryai_system",
+          "actor_type": "system"
+        },
+        "introduced_in_record_version": 1,
+        "last_material_command_id": "command_system_initialization",
+        "last_material_record_version": 1,
+        "party_stances": {
+          "party_a": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          },
+          "party_b": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          }
+        },
+        "resolution_status": "unresolved",
+        "source_references": [
+          {
+            "source_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+            "source_id": "source_system_initialization",
+            "span": null
+          }
+        ],
+        "subject_actor_ids": []
+      },
+      "case_category": null,
+      "maturity": "undetermined",
+      "required_fact_profile": null,
+      "safety_flags": [],
+      "scope_flags": [],
+      "suitability": "undetermined"
+    },
+    "control": {
+      "case_id": "gz_case_018",
+      "deadlines": {},
+      "eligibility": {
+        "reason_codes": [],
+        "status": "undetermined"
+      },
+      "envelope_hash": "127c1b2089c586174250739b48cbb03744b3df912f94e776db1fd1b5d1c0bac1",
+      "envelope_version": 1,
+      "lock": {
+        "lock_event_id": null,
+        "locked_at": null,
+        "mode": null,
+        "output_scope": null,
+        "status": "unlocked"
+      },
+      "protocol": {
+        "non_participation_mode": "prohibited",
+        "protocol_id": "commercial_fairness_v2",
+        "protocol_version": "juryai-formation-protocol-v2.0.0"
+      },
+      "record_hash": "f10e52c6a5c47beb8f8cfd283b328f7d04600e01eabde81f2e510c88c78bbe8f",
+      "record_version": 1,
+      "schema_version": "juryai-case-envelope-v2.0.0",
+      "workflow_state": "person_a_formation"
+    },
+    "deliverables": {},
+    "events": {},
+    "evidence": {},
+    "formation": {
+      "ambiguities": [],
+      "challenges": [],
+      "confirmations": {
+        "party_a": null,
+        "party_b": null
+      },
+      "disclosure": {
+        "detailed_a_framing": "embargoed",
+        "disclosure_event_id": null,
+        "person_b_independent_account_source_id": null
+      },
+      "lock_blockers": [],
+      "lock_prerequisites": [],
+      "material_change_events": [],
+      "non_participation": {
+        "correction_opportunity": "not_started",
+        "deadline_expired_event_id": null,
+        "invitation_event_id": null,
+        "notice_event_id": null,
+        "response_deadline": null
+      },
+      "open_required_fields": [],
+      "prior_locks": [],
+      "uncertainties": []
+    },
+    "parties": {
+      "party_a": {
+        "authenticated_subject_id": "subject_party_a",
+        "consent_event_id": "event_gz_case_018_consent_a",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_018_identity_a",
+        "participation_state": "active",
+        "party_id": "party_a",
+        "role": "person_a"
+      },
+      "party_b": {
+        "authenticated_subject_id": "subject_party_b",
+        "consent_event_id": "event_gz_case_018_consent_b",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_018_identity_b",
+        "participation_state": "active",
+        "party_id": "party_b",
+        "role": "person_b"
+      }
+    },
+    "payments": {},
+    "positions": {},
+    "requested_outcomes": {}
+  },
+  "matrix_version": "juryai-gate-zero-coverage-matrix-v1.0.0",
+  "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+  "title": "Question planner resists attractive low-value detail",
+  "turns": [
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "127c1b2089c586174250739b48cbb03744b3df912f94e776db1fd1b5d1c0bac1",
+      "base_envelope_version": 1,
+      "base_record_hash": "f10e52c6a5c47beb8f8cfd283b328f7d04600e01eabde81f2e510c88c78bbe8f",
+      "base_record_version": 1,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "127c1b2089c586174250739b48cbb03744b3df912f94e776db1fd1b5d1c0bac1",
+        "base_envelope_version": 1,
+        "case_id": "gz_case_018",
+        "command_id": "command_gz_case_018_turn_01_rank_required_targets",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [
+              "The balance due trigger controls the dispute."
+            ],
+            "lock_blockers": [
+              "payment_trigger_missing"
+            ],
+            "lock_prerequisites": [
+              "payment_trigger_resolved"
+            ],
+            "open_required_fields": [
+              "payments.balance.due_trigger",
+              "actors.witness.favorite_color"
+            ],
+            "type": "set_formation_requirements",
+            "uncertainties": [
+              "A witness color detail is narratively attractive but immaterial."
+            ]
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": {
+          "addressed_to_party": "party_a",
+          "field": "due_trigger",
+          "namespace": "payments",
+          "object_id": null,
+          "reason_code": "highest_value_payment_trigger"
+        },
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "8c5ce55067cd7929d38d213c67d9f846f28a0e7f214209bf22006b4fada3f5f4",
+        "resulting_envelope_version": 2,
+        "resulting_record_hash": "bfea28fa7b5431816a419207ca78382643d7ccc0013e8c8371b1ef44cd9ee679",
+        "resulting_record_version": 2,
+        "workflow_state": "person_a_formation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_party_identity",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_018_turn_01_rank_required_targets",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_a",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_a",
+        "party_id": "party_a"
+      },
+      "base_envelope_hash": "8c5ce55067cd7929d38d213c67d9f846f28a0e7f214209bf22006b4fada3f5f4",
+      "base_envelope_version": 2,
+      "base_record_hash": "bfea28fa7b5431816a419207ca78382643d7ccc0013e8c8371b1ef44cd9ee679",
+      "base_record_version": 2,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_a",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_a",
+          "party_id": "party_a"
+        },
+        "base_envelope_hash": "8c5ce55067cd7929d38d213c67d9f846f28a0e7f214209bf22006b4fada3f5f4",
+        "base_envelope_version": 2,
+        "case_id": "gz_case_018",
+        "command_id": "command_gz_case_018_payment",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "namespace": "payments",
+            "object": {
+              "amount_minor": null,
+              "authority": {
+                "adjudication_eligible": true,
+                "authority_detail": "Authenticated party_a assertion",
+                "authority_kind": "party_assertion",
+                "evidence_ids": [],
+                "introduced_by": {
+                  "actor_id": "subject_party_a",
+                  "actor_type": "party"
+                },
+                "introduced_in_record_version": 3,
+                "last_material_command_id": "command_gz_case_018_payment",
+                "last_material_record_version": 3,
+                "party_stances": {
+                  "party_a": {
+                    "response_event_id": null,
+                    "stance": "asserted"
+                  },
+                  "party_b": {
+                    "response_event_id": null,
+                    "stance": "unresponded"
+                  }
+                },
+                "resolution_status": "unresolved",
+                "source_references": [
+                  {
+                    "source_hash": "49d7eb910306a74b6377051af988c08fab8a1f2575ae8a41278cf1286bde7043",
+                    "source_id": "source_gz_case_018_payment_answer",
+                    "span": {
+                      "encoding": "utf16",
+                      "end": 65,
+                      "quote": "The remaining balance was due only after accepted final delivery.",
+                      "start": 0
+                    }
+                  }
+                ],
+                "subject_actor_ids": [
+                  "subject_party_a"
+                ]
+              },
+              "currency": null,
+              "due_trigger": "after accepted final delivery",
+              "from_actor_id": null,
+              "linked_deliverable_ids": [],
+              "linked_event_ids": [],
+              "linked_obligation_ids": [],
+              "payment_id": "payment_gz_case_018_balance",
+              "payment_status": "disputed",
+              "to_actor_id": null
+            },
+            "type": "add_object"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "49d7eb910306a74b6377051af988c08fab8a1f2575ae8a41278cf1286bde7043",
+            "source_id": "source_gz_case_018_payment_answer",
+            "span": {
+              "encoding": "utf16",
+              "end": 65,
+              "quote": "The remaining balance was due only after accepted final delivery.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [
+          {
+            "prohibited_promotion": "bilateral_agreement",
+            "proposition": "Both parties agreed to the asserted trigger.",
+            "proposition_id": "proposition_gz_case_018_trigger_agreed",
+            "reason_code": "person_a_assertion_only",
+            "source_references": [
+              {
+                "source_hash": "49d7eb910306a74b6377051af988c08fab8a1f2575ae8a41278cf1286bde7043",
+                "source_id": "source_gz_case_018_payment_answer",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 65,
+                  "quote": "The remaining balance was due only after accepted final delivery.",
+                  "start": 0
+                }
+              }
+            ]
+          }
+        ],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [
+          {
+            "source_hash": "49d7eb910306a74b6377051af988c08fab8a1f2575ae8a41278cf1286bde7043",
+            "source_id": "source_gz_case_018_payment_answer",
+            "span": {
+              "encoding": "utf16",
+              "end": 65,
+              "quote": "The remaining balance was due only after accepted final delivery.",
+              "start": 0
+            }
+          }
+        ],
+        "resulting_envelope_hash": "a952902eacfb1d30b9f2cef869f05a77a4f4e1a4da573f65bacf35a80ac2e8cd",
+        "resulting_envelope_version": 3,
+        "resulting_record_hash": "24736c4c4c035886ba0fe8126b6a9e7ae68c4db1ffb52f757beefefd5aee9626",
+        "resulting_record_version": 3,
+        "workflow_state": "person_a_formation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "replace_own_field",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "The remaining balance was due only after accepted final delivery.",
+          "content_hash": "49d7eb910306a74b6377051af988c08fab8a1f2575ae8a41278cf1286bde7043",
+          "source_id": "source_gz_case_018_payment_answer",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_018_turn_02_answer_high_value_question",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_018_payment_answer",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "a952902eacfb1d30b9f2cef869f05a77a4f4e1a4da573f65bacf35a80ac2e8cd",
+      "base_envelope_version": 3,
+      "base_record_hash": "24736c4c4c035886ba0fe8126b6a9e7ae68c4db1ffb52f757beefefd5aee9626",
+      "base_record_version": 3,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "a952902eacfb1d30b9f2cef869f05a77a4f4e1a4da573f65bacf35a80ac2e8cd",
+        "base_envelope_version": 3,
+        "case_id": "gz_case_018",
+        "command_id": "command_gz_case_018_turn_03_hidden_low_value_context_ignored",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [
+              "Whether final delivery was accepted remains material."
+            ],
+            "lock_blockers": [
+              "acceptance_status_missing"
+            ],
+            "lock_prerequisites": [
+              "acceptance_status_resolved"
+            ],
+            "open_required_fields": [
+              "deliverables.final.acceptance"
+            ],
+            "type": "set_formation_requirements",
+            "uncertainties": []
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": {
+          "addressed_to_party": "party_a",
+          "field": "completion_positions",
+          "namespace": "deliverables",
+          "object_id": null,
+          "reason_code": "highest_value_acceptance_status"
+        },
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "a500362471599e31467d4d8f0f4a2739f250f45454c12c7b306dcaac6b6d4536",
+        "resulting_envelope_version": 4,
+        "resulting_record_hash": "93ee612b2878c0caa142b707ba713ba2f7ecc0347e207a0d06bfc8a4386be6fc",
+        "resulting_record_version": 4,
+        "workflow_state": "person_a_formation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [
+        "source_gz_case_018_hidden_color"
+      ],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_party_identity",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_b",
+          "content": "A hidden Person B note mentions a blue shirt and says nothing about payment.",
+          "content_hash": "06ccf69519628a80ae068124924c2a3e6fe6ab775f4a57998d0793643a7eafa3",
+          "source_id": "source_gz_case_018_hidden_color",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "The remaining balance was due only after accepted final delivery.",
+          "content_hash": "49d7eb910306a74b6377051af988c08fab8a1f2575ae8a41278cf1286bde7043",
+          "source_id": "source_gz_case_018_payment_answer",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_018_turn_03_hidden_low_value_context_ignored",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_018_payment_answer",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "a500362471599e31467d4d8f0f4a2739f250f45454c12c7b306dcaac6b6d4536",
+      "base_envelope_version": 4,
+      "base_record_hash": "93ee612b2878c0caa142b707ba713ba2f7ecc0347e207a0d06bfc8a4386be6fc",
+      "base_record_version": 4,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "a500362471599e31467d4d8f0f4a2739f250f45454c12c7b306dcaac6b6d4536",
+        "base_envelope_version": 4,
+        "case_id": "gz_case_018",
+        "command_id": "command_gz_case_018_turn_04_single_target_checkpoint",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [
+              "Acceptance remains the single material target."
+            ],
+            "lock_blockers": [],
+            "lock_prerequisites": [],
+            "open_required_fields": [
+              "deliverables.final.acceptance"
+            ],
+            "type": "set_formation_requirements",
+            "uncertainties": []
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": {
+          "addressed_to_party": "party_a",
+          "field": "completion_positions",
+          "namespace": "deliverables",
+          "object_id": null,
+          "reason_code": "single_target_checkpoint_4"
+        },
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "181e035cde1a86fa2b9ff34373e1fc55d4926ccb8427ecf1250f3896d30d5159",
+        "resulting_envelope_version": 5,
+        "resulting_record_hash": "a423376e68448274d08ec3c9a49d5d63a79d6b359e185108cd01a25336497e93",
+        "resulting_record_version": 5,
+        "workflow_state": "person_a_formation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [
+        "source_gz_case_018_hidden_color"
+      ],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_party_identity",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_b",
+          "content": "A hidden Person B note mentions a blue shirt and says nothing about payment.",
+          "content_hash": "06ccf69519628a80ae068124924c2a3e6fe6ab775f4a57998d0793643a7eafa3",
+          "source_id": "source_gz_case_018_hidden_color",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "The remaining balance was due only after accepted final delivery.",
+          "content_hash": "49d7eb910306a74b6377051af988c08fab8a1f2575ae8a41278cf1286bde7043",
+          "source_id": "source_gz_case_018_payment_answer",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_018_turn_04_single_target_checkpoint",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_018_payment_answer",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "181e035cde1a86fa2b9ff34373e1fc55d4926ccb8427ecf1250f3896d30d5159",
+      "base_envelope_version": 5,
+      "base_record_hash": "a423376e68448274d08ec3c9a49d5d63a79d6b359e185108cd01a25336497e93",
+      "base_record_version": 5,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "181e035cde1a86fa2b9ff34373e1fc55d4926ccb8427ecf1250f3896d30d5159",
+        "base_envelope_version": 5,
+        "case_id": "gz_case_018",
+        "command_id": "command_gz_case_018_turn_05_single_target_checkpoint",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [
+              "Acceptance remains the single material target."
+            ],
+            "lock_blockers": [],
+            "lock_prerequisites": [],
+            "open_required_fields": [
+              "deliverables.final.acceptance"
+            ],
+            "type": "set_formation_requirements",
+            "uncertainties": []
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": {
+          "addressed_to_party": "party_a",
+          "field": "completion_positions",
+          "namespace": "deliverables",
+          "object_id": null,
+          "reason_code": "single_target_checkpoint_5"
+        },
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "1d415ec4add957254b06243f5c0c8489cfc6f8fd6bfc4a9b8d56117ac9e40ad8",
+        "resulting_envelope_version": 6,
+        "resulting_record_hash": "92352ad5db026b94c9c80b163675f9e1d6c2dceffce4cd3de40d19f29584c4e4",
+        "resulting_record_version": 6,
+        "workflow_state": "person_a_formation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [
+        "source_gz_case_018_hidden_color"
+      ],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_party_identity",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_b",
+          "content": "A hidden Person B note mentions a blue shirt and says nothing about payment.",
+          "content_hash": "06ccf69519628a80ae068124924c2a3e6fe6ab775f4a57998d0793643a7eafa3",
+          "source_id": "source_gz_case_018_hidden_color",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "The remaining balance was due only after accepted final delivery.",
+          "content_hash": "49d7eb910306a74b6377051af988c08fab8a1f2575ae8a41278cf1286bde7043",
+          "source_id": "source_gz_case_018_payment_answer",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_018_turn_05_single_target_checkpoint",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_018_payment_answer",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "1d415ec4add957254b06243f5c0c8489cfc6f8fd6bfc4a9b8d56117ac9e40ad8",
+      "base_envelope_version": 6,
+      "base_record_hash": "92352ad5db026b94c9c80b163675f9e1d6c2dceffce4cd3de40d19f29584c4e4",
+      "base_record_version": 6,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "1d415ec4add957254b06243f5c0c8489cfc6f8fd6bfc4a9b8d56117ac9e40ad8",
+        "base_envelope_version": 6,
+        "case_id": "gz_case_018",
+        "command_id": "command_gz_case_018_turn_06_single_target_checkpoint",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [
+              "Acceptance remains the single material target."
+            ],
+            "lock_blockers": [],
+            "lock_prerequisites": [],
+            "open_required_fields": [
+              "deliverables.final.acceptance"
+            ],
+            "type": "set_formation_requirements",
+            "uncertainties": []
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": {
+          "addressed_to_party": "party_a",
+          "field": "completion_positions",
+          "namespace": "deliverables",
+          "object_id": null,
+          "reason_code": "single_target_checkpoint_6"
+        },
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "3592afed305e232f429662efd565644e171af14913f78ca7845e4f78ac089555",
+        "resulting_envelope_version": 7,
+        "resulting_record_hash": "337c5df691cc3a933e984a895c146f1a647ee9142224b063c76cc6780232a0b8",
+        "resulting_record_version": 7,
+        "workflow_state": "person_a_formation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [
+        "source_gz_case_018_hidden_color"
+      ],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_party_identity",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_b",
+          "content": "A hidden Person B note mentions a blue shirt and says nothing about payment.",
+          "content_hash": "06ccf69519628a80ae068124924c2a3e6fe6ab775f4a57998d0793643a7eafa3",
+          "source_id": "source_gz_case_018_hidden_color",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "The remaining balance was due only after accepted final delivery.",
+          "content_hash": "49d7eb910306a74b6377051af988c08fab8a1f2575ae8a41278cf1286bde7043",
+          "source_id": "source_gz_case_018_payment_answer",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_018_turn_06_single_target_checkpoint",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_018_payment_answer",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "3592afed305e232f429662efd565644e171af14913f78ca7845e4f78ac089555",
+      "base_envelope_version": 7,
+      "base_record_hash": "337c5df691cc3a933e984a895c146f1a647ee9142224b063c76cc6780232a0b8",
+      "base_record_version": 7,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "3592afed305e232f429662efd565644e171af14913f78ca7845e4f78ac089555",
+        "base_envelope_version": 7,
+        "case_id": "gz_case_018",
+        "command_id": "command_gz_case_018_turn_07_single_target_checkpoint",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [
+              "Acceptance remains the single material target."
+            ],
+            "lock_blockers": [],
+            "lock_prerequisites": [],
+            "open_required_fields": [
+              "deliverables.final.acceptance"
+            ],
+            "type": "set_formation_requirements",
+            "uncertainties": []
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "0454482612a09b30f215ee70a6750409cfcf7e614679c62883424886d4bbfefd",
+        "resulting_envelope_version": 8,
+        "resulting_record_hash": "004a0c1cdc95bd58eb12620d8acb01379fbe39df719843ab5eea40cbaf91aedf",
+        "resulting_record_version": 8,
+        "workflow_state": "person_a_formation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [
+        "source_gz_case_018_hidden_color"
+      ],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_party_identity",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_b",
+          "content": "A hidden Person B note mentions a blue shirt and says nothing about payment.",
+          "content_hash": "06ccf69519628a80ae068124924c2a3e6fe6ab775f4a57998d0793643a7eafa3",
+          "source_id": "source_gz_case_018_hidden_color",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "The remaining balance was due only after accepted final delivery.",
+          "content_hash": "49d7eb910306a74b6377051af988c08fab8a1f2575ae8a41278cf1286bde7043",
+          "source_id": "source_gz_case_018_payment_answer",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_018_turn_07_single_target_checkpoint",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_018_payment_answer",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "0454482612a09b30f215ee70a6750409cfcf7e614679c62883424886d4bbfefd",
+      "base_envelope_version": 8,
+      "base_record_hash": "004a0c1cdc95bd58eb12620d8acb01379fbe39df719843ab5eea40cbaf91aedf",
+      "base_record_version": 8,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "0454482612a09b30f215ee70a6750409cfcf7e614679c62883424886d4bbfefd",
+        "base_envelope_version": 8,
+        "case_id": "gz_case_018",
+        "command_id": "command_gz_case_018_turn_08_single_target_checkpoint",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [
+              "Acceptance remains the single material target."
+            ],
+            "lock_blockers": [],
+            "lock_prerequisites": [],
+            "open_required_fields": [
+              "deliverables.final.acceptance"
+            ],
+            "type": "set_formation_requirements",
+            "uncertainties": []
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "53788d9744410e727928beb79d75950bbbe423b08ec24a4383d38e4bd9c2a262",
+        "resulting_envelope_version": 9,
+        "resulting_record_hash": "959289027cf9b9ffcd7fd37f4d04f547ad72ed8cacf26730b05701b5c5ff41e6",
+        "resulting_record_version": 9,
+        "workflow_state": "person_a_formation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [
+        "source_gz_case_018_hidden_color"
+      ],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_party_identity",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_b",
+          "content": "A hidden Person B note mentions a blue shirt and says nothing about payment.",
+          "content_hash": "06ccf69519628a80ae068124924c2a3e6fe6ab775f4a57998d0793643a7eafa3",
+          "source_id": "source_gz_case_018_hidden_color",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "The remaining balance was due only after accepted final delivery.",
+          "content_hash": "49d7eb910306a74b6377051af988c08fab8a1f2575ae8a41278cf1286bde7043",
+          "source_id": "source_gz_case_018_payment_answer",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_018_turn_08_single_target_checkpoint",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_018_payment_answer",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "53788d9744410e727928beb79d75950bbbe423b08ec24a4383d38e4bd9c2a262",
+      "base_envelope_version": 9,
+      "base_record_hash": "959289027cf9b9ffcd7fd37f4d04f547ad72ed8cacf26730b05701b5c5ff41e6",
+      "base_record_version": 9,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "53788d9744410e727928beb79d75950bbbe423b08ec24a4383d38e4bd9c2a262",
+        "base_envelope_version": 9,
+        "case_id": "gz_case_018",
+        "command_id": "command_gz_case_018_turn_09_single_target_checkpoint",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [
+              "Acceptance remains the single material target."
+            ],
+            "lock_blockers": [],
+            "lock_prerequisites": [],
+            "open_required_fields": [
+              "deliverables.final.acceptance"
+            ],
+            "type": "set_formation_requirements",
+            "uncertainties": []
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "7c22d41bdba4d89af5546c526089c2ff2de565a64da05e61b39e98d8b6540f7d",
+        "resulting_envelope_version": 10,
+        "resulting_record_hash": "64c1452c6459d1523cc253e5f7696f52363992181566256c73c30dee74b5f57d",
+        "resulting_record_version": 10,
+        "workflow_state": "person_a_formation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [
+        "source_gz_case_018_hidden_color"
+      ],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_party_identity",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_b",
+          "content": "A hidden Person B note mentions a blue shirt and says nothing about payment.",
+          "content_hash": "06ccf69519628a80ae068124924c2a3e6fe6ab775f4a57998d0793643a7eafa3",
+          "source_id": "source_gz_case_018_hidden_color",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "The remaining balance was due only after accepted final delivery.",
+          "content_hash": "49d7eb910306a74b6377051af988c08fab8a1f2575ae8a41278cf1286bde7043",
+          "source_id": "source_gz_case_018_payment_answer",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_018_turn_09_single_target_checkpoint",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_018_payment_answer",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "7c22d41bdba4d89af5546c526089c2ff2de565a64da05e61b39e98d8b6540f7d",
+      "base_envelope_version": 10,
+      "base_record_hash": "64c1452c6459d1523cc253e5f7696f52363992181566256c73c30dee74b5f57d",
+      "base_record_version": 10,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "7c22d41bdba4d89af5546c526089c2ff2de565a64da05e61b39e98d8b6540f7d",
+        "base_envelope_version": 10,
+        "case_id": "gz_case_018",
+        "command_id": "command_gz_case_018_turn_10_single_target_checkpoint",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [],
+            "lock_blockers": [],
+            "lock_prerequisites": [],
+            "open_required_fields": [],
+            "type": "set_formation_requirements",
+            "uncertainties": []
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "1642e6501a5e2c4b6c5d2670577a43f8048bc2080fd879a1a168bdb790210eb6",
+        "resulting_envelope_version": 11,
+        "resulting_record_hash": "213d781ac148176b58afa6d0600c5b1a3d03b03fb5bf813578ebaa3c3cf833d4",
+        "resulting_record_version": 11,
+        "workflow_state": "person_a_formation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [
+        "source_gz_case_018_hidden_color"
+      ],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_party_identity",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_b",
+          "content": "A hidden Person B note mentions a blue shirt and says nothing about payment.",
+          "content_hash": "06ccf69519628a80ae068124924c2a3e6fe6ab775f4a57998d0793643a7eafa3",
+          "source_id": "source_gz_case_018_hidden_color",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "The remaining balance was due only after accepted final delivery.",
+          "content_hash": "49d7eb910306a74b6377051af988c08fab8a1f2575ae8a41278cf1286bde7043",
+          "source_id": "source_gz_case_018_payment_answer",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_018_turn_10_single_target_checkpoint",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_018_payment_answer",
+        "source_system_initialization"
+      ]
+    }
+  ]
+}

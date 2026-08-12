@@ -50,6 +50,7 @@ jobs:
           - src/tests/v2-formation-adjudication-contract.test.ts
           - src/tests/gate-zero-coverage-matrix.test.ts
           - src/tests/gate-zero-initial-ten-cases.test.ts
+          - src/tests/gate-zero-frozen-corpus.test.ts
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -82,6 +83,8 @@ jobs:
         run: npm run check:ci-test-coverage
       - name: Validate golden fixture
         run: npm run validate:golden
+      - name: Validate frozen Gate Zero corpus
+        run: npm run validate:gate-zero-corpus
       - name: Gate Person A extraction acceptance corpus
         run: npm run gate:person-a-acceptance
       - name: Check formatting

@@ -264,7 +264,10 @@ export class CanonicalCaseAuthoringSession {
       ledger: this.context.ledger,
     });
     const expected = input.expected;
-    assertAuthored(result.status === expected.disposition, `${input.turn_id} disposition`);
+    assertAuthored(
+      result.status === expected.disposition,
+      `${input.turn_id} disposition: expected ${expected.disposition}, received ${result.status}/${result.reason_code}: ${result.message}`,
+    );
     assertAuthored(
       result.reason_code === expected.failure_reason,
       `${input.turn_id} failure reason: expected ${expected.failure_reason}, received ${result.reason_code}`,
@@ -409,7 +412,7 @@ export class CanonicalCaseAuthoringSession {
 
   finish(caseId: string, includeAdjudicationInput = false): GateZeroCanonicalCase {
     const plan = GATE_ZERO_CASE_PLANS.find((candidate) => candidate.case_id === caseId);
-    assertAuthored(Boolean(plan?.initial_ten), `${caseId} must be an initial-ten plan`);
+    assertAuthored(Boolean(plan), `${caseId} must be a frozen GZ1 plan`);
     assertAuthored(this.turns.length === plan!.planned_turns, `${caseId} turn count`);
     return {
       fixture_version: GATE_ZERO_CASE_FIXTURE_VERSION,
@@ -457,7 +460,7 @@ export function validateGateZeroCanonicalCase(fixture: GateZeroCanonicalCase): s
   ) {
     issues.push('case_fixture_shape_invalid');
   }
-  if (!plan?.initial_ten) issues.push('case_fixture_plan_invalid');
+  if (!plan) issues.push('case_fixture_plan_invalid');
   if (
     fixture.fixture_version !== GATE_ZERO_CASE_FIXTURE_VERSION ||
     fixture.matrix_version !== GATE_ZERO_COVERAGE_MATRIX_VERSION ||
@@ -508,7 +511,10 @@ export function validateGateZeroCanonicalCase(fixture: GateZeroCanonicalCase): s
       issues.push(`case_fixture_turn_invalid:${index}`);
     const prior = index === 0 ? fixture.initial_envelope : fixture.turns[index - 1]!.expected;
     if (
-      turn.command.case_id !== fixture.case_id ||
+      (turn.command.case_id !== fixture.case_id &&
+        turn.expected.failure_reason !== 'case_mismatch') ||
+      (turn.command.case_id === fixture.case_id &&
+        turn.expected.failure_reason === 'case_mismatch') ||
       turn.oracle_version !== fixture.oracle_version ||
       turn.base_envelope_version !==
         ('control' in prior ? prior.control.envelope_version : prior.resulting_envelope_version) ||

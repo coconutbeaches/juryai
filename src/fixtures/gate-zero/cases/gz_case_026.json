@@ -1,0 +1,1819 @@
+{
+  "case_id": "gz_case_026",
+  "coverage": {
+    "failure": [
+      "evidence_unreadable_inspection",
+      "bilateral_lock",
+      "adjudication_input_exclusion"
+    ],
+    "success": [
+      "evidence_unreadable_inspection",
+      "fail_closed_paths"
+    ]
+  },
+  "expected_adjudication_input": null,
+  "final_envelope": {
+    "actors": {},
+    "agreements": {},
+    "claimed_losses": {},
+    "classification": {
+      "authority": {
+        "adjudication_eligible": false,
+        "authority_detail": "Deterministic eligible fixture classification",
+        "authority_kind": "system_observation",
+        "evidence_ids": [],
+        "introduced_by": {
+          "actor_id": "juryai_system",
+          "actor_type": "system"
+        },
+        "introduced_in_record_version": 1,
+        "last_material_command_id": "command_system_initialization",
+        "last_material_record_version": 1,
+        "party_stances": {
+          "party_a": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          },
+          "party_b": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          }
+        },
+        "resolution_status": "unresolved",
+        "source_references": [
+          {
+            "source_hash": "5eb63fb642e82a9c8124278f249ba4e6b866e414fa9fecfea4f20e4f5f5eb02a",
+            "source_id": "source_gz_case_026_setup",
+            "span": {
+              "encoding": "utf16",
+              "end": 75,
+              "quote": "Deterministic fixture setup establishes eligible commercial classification.",
+              "start": 0
+            }
+          }
+        ],
+        "subject_actor_ids": []
+      },
+      "case_category": null,
+      "maturity": "ready",
+      "required_fact_profile": "commercial_delivery",
+      "safety_flags": [],
+      "scope_flags": [],
+      "suitability": "eligible"
+    },
+    "control": {
+      "case_id": "gz_case_026",
+      "deadlines": {},
+      "eligibility": {
+        "reason_codes": [],
+        "status": "eligible"
+      },
+      "envelope_hash": "2c19f1082c8354004c47894a13d36589f79f6e0b95e231460b7206815941d306",
+      "envelope_version": 9,
+      "lock": {
+        "lock_event_id": null,
+        "locked_at": null,
+        "mode": null,
+        "output_scope": null,
+        "status": "unlocked"
+      },
+      "protocol": {
+        "non_participation_mode": "prohibited",
+        "protocol_id": "commercial_fairness_v2",
+        "protocol_version": "juryai-formation-protocol-v2.0.0"
+      },
+      "record_hash": "5678b47465ab4748b85d73300b71abd639b4c1be9ce1f49e31e41eb5c93dbc6d",
+      "record_version": 5,
+      "schema_version": "juryai-case-envelope-v2.0.0",
+      "workflow_state": "ready_for_lock"
+    },
+    "deliverables": {},
+    "events": {},
+    "evidence": {
+      "evidence_gz_case_026_unreadable": {
+        "adjudication_eligibility": {
+          "reasons": [
+            "unreadable"
+          ],
+          "status": "ineligible"
+        },
+        "asserted_author_actor_id": null,
+        "authenticity_status": "not_assessed",
+        "authority": {
+          "adjudication_eligible": true,
+          "authority_detail": "Authenticated party_a assertion",
+          "authority_kind": "party_assertion",
+          "evidence_ids": [],
+          "introduced_by": {
+            "actor_id": "subject_party_a",
+            "actor_type": "party"
+          },
+          "introduced_in_record_version": 2,
+          "last_material_command_id": "command_gz_case_026_turn_04_disclose_unreadable",
+          "last_material_record_version": 5,
+          "party_stances": {
+            "party_a": {
+              "response_event_id": null,
+              "stance": "asserted"
+            },
+            "party_b": {
+              "response_event_id": null,
+              "stance": "unresponded"
+            }
+          },
+          "resolution_status": "unresolved",
+          "source_references": [
+            {
+              "source_hash": "cc2e2e8a4d124b045f3b786b7a210543cc4def2d307d6d19b27f98006261c9af",
+              "source_id": "source_gz_case_026_description",
+              "span": {
+                "encoding": "utf16",
+                "end": 50,
+                "quote": "Person A describes a decision-relevant attachment.",
+                "start": 0
+              }
+            }
+          ],
+          "subject_actor_ids": [
+            "subject_party_a"
+          ]
+        },
+        "availability": "uploaded",
+        "content_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "decision_relevant": true,
+        "disclosure_event_ids": [
+          "event_gz_case_026_disclosed"
+        ],
+        "evidence_id": "evidence_gz_case_026_unreadable",
+        "evidence_type": "screenshot",
+        "inspection": {
+          "limitations": [
+            "unreadable"
+          ],
+          "result_hash": "dec15201f4b103e8eb6936c95561f2f2a4188ea14d25f728e5e7e2f52398d18e",
+          "result_id": "inspection_gz_case_026_unreadable",
+          "result_version": "v1",
+          "source_reference": {
+            "source_hash": "dec15201f4b103e8eb6936c95561f2f2a4188ea14d25f728e5e7e2f52398d18e",
+            "source_id": "source_gz_case_026_inspection",
+            "span": {
+              "encoding": "utf16",
+              "end": 36,
+              "quote": "The attachment bytes are unreadable.",
+              "start": 0
+            }
+          },
+          "status": "unreadable"
+        },
+        "submitted_by_party_id": "party_a",
+        "supersedes_evidence_id": null,
+        "visibility": "disclosed_to_both"
+      }
+    },
+    "formation": {
+      "ambiguities": [],
+      "challenges": [],
+      "confirmations": {
+        "party_a": {
+          "authenticated_subject_id": "subject_party_a",
+          "bound_envelope_hash": "f28810cd8b3d4afb68b91653cbc29e9ea54ade63cea7de2859c5631752e37202",
+          "bound_envelope_version": 6,
+          "bound_record_hash": "5678b47465ab4748b85d73300b71abd639b4c1be9ce1f49e31e41eb5c93dbc6d",
+          "bound_record_version": 5,
+          "confirmation_id": "confirmation_gz_case_026_a",
+          "confirmed_at": "2026-08-22T01:00:00.000Z",
+          "event_id": "event_gz_case_026_a",
+          "party_id": "party_a",
+          "scope": "party_record"
+        },
+        "party_b": {
+          "authenticated_subject_id": "subject_party_b",
+          "bound_envelope_hash": "6f1f749bb4faed805353ecabd4c746bc537675f02ea69419f5afcfb84ab73479",
+          "bound_envelope_version": 7,
+          "bound_record_hash": "5678b47465ab4748b85d73300b71abd639b4c1be9ce1f49e31e41eb5c93dbc6d",
+          "bound_record_version": 5,
+          "confirmation_id": "confirmation_gz_case_026_b",
+          "confirmed_at": "2026-08-22T01:01:00.000Z",
+          "event_id": "event_gz_case_026_b",
+          "party_id": "party_b",
+          "scope": "party_record"
+        }
+      },
+      "disclosure": {
+        "detailed_a_framing": "disclosed",
+        "disclosure_event_id": "event_gz_case_026_disclosure",
+        "person_b_independent_account_source_id": "source_gz_case_026_b_account"
+      },
+      "lock_blockers": [],
+      "lock_prerequisites": [],
+      "material_change_events": [],
+      "non_participation": {
+        "correction_opportunity": "not_started",
+        "deadline_expired_event_id": null,
+        "invitation_event_id": null,
+        "notice_event_id": null,
+        "response_deadline": null
+      },
+      "open_required_fields": [],
+      "prior_locks": [],
+      "uncertainties": []
+    },
+    "parties": {
+      "party_a": {
+        "authenticated_subject_id": "subject_party_a",
+        "consent_event_id": "event_gz_case_026_consent_a",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_026_identity_a",
+        "participation_state": "active",
+        "party_id": "party_a",
+        "role": "person_a"
+      },
+      "party_b": {
+        "authenticated_subject_id": "subject_party_b",
+        "consent_event_id": "event_gz_case_026_consent_b",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_026_identity_b",
+        "participation_state": "active",
+        "party_id": "party_b",
+        "role": "person_b"
+      }
+    },
+    "payments": {},
+    "positions": {},
+    "requested_outcomes": {}
+  },
+  "fixture_version": "juryai-gate-zero-case-fixture-v1.0.0",
+  "initial_envelope": {
+    "actors": {},
+    "agreements": {},
+    "claimed_losses": {},
+    "classification": {
+      "authority": {
+        "adjudication_eligible": false,
+        "authority_detail": "Deterministic eligible fixture classification",
+        "authority_kind": "system_observation",
+        "evidence_ids": [],
+        "introduced_by": {
+          "actor_id": "juryai_system",
+          "actor_type": "system"
+        },
+        "introduced_in_record_version": 1,
+        "last_material_command_id": "command_system_initialization",
+        "last_material_record_version": 1,
+        "party_stances": {
+          "party_a": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          },
+          "party_b": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          }
+        },
+        "resolution_status": "unresolved",
+        "source_references": [
+          {
+            "source_hash": "5eb63fb642e82a9c8124278f249ba4e6b866e414fa9fecfea4f20e4f5f5eb02a",
+            "source_id": "source_gz_case_026_setup",
+            "span": {
+              "encoding": "utf16",
+              "end": 75,
+              "quote": "Deterministic fixture setup establishes eligible commercial classification.",
+              "start": 0
+            }
+          }
+        ],
+        "subject_actor_ids": []
+      },
+      "case_category": null,
+      "maturity": "ready",
+      "required_fact_profile": "commercial_delivery",
+      "safety_flags": [],
+      "scope_flags": [],
+      "suitability": "eligible"
+    },
+    "control": {
+      "case_id": "gz_case_026",
+      "deadlines": {},
+      "eligibility": {
+        "reason_codes": [],
+        "status": "eligible"
+      },
+      "envelope_hash": "9a8c7da28ff10a7d931fa8354ffd8a0884a3d60222fc3848341178540bf474ee",
+      "envelope_version": 1,
+      "lock": {
+        "lock_event_id": null,
+        "locked_at": null,
+        "mode": null,
+        "output_scope": null,
+        "status": "unlocked"
+      },
+      "protocol": {
+        "non_participation_mode": "prohibited",
+        "protocol_id": "commercial_fairness_v2",
+        "protocol_version": "juryai-formation-protocol-v2.0.0"
+      },
+      "record_hash": "96b0c0b277a05fa1df2777f43f83c22694a59d5d5402b7bd45e77fff71ce0f29",
+      "record_version": 1,
+      "schema_version": "juryai-case-envelope-v2.0.0",
+      "workflow_state": "reconciliation"
+    },
+    "deliverables": {},
+    "events": {},
+    "evidence": {},
+    "formation": {
+      "ambiguities": [],
+      "challenges": [],
+      "confirmations": {
+        "party_a": null,
+        "party_b": null
+      },
+      "disclosure": {
+        "detailed_a_framing": "disclosed",
+        "disclosure_event_id": "event_gz_case_026_disclosure",
+        "person_b_independent_account_source_id": "source_gz_case_026_b_account"
+      },
+      "lock_blockers": [],
+      "lock_prerequisites": [],
+      "material_change_events": [],
+      "non_participation": {
+        "correction_opportunity": "not_started",
+        "deadline_expired_event_id": null,
+        "invitation_event_id": null,
+        "notice_event_id": null,
+        "response_deadline": null
+      },
+      "open_required_fields": [],
+      "prior_locks": [],
+      "uncertainties": []
+    },
+    "parties": {
+      "party_a": {
+        "authenticated_subject_id": "subject_party_a",
+        "consent_event_id": "event_gz_case_026_consent_a",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_026_identity_a",
+        "participation_state": "active",
+        "party_id": "party_a",
+        "role": "person_a"
+      },
+      "party_b": {
+        "authenticated_subject_id": "subject_party_b",
+        "consent_event_id": "event_gz_case_026_consent_b",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_026_identity_b",
+        "participation_state": "active",
+        "party_id": "party_b",
+        "role": "person_b"
+      }
+    },
+    "payments": {},
+    "positions": {},
+    "requested_outcomes": {}
+  },
+  "matrix_version": "juryai-gate-zero-coverage-matrix-v1.0.0",
+  "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+  "title": "Unreadable decision-relevant evidence blocks lock",
+  "turns": [
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_a",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_a",
+        "party_id": "party_a"
+      },
+      "base_envelope_hash": "9a8c7da28ff10a7d931fa8354ffd8a0884a3d60222fc3848341178540bf474ee",
+      "base_envelope_version": 1,
+      "base_record_hash": "96b0c0b277a05fa1df2777f43f83c22694a59d5d5402b7bd45e77fff71ce0f29",
+      "base_record_version": 1,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_a",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_a",
+          "party_id": "party_a"
+        },
+        "base_envelope_hash": "9a8c7da28ff10a7d931fa8354ffd8a0884a3d60222fc3848341178540bf474ee",
+        "base_envelope_version": 1,
+        "case_id": "gz_case_026",
+        "command_id": "command_gz_case_026_describe",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "namespace": "evidence",
+            "object": {
+              "adjudication_eligibility": {
+                "reasons": [
+                  "not_disclosed_to_both",
+                  "not_uploaded",
+                  "uninspected"
+                ],
+                "status": "ineligible"
+              },
+              "asserted_author_actor_id": null,
+              "authenticity_status": "not_assessed",
+              "authority": {
+                "adjudication_eligible": true,
+                "authority_detail": "Authenticated party_a assertion",
+                "authority_kind": "party_assertion",
+                "evidence_ids": [],
+                "introduced_by": {
+                  "actor_id": "subject_party_a",
+                  "actor_type": "party"
+                },
+                "introduced_in_record_version": 2,
+                "last_material_command_id": "command_gz_case_026_describe",
+                "last_material_record_version": 2,
+                "party_stances": {
+                  "party_a": {
+                    "response_event_id": null,
+                    "stance": "asserted"
+                  },
+                  "party_b": {
+                    "response_event_id": null,
+                    "stance": "unresponded"
+                  }
+                },
+                "resolution_status": "unresolved",
+                "source_references": [
+                  {
+                    "source_hash": "cc2e2e8a4d124b045f3b786b7a210543cc4def2d307d6d19b27f98006261c9af",
+                    "source_id": "source_gz_case_026_description",
+                    "span": {
+                      "encoding": "utf16",
+                      "end": 50,
+                      "quote": "Person A describes a decision-relevant attachment.",
+                      "start": 0
+                    }
+                  }
+                ],
+                "subject_actor_ids": [
+                  "subject_party_a"
+                ]
+              },
+              "availability": "described_only",
+              "content_hash": null,
+              "decision_relevant": true,
+              "disclosure_event_ids": [],
+              "evidence_id": "evidence_gz_case_026_unreadable",
+              "evidence_type": "screenshot",
+              "inspection": {
+                "limitations": [],
+                "result_hash": null,
+                "result_id": null,
+                "result_version": null,
+                "source_reference": null,
+                "status": "uninspected"
+              },
+              "submitted_by_party_id": "party_a",
+              "supersedes_evidence_id": null,
+              "visibility": "private"
+            },
+            "type": "add_object"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "cc2e2e8a4d124b045f3b786b7a210543cc4def2d307d6d19b27f98006261c9af",
+            "source_id": "source_gz_case_026_description",
+            "span": {
+              "encoding": "utf16",
+              "end": 50,
+              "quote": "Person A describes a decision-relevant attachment.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "3c2bab8aee1c98c3b2fdab5478b8076602fa3293e06f46919917213cfe18b492",
+        "resulting_envelope_version": 2,
+        "resulting_record_hash": "0b5c2efbed2e9f0405e5d7f4b7f5bb8c4e1ef4aa11cfd0a450616204ff66b616",
+        "resulting_record_version": 2,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_challenge",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B gave an independent account before detailed disclosure.",
+          "content_hash": "1013690f07d37ee7a081f53fa393c28debd790a61ddf9775eb4125a0714c7579",
+          "source_id": "source_gz_case_026_b_account",
+          "source_type": "independent_account"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A describes a decision-relevant attachment.",
+          "content_hash": "cc2e2e8a4d124b045f3b786b7a210543cc4def2d307d6d19b27f98006261c9af",
+          "source_id": "source_gz_case_026_description",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Deterministic fixture setup establishes eligible commercial classification.",
+          "content_hash": "5eb63fb642e82a9c8124278f249ba4e6b866e414fa9fecfea4f20e4f5f5eb02a",
+          "source_id": "source_gz_case_026_setup",
+          "source_type": "system_event"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_026_turn_01_describe",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_026_b_account",
+        "source_gz_case_026_description",
+        "source_gz_case_026_setup",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "3c2bab8aee1c98c3b2fdab5478b8076602fa3293e06f46919917213cfe18b492",
+      "base_envelope_version": 2,
+      "base_record_hash": "0b5c2efbed2e9f0405e5d7f4b7f5bb8c4e1ef4aa11cfd0a450616204ff66b616",
+      "base_record_version": 2,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "3c2bab8aee1c98c3b2fdab5478b8076602fa3293e06f46919917213cfe18b492",
+        "base_envelope_version": 2,
+        "case_id": "gz_case_026",
+        "command_id": "command_gz_case_026_turn_02_upload",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "content_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "evidence_id": "evidence_gz_case_026_unreadable",
+            "type": "record_evidence_upload"
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "e4cd146faf44a9ad58cd390b8215ce12e832f0a06f5c85b1f4b06a82715273da",
+        "resulting_envelope_version": 3,
+        "resulting_record_hash": "18f665b6eb793cf971ab9cdc8a646347c81bafea31e62d6a9032b4edbf198011",
+        "resulting_record_version": 3,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_identity"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_party_participation",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B gave an independent account before detailed disclosure.",
+          "content_hash": "1013690f07d37ee7a081f53fa393c28debd790a61ddf9775eb4125a0714c7579",
+          "source_id": "source_gz_case_026_b_account",
+          "source_type": "independent_account"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A describes a decision-relevant attachment.",
+          "content_hash": "cc2e2e8a4d124b045f3b786b7a210543cc4def2d307d6d19b27f98006261c9af",
+          "source_id": "source_gz_case_026_description",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Deterministic fixture setup establishes eligible commercial classification.",
+          "content_hash": "5eb63fb642e82a9c8124278f249ba4e6b866e414fa9fecfea4f20e4f5f5eb02a",
+          "source_id": "source_gz_case_026_setup",
+          "source_type": "system_event"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_026_turn_02_upload",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_026_b_account",
+        "source_gz_case_026_description",
+        "source_gz_case_026_setup",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "inspector_gate_zero",
+        "actor_type": "inspector",
+        "authenticated_subject_id": "inspector_gate_zero",
+        "party_id": null
+      },
+      "base_envelope_hash": "e4cd146faf44a9ad58cd390b8215ce12e832f0a06f5c85b1f4b06a82715273da",
+      "base_envelope_version": 3,
+      "base_record_hash": "18f665b6eb793cf971ab9cdc8a646347c81bafea31e62d6a9032b4edbf198011",
+      "base_record_version": 3,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "inspector_gate_zero",
+          "actor_type": "inspector",
+          "authenticated_subject_id": "inspector_gate_zero",
+          "party_id": null
+        },
+        "base_envelope_hash": "e4cd146faf44a9ad58cd390b8215ce12e832f0a06f5c85b1f4b06a82715273da",
+        "base_envelope_version": 3,
+        "case_id": "gz_case_026",
+        "command_id": "command_gz_case_026_turn_03_unreadable",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "evidence_id": "evidence_gz_case_026_unreadable",
+            "limitations": [
+              "unreadable"
+            ],
+            "result_hash": "dec15201f4b103e8eb6936c95561f2f2a4188ea14d25f728e5e7e2f52398d18e",
+            "result_id": "inspection_gz_case_026_unreadable",
+            "result_version": "v1",
+            "source_reference": {
+              "source_hash": "dec15201f4b103e8eb6936c95561f2f2a4188ea14d25f728e5e7e2f52398d18e",
+              "source_id": "source_gz_case_026_inspection",
+              "span": {
+                "encoding": "utf16",
+                "end": 36,
+                "quote": "The attachment bytes are unreadable.",
+                "start": 0
+              }
+            },
+            "status": "unreadable",
+            "type": "record_evidence_inspection"
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [
+          {
+            "prohibited_promotion": "verified_evidence",
+            "proposition": "The unreadable attachment proves delivery.",
+            "proposition_id": "proposition_gz_case_026_content",
+            "reason_code": "inspection_unreadable",
+            "source_references": [
+              {
+                "source_hash": "dec15201f4b103e8eb6936c95561f2f2a4188ea14d25f728e5e7e2f52398d18e",
+                "source_id": "source_gz_case_026_inspection",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 36,
+                  "quote": "The attachment bytes are unreadable.",
+                  "start": 0
+                }
+              }
+            ]
+          }
+        ],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "5e15b251a32300657137a3d94bca6cfd0b9a0f0f4180dbf6912a04c1eeb7a490",
+        "resulting_envelope_version": 4,
+        "resulting_record_hash": "0fd706c58eb73edba7537866d03d2992e1457270852e1536342147d59795a8e0",
+        "resulting_record_version": 4,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_inspection"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B gave an independent account before detailed disclosure.",
+          "content_hash": "1013690f07d37ee7a081f53fa393c28debd790a61ddf9775eb4125a0714c7579",
+          "source_id": "source_gz_case_026_b_account",
+          "source_type": "independent_account"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A describes a decision-relevant attachment.",
+          "content_hash": "cc2e2e8a4d124b045f3b786b7a210543cc4def2d307d6d19b27f98006261c9af",
+          "source_id": "source_gz_case_026_description",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "inspector_gate_zero",
+          "content": "The attachment bytes are unreadable.",
+          "content_hash": "dec15201f4b103e8eb6936c95561f2f2a4188ea14d25f728e5e7e2f52398d18e",
+          "source_id": "source_gz_case_026_inspection",
+          "source_type": "evidence_inspection"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Deterministic fixture setup establishes eligible commercial classification.",
+          "content_hash": "5eb63fb642e82a9c8124278f249ba4e6b866e414fa9fecfea4f20e4f5f5eb02a",
+          "source_id": "source_gz_case_026_setup",
+          "source_type": "system_event"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_026_turn_03_unreadable",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_026_b_account",
+        "source_gz_case_026_description",
+        "source_gz_case_026_inspection",
+        "source_gz_case_026_setup",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "5e15b251a32300657137a3d94bca6cfd0b9a0f0f4180dbf6912a04c1eeb7a490",
+      "base_envelope_version": 4,
+      "base_record_hash": "0fd706c58eb73edba7537866d03d2992e1457270852e1536342147d59795a8e0",
+      "base_record_version": 4,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "5e15b251a32300657137a3d94bca6cfd0b9a0f0f4180dbf6912a04c1eeb7a490",
+        "base_envelope_version": 4,
+        "case_id": "gz_case_026",
+        "command_id": "command_gz_case_026_turn_04_disclose_unreadable",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "disclosure_event_id": "event_gz_case_026_disclosed",
+            "evidence_id": "evidence_gz_case_026_unreadable",
+            "type": "set_evidence_visibility",
+            "visibility": "disclosed_to_both"
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "c713a2fd0ad130ae1dc945be2ce74b24f22e9ed2400031f84d3f89eb783c2eb2",
+        "resulting_envelope_version": 5,
+        "resulting_record_hash": "5678b47465ab4748b85d73300b71abd639b4c1be9ce1f49e31e41eb5c93dbc6d",
+        "resulting_record_version": 5,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_identity"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_party_participation",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B gave an independent account before detailed disclosure.",
+          "content_hash": "1013690f07d37ee7a081f53fa393c28debd790a61ddf9775eb4125a0714c7579",
+          "source_id": "source_gz_case_026_b_account",
+          "source_type": "independent_account"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A describes a decision-relevant attachment.",
+          "content_hash": "cc2e2e8a4d124b045f3b786b7a210543cc4def2d307d6d19b27f98006261c9af",
+          "source_id": "source_gz_case_026_description",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "inspector_gate_zero",
+          "content": "The attachment bytes are unreadable.",
+          "content_hash": "dec15201f4b103e8eb6936c95561f2f2a4188ea14d25f728e5e7e2f52398d18e",
+          "source_id": "source_gz_case_026_inspection",
+          "source_type": "evidence_inspection"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Deterministic fixture setup establishes eligible commercial classification.",
+          "content_hash": "5eb63fb642e82a9c8124278f249ba4e6b866e414fa9fecfea4f20e4f5f5eb02a",
+          "source_id": "source_gz_case_026_setup",
+          "source_type": "system_event"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_026_turn_04_disclose_unreadable",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_026_b_account",
+        "source_gz_case_026_description",
+        "source_gz_case_026_inspection",
+        "source_gz_case_026_setup",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "c713a2fd0ad130ae1dc945be2ce74b24f22e9ed2400031f84d3f89eb783c2eb2",
+      "base_envelope_version": 5,
+      "base_record_hash": "5678b47465ab4748b85d73300b71abd639b4c1be9ce1f49e31e41eb5c93dbc6d",
+      "base_record_version": 5,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "c713a2fd0ad130ae1dc945be2ce74b24f22e9ed2400031f84d3f89eb783c2eb2",
+        "base_envelope_version": 5,
+        "case_id": "gz_case_026",
+        "command_id": "command_gz_case_026_turn_05_to_final",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "event": "reconciliation_complete",
+            "event_id": "event_gz_case_026_final",
+            "type": "transition"
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 0,
+        "required_source_references": [],
+        "resulting_envelope_hash": "f28810cd8b3d4afb68b91653cbc29e9ea54ade63cea7de2859c5631752e37202",
+        "resulting_envelope_version": 6,
+        "resulting_record_hash": "5678b47465ab4748b85d73300b71abd639b4c1be9ce1f49e31e41eb5c93dbc6d",
+        "resulting_record_version": 5,
+        "workflow_state": "final_confirmation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_identity"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_party_participation",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B gave an independent account before detailed disclosure.",
+          "content_hash": "1013690f07d37ee7a081f53fa393c28debd790a61ddf9775eb4125a0714c7579",
+          "source_id": "source_gz_case_026_b_account",
+          "source_type": "independent_account"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A describes a decision-relevant attachment.",
+          "content_hash": "cc2e2e8a4d124b045f3b786b7a210543cc4def2d307d6d19b27f98006261c9af",
+          "source_id": "source_gz_case_026_description",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "inspector_gate_zero",
+          "content": "The attachment bytes are unreadable.",
+          "content_hash": "dec15201f4b103e8eb6936c95561f2f2a4188ea14d25f728e5e7e2f52398d18e",
+          "source_id": "source_gz_case_026_inspection",
+          "source_type": "evidence_inspection"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Deterministic fixture setup establishes eligible commercial classification.",
+          "content_hash": "5eb63fb642e82a9c8124278f249ba4e6b866e414fa9fecfea4f20e4f5f5eb02a",
+          "source_id": "source_gz_case_026_setup",
+          "source_type": "system_event"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_026_turn_05_to_final",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_026_b_account",
+        "source_gz_case_026_description",
+        "source_gz_case_026_inspection",
+        "source_gz_case_026_setup",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_a",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_a",
+        "party_id": "party_a"
+      },
+      "base_envelope_hash": "f28810cd8b3d4afb68b91653cbc29e9ea54ade63cea7de2859c5631752e37202",
+      "base_envelope_version": 6,
+      "base_record_hash": "5678b47465ab4748b85d73300b71abd639b4c1be9ce1f49e31e41eb5c93dbc6d",
+      "base_record_version": 5,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_a",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_a",
+          "party_id": "party_a"
+        },
+        "base_envelope_hash": "f28810cd8b3d4afb68b91653cbc29e9ea54ade63cea7de2859c5631752e37202",
+        "base_envelope_version": 6,
+        "case_id": "gz_case_026",
+        "command_id": "command_gz_case_026_turn_06_a_confirms",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "confirmation_id": "confirmation_gz_case_026_a",
+            "confirmed_at": "2026-08-22T01:00:00.000Z",
+            "event_id": "event_gz_case_026_a",
+            "type": "record_confirmation"
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 0,
+        "required_source_references": [],
+        "resulting_envelope_hash": "6f1f749bb4faed805353ecabd4c746bc537675f02ea69419f5afcfb84ab73479",
+        "resulting_envelope_version": 7,
+        "resulting_record_hash": "5678b47465ab4748b85d73300b71abd639b4c1be9ce1f49e31e41eb5c93dbc6d",
+        "resulting_record_version": 5,
+        "workflow_state": "final_confirmation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_challenge",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_confirmation",
+        "replace_own_field",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B gave an independent account before detailed disclosure.",
+          "content_hash": "1013690f07d37ee7a081f53fa393c28debd790a61ddf9775eb4125a0714c7579",
+          "source_id": "source_gz_case_026_b_account",
+          "source_type": "independent_account"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A describes a decision-relevant attachment.",
+          "content_hash": "cc2e2e8a4d124b045f3b786b7a210543cc4def2d307d6d19b27f98006261c9af",
+          "source_id": "source_gz_case_026_description",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "inspector_gate_zero",
+          "content": "The attachment bytes are unreadable.",
+          "content_hash": "dec15201f4b103e8eb6936c95561f2f2a4188ea14d25f728e5e7e2f52398d18e",
+          "source_id": "source_gz_case_026_inspection",
+          "source_type": "evidence_inspection"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Deterministic fixture setup establishes eligible commercial classification.",
+          "content_hash": "5eb63fb642e82a9c8124278f249ba4e6b866e414fa9fecfea4f20e4f5f5eb02a",
+          "source_id": "source_gz_case_026_setup",
+          "source_type": "system_event"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_026_turn_06_a_confirms",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_026_b_account",
+        "source_gz_case_026_description",
+        "source_gz_case_026_inspection",
+        "source_gz_case_026_setup",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_b",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_b",
+        "party_id": "party_b"
+      },
+      "base_envelope_hash": "6f1f749bb4faed805353ecabd4c746bc537675f02ea69419f5afcfb84ab73479",
+      "base_envelope_version": 7,
+      "base_record_hash": "5678b47465ab4748b85d73300b71abd639b4c1be9ce1f49e31e41eb5c93dbc6d",
+      "base_record_version": 5,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_b",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_b",
+          "party_id": "party_b"
+        },
+        "base_envelope_hash": "6f1f749bb4faed805353ecabd4c746bc537675f02ea69419f5afcfb84ab73479",
+        "base_envelope_version": 7,
+        "case_id": "gz_case_026",
+        "command_id": "command_gz_case_026_turn_07_b_confirms",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "confirmation_id": "confirmation_gz_case_026_b",
+            "confirmed_at": "2026-08-22T01:01:00.000Z",
+            "event_id": "event_gz_case_026_b",
+            "type": "record_confirmation"
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 0,
+        "required_source_references": [],
+        "resulting_envelope_hash": "5e0676721682c68b6e57c6afeaba2f7c38cf1fc0076adbd0e6226535ae938189",
+        "resulting_envelope_version": 8,
+        "resulting_record_hash": "5678b47465ab4748b85d73300b71abd639b4c1be9ce1f49e31e41eb5c93dbc6d",
+        "resulting_record_version": 5,
+        "workflow_state": "final_confirmation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_challenge",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_confirmation",
+        "replace_own_field",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B gave an independent account before detailed disclosure.",
+          "content_hash": "1013690f07d37ee7a081f53fa393c28debd790a61ddf9775eb4125a0714c7579",
+          "source_id": "source_gz_case_026_b_account",
+          "source_type": "independent_account"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A describes a decision-relevant attachment.",
+          "content_hash": "cc2e2e8a4d124b045f3b786b7a210543cc4def2d307d6d19b27f98006261c9af",
+          "source_id": "source_gz_case_026_description",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "inspector_gate_zero",
+          "content": "The attachment bytes are unreadable.",
+          "content_hash": "dec15201f4b103e8eb6936c95561f2f2a4188ea14d25f728e5e7e2f52398d18e",
+          "source_id": "source_gz_case_026_inspection",
+          "source_type": "evidence_inspection"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Deterministic fixture setup establishes eligible commercial classification.",
+          "content_hash": "5eb63fb642e82a9c8124278f249ba4e6b866e414fa9fecfea4f20e4f5f5eb02a",
+          "source_id": "source_gz_case_026_setup",
+          "source_type": "system_event"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_026_turn_07_b_confirms",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_026_b_account",
+        "source_gz_case_026_description",
+        "source_gz_case_026_inspection",
+        "source_gz_case_026_setup",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "5e0676721682c68b6e57c6afeaba2f7c38cf1fc0076adbd0e6226535ae938189",
+      "base_envelope_version": 8,
+      "base_record_hash": "5678b47465ab4748b85d73300b71abd639b4c1be9ce1f49e31e41eb5c93dbc6d",
+      "base_record_version": 5,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "5e0676721682c68b6e57c6afeaba2f7c38cf1fc0076adbd0e6226535ae938189",
+        "base_envelope_version": 8,
+        "case_id": "gz_case_026",
+        "command_id": "command_gz_case_026_turn_08_ready",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "event": "final_confirmations_complete",
+            "event_id": "event_gz_case_026_ready",
+            "type": "transition"
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 0,
+        "required_source_references": [],
+        "resulting_envelope_hash": "2c19f1082c8354004c47894a13d36589f79f6e0b95e231460b7206815941d306",
+        "resulting_envelope_version": 9,
+        "resulting_record_hash": "5678b47465ab4748b85d73300b71abd639b4c1be9ce1f49e31e41eb5c93dbc6d",
+        "resulting_record_version": 5,
+        "workflow_state": "ready_for_lock"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_identity",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B gave an independent account before detailed disclosure.",
+          "content_hash": "1013690f07d37ee7a081f53fa393c28debd790a61ddf9775eb4125a0714c7579",
+          "source_id": "source_gz_case_026_b_account",
+          "source_type": "independent_account"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A describes a decision-relevant attachment.",
+          "content_hash": "cc2e2e8a4d124b045f3b786b7a210543cc4def2d307d6d19b27f98006261c9af",
+          "source_id": "source_gz_case_026_description",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "inspector_gate_zero",
+          "content": "The attachment bytes are unreadable.",
+          "content_hash": "dec15201f4b103e8eb6936c95561f2f2a4188ea14d25f728e5e7e2f52398d18e",
+          "source_id": "source_gz_case_026_inspection",
+          "source_type": "evidence_inspection"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Deterministic fixture setup establishes eligible commercial classification.",
+          "content_hash": "5eb63fb642e82a9c8124278f249ba4e6b866e414fa9fecfea4f20e4f5f5eb02a",
+          "source_id": "source_gz_case_026_setup",
+          "source_type": "system_event"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_026_turn_08_ready",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_026_b_account",
+        "source_gz_case_026_description",
+        "source_gz_case_026_inspection",
+        "source_gz_case_026_setup",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "2c19f1082c8354004c47894a13d36589f79f6e0b95e231460b7206815941d306",
+      "base_envelope_version": 9,
+      "base_record_hash": "5678b47465ab4748b85d73300b71abd639b4c1be9ce1f49e31e41eb5c93dbc6d",
+      "base_record_version": 5,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "2c19f1082c8354004c47894a13d36589f79f6e0b95e231460b7206815941d306",
+        "base_envelope_version": 9,
+        "case_id": "gz_case_026",
+        "command_id": "command_gz_case_026_turn_09_lock_blocked",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": {
+          "confirmation_ids": [
+            "confirmation_gz_case_026_a",
+            "confirmation_gz_case_026_b"
+          ]
+        },
+        "operations": [
+          {
+            "lock_event_id": "event_gz_case_026_lock",
+            "locked_at": "2026-08-22T01:02:00.000Z",
+            "mode": "bilateral",
+            "type": "lock"
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "rejected",
+        "envelope_version_delta": 0,
+        "evidence_actions": [],
+        "exact_no_mutation": true,
+        "failure_reason": "lock_guard_failed",
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 0,
+        "required_source_references": [],
+        "resulting_envelope_hash": "2c19f1082c8354004c47894a13d36589f79f6e0b95e231460b7206815941d306",
+        "resulting_envelope_version": 9,
+        "resulting_record_hash": "5678b47465ab4748b85d73300b71abd639b4c1be9ce1f49e31e41eb5c93dbc6d",
+        "resulting_record_version": 5,
+        "workflow_state": "ready_for_lock"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_identity",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "lock",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B gave an independent account before detailed disclosure.",
+          "content_hash": "1013690f07d37ee7a081f53fa393c28debd790a61ddf9775eb4125a0714c7579",
+          "source_id": "source_gz_case_026_b_account",
+          "source_type": "independent_account"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A describes a decision-relevant attachment.",
+          "content_hash": "cc2e2e8a4d124b045f3b786b7a210543cc4def2d307d6d19b27f98006261c9af",
+          "source_id": "source_gz_case_026_description",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "inspector_gate_zero",
+          "content": "The attachment bytes are unreadable.",
+          "content_hash": "dec15201f4b103e8eb6936c95561f2f2a4188ea14d25f728e5e7e2f52398d18e",
+          "source_id": "source_gz_case_026_inspection",
+          "source_type": "evidence_inspection"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Deterministic fixture setup establishes eligible commercial classification.",
+          "content_hash": "5eb63fb642e82a9c8124278f249ba4e6b866e414fa9fecfea4f20e4f5f5eb02a",
+          "source_id": "source_gz_case_026_setup",
+          "source_type": "system_event"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_026_turn_09_lock_blocked",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_026_b_account",
+        "source_gz_case_026_description",
+        "source_gz_case_026_inspection",
+        "source_gz_case_026_setup",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "2c19f1082c8354004c47894a13d36589f79f6e0b95e231460b7206815941d306",
+      "base_envelope_version": 9,
+      "base_record_hash": "5678b47465ab4748b85d73300b71abd639b4c1be9ce1f49e31e41eb5c93dbc6d",
+      "base_record_version": 5,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "2c19f1082c8354004c47894a13d36589f79f6e0b95e231460b7206815941d306",
+        "base_envelope_version": 9,
+        "case_id": "gz_case_026",
+        "command_id": "command_gz_case_026_turn_10_projection_unavailable",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "event": "adjudication_started",
+            "event_id": "event_gz_case_026_adjudication",
+            "type": "transition"
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "rejected",
+        "envelope_version_delta": 0,
+        "evidence_actions": [],
+        "exact_no_mutation": true,
+        "failure_reason": "invalid_transition",
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 0,
+        "required_source_references": [],
+        "resulting_envelope_hash": "2c19f1082c8354004c47894a13d36589f79f6e0b95e231460b7206815941d306",
+        "resulting_envelope_version": 9,
+        "resulting_record_hash": "5678b47465ab4748b85d73300b71abd639b4c1be9ce1f49e31e41eb5c93dbc6d",
+        "resulting_record_version": 5,
+        "workflow_state": "ready_for_lock"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_identity",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "lock",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B gave an independent account before detailed disclosure.",
+          "content_hash": "1013690f07d37ee7a081f53fa393c28debd790a61ddf9775eb4125a0714c7579",
+          "source_id": "source_gz_case_026_b_account",
+          "source_type": "independent_account"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A describes a decision-relevant attachment.",
+          "content_hash": "cc2e2e8a4d124b045f3b786b7a210543cc4def2d307d6d19b27f98006261c9af",
+          "source_id": "source_gz_case_026_description",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "inspector_gate_zero",
+          "content": "The attachment bytes are unreadable.",
+          "content_hash": "dec15201f4b103e8eb6936c95561f2f2a4188ea14d25f728e5e7e2f52398d18e",
+          "source_id": "source_gz_case_026_inspection",
+          "source_type": "evidence_inspection"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Deterministic fixture setup establishes eligible commercial classification.",
+          "content_hash": "5eb63fb642e82a9c8124278f249ba4e6b866e414fa9fecfea4f20e4f5f5eb02a",
+          "source_id": "source_gz_case_026_setup",
+          "source_type": "system_event"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_026_turn_10_projection_unavailable",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_026_b_account",
+        "source_gz_case_026_description",
+        "source_gz_case_026_inspection",
+        "source_gz_case_026_setup",
+        "source_system_initialization"
+      ]
+    }
+  ]
+}

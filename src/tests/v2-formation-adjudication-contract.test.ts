@@ -681,6 +681,70 @@ describe('v2 evidence, disclosure, confirmation, and transitions', () => {
     expect(snapshot(result.envelope)).toBe(before);
   });
 
+  it('makes submitter withdrawal terminal and removes the obsolete evidence from the active decision set', () => {
+    const context = createContractFixtureContext();
+    const actor = partyActor('party_a', context.envelope);
+    const commandId = 'command_describe_for_terminal_withdrawal';
+    executeFixtureCommand(context, actor, commandId, [
+      {
+        type: 'add_object',
+        namespace: 'evidence',
+        object: describedEvidenceFixture(
+          context,
+          'party_a',
+          'evidence_terminal_withdrawal',
+          commandId,
+        ),
+      },
+    ]);
+    const sourceReference = exactSourceReference(context.source_registry.source_party_a_story!);
+    const withdrawn = executeFixtureCommand(
+      context,
+      actor,
+      'command_terminal_withdrawal',
+      [
+        {
+          type: 'set_own_evidence_availability',
+          evidence_id: 'evidence_terminal_withdrawal',
+          availability: 'withdrawn',
+        },
+      ],
+      [sourceReference],
+    );
+    expect(withdrawn.status).toBe('applied');
+    expect(withdrawn.envelope.evidence.evidence_terminal_withdrawal).toMatchObject({
+      availability: 'withdrawn',
+      decision_relevant: false,
+      adjudication_eligibility: { status: 'ineligible' },
+    });
+  });
+
+  it('rejects incomplete non-participation event identities before mutation', () => {
+    const context = createContractFixtureContext();
+    context.envelope.control.workflow_state = 'person_b_independent_account';
+    context.envelope.parties.party_b.participation_state = 'invited';
+    context.envelope.formation.non_participation.invitation_event_id = 'event_invitation';
+    context.envelope.control.record_hash = hashCaseRecord(context.envelope);
+    context.envelope.control.envelope_hash = hashCaseEnvelope(context.envelope);
+    const before = snapshot(context.envelope);
+    const result = executeFixtureCommand(
+      context,
+      SYSTEM_ACTOR,
+      'command_incomplete_non_participation',
+      [
+        {
+          type: 'set_non_participation_record',
+          notice_event_id: 'event_notice',
+          response_deadline: '2026-08-20T00:00:00.000Z',
+          deadline_expired_event_id: '',
+          correction_opportunity: 'expired',
+        },
+      ],
+    );
+    expect(result).toMatchObject({ status: 'rejected', reason_code: 'invalid_operation' });
+    expect(snapshot(result.envelope)).toBe(before);
+  });
+
   it('enforces the Person B independent-account embargo in executable state', () => {
     const context = createContractFixtureContext();
     executeFixtureCommand(context, partyActor('party_a', context.envelope), 'command_a_framing', [

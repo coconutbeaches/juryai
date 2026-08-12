@@ -1,0 +1,2477 @@
+{
+  "case_id": "gz_case_002",
+  "coverage": {
+    "failure": [
+      "brief_initial_story",
+      "one_question_per_turn",
+      "final_open_catch_all",
+      "person_a_confirmation"
+    ],
+    "success": [
+      "brief_initial_story",
+      "classification_suitability",
+      "one_question_per_turn",
+      "incremental_question_formation",
+      "final_open_catch_all",
+      "person_a_confirmation"
+    ]
+  },
+  "expected_adjudication_input": null,
+  "final_envelope": {
+    "actors": {},
+    "agreements": {},
+    "claimed_losses": {},
+    "classification": {
+      "authority": {
+        "adjudication_eligible": false,
+        "authority_detail": "Deterministic Gate Zero classification",
+        "authority_kind": "system_observation",
+        "evidence_ids": [],
+        "introduced_by": {
+          "actor_id": "juryai_system",
+          "actor_type": "system"
+        },
+        "introduced_in_record_version": 4,
+        "last_material_command_id": "command_gz_case_002_classify",
+        "last_material_record_version": 4,
+        "party_stances": {
+          "party_a": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          },
+          "party_b": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          }
+        },
+        "resolution_status": "unresolved",
+        "source_references": [
+          {
+            "source_hash": "31397fa87f70c6f3056b0731a0fc1da9378a3aa41d1f8ce2cac08f508a2e1f41",
+            "source_id": "source_gz_case_002_initial_story",
+            "span": {
+              "encoding": "utf16",
+              "end": 106,
+              "quote": "I hired a designer for a launch page. I paid a deposit, the page arrived late, and I want some money back.",
+              "start": 0
+            }
+          }
+        ],
+        "subject_actor_ids": []
+      },
+      "case_category": "commercial_service_delivery",
+      "maturity": "ready",
+      "required_fact_profile": "commercial_delivery",
+      "safety_flags": [],
+      "scope_flags": [],
+      "suitability": "eligible"
+    },
+    "control": {
+      "case_id": "gz_case_002",
+      "deadlines": {},
+      "eligibility": {
+        "reason_codes": [],
+        "status": "eligible"
+      },
+      "envelope_hash": "e0126e71f89be23ed8282920b5c432f713aa78dd8efac31d39b6123ba7d5ccee",
+      "envelope_version": 13,
+      "lock": {
+        "lock_event_id": null,
+        "locked_at": null,
+        "mode": null,
+        "output_scope": null,
+        "status": "unlocked"
+      },
+      "protocol": {
+        "non_participation_mode": "prohibited",
+        "protocol_id": "commercial_fairness_v2",
+        "protocol_version": "juryai-formation-protocol-v2.0.0"
+      },
+      "record_hash": "977ee49593600d1fa6fe0f55d88210e383d72ef1178c0330baf658d06f5970b7",
+      "record_version": 10,
+      "schema_version": "juryai-case-envelope-v2.0.0",
+      "workflow_state": "person_a_confirmation"
+    },
+    "deliverables": {},
+    "events": {},
+    "evidence": {},
+    "formation": {
+      "ambiguities": [],
+      "challenges": [],
+      "confirmations": {
+        "party_a": {
+          "authenticated_subject_id": "subject_party_a",
+          "bound_envelope_hash": "9fd02b1c87d51a56ddf7909657fba993504b52d594120ee1602fb71c62492987",
+          "bound_envelope_version": 12,
+          "bound_record_hash": "977ee49593600d1fa6fe0f55d88210e383d72ef1178c0330baf658d06f5970b7",
+          "bound_record_version": 10,
+          "confirmation_id": "confirmation_gz_case_002_a",
+          "confirmed_at": "2026-08-12T00:00:00.000Z",
+          "event_id": "event_gz_case_002_confirmation_a",
+          "party_id": "party_a",
+          "scope": "party_record"
+        },
+        "party_b": null
+      },
+      "disclosure": {
+        "detailed_a_framing": "embargoed",
+        "disclosure_event_id": null,
+        "person_b_independent_account_source_id": null
+      },
+      "lock_blockers": [],
+      "lock_prerequisites": [],
+      "material_change_events": [],
+      "non_participation": {
+        "correction_opportunity": "not_started",
+        "deadline_expired_event_id": null,
+        "invitation_event_id": null,
+        "notice_event_id": null,
+        "response_deadline": null
+      },
+      "open_required_fields": [],
+      "prior_locks": [],
+      "uncertainties": []
+    },
+    "parties": {
+      "party_a": {
+        "authenticated_subject_id": "subject_party_a",
+        "consent_event_id": "event_gz_case_002_consent_a",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_002_identity_a",
+        "participation_state": "active",
+        "party_id": "party_a",
+        "role": "person_a"
+      },
+      "party_b": {
+        "authenticated_subject_id": null,
+        "consent_event_id": null,
+        "consent_status": "not_requested",
+        "identity_assurance": "unverified",
+        "identity_event_id": null,
+        "participation_state": "not_invited",
+        "party_id": "party_b",
+        "role": "person_b"
+      }
+    },
+    "payments": {},
+    "positions": {
+      "position_gz_case_002_extension": {
+        "authority": {
+          "adjudication_eligible": true,
+          "authority_detail": "Authenticated party_a assertion",
+          "authority_kind": "party_assertion",
+          "evidence_ids": [],
+          "introduced_by": {
+            "actor_id": "subject_party_a",
+            "actor_type": "party"
+          },
+          "introduced_in_record_version": 9,
+          "last_material_command_id": "command_gz_case_002_catch_all",
+          "last_material_record_version": 9,
+          "party_stances": {
+            "party_a": {
+              "response_event_id": null,
+              "stance": "asserted"
+            },
+            "party_b": {
+              "response_event_id": null,
+              "stance": "unresponded"
+            }
+          },
+          "resolution_status": "unresolved",
+          "source_references": [
+            {
+              "source_hash": "6ff6ef901ba3979286fe469f60ff771208b66f74225ff38281efdea6583a38f5",
+              "source_id": "source_gz_case_002_catch_all",
+              "span": {
+                "encoding": "utf16",
+                "end": 82,
+                "quote": "One more thing: I offered two extra days, but I did not waive the Friday deadline.",
+                "start": 0
+              }
+            }
+          ],
+          "subject_actor_ids": [
+            "subject_party_a"
+          ]
+        },
+        "party_id": "party_a",
+        "position_id": "position_gz_case_002_extension",
+        "position_kind": "assertion",
+        "statement": "Person A says two extra days were offered without waiving the original deadline.",
+        "target": null
+      },
+      "position_gz_case_002_payment": {
+        "authority": {
+          "adjudication_eligible": true,
+          "authority_detail": "Authenticated party_a assertion",
+          "authority_kind": "party_assertion",
+          "evidence_ids": [],
+          "introduced_by": {
+            "actor_id": "subject_party_a",
+            "actor_type": "party"
+          },
+          "introduced_in_record_version": 7,
+          "last_material_command_id": "command_gz_case_002_payment_answer",
+          "last_material_record_version": 7,
+          "party_stances": {
+            "party_a": {
+              "response_event_id": null,
+              "stance": "asserted"
+            },
+            "party_b": {
+              "response_event_id": null,
+              "stance": "unresponded"
+            }
+          },
+          "resolution_status": "unresolved",
+          "source_references": [
+            {
+              "source_hash": "0ce7c47e88c3e6c6b19b1f20ca68657d9353c7fb49186328520ad69b7d148560",
+              "source_id": "source_gz_case_002_payment_answer",
+              "span": {
+                "encoding": "utf16",
+                "end": 94,
+                "quote": "I paid a USD 300 deposit. The remaining USD 300 was due only after final files were delivered.",
+                "start": 0
+              }
+            }
+          ],
+          "subject_actor_ids": [
+            "subject_party_a"
+          ]
+        },
+        "party_id": "party_a",
+        "position_id": "position_gz_case_002_payment",
+        "position_kind": "assertion",
+        "statement": "Person A says USD 300 was paid and another USD 300 was due only after final delivery.",
+        "target": null
+      },
+      "position_gz_case_002_scope": {
+        "authority": {
+          "adjudication_eligible": true,
+          "authority_detail": "Authenticated party_a assertion",
+          "authority_kind": "party_assertion",
+          "evidence_ids": [],
+          "introduced_by": {
+            "actor_id": "subject_party_a",
+            "actor_type": "party"
+          },
+          "introduced_in_record_version": 5,
+          "last_material_command_id": "command_gz_case_002_scope_answer",
+          "last_material_record_version": 5,
+          "party_stances": {
+            "party_a": {
+              "response_event_id": null,
+              "stance": "asserted"
+            },
+            "party_b": {
+              "response_event_id": null,
+              "stance": "unresponded"
+            }
+          },
+          "resolution_status": "unresolved",
+          "source_references": [
+            {
+              "source_hash": "0c6cd0349886bef0e37be31e13db499ea5e3895bb9b8ab2d3b85fb85648a604c",
+              "source_id": "source_gz_case_002_scope_answer",
+              "span": {
+                "encoding": "utf16",
+                "end": 68,
+                "quote": "We agreed on one responsive launch page with final files due Friday.",
+                "start": 0
+              }
+            }
+          ],
+          "subject_actor_ids": [
+            "subject_party_a"
+          ]
+        },
+        "party_id": "party_a",
+        "position_id": "position_gz_case_002_scope",
+        "position_kind": "assertion",
+        "statement": "Person A says the agreed scope was one responsive launch page with final files due Friday.",
+        "target": null
+      }
+    },
+    "requested_outcomes": {}
+  },
+  "fixture_version": "juryai-gate-zero-case-fixture-v1.0.0",
+  "initial_envelope": {
+    "actors": {},
+    "agreements": {},
+    "claimed_losses": {},
+    "classification": {
+      "authority": {
+        "adjudication_eligible": false,
+        "authority_detail": "initial classification placeholder",
+        "authority_kind": "system_observation",
+        "evidence_ids": [],
+        "introduced_by": {
+          "actor_id": "juryai_system",
+          "actor_type": "system"
+        },
+        "introduced_in_record_version": 1,
+        "last_material_command_id": "command_system_initialization",
+        "last_material_record_version": 1,
+        "party_stances": {
+          "party_a": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          },
+          "party_b": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          }
+        },
+        "resolution_status": "unresolved",
+        "source_references": [
+          {
+            "source_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+            "source_id": "source_system_initialization",
+            "span": null
+          }
+        ],
+        "subject_actor_ids": []
+      },
+      "case_category": null,
+      "maturity": "undetermined",
+      "required_fact_profile": null,
+      "safety_flags": [],
+      "scope_flags": [],
+      "suitability": "undetermined"
+    },
+    "control": {
+      "case_id": "gz_case_002",
+      "deadlines": {},
+      "eligibility": {
+        "reason_codes": [],
+        "status": "undetermined"
+      },
+      "envelope_hash": "b8d74bb5711149f58ed6e653a30c7eb9144398049db75dc5db633b126401279c",
+      "envelope_version": 1,
+      "lock": {
+        "lock_event_id": null,
+        "locked_at": null,
+        "mode": null,
+        "output_scope": null,
+        "status": "unlocked"
+      },
+      "protocol": {
+        "non_participation_mode": "prohibited",
+        "protocol_id": "commercial_fairness_v2",
+        "protocol_version": "juryai-formation-protocol-v2.0.0"
+      },
+      "record_hash": "5a14a9ad8c85f4f24555cdefecb1fac2fafca4b8bfb840c18061f58f03270568",
+      "record_version": 1,
+      "schema_version": "juryai-case-envelope-v2.0.0",
+      "workflow_state": "initial_story"
+    },
+    "deliverables": {},
+    "events": {},
+    "evidence": {},
+    "formation": {
+      "ambiguities": [],
+      "challenges": [],
+      "confirmations": {
+        "party_a": null,
+        "party_b": null
+      },
+      "disclosure": {
+        "detailed_a_framing": "embargoed",
+        "disclosure_event_id": null,
+        "person_b_independent_account_source_id": null
+      },
+      "lock_blockers": [],
+      "lock_prerequisites": [],
+      "material_change_events": [],
+      "non_participation": {
+        "correction_opportunity": "not_started",
+        "deadline_expired_event_id": null,
+        "invitation_event_id": null,
+        "notice_event_id": null,
+        "response_deadline": null
+      },
+      "open_required_fields": [],
+      "prior_locks": [],
+      "uncertainties": []
+    },
+    "parties": {
+      "party_a": {
+        "authenticated_subject_id": null,
+        "consent_event_id": null,
+        "consent_status": "not_requested",
+        "identity_assurance": "unverified",
+        "identity_event_id": null,
+        "participation_state": "active",
+        "party_id": "party_a",
+        "role": "person_a"
+      },
+      "party_b": {
+        "authenticated_subject_id": null,
+        "consent_event_id": null,
+        "consent_status": "not_requested",
+        "identity_assurance": "unverified",
+        "identity_event_id": null,
+        "participation_state": "not_invited",
+        "party_id": "party_b",
+        "role": "person_b"
+      }
+    },
+    "payments": {},
+    "positions": {},
+    "requested_outcomes": {}
+  },
+  "matrix_version": "juryai-gate-zero-coverage-matrix-v1.0.0",
+  "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+  "title": "Brief story through Person A catch-all and confirmation",
+  "turns": [
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "b8d74bb5711149f58ed6e653a30c7eb9144398049db75dc5db633b126401279c",
+      "base_envelope_version": 1,
+      "base_record_hash": "5a14a9ad8c85f4f24555cdefecb1fac2fafca4b8bfb840c18061f58f03270568",
+      "base_record_version": 1,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "b8d74bb5711149f58ed6e653a30c7eb9144398049db75dc5db633b126401279c",
+        "base_envelope_version": 1,
+        "case_id": "gz_case_002",
+        "command_id": "command_gz_case_002_turn_01_bind_person_a",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "authenticated_subject_id": "subject_party_a",
+            "identity_assurance": "authenticated",
+            "identity_event_id": "event_gz_case_002_identity_a",
+            "party_id": "party_a",
+            "type": "set_party_identity"
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "b66846fca7fc6d16a089d8eac5d5922516f84b7a68e8f84b16644a52e09d69b9",
+        "resulting_envelope_version": 2,
+        "resulting_record_hash": "c6564773f5be748cde538c5b25a8009d9e615a55ca266077b32beab3cbc2d1f9",
+        "resulting_record_version": 2,
+        "workflow_state": "initial_story"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_party_consent",
+        "set_non_participation_policy",
+        "set_party_identity",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_002_turn_01_bind_person_a",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "b66846fca7fc6d16a089d8eac5d5922516f84b7a68e8f84b16644a52e09d69b9",
+      "base_envelope_version": 2,
+      "base_record_hash": "c6564773f5be748cde538c5b25a8009d9e615a55ca266077b32beab3cbc2d1f9",
+      "base_record_version": 2,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "b66846fca7fc6d16a089d8eac5d5922516f84b7a68e8f84b16644a52e09d69b9",
+        "base_envelope_version": 2,
+        "case_id": "gz_case_002",
+        "command_id": "command_gz_case_002_turn_02_consent_person_a",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "consent_event_id": "event_gz_case_002_consent_a",
+            "consent_status": "granted",
+            "party_id": "party_a",
+            "type": "record_party_consent"
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "0da283b9e2f840b293b835289466b4baeffcd3afea6541d9364235068299f6f5",
+        "resulting_envelope_version": 3,
+        "resulting_record_hash": "854df1062086fd0f9940038ba7ee5e62bd6fcdab19daa5f1d211c68de2d9ffe7",
+        "resulting_record_version": 3,
+        "workflow_state": "initial_story"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_party_consent",
+        "set_non_participation_policy",
+        "set_party_identity",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_002_turn_02_consent_person_a",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "0da283b9e2f840b293b835289466b4baeffcd3afea6541d9364235068299f6f5",
+      "base_envelope_version": 3,
+      "base_record_hash": "854df1062086fd0f9940038ba7ee5e62bd6fcdab19daa5f1d211c68de2d9ffe7",
+      "base_record_version": 3,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "0da283b9e2f840b293b835289466b4baeffcd3afea6541d9364235068299f6f5",
+        "base_envelope_version": 3,
+        "case_id": "gz_case_002",
+        "command_id": "command_gz_case_002_turn_03_brief_story",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "event": "initial_story_received",
+            "event_id": "event_gz_case_002_story",
+            "type": "transition"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "31397fa87f70c6f3056b0731a0fc1da9378a3aa41d1f8ce2cac08f508a2e1f41",
+            "source_id": "source_gz_case_002_initial_story",
+            "span": {
+              "encoding": "utf16",
+              "end": 106,
+              "quote": "I hired a designer for a launch page. I paid a deposit, the page arrived late, and I want some money back.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [
+          {
+            "basis": "party_attributed_assertion",
+            "fact_id": "fact_gz_case_002_brief_story_received",
+            "party_attribution": "party_a",
+            "source_references": [
+              {
+                "source_hash": "31397fa87f70c6f3056b0731a0fc1da9378a3aa41d1f8ce2cac08f508a2e1f41",
+                "source_id": "source_gz_case_002_initial_story",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 106,
+                  "quote": "I hired a designer for a launch page. I paid a deposit, the page arrived late, and I want some money back.",
+                  "start": 0
+                }
+              }
+            ],
+            "statement": "Person A says this is a paid design dispute involving delay and a refund request."
+          }
+        ],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [
+          {
+            "prohibited_promotion": "objective_fact",
+            "proposition": "The designer breached the agreement.",
+            "proposition_id": "proposition_gz_case_002_designer_breached",
+            "reason_code": "brief_story_is_party_assertion",
+            "source_references": [
+              {
+                "source_hash": "31397fa87f70c6f3056b0731a0fc1da9378a3aa41d1f8ce2cac08f508a2e1f41",
+                "source_id": "source_gz_case_002_initial_story",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 106,
+                  "quote": "I hired a designer for a launch page. I paid a deposit, the page arrived late, and I want some money back.",
+                  "start": 0
+                }
+              }
+            ]
+          }
+        ],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": {
+          "addressed_to_party": "party_a",
+          "field": "required_fact_profile",
+          "namespace": "classification",
+          "object_id": null,
+          "reason_code": "classify_brief_commercial_dispute"
+        },
+        "output_scope": null,
+        "record_version_delta": 0,
+        "required_source_references": [
+          {
+            "source_hash": "31397fa87f70c6f3056b0731a0fc1da9378a3aa41d1f8ce2cac08f508a2e1f41",
+            "source_id": "source_gz_case_002_initial_story",
+            "span": {
+              "encoding": "utf16",
+              "end": 106,
+              "quote": "I hired a designer for a launch page. I paid a deposit, the page arrived late, and I want some money back.",
+              "start": 0
+            }
+          }
+        ],
+        "resulting_envelope_hash": "11f3c52fecd5d8c029eb8d9bd77e11d4d3cbd7432e36be41150b25103b89599f",
+        "resulting_envelope_version": 4,
+        "resulting_record_hash": "854df1062086fd0f9940038ba7ee5e62bd6fcdab19daa5f1d211c68de2d9ffe7",
+        "resulting_record_version": 3,
+        "workflow_state": "triage"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_party_consent",
+        "set_non_participation_policy",
+        "set_party_identity",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "I hired a designer for a launch page. I paid a deposit, the page arrived late, and I want some money back.",
+          "content_hash": "31397fa87f70c6f3056b0731a0fc1da9378a3aa41d1f8ce2cac08f508a2e1f41",
+          "source_id": "source_gz_case_002_initial_story",
+          "source_type": "initial_story"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_002_turn_03_brief_story",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_002_initial_story",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "11f3c52fecd5d8c029eb8d9bd77e11d4d3cbd7432e36be41150b25103b89599f",
+      "base_envelope_version": 4,
+      "base_record_hash": "854df1062086fd0f9940038ba7ee5e62bd6fcdab19daa5f1d211c68de2d9ffe7",
+      "base_record_version": 3,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "11f3c52fecd5d8c029eb8d9bd77e11d4d3cbd7432e36be41150b25103b89599f",
+        "base_envelope_version": 4,
+        "case_id": "gz_case_002",
+        "command_id": "command_gz_case_002_classify",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "authority": {
+              "adjudication_eligible": false,
+              "authority_detail": "Deterministic Gate Zero classification",
+              "authority_kind": "system_observation",
+              "evidence_ids": [],
+              "introduced_by": {
+                "actor_id": "juryai_system",
+                "actor_type": "system"
+              },
+              "introduced_in_record_version": 4,
+              "last_material_command_id": "command_gz_case_002_classify",
+              "last_material_record_version": 4,
+              "party_stances": {
+                "party_a": {
+                  "response_event_id": null,
+                  "stance": "unresponded"
+                },
+                "party_b": {
+                  "response_event_id": null,
+                  "stance": "unresponded"
+                }
+              },
+              "resolution_status": "unresolved",
+              "source_references": [
+                {
+                  "source_hash": "31397fa87f70c6f3056b0731a0fc1da9378a3aa41d1f8ce2cac08f508a2e1f41",
+                  "source_id": "source_gz_case_002_initial_story",
+                  "span": {
+                    "encoding": "utf16",
+                    "end": 106,
+                    "quote": "I hired a designer for a launch page. I paid a deposit, the page arrived late, and I want some money back.",
+                    "start": 0
+                  }
+                }
+              ],
+              "subject_actor_ids": []
+            },
+            "case_category": "commercial_service_delivery",
+            "maturity": "ready",
+            "required_fact_profile": "commercial_delivery",
+            "safety_flags": [],
+            "scope_flags": [],
+            "suitability": "eligible",
+            "type": "set_classification"
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [
+          {
+            "authority": {
+              "adjudication_eligible": false,
+              "authority_detail": "Deterministic Gate Zero classification",
+              "authority_kind": "system_observation",
+              "evidence_ids": [],
+              "introduced_by": {
+                "actor_id": "juryai_system",
+                "actor_type": "system"
+              },
+              "introduced_in_record_version": 4,
+              "last_material_command_id": "command_gz_case_002_classify",
+              "last_material_record_version": 4,
+              "party_stances": {
+                "party_a": {
+                  "response_event_id": null,
+                  "stance": "unresponded"
+                },
+                "party_b": {
+                  "response_event_id": null,
+                  "stance": "unresponded"
+                }
+              },
+              "resolution_status": "unresolved",
+              "source_references": [
+                {
+                  "source_hash": "31397fa87f70c6f3056b0731a0fc1da9378a3aa41d1f8ce2cac08f508a2e1f41",
+                  "source_id": "source_gz_case_002_initial_story",
+                  "span": {
+                    "encoding": "utf16",
+                    "end": 106,
+                    "quote": "I hired a designer for a launch page. I paid a deposit, the page arrived late, and I want some money back.",
+                    "start": 0
+                  }
+                }
+              ],
+              "subject_actor_ids": []
+            },
+            "namespace": "classification",
+            "object_id": "classification"
+          }
+        ],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [
+          {
+            "source_hash": "31397fa87f70c6f3056b0731a0fc1da9378a3aa41d1f8ce2cac08f508a2e1f41",
+            "source_id": "source_gz_case_002_initial_story",
+            "span": {
+              "encoding": "utf16",
+              "end": 106,
+              "quote": "I hired a designer for a launch page. I paid a deposit, the page arrived late, and I want some money back.",
+              "start": 0
+            }
+          }
+        ],
+        "resulting_envelope_hash": "aec5f9d44edb3404b3391d40054838202137642db907d723e660733026e0911f",
+        "resulting_envelope_version": 5,
+        "resulting_record_hash": "17ff570ce377b4b83c7f5d7d0636f1c1d02b2141d78a189ce71ab10d40b6a3a4",
+        "resulting_record_version": 4,
+        "workflow_state": "triage"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_evidence_visibility",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_party_consent",
+        "set_classification",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_party_identity",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "I hired a designer for a launch page. I paid a deposit, the page arrived late, and I want some money back.",
+          "content_hash": "31397fa87f70c6f3056b0731a0fc1da9378a3aa41d1f8ce2cac08f508a2e1f41",
+          "source_id": "source_gz_case_002_initial_story",
+          "source_type": "initial_story"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_002_turn_04_classify",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_002_initial_story",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "aec5f9d44edb3404b3391d40054838202137642db907d723e660733026e0911f",
+      "base_envelope_version": 5,
+      "base_record_hash": "17ff570ce377b4b83c7f5d7d0636f1c1d02b2141d78a189ce71ab10d40b6a3a4",
+      "base_record_version": 4,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "aec5f9d44edb3404b3391d40054838202137642db907d723e660733026e0911f",
+        "base_envelope_version": 5,
+        "case_id": "gz_case_002",
+        "command_id": "command_gz_case_002_turn_05_enter_formation",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "event": "triage_eligible",
+            "event_id": "event_gz_case_002_eligible",
+            "type": "transition"
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": {
+          "addressed_to_party": "party_a",
+          "field": "description",
+          "namespace": "agreements",
+          "object_id": null,
+          "reason_code": "highest_value_agreed_scope"
+        },
+        "output_scope": null,
+        "record_version_delta": 0,
+        "required_source_references": [],
+        "resulting_envelope_hash": "3f4262750bcf46f367d6a30e5afb22939ba0d5f7b9bcc352edd6add28c5a63ab",
+        "resulting_envelope_version": 6,
+        "resulting_record_hash": "17ff570ce377b4b83c7f5d7d0636f1c1d02b2141d78a189ce71ab10d40b6a3a4",
+        "resulting_record_version": 4,
+        "workflow_state": "person_a_formation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_evidence_visibility",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_party_consent",
+        "set_classification",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_party_identity",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "I hired a designer for a launch page. I paid a deposit, the page arrived late, and I want some money back.",
+          "content_hash": "31397fa87f70c6f3056b0731a0fc1da9378a3aa41d1f8ce2cac08f508a2e1f41",
+          "source_id": "source_gz_case_002_initial_story",
+          "source_type": "initial_story"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_002_turn_05_enter_formation",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_002_initial_story",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_a",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_a",
+        "party_id": "party_a"
+      },
+      "base_envelope_hash": "3f4262750bcf46f367d6a30e5afb22939ba0d5f7b9bcc352edd6add28c5a63ab",
+      "base_envelope_version": 6,
+      "base_record_hash": "17ff570ce377b4b83c7f5d7d0636f1c1d02b2141d78a189ce71ab10d40b6a3a4",
+      "base_record_version": 4,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_a",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_a",
+          "party_id": "party_a"
+        },
+        "base_envelope_hash": "3f4262750bcf46f367d6a30e5afb22939ba0d5f7b9bcc352edd6add28c5a63ab",
+        "base_envelope_version": 6,
+        "case_id": "gz_case_002",
+        "command_id": "command_gz_case_002_scope_answer",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "namespace": "positions",
+            "object": {
+              "authority": {
+                "adjudication_eligible": true,
+                "authority_detail": "Authenticated party_a assertion",
+                "authority_kind": "party_assertion",
+                "evidence_ids": [],
+                "introduced_by": {
+                  "actor_id": "subject_party_a",
+                  "actor_type": "party"
+                },
+                "introduced_in_record_version": 5,
+                "last_material_command_id": "command_gz_case_002_scope_answer",
+                "last_material_record_version": 5,
+                "party_stances": {
+                  "party_a": {
+                    "response_event_id": null,
+                    "stance": "asserted"
+                  },
+                  "party_b": {
+                    "response_event_id": null,
+                    "stance": "unresponded"
+                  }
+                },
+                "resolution_status": "unresolved",
+                "source_references": [
+                  {
+                    "source_hash": "0c6cd0349886bef0e37be31e13db499ea5e3895bb9b8ab2d3b85fb85648a604c",
+                    "source_id": "source_gz_case_002_scope_answer",
+                    "span": {
+                      "encoding": "utf16",
+                      "end": 68,
+                      "quote": "We agreed on one responsive launch page with final files due Friday.",
+                      "start": 0
+                    }
+                  }
+                ],
+                "subject_actor_ids": [
+                  "subject_party_a"
+                ]
+              },
+              "party_id": "party_a",
+              "position_id": "position_gz_case_002_scope",
+              "position_kind": "assertion",
+              "statement": "Person A says the agreed scope was one responsive launch page with final files due Friday.",
+              "target": null
+            },
+            "type": "add_object"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "0c6cd0349886bef0e37be31e13db499ea5e3895bb9b8ab2d3b85fb85648a604c",
+            "source_id": "source_gz_case_002_scope_answer",
+            "span": {
+              "encoding": "utf16",
+              "end": 68,
+              "quote": "We agreed on one responsive launch page with final files due Friday.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [
+          {
+            "basis": "party_attributed_assertion",
+            "fact_id": "fact_gz_case_002_a_scope",
+            "party_attribution": "party_a",
+            "source_references": [
+              {
+                "source_hash": "0c6cd0349886bef0e37be31e13db499ea5e3895bb9b8ab2d3b85fb85648a604c",
+                "source_id": "source_gz_case_002_scope_answer",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 68,
+                  "quote": "We agreed on one responsive launch page with final files due Friday.",
+                  "start": 0
+                }
+              }
+            ],
+            "statement": "Person A says the scope was one responsive launch page due Friday."
+          }
+        ],
+        "authority_fragments": [
+          {
+            "authority": {
+              "adjudication_eligible": true,
+              "authority_detail": "Authenticated party_a assertion",
+              "authority_kind": "party_assertion",
+              "evidence_ids": [],
+              "introduced_by": {
+                "actor_id": "subject_party_a",
+                "actor_type": "party"
+              },
+              "introduced_in_record_version": 5,
+              "last_material_command_id": "command_gz_case_002_scope_answer",
+              "last_material_record_version": 5,
+              "party_stances": {
+                "party_a": {
+                  "response_event_id": null,
+                  "stance": "asserted"
+                },
+                "party_b": {
+                  "response_event_id": null,
+                  "stance": "unresponded"
+                }
+              },
+              "resolution_status": "unresolved",
+              "source_references": [
+                {
+                  "source_hash": "0c6cd0349886bef0e37be31e13db499ea5e3895bb9b8ab2d3b85fb85648a604c",
+                  "source_id": "source_gz_case_002_scope_answer",
+                  "span": {
+                    "encoding": "utf16",
+                    "end": 68,
+                    "quote": "We agreed on one responsive launch page with final files due Friday.",
+                    "start": 0
+                  }
+                }
+              ],
+              "subject_actor_ids": [
+                "subject_party_a"
+              ]
+            },
+            "namespace": "positions",
+            "object_id": "position_gz_case_002_scope"
+          }
+        ],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [
+          {
+            "prohibited_promotion": "bilateral_agreement",
+            "proposition": "Both parties agree the scope and deadline were exactly as Person A described.",
+            "proposition_id": "proposition_gz_case_002_scope_bilateral",
+            "reason_code": "person_b_has_not_responded",
+            "source_references": [
+              {
+                "source_hash": "0c6cd0349886bef0e37be31e13db499ea5e3895bb9b8ab2d3b85fb85648a604c",
+                "source_id": "source_gz_case_002_scope_answer",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 68,
+                  "quote": "We agreed on one responsive launch page with final files due Friday.",
+                  "start": 0
+                }
+              }
+            ]
+          }
+        ],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": {
+          "addressed_to_party": "party_a",
+          "field": "due_trigger",
+          "namespace": "payments",
+          "object_id": null,
+          "reason_code": "highest_value_payment_terms"
+        },
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [
+          {
+            "source_hash": "0c6cd0349886bef0e37be31e13db499ea5e3895bb9b8ab2d3b85fb85648a604c",
+            "source_id": "source_gz_case_002_scope_answer",
+            "span": {
+              "encoding": "utf16",
+              "end": 68,
+              "quote": "We agreed on one responsive launch page with final files due Friday.",
+              "start": 0
+            }
+          }
+        ],
+        "resulting_envelope_hash": "bb3057fb08a4ae707a0484b73efa00b5eb997b0b0704aec9dec56193331fcc56",
+        "resulting_envelope_version": 7,
+        "resulting_record_hash": "4f3524296e4c572664517974e6f1d4802a981e4076a14325bf5af009fd7f9169",
+        "resulting_record_version": 5,
+        "workflow_state": "person_a_formation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "replace_own_field",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "I hired a designer for a launch page. I paid a deposit, the page arrived late, and I want some money back.",
+          "content_hash": "31397fa87f70c6f3056b0731a0fc1da9378a3aa41d1f8ce2cac08f508a2e1f41",
+          "source_id": "source_gz_case_002_initial_story",
+          "source_type": "initial_story"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "We agreed on one responsive launch page with final files due Friday.",
+          "content_hash": "0c6cd0349886bef0e37be31e13db499ea5e3895bb9b8ab2d3b85fb85648a604c",
+          "source_id": "source_gz_case_002_scope_answer",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_002_turn_06_scope_answer",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_002_initial_story",
+        "source_gz_case_002_scope_answer",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "bb3057fb08a4ae707a0484b73efa00b5eb997b0b0704aec9dec56193331fcc56",
+      "base_envelope_version": 7,
+      "base_record_hash": "4f3524296e4c572664517974e6f1d4802a981e4076a14325bf5af009fd7f9169",
+      "base_record_version": 5,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "bb3057fb08a4ae707a0484b73efa00b5eb997b0b0704aec9dec56193331fcc56",
+        "base_envelope_version": 7,
+        "case_id": "gz_case_002",
+        "command_id": "command_gz_case_002_turn_07_require_payment_term",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [
+              "The amount and balance due trigger are not yet stated."
+            ],
+            "lock_blockers": [
+              "payment_terms_missing"
+            ],
+            "lock_prerequisites": [
+              "person_a_record_complete"
+            ],
+            "open_required_fields": [
+              "payments.deposit",
+              "payments.balance_due_trigger"
+            ],
+            "type": "set_formation_requirements",
+            "uncertainties": []
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": {
+          "addressed_to_party": "party_a",
+          "field": "amount_minor",
+          "namespace": "payments",
+          "object_id": null,
+          "reason_code": "highest_value_payment_amount"
+        },
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "5d9a3e6f215c8c286103a1a464a7a2687e0b029127bf7965e875931b04862b1d",
+        "resulting_envelope_version": 8,
+        "resulting_record_hash": "5dd5f700cd388ec04c5e49ac314246add7beda6b9f939553fb72626fc0ef65af",
+        "resulting_record_version": 6,
+        "workflow_state": "person_a_formation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_party_identity",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "I hired a designer for a launch page. I paid a deposit, the page arrived late, and I want some money back.",
+          "content_hash": "31397fa87f70c6f3056b0731a0fc1da9378a3aa41d1f8ce2cac08f508a2e1f41",
+          "source_id": "source_gz_case_002_initial_story",
+          "source_type": "initial_story"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "We agreed on one responsive launch page with final files due Friday.",
+          "content_hash": "0c6cd0349886bef0e37be31e13db499ea5e3895bb9b8ab2d3b85fb85648a604c",
+          "source_id": "source_gz_case_002_scope_answer",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_002_turn_07_require_payment_term",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_002_initial_story",
+        "source_gz_case_002_scope_answer",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_a",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_a",
+        "party_id": "party_a"
+      },
+      "base_envelope_hash": "5d9a3e6f215c8c286103a1a464a7a2687e0b029127bf7965e875931b04862b1d",
+      "base_envelope_version": 8,
+      "base_record_hash": "5dd5f700cd388ec04c5e49ac314246add7beda6b9f939553fb72626fc0ef65af",
+      "base_record_version": 6,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_a",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_a",
+          "party_id": "party_a"
+        },
+        "base_envelope_hash": "5d9a3e6f215c8c286103a1a464a7a2687e0b029127bf7965e875931b04862b1d",
+        "base_envelope_version": 8,
+        "case_id": "gz_case_002",
+        "command_id": "command_gz_case_002_payment_answer",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "namespace": "positions",
+            "object": {
+              "authority": {
+                "adjudication_eligible": true,
+                "authority_detail": "Authenticated party_a assertion",
+                "authority_kind": "party_assertion",
+                "evidence_ids": [],
+                "introduced_by": {
+                  "actor_id": "subject_party_a",
+                  "actor_type": "party"
+                },
+                "introduced_in_record_version": 7,
+                "last_material_command_id": "command_gz_case_002_payment_answer",
+                "last_material_record_version": 7,
+                "party_stances": {
+                  "party_a": {
+                    "response_event_id": null,
+                    "stance": "asserted"
+                  },
+                  "party_b": {
+                    "response_event_id": null,
+                    "stance": "unresponded"
+                  }
+                },
+                "resolution_status": "unresolved",
+                "source_references": [
+                  {
+                    "source_hash": "0ce7c47e88c3e6c6b19b1f20ca68657d9353c7fb49186328520ad69b7d148560",
+                    "source_id": "source_gz_case_002_payment_answer",
+                    "span": {
+                      "encoding": "utf16",
+                      "end": 94,
+                      "quote": "I paid a USD 300 deposit. The remaining USD 300 was due only after final files were delivered.",
+                      "start": 0
+                    }
+                  }
+                ],
+                "subject_actor_ids": [
+                  "subject_party_a"
+                ]
+              },
+              "party_id": "party_a",
+              "position_id": "position_gz_case_002_payment",
+              "position_kind": "assertion",
+              "statement": "Person A says USD 300 was paid and another USD 300 was due only after final delivery.",
+              "target": null
+            },
+            "type": "add_object"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "0ce7c47e88c3e6c6b19b1f20ca68657d9353c7fb49186328520ad69b7d148560",
+            "source_id": "source_gz_case_002_payment_answer",
+            "span": {
+              "encoding": "utf16",
+              "end": 94,
+              "quote": "I paid a USD 300 deposit. The remaining USD 300 was due only after final files were delivered.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [
+          {
+            "authority": {
+              "adjudication_eligible": true,
+              "authority_detail": "Authenticated party_a assertion",
+              "authority_kind": "party_assertion",
+              "evidence_ids": [],
+              "introduced_by": {
+                "actor_id": "subject_party_a",
+                "actor_type": "party"
+              },
+              "introduced_in_record_version": 7,
+              "last_material_command_id": "command_gz_case_002_payment_answer",
+              "last_material_record_version": 7,
+              "party_stances": {
+                "party_a": {
+                  "response_event_id": null,
+                  "stance": "asserted"
+                },
+                "party_b": {
+                  "response_event_id": null,
+                  "stance": "unresponded"
+                }
+              },
+              "resolution_status": "unresolved",
+              "source_references": [
+                {
+                  "source_hash": "0ce7c47e88c3e6c6b19b1f20ca68657d9353c7fb49186328520ad69b7d148560",
+                  "source_id": "source_gz_case_002_payment_answer",
+                  "span": {
+                    "encoding": "utf16",
+                    "end": 94,
+                    "quote": "I paid a USD 300 deposit. The remaining USD 300 was due only after final files were delivered.",
+                    "start": 0
+                  }
+                }
+              ],
+              "subject_actor_ids": [
+                "subject_party_a"
+              ]
+            },
+            "namespace": "positions",
+            "object_id": "position_gz_case_002_payment"
+          }
+        ],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [
+          {
+            "source_hash": "0ce7c47e88c3e6c6b19b1f20ca68657d9353c7fb49186328520ad69b7d148560",
+            "source_id": "source_gz_case_002_payment_answer",
+            "span": {
+              "encoding": "utf16",
+              "end": 94,
+              "quote": "I paid a USD 300 deposit. The remaining USD 300 was due only after final files were delivered.",
+              "start": 0
+            }
+          }
+        ],
+        "resulting_envelope_hash": "11269d863adf7426bbccbccf9ec5811206bfec918b7a141ecf6666a7634b29d9",
+        "resulting_envelope_version": 9,
+        "resulting_record_hash": "126a741ac85fcdee08b4a855a8082de18e09f285f3fd5c65012677f7b27dbba2",
+        "resulting_record_version": 7,
+        "workflow_state": "person_a_formation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "replace_own_field",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "I hired a designer for a launch page. I paid a deposit, the page arrived late, and I want some money back.",
+          "content_hash": "31397fa87f70c6f3056b0731a0fc1da9378a3aa41d1f8ce2cac08f508a2e1f41",
+          "source_id": "source_gz_case_002_initial_story",
+          "source_type": "initial_story"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "I paid a USD 300 deposit. The remaining USD 300 was due only after final files were delivered.",
+          "content_hash": "0ce7c47e88c3e6c6b19b1f20ca68657d9353c7fb49186328520ad69b7d148560",
+          "source_id": "source_gz_case_002_payment_answer",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "We agreed on one responsive launch page with final files due Friday.",
+          "content_hash": "0c6cd0349886bef0e37be31e13db499ea5e3895bb9b8ab2d3b85fb85648a604c",
+          "source_id": "source_gz_case_002_scope_answer",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_002_turn_08_payment_answer",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_002_initial_story",
+        "source_gz_case_002_payment_answer",
+        "source_gz_case_002_scope_answer",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "11269d863adf7426bbccbccf9ec5811206bfec918b7a141ecf6666a7634b29d9",
+      "base_envelope_version": 9,
+      "base_record_hash": "126a741ac85fcdee08b4a855a8082de18e09f285f3fd5c65012677f7b27dbba2",
+      "base_record_version": 7,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "11269d863adf7426bbccbccf9ec5811206bfec918b7a141ecf6666a7634b29d9",
+        "base_envelope_version": 9,
+        "case_id": "gz_case_002",
+        "command_id": "command_gz_case_002_turn_09_final_catch_all_question",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [],
+            "lock_blockers": [
+              "catch_all_not_answered"
+            ],
+            "lock_prerequisites": [
+              "final_open_catch_all_answered"
+            ],
+            "open_required_fields": [
+              "formation.final_open_catch_all"
+            ],
+            "type": "set_formation_requirements",
+            "uncertainties": []
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": {
+          "addressed_to_party": "party_a",
+          "field": "final_open_catch_all",
+          "namespace": "formation",
+          "object_id": null,
+          "reason_code": "required_final_open_catch_all"
+        },
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "44c76788f8d44d6dde536d2f4f9b9c242c88d9585b6a8487694c7e21e0ce7071",
+        "resulting_envelope_version": 10,
+        "resulting_record_hash": "36bd316092b4fec209531a84e7649e27929b2f241911f97eaeed1e21fe87925f",
+        "resulting_record_version": 8,
+        "workflow_state": "person_a_formation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_party_identity",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "I hired a designer for a launch page. I paid a deposit, the page arrived late, and I want some money back.",
+          "content_hash": "31397fa87f70c6f3056b0731a0fc1da9378a3aa41d1f8ce2cac08f508a2e1f41",
+          "source_id": "source_gz_case_002_initial_story",
+          "source_type": "initial_story"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "I paid a USD 300 deposit. The remaining USD 300 was due only after final files were delivered.",
+          "content_hash": "0ce7c47e88c3e6c6b19b1f20ca68657d9353c7fb49186328520ad69b7d148560",
+          "source_id": "source_gz_case_002_payment_answer",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "We agreed on one responsive launch page with final files due Friday.",
+          "content_hash": "0c6cd0349886bef0e37be31e13db499ea5e3895bb9b8ab2d3b85fb85648a604c",
+          "source_id": "source_gz_case_002_scope_answer",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_002_turn_09_final_catch_all_question",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_002_initial_story",
+        "source_gz_case_002_payment_answer",
+        "source_gz_case_002_scope_answer",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_a",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_a",
+        "party_id": "party_a"
+      },
+      "base_envelope_hash": "44c76788f8d44d6dde536d2f4f9b9c242c88d9585b6a8487694c7e21e0ce7071",
+      "base_envelope_version": 10,
+      "base_record_hash": "36bd316092b4fec209531a84e7649e27929b2f241911f97eaeed1e21fe87925f",
+      "base_record_version": 8,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_a",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_a",
+          "party_id": "party_a"
+        },
+        "base_envelope_hash": "44c76788f8d44d6dde536d2f4f9b9c242c88d9585b6a8487694c7e21e0ce7071",
+        "base_envelope_version": 10,
+        "case_id": "gz_case_002",
+        "command_id": "command_gz_case_002_catch_all",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "namespace": "positions",
+            "object": {
+              "authority": {
+                "adjudication_eligible": true,
+                "authority_detail": "Authenticated party_a assertion",
+                "authority_kind": "party_assertion",
+                "evidence_ids": [],
+                "introduced_by": {
+                  "actor_id": "subject_party_a",
+                  "actor_type": "party"
+                },
+                "introduced_in_record_version": 9,
+                "last_material_command_id": "command_gz_case_002_catch_all",
+                "last_material_record_version": 9,
+                "party_stances": {
+                  "party_a": {
+                    "response_event_id": null,
+                    "stance": "asserted"
+                  },
+                  "party_b": {
+                    "response_event_id": null,
+                    "stance": "unresponded"
+                  }
+                },
+                "resolution_status": "unresolved",
+                "source_references": [
+                  {
+                    "source_hash": "6ff6ef901ba3979286fe469f60ff771208b66f74225ff38281efdea6583a38f5",
+                    "source_id": "source_gz_case_002_catch_all",
+                    "span": {
+                      "encoding": "utf16",
+                      "end": 82,
+                      "quote": "One more thing: I offered two extra days, but I did not waive the Friday deadline.",
+                      "start": 0
+                    }
+                  }
+                ],
+                "subject_actor_ids": [
+                  "subject_party_a"
+                ]
+              },
+              "party_id": "party_a",
+              "position_id": "position_gz_case_002_extension",
+              "position_kind": "assertion",
+              "statement": "Person A says two extra days were offered without waiving the original deadline.",
+              "target": null
+            },
+            "type": "add_object"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "6ff6ef901ba3979286fe469f60ff771208b66f74225ff38281efdea6583a38f5",
+            "source_id": "source_gz_case_002_catch_all",
+            "span": {
+              "encoding": "utf16",
+              "end": 82,
+              "quote": "One more thing: I offered two extra days, but I did not waive the Friday deadline.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [
+          {
+            "basis": "party_attributed_assertion",
+            "fact_id": "fact_gz_case_002_extension_offer",
+            "party_attribution": "party_a",
+            "source_references": [
+              {
+                "source_hash": "6ff6ef901ba3979286fe469f60ff771208b66f74225ff38281efdea6583a38f5",
+                "source_id": "source_gz_case_002_catch_all",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 82,
+                  "quote": "One more thing: I offered two extra days, but I did not waive the Friday deadline.",
+                  "start": 0
+                }
+              }
+            ],
+            "statement": "Person A says an extra two days were offered without waiving the deadline."
+          }
+        ],
+        "authority_fragments": [
+          {
+            "authority": {
+              "adjudication_eligible": true,
+              "authority_detail": "Authenticated party_a assertion",
+              "authority_kind": "party_assertion",
+              "evidence_ids": [],
+              "introduced_by": {
+                "actor_id": "subject_party_a",
+                "actor_type": "party"
+              },
+              "introduced_in_record_version": 9,
+              "last_material_command_id": "command_gz_case_002_catch_all",
+              "last_material_record_version": 9,
+              "party_stances": {
+                "party_a": {
+                  "response_event_id": null,
+                  "stance": "asserted"
+                },
+                "party_b": {
+                  "response_event_id": null,
+                  "stance": "unresponded"
+                }
+              },
+              "resolution_status": "unresolved",
+              "source_references": [
+                {
+                  "source_hash": "6ff6ef901ba3979286fe469f60ff771208b66f74225ff38281efdea6583a38f5",
+                  "source_id": "source_gz_case_002_catch_all",
+                  "span": {
+                    "encoding": "utf16",
+                    "end": 82,
+                    "quote": "One more thing: I offered two extra days, but I did not waive the Friday deadline.",
+                    "start": 0
+                  }
+                }
+              ],
+              "subject_actor_ids": [
+                "subject_party_a"
+              ]
+            },
+            "namespace": "positions",
+            "object_id": "position_gz_case_002_extension"
+          }
+        ],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [
+          {
+            "prohibited_promotion": "objective_fact",
+            "proposition": "The extension legally or objectively did not waive the deadline.",
+            "proposition_id": "proposition_gz_case_002_no_waiver_fact",
+            "reason_code": "party_characterization_not_finding",
+            "source_references": [
+              {
+                "source_hash": "6ff6ef901ba3979286fe469f60ff771208b66f74225ff38281efdea6583a38f5",
+                "source_id": "source_gz_case_002_catch_all",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 82,
+                  "quote": "One more thing: I offered two extra days, but I did not waive the Friday deadline.",
+                  "start": 0
+                }
+              }
+            ]
+          }
+        ],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [
+          {
+            "source_hash": "6ff6ef901ba3979286fe469f60ff771208b66f74225ff38281efdea6583a38f5",
+            "source_id": "source_gz_case_002_catch_all",
+            "span": {
+              "encoding": "utf16",
+              "end": 82,
+              "quote": "One more thing: I offered two extra days, but I did not waive the Friday deadline.",
+              "start": 0
+            }
+          }
+        ],
+        "resulting_envelope_hash": "3c27cd0f2a232bdd7942d8616b008a727d973fc9ed7ae3ab05638355b50e7a6e",
+        "resulting_envelope_version": 11,
+        "resulting_record_hash": "c89aaaa340b2ad573b565abdd0e2e60848ea77a632ce2e1915735442b20f4c16",
+        "resulting_record_version": 9,
+        "workflow_state": "person_a_formation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "replace_own_field",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "One more thing: I offered two extra days, but I did not waive the Friday deadline.",
+          "content_hash": "6ff6ef901ba3979286fe469f60ff771208b66f74225ff38281efdea6583a38f5",
+          "source_id": "source_gz_case_002_catch_all",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "I hired a designer for a launch page. I paid a deposit, the page arrived late, and I want some money back.",
+          "content_hash": "31397fa87f70c6f3056b0731a0fc1da9378a3aa41d1f8ce2cac08f508a2e1f41",
+          "source_id": "source_gz_case_002_initial_story",
+          "source_type": "initial_story"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "I paid a USD 300 deposit. The remaining USD 300 was due only after final files were delivered.",
+          "content_hash": "0ce7c47e88c3e6c6b19b1f20ca68657d9353c7fb49186328520ad69b7d148560",
+          "source_id": "source_gz_case_002_payment_answer",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "We agreed on one responsive launch page with final files due Friday.",
+          "content_hash": "0c6cd0349886bef0e37be31e13db499ea5e3895bb9b8ab2d3b85fb85648a604c",
+          "source_id": "source_gz_case_002_scope_answer",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_002_turn_10_catch_all_answer",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_002_catch_all",
+        "source_gz_case_002_initial_story",
+        "source_gz_case_002_payment_answer",
+        "source_gz_case_002_scope_answer",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "3c27cd0f2a232bdd7942d8616b008a727d973fc9ed7ae3ab05638355b50e7a6e",
+      "base_envelope_version": 11,
+      "base_record_hash": "c89aaaa340b2ad573b565abdd0e2e60848ea77a632ce2e1915735442b20f4c16",
+      "base_record_version": 9,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "3c27cd0f2a232bdd7942d8616b008a727d973fc9ed7ae3ab05638355b50e7a6e",
+        "base_envelope_version": 11,
+        "case_id": "gz_case_002",
+        "command_id": "command_gz_case_002_turn_11_record_ready",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [],
+            "lock_blockers": [],
+            "lock_prerequisites": [],
+            "open_required_fields": [],
+            "type": "set_formation_requirements",
+            "uncertainties": []
+          },
+          {
+            "event": "person_a_record_ready",
+            "event_id": "event_gz_case_002_record_ready",
+            "type": "transition"
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "9fd02b1c87d51a56ddf7909657fba993504b52d594120ee1602fb71c62492987",
+        "resulting_envelope_version": 12,
+        "resulting_record_hash": "977ee49593600d1fa6fe0f55d88210e383d72ef1178c0330baf658d06f5970b7",
+        "resulting_record_version": 10,
+        "workflow_state": "person_a_confirmation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_party_identity",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "One more thing: I offered two extra days, but I did not waive the Friday deadline.",
+          "content_hash": "6ff6ef901ba3979286fe469f60ff771208b66f74225ff38281efdea6583a38f5",
+          "source_id": "source_gz_case_002_catch_all",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "I hired a designer for a launch page. I paid a deposit, the page arrived late, and I want some money back.",
+          "content_hash": "31397fa87f70c6f3056b0731a0fc1da9378a3aa41d1f8ce2cac08f508a2e1f41",
+          "source_id": "source_gz_case_002_initial_story",
+          "source_type": "initial_story"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "I paid a USD 300 deposit. The remaining USD 300 was due only after final files were delivered.",
+          "content_hash": "0ce7c47e88c3e6c6b19b1f20ca68657d9353c7fb49186328520ad69b7d148560",
+          "source_id": "source_gz_case_002_payment_answer",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "We agreed on one responsive launch page with final files due Friday.",
+          "content_hash": "0c6cd0349886bef0e37be31e13db499ea5e3895bb9b8ab2d3b85fb85648a604c",
+          "source_id": "source_gz_case_002_scope_answer",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_002_turn_11_record_ready",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_002_catch_all",
+        "source_gz_case_002_initial_story",
+        "source_gz_case_002_payment_answer",
+        "source_gz_case_002_scope_answer",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_a",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_a",
+        "party_id": "party_a"
+      },
+      "base_envelope_hash": "9fd02b1c87d51a56ddf7909657fba993504b52d594120ee1602fb71c62492987",
+      "base_envelope_version": 12,
+      "base_record_hash": "977ee49593600d1fa6fe0f55d88210e383d72ef1178c0330baf658d06f5970b7",
+      "base_record_version": 10,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_a",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_a",
+          "party_id": "party_a"
+        },
+        "base_envelope_hash": "9fd02b1c87d51a56ddf7909657fba993504b52d594120ee1602fb71c62492987",
+        "base_envelope_version": 12,
+        "case_id": "gz_case_002",
+        "command_id": "command_gz_case_002_turn_12_person_a_confirms",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "confirmation_id": "confirmation_gz_case_002_a",
+            "confirmed_at": "2026-08-12T00:00:00.000Z",
+            "event_id": "event_gz_case_002_confirmation_a",
+            "type": "record_confirmation"
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [
+          {
+            "basis": "system_state",
+            "fact_id": "fact_gz_case_002_a_confirmed",
+            "party_attribution": null,
+            "source_references": [],
+            "statement": "Authenticated Person A confirmed the exact current material record."
+          }
+        ],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 0,
+        "required_source_references": [],
+        "resulting_envelope_hash": "e0126e71f89be23ed8282920b5c432f713aa78dd8efac31d39b6123ba7d5ccee",
+        "resulting_envelope_version": 13,
+        "resulting_record_hash": "977ee49593600d1fa6fe0f55d88210e383d72ef1178c0330baf658d06f5970b7",
+        "resulting_record_version": 10,
+        "workflow_state": "person_a_confirmation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_challenge",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_confirmation",
+        "replace_own_field",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "One more thing: I offered two extra days, but I did not waive the Friday deadline.",
+          "content_hash": "6ff6ef901ba3979286fe469f60ff771208b66f74225ff38281efdea6583a38f5",
+          "source_id": "source_gz_case_002_catch_all",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "I hired a designer for a launch page. I paid a deposit, the page arrived late, and I want some money back.",
+          "content_hash": "31397fa87f70c6f3056b0731a0fc1da9378a3aa41d1f8ce2cac08f508a2e1f41",
+          "source_id": "source_gz_case_002_initial_story",
+          "source_type": "initial_story"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "I paid a USD 300 deposit. The remaining USD 300 was due only after final files were delivered.",
+          "content_hash": "0ce7c47e88c3e6c6b19b1f20ca68657d9353c7fb49186328520ad69b7d148560",
+          "source_id": "source_gz_case_002_payment_answer",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_a",
+          "content": "We agreed on one responsive launch page with final files due Friday.",
+          "content_hash": "0c6cd0349886bef0e37be31e13db499ea5e3895bb9b8ab2d3b85fb85648a604c",
+          "source_id": "source_gz_case_002_scope_answer",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_002_turn_12_person_a_confirms",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_002_catch_all",
+        "source_gz_case_002_initial_story",
+        "source_gz_case_002_payment_answer",
+        "source_gz_case_002_scope_answer",
+        "source_system_initialization"
+      ]
+    }
+  ]
+}

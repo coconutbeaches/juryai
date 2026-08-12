@@ -1,0 +1,1746 @@
+{
+  "case_id": "gz_case_021",
+  "coverage": {
+    "failure": [
+      "challenge_reconciliation",
+      "silence"
+    ],
+    "success": [
+      "party_disagreement",
+      "challenge_reconciliation",
+      "silence"
+    ]
+  },
+  "expected_adjudication_input": null,
+  "final_envelope": {
+    "actors": {},
+    "agreements": {},
+    "claimed_losses": {},
+    "classification": {
+      "authority": {
+        "adjudication_eligible": false,
+        "authority_detail": "initial classification placeholder",
+        "authority_kind": "system_observation",
+        "evidence_ids": [],
+        "introduced_by": {
+          "actor_id": "juryai_system",
+          "actor_type": "system"
+        },
+        "introduced_in_record_version": 1,
+        "last_material_command_id": "command_system_initialization",
+        "last_material_record_version": 1,
+        "party_stances": {
+          "party_a": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          },
+          "party_b": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          }
+        },
+        "resolution_status": "unresolved",
+        "source_references": [
+          {
+            "source_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+            "source_id": "source_system_initialization",
+            "span": null
+          }
+        ],
+        "subject_actor_ids": []
+      },
+      "case_category": null,
+      "maturity": "undetermined",
+      "required_fact_profile": null,
+      "safety_flags": [],
+      "scope_flags": [],
+      "suitability": "undetermined"
+    },
+    "control": {
+      "case_id": "gz_case_021",
+      "deadlines": {},
+      "eligibility": {
+        "reason_codes": [],
+        "status": "undetermined"
+      },
+      "envelope_hash": "14d54e91995a317562706558be71bbcf691dd5127305696c1d50d5c038f731d6",
+      "envelope_version": 10,
+      "lock": {
+        "lock_event_id": null,
+        "locked_at": null,
+        "mode": null,
+        "output_scope": null,
+        "status": "unlocked"
+      },
+      "protocol": {
+        "non_participation_mode": "prohibited",
+        "protocol_id": "commercial_fairness_v2",
+        "protocol_version": "juryai-formation-protocol-v2.0.0"
+      },
+      "record_hash": "8d6bb2f3ca89253329f152b7811b534f196763e691b33017d51b81ddcb59c275",
+      "record_version": 9,
+      "schema_version": "juryai-case-envelope-v2.0.0",
+      "workflow_state": "reconciliation"
+    },
+    "deliverables": {},
+    "events": {},
+    "evidence": {},
+    "formation": {
+      "ambiguities": [
+        "The call occurrence remains unresolved."
+      ],
+      "challenges": [
+        {
+          "challenge_id": "challenge_gz_case_021_call",
+          "challenging_party_id": "party_b",
+          "resolution_event_id": "event_gz_case_021_reject",
+          "resolution_source_references": [
+            {
+              "source_hash": "b5e27085884441c7d89dcf2683f75edd463df1e136e982255ce6ac186b2adddb",
+              "source_id": "source_gz_case_021_a",
+              "span": {
+                "encoding": "utf16",
+                "end": 43,
+                "quote": "Person A says a cancellation call occurred.",
+                "start": 0
+              }
+            }
+          ],
+          "source_references": [
+            {
+              "source_hash": "62e115b0d255f26c5707742bdf3ac618de3c91046afd7993177a43694400e8fd",
+              "source_id": "source_gz_case_021_b",
+              "span": {
+                "encoding": "utf16",
+                "end": 68,
+                "quote": "Person B lacks information about the alleged call and challenges it.",
+                "start": 0
+              }
+            }
+          ],
+          "status": "rejected",
+          "target_field": "statement",
+          "target_namespace": "positions",
+          "target_object_id": "position_gz_case_021_call"
+        }
+      ],
+      "confirmations": {
+        "party_a": null,
+        "party_b": null
+      },
+      "disclosure": {
+        "detailed_a_framing": "embargoed",
+        "disclosure_event_id": null,
+        "person_b_independent_account_source_id": null
+      },
+      "lock_blockers": [],
+      "lock_prerequisites": [],
+      "material_change_events": [],
+      "non_participation": {
+        "correction_opportunity": "not_started",
+        "deadline_expired_event_id": null,
+        "invitation_event_id": null,
+        "notice_event_id": null,
+        "response_deadline": null
+      },
+      "open_required_fields": [],
+      "prior_locks": [],
+      "uncertainties": [
+        "Person B lacks information."
+      ]
+    },
+    "parties": {
+      "party_a": {
+        "authenticated_subject_id": "subject_party_a",
+        "consent_event_id": "event_gz_case_021_consent_a",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_021_identity_a",
+        "participation_state": "active",
+        "party_id": "party_a",
+        "role": "person_a"
+      },
+      "party_b": {
+        "authenticated_subject_id": "subject_party_b",
+        "consent_event_id": "event_gz_case_021_consent_b",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_021_identity_b",
+        "participation_state": "active",
+        "party_id": "party_b",
+        "role": "person_b"
+      }
+    },
+    "payments": {},
+    "positions": {
+      "position_gz_case_021_call": {
+        "authority": {
+          "adjudication_eligible": true,
+          "authority_detail": "Authenticated party_a assertion",
+          "authority_kind": "party_assertion",
+          "evidence_ids": [],
+          "introduced_by": {
+            "actor_id": "subject_party_a",
+            "actor_type": "party"
+          },
+          "introduced_in_record_version": 2,
+          "last_material_command_id": "command_gz_case_021_turn_04_b_lacks_information",
+          "last_material_record_version": 5,
+          "party_stances": {
+            "party_a": {
+              "response_event_id": null,
+              "stance": "asserted"
+            },
+            "party_b": {
+              "response_event_id": "event_gz_case_021_lacks_information",
+              "stance": "lacks_information"
+            }
+          },
+          "resolution_status": "unresolved",
+          "source_references": [
+            {
+              "source_hash": "b5e27085884441c7d89dcf2683f75edd463df1e136e982255ce6ac186b2adddb",
+              "source_id": "source_gz_case_021_a",
+              "span": {
+                "encoding": "utf16",
+                "end": 43,
+                "quote": "Person A says a cancellation call occurred.",
+                "start": 0
+              }
+            },
+            {
+              "source_hash": "62e115b0d255f26c5707742bdf3ac618de3c91046afd7993177a43694400e8fd",
+              "source_id": "source_gz_case_021_b",
+              "span": {
+                "encoding": "utf16",
+                "end": 68,
+                "quote": "Person B lacks information about the alleged call and challenges it.",
+                "start": 0
+              }
+            }
+          ],
+          "subject_actor_ids": [
+            "subject_party_a"
+          ]
+        },
+        "party_id": "party_a",
+        "position_id": "position_gz_case_021_call",
+        "position_kind": "assertion",
+        "statement": "Person A says a cancellation call occurred.",
+        "target": null
+      }
+    },
+    "requested_outcomes": {}
+  },
+  "fixture_version": "juryai-gate-zero-case-fixture-v1.0.0",
+  "initial_envelope": {
+    "actors": {},
+    "agreements": {},
+    "claimed_losses": {},
+    "classification": {
+      "authority": {
+        "adjudication_eligible": false,
+        "authority_detail": "initial classification placeholder",
+        "authority_kind": "system_observation",
+        "evidence_ids": [],
+        "introduced_by": {
+          "actor_id": "juryai_system",
+          "actor_type": "system"
+        },
+        "introduced_in_record_version": 1,
+        "last_material_command_id": "command_system_initialization",
+        "last_material_record_version": 1,
+        "party_stances": {
+          "party_a": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          },
+          "party_b": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          }
+        },
+        "resolution_status": "unresolved",
+        "source_references": [
+          {
+            "source_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+            "source_id": "source_system_initialization",
+            "span": null
+          }
+        ],
+        "subject_actor_ids": []
+      },
+      "case_category": null,
+      "maturity": "undetermined",
+      "required_fact_profile": null,
+      "safety_flags": [],
+      "scope_flags": [],
+      "suitability": "undetermined"
+    },
+    "control": {
+      "case_id": "gz_case_021",
+      "deadlines": {},
+      "eligibility": {
+        "reason_codes": [],
+        "status": "undetermined"
+      },
+      "envelope_hash": "ff8bd197a344efd2f9d82c33ea42c71b312fb0738be2fca9bfdf6d1f7498d633",
+      "envelope_version": 1,
+      "lock": {
+        "lock_event_id": null,
+        "locked_at": null,
+        "mode": null,
+        "output_scope": null,
+        "status": "unlocked"
+      },
+      "protocol": {
+        "non_participation_mode": "prohibited",
+        "protocol_id": "commercial_fairness_v2",
+        "protocol_version": "juryai-formation-protocol-v2.0.0"
+      },
+      "record_hash": "5fa6566168ab075e0f4af3e195ea22923b42da6857ade93bf8e7ca4e4029bec7",
+      "record_version": 1,
+      "schema_version": "juryai-case-envelope-v2.0.0",
+      "workflow_state": "disclosure_challenge"
+    },
+    "deliverables": {},
+    "events": {},
+    "evidence": {},
+    "formation": {
+      "ambiguities": [],
+      "challenges": [],
+      "confirmations": {
+        "party_a": null,
+        "party_b": null
+      },
+      "disclosure": {
+        "detailed_a_framing": "embargoed",
+        "disclosure_event_id": null,
+        "person_b_independent_account_source_id": null
+      },
+      "lock_blockers": [],
+      "lock_prerequisites": [],
+      "material_change_events": [],
+      "non_participation": {
+        "correction_opportunity": "not_started",
+        "deadline_expired_event_id": null,
+        "invitation_event_id": null,
+        "notice_event_id": null,
+        "response_deadline": null
+      },
+      "open_required_fields": [],
+      "prior_locks": [],
+      "uncertainties": []
+    },
+    "parties": {
+      "party_a": {
+        "authenticated_subject_id": "subject_party_a",
+        "consent_event_id": "event_gz_case_021_consent_a",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_021_identity_a",
+        "participation_state": "active",
+        "party_id": "party_a",
+        "role": "person_a"
+      },
+      "party_b": {
+        "authenticated_subject_id": "subject_party_b",
+        "consent_event_id": "event_gz_case_021_consent_b",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_021_identity_b",
+        "participation_state": "active",
+        "party_id": "party_b",
+        "role": "person_b"
+      }
+    },
+    "payments": {},
+    "positions": {},
+    "requested_outcomes": {}
+  },
+  "matrix_version": "juryai-gate-zero-coverage-matrix-v1.0.0",
+  "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+  "title": "Challenge rejected and lacks-information stance",
+  "turns": [
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_a",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_a",
+        "party_id": "party_a"
+      },
+      "base_envelope_hash": "ff8bd197a344efd2f9d82c33ea42c71b312fb0738be2fca9bfdf6d1f7498d633",
+      "base_envelope_version": 1,
+      "base_record_hash": "5fa6566168ab075e0f4af3e195ea22923b42da6857ade93bf8e7ca4e4029bec7",
+      "base_record_version": 1,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_a",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_a",
+          "party_id": "party_a"
+        },
+        "base_envelope_hash": "ff8bd197a344efd2f9d82c33ea42c71b312fb0738be2fca9bfdf6d1f7498d633",
+        "base_envelope_version": 1,
+        "case_id": "gz_case_021",
+        "command_id": "command_gz_case_021_add_a",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "namespace": "positions",
+            "object": {
+              "authority": {
+                "adjudication_eligible": true,
+                "authority_detail": "Authenticated party_a assertion",
+                "authority_kind": "party_assertion",
+                "evidence_ids": [],
+                "introduced_by": {
+                  "actor_id": "subject_party_a",
+                  "actor_type": "party"
+                },
+                "introduced_in_record_version": 2,
+                "last_material_command_id": "command_gz_case_021_add_a",
+                "last_material_record_version": 2,
+                "party_stances": {
+                  "party_a": {
+                    "response_event_id": null,
+                    "stance": "asserted"
+                  },
+                  "party_b": {
+                    "response_event_id": null,
+                    "stance": "unresponded"
+                  }
+                },
+                "resolution_status": "unresolved",
+                "source_references": [
+                  {
+                    "source_hash": "b5e27085884441c7d89dcf2683f75edd463df1e136e982255ce6ac186b2adddb",
+                    "source_id": "source_gz_case_021_a",
+                    "span": {
+                      "encoding": "utf16",
+                      "end": 43,
+                      "quote": "Person A says a cancellation call occurred.",
+                      "start": 0
+                    }
+                  }
+                ],
+                "subject_actor_ids": [
+                  "subject_party_a"
+                ]
+              },
+              "party_id": "party_a",
+              "position_id": "position_gz_case_021_call",
+              "position_kind": "assertion",
+              "statement": "Person A says a cancellation call occurred.",
+              "target": null
+            },
+            "type": "add_object"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "b5e27085884441c7d89dcf2683f75edd463df1e136e982255ce6ac186b2adddb",
+            "source_id": "source_gz_case_021_a",
+            "span": {
+              "encoding": "utf16",
+              "end": 43,
+              "quote": "Person A says a cancellation call occurred.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "7a69232315d243cb92ee6082ba4dc80b3bc1213abd50ec53476c94610ec7f15a",
+        "resulting_envelope_version": 2,
+        "resulting_record_hash": "051a987d0f80b1a1db6465d5a08e2d215c8924e0627e215361f092705f9c77ce",
+        "resulting_record_version": 2,
+        "workflow_state": "disclosure_challenge"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_challenge",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says a cancellation call occurred.",
+          "content_hash": "b5e27085884441c7d89dcf2683f75edd463df1e136e982255ce6ac186b2adddb",
+          "source_id": "source_gz_case_021_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_021_turn_01_a_assertion",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_021_a",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_b",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_b",
+        "party_id": "party_b"
+      },
+      "base_envelope_hash": "7a69232315d243cb92ee6082ba4dc80b3bc1213abd50ec53476c94610ec7f15a",
+      "base_envelope_version": 2,
+      "base_record_hash": "051a987d0f80b1a1db6465d5a08e2d215c8924e0627e215361f092705f9c77ce",
+      "base_record_version": 2,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_b",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_b",
+          "party_id": "party_b"
+        },
+        "base_envelope_hash": "7a69232315d243cb92ee6082ba4dc80b3bc1213abd50ec53476c94610ec7f15a",
+        "base_envelope_version": 2,
+        "case_id": "gz_case_021",
+        "command_id": "command_gz_case_021_turn_02_b_challenges",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "challenge_id": "challenge_gz_case_021_call",
+            "source_references": [
+              {
+                "source_hash": "62e115b0d255f26c5707742bdf3ac618de3c91046afd7993177a43694400e8fd",
+                "source_id": "source_gz_case_021_b",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 68,
+                  "quote": "Person B lacks information about the alleged call and challenges it.",
+                  "start": 0
+                }
+              }
+            ],
+            "target_field": "statement",
+            "target_namespace": "positions",
+            "target_object_id": "position_gz_case_021_call",
+            "type": "record_challenge"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "62e115b0d255f26c5707742bdf3ac618de3c91046afd7993177a43694400e8fd",
+            "source_id": "source_gz_case_021_b",
+            "span": {
+              "encoding": "utf16",
+              "end": 68,
+              "quote": "Person B lacks information about the alleged call and challenges it.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "cf97713fe43f71f09233addc339a11eeba33ba30709d7791fa935025af668f4e",
+        "resulting_envelope_version": 3,
+        "resulting_record_hash": "049333ff31413b41b734821806c20d6dba53f916d1d1d7a19ece4b1bb6641387",
+        "resulting_record_version": 3,
+        "workflow_state": "disclosure_challenge"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_challenge",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says a cancellation call occurred.",
+          "content_hash": "b5e27085884441c7d89dcf2683f75edd463df1e136e982255ce6ac186b2adddb",
+          "source_id": "source_gz_case_021_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B lacks information about the alleged call and challenges it.",
+          "content_hash": "62e115b0d255f26c5707742bdf3ac618de3c91046afd7993177a43694400e8fd",
+          "source_id": "source_gz_case_021_b",
+          "source_type": "challenge"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_021_turn_02_b_challenges",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_021_a",
+        "source_gz_case_021_b",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_a",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_a",
+        "party_id": "party_a"
+      },
+      "base_envelope_hash": "cf97713fe43f71f09233addc339a11eeba33ba30709d7791fa935025af668f4e",
+      "base_envelope_version": 3,
+      "base_record_hash": "049333ff31413b41b734821806c20d6dba53f916d1d1d7a19ece4b1bb6641387",
+      "base_record_version": 3,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_a",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_a",
+          "party_id": "party_a"
+        },
+        "base_envelope_hash": "cf97713fe43f71f09233addc339a11eeba33ba30709d7791fa935025af668f4e",
+        "base_envelope_version": 3,
+        "case_id": "gz_case_021",
+        "command_id": "command_gz_case_021_turn_03_a_rejects_challenge",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "challenge_id": "challenge_gz_case_021_call",
+            "resolution": "rejected",
+            "resolution_event_id": "event_gz_case_021_reject",
+            "resolution_source_references": [
+              {
+                "source_hash": "b5e27085884441c7d89dcf2683f75edd463df1e136e982255ce6ac186b2adddb",
+                "source_id": "source_gz_case_021_a",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 43,
+                  "quote": "Person A says a cancellation call occurred.",
+                  "start": 0
+                }
+              }
+            ],
+            "type": "resolve_challenge"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "b5e27085884441c7d89dcf2683f75edd463df1e136e982255ce6ac186b2adddb",
+            "source_id": "source_gz_case_021_a",
+            "span": {
+              "encoding": "utf16",
+              "end": 43,
+              "quote": "Person A says a cancellation call occurred.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "b26db1d77441516bd2a45364e9a25d596643e1149ddce18e4de6a5e2d28a75db",
+        "resulting_envelope_version": 4,
+        "resulting_record_hash": "7d61951c5a15e345da5fd6930df026a1f414054c7b32297b70f69cf0c0d1588a",
+        "resulting_record_version": 4,
+        "workflow_state": "disclosure_challenge"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_challenge",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says a cancellation call occurred.",
+          "content_hash": "b5e27085884441c7d89dcf2683f75edd463df1e136e982255ce6ac186b2adddb",
+          "source_id": "source_gz_case_021_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B lacks information about the alleged call and challenges it.",
+          "content_hash": "62e115b0d255f26c5707742bdf3ac618de3c91046afd7993177a43694400e8fd",
+          "source_id": "source_gz_case_021_b",
+          "source_type": "challenge"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_021_turn_03_a_rejects_challenge",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_021_a",
+        "source_gz_case_021_b",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_b",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_b",
+        "party_id": "party_b"
+      },
+      "base_envelope_hash": "b26db1d77441516bd2a45364e9a25d596643e1149ddce18e4de6a5e2d28a75db",
+      "base_envelope_version": 4,
+      "base_record_hash": "7d61951c5a15e345da5fd6930df026a1f414054c7b32297b70f69cf0c0d1588a",
+      "base_record_version": 4,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_b",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_b",
+          "party_id": "party_b"
+        },
+        "base_envelope_hash": "b26db1d77441516bd2a45364e9a25d596643e1149ddce18e4de6a5e2d28a75db",
+        "base_envelope_version": 4,
+        "case_id": "gz_case_021",
+        "command_id": "command_gz_case_021_turn_04_b_lacks_information",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "namespace": "positions",
+            "object_id": "position_gz_case_021_call",
+            "response_event_id": "event_gz_case_021_lacks_information",
+            "stance": "lacks_information",
+            "type": "set_own_stance"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "62e115b0d255f26c5707742bdf3ac618de3c91046afd7993177a43694400e8fd",
+            "source_id": "source_gz_case_021_b",
+            "span": {
+              "encoding": "utf16",
+              "end": 68,
+              "quote": "Person B lacks information about the alleged call and challenges it.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [
+          {
+            "prohibited_promotion": "party_admission",
+            "proposition": "Person B admitted the cancellation call occurred.",
+            "proposition_id": "proposition_gz_case_021_silence_admission",
+            "reason_code": "lacks_information_is_not_admission",
+            "source_references": [
+              {
+                "source_hash": "b5e27085884441c7d89dcf2683f75edd463df1e136e982255ce6ac186b2adddb",
+                "source_id": "source_gz_case_021_a",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 43,
+                  "quote": "Person A says a cancellation call occurred.",
+                  "start": 0
+                }
+              },
+              {
+                "source_hash": "62e115b0d255f26c5707742bdf3ac618de3c91046afd7993177a43694400e8fd",
+                "source_id": "source_gz_case_021_b",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 68,
+                  "quote": "Person B lacks information about the alleged call and challenges it.",
+                  "start": 0
+                }
+              }
+            ]
+          }
+        ],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "8850c36c38f5e15c26bf19de8bde48d42a4c13ec5833f092038e638d9ed97aac",
+        "resulting_envelope_version": 5,
+        "resulting_record_hash": "bcc9e23c7253c4529d355c20d366895549a61c26dbdcb53d8cbf14eff5d39559",
+        "resulting_record_version": 5,
+        "workflow_state": "disclosure_challenge"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_challenge",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says a cancellation call occurred.",
+          "content_hash": "b5e27085884441c7d89dcf2683f75edd463df1e136e982255ce6ac186b2adddb",
+          "source_id": "source_gz_case_021_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B lacks information about the alleged call and challenges it.",
+          "content_hash": "62e115b0d255f26c5707742bdf3ac618de3c91046afd7993177a43694400e8fd",
+          "source_id": "source_gz_case_021_b",
+          "source_type": "challenge"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_021_turn_04_b_lacks_information",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_021_a",
+        "source_gz_case_021_b",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_a",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_a",
+        "party_id": "party_a"
+      },
+      "base_envelope_hash": "8850c36c38f5e15c26bf19de8bde48d42a4c13ec5833f092038e638d9ed97aac",
+      "base_envelope_version": 5,
+      "base_record_hash": "bcc9e23c7253c4529d355c20d366895549a61c26dbdcb53d8cbf14eff5d39559",
+      "base_record_version": 5,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_a",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_a",
+          "party_id": "party_a"
+        },
+        "base_envelope_hash": "8850c36c38f5e15c26bf19de8bde48d42a4c13ec5833f092038e638d9ed97aac",
+        "base_envelope_version": 5,
+        "case_id": "gz_case_021",
+        "command_id": "command_gz_case_021_turn_05_closed_challenge_rejects_second_resolution",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "challenge_id": "challenge_gz_case_021_call",
+            "resolution": "rejected",
+            "resolution_event_id": "event_gz_case_021_repeat",
+            "resolution_source_references": [
+              {
+                "source_hash": "b5e27085884441c7d89dcf2683f75edd463df1e136e982255ce6ac186b2adddb",
+                "source_id": "source_gz_case_021_a",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 43,
+                  "quote": "Person A says a cancellation call occurred.",
+                  "start": 0
+                }
+              }
+            ],
+            "type": "resolve_challenge"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "b5e27085884441c7d89dcf2683f75edd463df1e136e982255ce6ac186b2adddb",
+            "source_id": "source_gz_case_021_a",
+            "span": {
+              "encoding": "utf16",
+              "end": 43,
+              "quote": "Person A says a cancellation call occurred.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "rejected",
+        "envelope_version_delta": 0,
+        "evidence_actions": [],
+        "exact_no_mutation": true,
+        "failure_reason": "invalid_operation",
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 0,
+        "required_source_references": [],
+        "resulting_envelope_hash": "8850c36c38f5e15c26bf19de8bde48d42a4c13ec5833f092038e638d9ed97aac",
+        "resulting_envelope_version": 5,
+        "resulting_record_hash": "bcc9e23c7253c4529d355c20d366895549a61c26dbdcb53d8cbf14eff5d39559",
+        "resulting_record_version": 5,
+        "workflow_state": "disclosure_challenge"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_challenge",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says a cancellation call occurred.",
+          "content_hash": "b5e27085884441c7d89dcf2683f75edd463df1e136e982255ce6ac186b2adddb",
+          "source_id": "source_gz_case_021_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B lacks information about the alleged call and challenges it.",
+          "content_hash": "62e115b0d255f26c5707742bdf3ac618de3c91046afd7993177a43694400e8fd",
+          "source_id": "source_gz_case_021_b",
+          "source_type": "challenge"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_021_turn_05_closed_challenge_rejects_second_resolution",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_021_a",
+        "source_gz_case_021_b",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "8850c36c38f5e15c26bf19de8bde48d42a4c13ec5833f092038e638d9ed97aac",
+      "base_envelope_version": 5,
+      "base_record_hash": "bcc9e23c7253c4529d355c20d366895549a61c26dbdcb53d8cbf14eff5d39559",
+      "base_record_version": 5,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "8850c36c38f5e15c26bf19de8bde48d42a4c13ec5833f092038e638d9ed97aac",
+        "base_envelope_version": 5,
+        "case_id": "gz_case_021",
+        "command_id": "command_gz_case_021_turn_06_silence_checkpoint",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [
+              "The call occurrence remains unresolved."
+            ],
+            "lock_blockers": [],
+            "lock_prerequisites": [],
+            "open_required_fields": [],
+            "type": "set_formation_requirements",
+            "uncertainties": [
+              "Person B lacks information."
+            ]
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "1d6706b468eab422c5db931588d94318356521205ea2a8186706e98461429335",
+        "resulting_envelope_version": 6,
+        "resulting_record_hash": "77b12ce88a60c7c3b328bf85b943922be073788fdf9438e9960f617c704aa845",
+        "resulting_record_version": 6,
+        "workflow_state": "disclosure_challenge"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_identity",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_detailed_disclosure",
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says a cancellation call occurred.",
+          "content_hash": "b5e27085884441c7d89dcf2683f75edd463df1e136e982255ce6ac186b2adddb",
+          "source_id": "source_gz_case_021_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B lacks information about the alleged call and challenges it.",
+          "content_hash": "62e115b0d255f26c5707742bdf3ac618de3c91046afd7993177a43694400e8fd",
+          "source_id": "source_gz_case_021_b",
+          "source_type": "challenge"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_021_turn_06_silence_checkpoint",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_021_a",
+        "source_gz_case_021_b",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "1d6706b468eab422c5db931588d94318356521205ea2a8186706e98461429335",
+      "base_envelope_version": 6,
+      "base_record_hash": "77b12ce88a60c7c3b328bf85b943922be073788fdf9438e9960f617c704aa845",
+      "base_record_version": 6,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "1d6706b468eab422c5db931588d94318356521205ea2a8186706e98461429335",
+        "base_envelope_version": 6,
+        "case_id": "gz_case_021",
+        "command_id": "command_gz_case_021_turn_07_silence_checkpoint",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [
+              "The call occurrence remains unresolved."
+            ],
+            "lock_blockers": [],
+            "lock_prerequisites": [],
+            "open_required_fields": [],
+            "type": "set_formation_requirements",
+            "uncertainties": [
+              "Person B lacks information."
+            ]
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "45d73dc34e1d5d6e7d37914bdbc8515146d6a599a1ec650be6091cc5c98fd36c",
+        "resulting_envelope_version": 7,
+        "resulting_record_hash": "bcbba03d90bffda3cb2770d1e6ce2c7eccba9cebaa25c8eb5f4464337ded9c6f",
+        "resulting_record_version": 7,
+        "workflow_state": "disclosure_challenge"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_identity",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_detailed_disclosure",
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says a cancellation call occurred.",
+          "content_hash": "b5e27085884441c7d89dcf2683f75edd463df1e136e982255ce6ac186b2adddb",
+          "source_id": "source_gz_case_021_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B lacks information about the alleged call and challenges it.",
+          "content_hash": "62e115b0d255f26c5707742bdf3ac618de3c91046afd7993177a43694400e8fd",
+          "source_id": "source_gz_case_021_b",
+          "source_type": "challenge"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_021_turn_07_silence_checkpoint",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_021_a",
+        "source_gz_case_021_b",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "45d73dc34e1d5d6e7d37914bdbc8515146d6a599a1ec650be6091cc5c98fd36c",
+      "base_envelope_version": 7,
+      "base_record_hash": "bcbba03d90bffda3cb2770d1e6ce2c7eccba9cebaa25c8eb5f4464337ded9c6f",
+      "base_record_version": 7,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "45d73dc34e1d5d6e7d37914bdbc8515146d6a599a1ec650be6091cc5c98fd36c",
+        "base_envelope_version": 7,
+        "case_id": "gz_case_021",
+        "command_id": "command_gz_case_021_turn_08_silence_checkpoint",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [
+              "The call occurrence remains unresolved."
+            ],
+            "lock_blockers": [],
+            "lock_prerequisites": [],
+            "open_required_fields": [],
+            "type": "set_formation_requirements",
+            "uncertainties": [
+              "Person B lacks information."
+            ]
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "d67657e0babab14eb89ae2592fc53071d82d9fa09a359f927aea949d5713f711",
+        "resulting_envelope_version": 8,
+        "resulting_record_hash": "0ceafb836b6e590f53f4b143b06ef5fe8b3e7f72994f78422237e8f78361112d",
+        "resulting_record_version": 8,
+        "workflow_state": "disclosure_challenge"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_identity",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_detailed_disclosure",
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says a cancellation call occurred.",
+          "content_hash": "b5e27085884441c7d89dcf2683f75edd463df1e136e982255ce6ac186b2adddb",
+          "source_id": "source_gz_case_021_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B lacks information about the alleged call and challenges it.",
+          "content_hash": "62e115b0d255f26c5707742bdf3ac618de3c91046afd7993177a43694400e8fd",
+          "source_id": "source_gz_case_021_b",
+          "source_type": "challenge"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_021_turn_08_silence_checkpoint",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_021_a",
+        "source_gz_case_021_b",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "d67657e0babab14eb89ae2592fc53071d82d9fa09a359f927aea949d5713f711",
+      "base_envelope_version": 8,
+      "base_record_hash": "0ceafb836b6e590f53f4b143b06ef5fe8b3e7f72994f78422237e8f78361112d",
+      "base_record_version": 8,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "d67657e0babab14eb89ae2592fc53071d82d9fa09a359f927aea949d5713f711",
+        "base_envelope_version": 8,
+        "case_id": "gz_case_021",
+        "command_id": "command_gz_case_021_turn_09_silence_checkpoint",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [
+              "The call occurrence remains unresolved."
+            ],
+            "lock_blockers": [],
+            "lock_prerequisites": [],
+            "open_required_fields": [],
+            "type": "set_formation_requirements",
+            "uncertainties": [
+              "Person B lacks information."
+            ]
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [
+          {
+            "prohibited_promotion": "bilateral_agreement",
+            "proposition": "Lack of additional response proves agreement.",
+            "proposition_id": "proposition_gz_case_021_no_response_agreement",
+            "reason_code": "silence_never_agreement",
+            "source_references": [
+              {
+                "source_hash": "b5e27085884441c7d89dcf2683f75edd463df1e136e982255ce6ac186b2adddb",
+                "source_id": "source_gz_case_021_a",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 43,
+                  "quote": "Person A says a cancellation call occurred.",
+                  "start": 0
+                }
+              }
+            ]
+          }
+        ],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "a61699c40ff4c7a7558a08e518a0e9be9ad064edf1f483f66397ffb06609a86f",
+        "resulting_envelope_version": 9,
+        "resulting_record_hash": "8d6bb2f3ca89253329f152b7811b534f196763e691b33017d51b81ddcb59c275",
+        "resulting_record_version": 9,
+        "workflow_state": "disclosure_challenge"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_identity",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_detailed_disclosure",
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says a cancellation call occurred.",
+          "content_hash": "b5e27085884441c7d89dcf2683f75edd463df1e136e982255ce6ac186b2adddb",
+          "source_id": "source_gz_case_021_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B lacks information about the alleged call and challenges it.",
+          "content_hash": "62e115b0d255f26c5707742bdf3ac618de3c91046afd7993177a43694400e8fd",
+          "source_id": "source_gz_case_021_b",
+          "source_type": "challenge"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_021_turn_09_silence_checkpoint",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_021_a",
+        "source_gz_case_021_b",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "a61699c40ff4c7a7558a08e518a0e9be9ad064edf1f483f66397ffb06609a86f",
+      "base_envelope_version": 9,
+      "base_record_hash": "8d6bb2f3ca89253329f152b7811b534f196763e691b33017d51b81ddcb59c275",
+      "base_record_version": 9,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "a61699c40ff4c7a7558a08e518a0e9be9ad064edf1f483f66397ffb06609a86f",
+        "base_envelope_version": 9,
+        "case_id": "gz_case_021",
+        "command_id": "command_gz_case_021_turn_10_responses_complete",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "event": "responses_complete",
+            "event_id": "event_gz_case_021_responses_complete",
+            "type": "transition"
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 0,
+        "required_source_references": [],
+        "resulting_envelope_hash": "14d54e91995a317562706558be71bbcf691dd5127305696c1d50d5c038f731d6",
+        "resulting_envelope_version": 10,
+        "resulting_record_hash": "8d6bb2f3ca89253329f152b7811b534f196763e691b33017d51b81ddcb59c275",
+        "resulting_record_version": 9,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_identity",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_detailed_disclosure",
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says a cancellation call occurred.",
+          "content_hash": "b5e27085884441c7d89dcf2683f75edd463df1e136e982255ce6ac186b2adddb",
+          "source_id": "source_gz_case_021_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B lacks information about the alleged call and challenges it.",
+          "content_hash": "62e115b0d255f26c5707742bdf3ac618de3c91046afd7993177a43694400e8fd",
+          "source_id": "source_gz_case_021_b",
+          "source_type": "challenge"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_021_turn_10_responses_complete",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_021_a",
+        "source_gz_case_021_b",
+        "source_system_initialization"
+      ]
+    }
+  ]
+}

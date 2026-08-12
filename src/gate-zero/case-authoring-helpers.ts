@@ -9,9 +9,16 @@ import {
   type AuthenticatedActor,
   type CaseEnvelope,
   type EvidenceObject,
+  type AgreementObject,
+  type ClaimedLossObject,
+  type DeliverableObject,
+  type EventObject,
+  type NonPartyActor,
   type ObjectAuthority,
   type PartyId,
   type PositionObject,
+  type PaymentObject,
+  type RequestedOutcomeObject,
   type SourceRecord,
   type SourceReference,
 } from '../v2/case-envelope.js';
@@ -286,6 +293,161 @@ export function position(
     position_kind: 'assertion',
     target: null,
     statement,
+    authority: partyAuthority(session, partyId, commandId, references),
+  };
+}
+
+export function nonPartyActor(
+  session: CanonicalCaseAuthoringSession,
+  partyId: PartyId,
+  actorId: string,
+  commandId: string,
+  displayLabel: string,
+  assertedRole: string,
+  references: SourceReference[],
+): NonPartyActor {
+  return {
+    actor_id: actorId,
+    display_label: displayLabel,
+    asserted_role: assertedRole,
+    identity_assurance: 'unverified',
+    authority: partyAuthority(session, partyId, commandId, references),
+  };
+}
+
+export function agreement(
+  session: CanonicalCaseAuthoringSession,
+  partyId: PartyId,
+  obligationId: string,
+  commandId: string,
+  description: string,
+  references: SourceReference[],
+  input: Partial<AgreementObject> = {},
+): AgreementObject {
+  return {
+    obligation_id: obligationId,
+    obligation_type: input.obligation_type ?? 'service_delivery',
+    obligor_actor_id: input.obligor_actor_id ?? null,
+    obligee_actor_id: input.obligee_actor_id ?? null,
+    description,
+    conditions: input.conditions ?? [],
+    linked_event_ids: input.linked_event_ids ?? [],
+    linked_deliverable_ids: input.linked_deliverable_ids ?? [],
+    linked_payment_ids: input.linked_payment_ids ?? [],
+    authority: partyAuthority(session, partyId, commandId, references),
+  };
+}
+
+export function eventObject(
+  session: CanonicalCaseAuthoringSession,
+  partyId: PartyId,
+  eventId: string,
+  commandId: string,
+  description: string,
+  references: SourceReference[],
+  input: Partial<EventObject> = {},
+): EventObject {
+  return {
+    event_id: eventId,
+    event_type: input.event_type ?? 'other',
+    actor_ids: input.actor_ids ?? [],
+    date: input.date ?? {
+      start: null,
+      end: null,
+      precision: 'unknown',
+      approximate: true,
+    },
+    description,
+    linked_obligation_ids: input.linked_obligation_ids ?? [],
+    linked_deliverable_ids: input.linked_deliverable_ids ?? [],
+    linked_payment_ids: input.linked_payment_ids ?? [],
+    authority: partyAuthority(session, partyId, commandId, references),
+  };
+}
+
+export function payment(
+  session: CanonicalCaseAuthoringSession,
+  partyId: PartyId,
+  paymentId: string,
+  commandId: string,
+  references: SourceReference[],
+  input: Partial<PaymentObject> = {},
+): PaymentObject {
+  return {
+    payment_id: paymentId,
+    amount_minor: input.amount_minor ?? null,
+    currency: input.currency ?? null,
+    from_actor_id: input.from_actor_id ?? null,
+    to_actor_id: input.to_actor_id ?? null,
+    payment_status: input.payment_status ?? 'unknown',
+    due_trigger: input.due_trigger ?? null,
+    linked_obligation_ids: input.linked_obligation_ids ?? [],
+    linked_event_ids: input.linked_event_ids ?? [],
+    linked_deliverable_ids: input.linked_deliverable_ids ?? [],
+    authority: partyAuthority(session, partyId, commandId, references),
+  };
+}
+
+export function deliverable(
+  session: CanonicalCaseAuthoringSession,
+  partyId: PartyId,
+  deliverableId: string,
+  commandId: string,
+  references: SourceReference[],
+  input: Partial<DeliverableObject> = {},
+): DeliverableObject {
+  return {
+    deliverable_id: deliverableId,
+    name: input.name ?? 'Commercial deliverable',
+    expected_scope: input.expected_scope ?? 'Scope remains asserted by the introducing party.',
+    responsible_actor_id: input.responsible_actor_id ?? null,
+    completion_positions: input.completion_positions ?? { party_a: null, party_b: null },
+    defect_positions: input.defect_positions ?? { party_a: [], party_b: [] },
+    linked_obligation_ids: input.linked_obligation_ids ?? [],
+    linked_event_ids: input.linked_event_ids ?? [],
+    linked_evidence_ids: input.linked_evidence_ids ?? [],
+    authority: partyAuthority(session, partyId, commandId, references),
+  };
+}
+
+export function claimedLoss(
+  session: CanonicalCaseAuthoringSession,
+  partyId: PartyId,
+  lossId: string,
+  commandId: string,
+  references: SourceReference[],
+  input: Partial<ClaimedLossObject> = {},
+): ClaimedLossObject {
+  return {
+    loss_id: lossId,
+    claimant_party_id: partyId,
+    loss_type: input.loss_type ?? 'consequential_loss',
+    amount_minor: input.amount_minor ?? null,
+    currency: input.currency ?? null,
+    non_monetary_description: input.non_monetary_description ?? null,
+    causal_reference_ids: input.causal_reference_ids ?? [],
+    supporting_evidence_ids: input.supporting_evidence_ids ?? [],
+    authority: partyAuthority(session, partyId, commandId, references),
+  };
+}
+
+export function requestedOutcome(
+  session: CanonicalCaseAuthoringSession,
+  partyId: PartyId,
+  outcomeId: string,
+  commandId: string,
+  description: string,
+  references: SourceReference[],
+  input: Partial<RequestedOutcomeObject> = {},
+): RequestedOutcomeObject {
+  return {
+    outcome_id: outcomeId,
+    requesting_party_id: partyId,
+    outcome_type: input.outcome_type ?? 'refund',
+    description,
+    transfers: input.transfers ?? [],
+    conditions: input.conditions ?? [],
+    priority: input.priority ?? 1,
     authority: partyAuthority(session, partyId, commandId, references),
   };
 }

@@ -1,0 +1,1164 @@
+{
+  "case_id": "gz_case_001",
+  "coverage": {
+    "failure": [
+      "identity_binding",
+      "consent",
+      "unauthorized_mutation"
+    ],
+    "success": [
+      "identity_binding",
+      "consent",
+      "unauthorized_mutation",
+      "fail_closed_paths"
+    ]
+  },
+  "expected_adjudication_input": null,
+  "final_envelope": {
+    "actors": {},
+    "agreements": {},
+    "claimed_losses": {},
+    "classification": {
+      "authority": {
+        "adjudication_eligible": false,
+        "authority_detail": "initial classification placeholder",
+        "authority_kind": "system_observation",
+        "evidence_ids": [],
+        "introduced_by": {
+          "actor_id": "juryai_system",
+          "actor_type": "system"
+        },
+        "introduced_in_record_version": 1,
+        "last_material_command_id": "command_system_initialization",
+        "last_material_record_version": 1,
+        "party_stances": {
+          "party_a": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          },
+          "party_b": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          }
+        },
+        "resolution_status": "unresolved",
+        "source_references": [
+          {
+            "source_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+            "source_id": "source_system_initialization",
+            "span": null
+          }
+        ],
+        "subject_actor_ids": []
+      },
+      "case_category": null,
+      "maturity": "undetermined",
+      "required_fact_profile": null,
+      "safety_flags": [],
+      "scope_flags": [],
+      "suitability": "undetermined"
+    },
+    "control": {
+      "case_id": "gz_case_001",
+      "deadlines": {},
+      "eligibility": {
+        "reason_codes": [],
+        "status": "undetermined"
+      },
+      "envelope_hash": "9f9a406888cf451f99dd2a49a2b6094f045e44d1663085aefabc4d844a0562fb",
+      "envelope_version": 4,
+      "lock": {
+        "lock_event_id": null,
+        "locked_at": null,
+        "mode": null,
+        "output_scope": null,
+        "status": "unlocked"
+      },
+      "protocol": {
+        "non_participation_mode": "prohibited",
+        "protocol_id": "commercial_fairness_v2",
+        "protocol_version": "juryai-formation-protocol-v2.0.0"
+      },
+      "record_hash": "1c7c34a0b9fca77d4111301f865a1af583314786850f1c2935f1d9a1d1aef452",
+      "record_version": 4,
+      "schema_version": "juryai-case-envelope-v2.0.0",
+      "workflow_state": "initial_story"
+    },
+    "deliverables": {},
+    "events": {},
+    "evidence": {},
+    "formation": {
+      "ambiguities": [],
+      "challenges": [],
+      "confirmations": {
+        "party_a": null,
+        "party_b": null
+      },
+      "disclosure": {
+        "detailed_a_framing": "embargoed",
+        "disclosure_event_id": null,
+        "person_b_independent_account_source_id": null
+      },
+      "lock_blockers": [],
+      "lock_prerequisites": [],
+      "material_change_events": [],
+      "non_participation": {
+        "correction_opportunity": "not_started",
+        "deadline_expired_event_id": null,
+        "invitation_event_id": null,
+        "notice_event_id": null,
+        "response_deadline": null
+      },
+      "open_required_fields": [],
+      "prior_locks": [],
+      "uncertainties": []
+    },
+    "parties": {
+      "party_a": {
+        "authenticated_subject_id": "subject_party_a",
+        "consent_event_id": "event_gz_case_001_consent_granted_a",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_001_identity_a",
+        "participation_state": "active",
+        "party_id": "party_a",
+        "role": "person_a"
+      },
+      "party_b": {
+        "authenticated_subject_id": null,
+        "consent_event_id": null,
+        "consent_status": "not_requested",
+        "identity_assurance": "unverified",
+        "identity_event_id": null,
+        "participation_state": "not_invited",
+        "party_id": "party_b",
+        "role": "person_b"
+      }
+    },
+    "payments": {},
+    "positions": {},
+    "requested_outcomes": {}
+  },
+  "fixture_version": "juryai-gate-zero-case-fixture-v1.0.0",
+  "initial_envelope": {
+    "actors": {},
+    "agreements": {},
+    "claimed_losses": {},
+    "classification": {
+      "authority": {
+        "adjudication_eligible": false,
+        "authority_detail": "initial classification placeholder",
+        "authority_kind": "system_observation",
+        "evidence_ids": [],
+        "introduced_by": {
+          "actor_id": "juryai_system",
+          "actor_type": "system"
+        },
+        "introduced_in_record_version": 1,
+        "last_material_command_id": "command_system_initialization",
+        "last_material_record_version": 1,
+        "party_stances": {
+          "party_a": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          },
+          "party_b": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          }
+        },
+        "resolution_status": "unresolved",
+        "source_references": [
+          {
+            "source_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+            "source_id": "source_system_initialization",
+            "span": null
+          }
+        ],
+        "subject_actor_ids": []
+      },
+      "case_category": null,
+      "maturity": "undetermined",
+      "required_fact_profile": null,
+      "safety_flags": [],
+      "scope_flags": [],
+      "suitability": "undetermined"
+    },
+    "control": {
+      "case_id": "gz_case_001",
+      "deadlines": {},
+      "eligibility": {
+        "reason_codes": [],
+        "status": "undetermined"
+      },
+      "envelope_hash": "d960b13e2accc98fb5c0c1e82765fd272ac8b3e04acae8f0333c6eb109a8351a",
+      "envelope_version": 1,
+      "lock": {
+        "lock_event_id": null,
+        "locked_at": null,
+        "mode": null,
+        "output_scope": null,
+        "status": "unlocked"
+      },
+      "protocol": {
+        "non_participation_mode": "prohibited",
+        "protocol_id": "commercial_fairness_v2",
+        "protocol_version": "juryai-formation-protocol-v2.0.0"
+      },
+      "record_hash": "5a14a9ad8c85f4f24555cdefecb1fac2fafca4b8bfb840c18061f58f03270568",
+      "record_version": 1,
+      "schema_version": "juryai-case-envelope-v2.0.0",
+      "workflow_state": "initial_story"
+    },
+    "deliverables": {},
+    "events": {},
+    "evidence": {},
+    "formation": {
+      "ambiguities": [],
+      "challenges": [],
+      "confirmations": {
+        "party_a": null,
+        "party_b": null
+      },
+      "disclosure": {
+        "detailed_a_framing": "embargoed",
+        "disclosure_event_id": null,
+        "person_b_independent_account_source_id": null
+      },
+      "lock_blockers": [],
+      "lock_prerequisites": [],
+      "material_change_events": [],
+      "non_participation": {
+        "correction_opportunity": "not_started",
+        "deadline_expired_event_id": null,
+        "invitation_event_id": null,
+        "notice_event_id": null,
+        "response_deadline": null
+      },
+      "open_required_fields": [],
+      "prior_locks": [],
+      "uncertainties": []
+    },
+    "parties": {
+      "party_a": {
+        "authenticated_subject_id": null,
+        "consent_event_id": null,
+        "consent_status": "not_requested",
+        "identity_assurance": "unverified",
+        "identity_event_id": null,
+        "participation_state": "active",
+        "party_id": "party_a",
+        "role": "person_a"
+      },
+      "party_b": {
+        "authenticated_subject_id": null,
+        "consent_event_id": null,
+        "consent_status": "not_requested",
+        "identity_assurance": "unverified",
+        "identity_event_id": null,
+        "participation_state": "not_invited",
+        "party_id": "party_b",
+        "role": "person_b"
+      }
+    },
+    "payments": {},
+    "positions": {},
+    "requested_outcomes": {}
+  },
+  "matrix_version": "juryai-gate-zero-coverage-matrix-v1.0.0",
+  "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+  "title": "Fresh identity and consent authority",
+  "turns": [
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "d960b13e2accc98fb5c0c1e82765fd272ac8b3e04acae8f0333c6eb109a8351a",
+      "base_envelope_version": 1,
+      "base_record_hash": "5a14a9ad8c85f4f24555cdefecb1fac2fafca4b8bfb840c18061f58f03270568",
+      "base_record_version": 1,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "d960b13e2accc98fb5c0c1e82765fd272ac8b3e04acae8f0333c6eb109a8351a",
+        "base_envelope_version": 1,
+        "case_id": "gz_case_001",
+        "command_id": "command_gz_case_001_turn_01_bind_person_a",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "authenticated_subject_id": "subject_party_a",
+            "identity_assurance": "authenticated",
+            "identity_event_id": "event_gz_case_001_identity_a",
+            "party_id": "party_a",
+            "type": "set_party_identity"
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [
+          {
+            "basis": "system_state",
+            "fact_id": "fact_gz_case_001_a_bound",
+            "party_attribution": null,
+            "source_references": [],
+            "statement": "Person A identity is authenticated and bound."
+          }
+        ],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "4a25dc53c30b4ded2464f9cf18549250a514b281f5b219574f9d1ede330c39f3",
+        "resulting_envelope_version": 2,
+        "resulting_record_hash": "99ab8536446f56dae0beb05c9b6ec7f883c5fbe965d6f89818f3af253b7940eb",
+        "resulting_record_version": 2,
+        "workflow_state": "initial_story"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_party_consent",
+        "set_non_participation_policy",
+        "set_party_identity",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_001_turn_01_bind_person_a",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "4a25dc53c30b4ded2464f9cf18549250a514b281f5b219574f9d1ede330c39f3",
+      "base_envelope_version": 2,
+      "base_record_hash": "99ab8536446f56dae0beb05c9b6ec7f883c5fbe965d6f89818f3af253b7940eb",
+      "base_record_version": 2,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "4a25dc53c30b4ded2464f9cf18549250a514b281f5b219574f9d1ede330c39f3",
+        "base_envelope_version": 2,
+        "case_id": "gz_case_001",
+        "command_id": "command_gz_case_001_turn_02_consent_pending",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "consent_event_id": "event_gz_case_001_consent_pending_a",
+            "consent_status": "pending",
+            "party_id": "party_a",
+            "type": "record_party_consent"
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [
+          {
+            "basis": "system_state",
+            "fact_id": "fact_gz_case_001_consent_pending",
+            "party_attribution": null,
+            "source_references": [],
+            "statement": "Person A consent remains pending."
+          }
+        ],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "b86d9bb6fbbce40c5bc4239bf8ed13bd9d27b4a2a92e621592f11a8847aa0a30",
+        "resulting_envelope_version": 3,
+        "resulting_record_hash": "8aa5a1a91aa8ba0196b14f41e17e4ec2ad58b8522a83adef1758f6dee8c974b8",
+        "resulting_record_version": 3,
+        "workflow_state": "initial_story"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_party_consent",
+        "set_non_participation_policy",
+        "set_party_identity",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_001_turn_02_consent_pending",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_a",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_a",
+        "party_id": "party_a"
+      },
+      "base_envelope_hash": "b86d9bb6fbbce40c5bc4239bf8ed13bd9d27b4a2a92e621592f11a8847aa0a30",
+      "base_envelope_version": 3,
+      "base_record_hash": "8aa5a1a91aa8ba0196b14f41e17e4ec2ad58b8522a83adef1758f6dee8c974b8",
+      "base_record_version": 3,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_a",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_a",
+          "party_id": "party_a"
+        },
+        "base_envelope_hash": "b86d9bb6fbbce40c5bc4239bf8ed13bd9d27b4a2a92e621592f11a8847aa0a30",
+        "base_envelope_version": 3,
+        "case_id": "gz_case_001",
+        "command_id": "command_gz_case_001_turn_03_pending_consent_rejected",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "namespace": "positions",
+            "object": {
+              "authority": {
+                "adjudication_eligible": true,
+                "authority_detail": "Uncommitted pending-consent proposal",
+                "authority_kind": "party_assertion",
+                "evidence_ids": [],
+                "introduced_by": {
+                  "actor_id": "subject_party_a",
+                  "actor_type": "party"
+                },
+                "introduced_in_record_version": 4,
+                "last_material_command_id": "command_gz_case_001_turn_03_pending_consent_rejected",
+                "last_material_record_version": 4,
+                "party_stances": {
+                  "party_a": {
+                    "response_event_id": null,
+                    "stance": "asserted"
+                  },
+                  "party_b": {
+                    "response_event_id": null,
+                    "stance": "unresponded"
+                  }
+                },
+                "resolution_status": "unresolved",
+                "source_references": [],
+                "subject_actor_ids": [
+                  "subject_party_a"
+                ]
+              },
+              "party_id": "party_a",
+              "position_id": "position_gz_case_001_pending",
+              "position_kind": "assertion",
+              "statement": "This must not be committed while consent is pending.",
+              "target": null
+            },
+            "type": "add_object"
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [
+          {
+            "basis": "system_state",
+            "fact_id": "fact_gz_case_001_pending_no_mutation",
+            "party_attribution": null,
+            "source_references": [],
+            "statement": "Pending consent authorizes no party mutation."
+          }
+        ],
+        "authority_fragments": [],
+        "disposition": "rejected",
+        "envelope_version_delta": 0,
+        "evidence_actions": [],
+        "exact_no_mutation": true,
+        "failure_reason": "unauthorized_actor",
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 0,
+        "required_source_references": [],
+        "resulting_envelope_hash": "b86d9bb6fbbce40c5bc4239bf8ed13bd9d27b4a2a92e621592f11a8847aa0a30",
+        "resulting_envelope_version": 3,
+        "resulting_record_hash": "8aa5a1a91aa8ba0196b14f41e17e4ec2ad58b8522a83adef1758f6dee8c974b8",
+        "resulting_record_version": 3,
+        "workflow_state": "initial_story"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [],
+      "source_records": [
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_001_turn_03_pending_consent_rejected",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "b86d9bb6fbbce40c5bc4239bf8ed13bd9d27b4a2a92e621592f11a8847aa0a30",
+      "base_envelope_version": 3,
+      "base_record_hash": "8aa5a1a91aa8ba0196b14f41e17e4ec2ad58b8522a83adef1758f6dee8c974b8",
+      "base_record_version": 3,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "b86d9bb6fbbce40c5bc4239bf8ed13bd9d27b4a2a92e621592f11a8847aa0a30",
+        "base_envelope_version": 3,
+        "case_id": "gz_case_001",
+        "command_id": "command_gz_case_001_turn_04_consent_granted",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "consent_event_id": "event_gz_case_001_consent_granted_a",
+            "consent_status": "granted",
+            "party_id": "party_a",
+            "type": "record_party_consent"
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [
+          {
+            "basis": "system_state",
+            "fact_id": "fact_gz_case_001_consent_granted",
+            "party_attribution": null,
+            "source_references": [],
+            "statement": "Person A explicitly granted consent."
+          }
+        ],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "9f9a406888cf451f99dd2a49a2b6094f045e44d1663085aefabc4d844a0562fb",
+        "resulting_envelope_version": 4,
+        "resulting_record_hash": "1c7c34a0b9fca77d4111301f865a1af583314786850f1c2935f1d9a1d1aef452",
+        "resulting_record_version": 4,
+        "workflow_state": "initial_story"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_party_consent",
+        "set_non_participation_policy",
+        "set_party_identity",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_001_turn_04_consent_granted",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_a",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_a",
+        "party_id": "party_a"
+      },
+      "base_envelope_hash": "9f9a406888cf451f99dd2a49a2b6094f045e44d1663085aefabc4d844a0562fb",
+      "base_envelope_version": 4,
+      "base_record_hash": "1c7c34a0b9fca77d4111301f865a1af583314786850f1c2935f1d9a1d1aef452",
+      "base_record_version": 4,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_a",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_a",
+          "party_id": "party_a"
+        },
+        "base_envelope_hash": "9f9a406888cf451f99dd2a49a2b6094f045e44d1663085aefabc4d844a0562fb",
+        "base_envelope_version": 4,
+        "case_id": "gz_case_001",
+        "command_id": "command_gz_case_001_turn_05_party_cannot_bind_identity",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "authenticated_subject_id": "subject_party_a",
+            "identity_assurance": "verified",
+            "identity_event_id": "event_gz_case_001_self_verified",
+            "party_id": "party_a",
+            "type": "set_party_identity"
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "rejected",
+        "envelope_version_delta": 0,
+        "evidence_actions": [],
+        "exact_no_mutation": true,
+        "failure_reason": "unauthorized_actor",
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 0,
+        "required_source_references": [],
+        "resulting_envelope_hash": "9f9a406888cf451f99dd2a49a2b6094f045e44d1663085aefabc4d844a0562fb",
+        "resulting_envelope_version": 4,
+        "resulting_record_hash": "1c7c34a0b9fca77d4111301f865a1af583314786850f1c2935f1d9a1d1aef452",
+        "resulting_record_version": 4,
+        "workflow_state": "initial_story"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [],
+      "source_records": [
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_001_turn_05_party_cannot_bind_identity",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "9f9a406888cf451f99dd2a49a2b6094f045e44d1663085aefabc4d844a0562fb",
+      "base_envelope_version": 4,
+      "base_record_hash": "1c7c34a0b9fca77d4111301f865a1af583314786850f1c2935f1d9a1d1aef452",
+      "base_record_version": 4,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "9f9a406888cf451f99dd2a49a2b6094f045e44d1663085aefabc4d844a0562fb",
+        "base_envelope_version": 4,
+        "case_id": "gz_case_001",
+        "command_id": "command_gz_case_001_turn_06_identity_replacement_rejected",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "authenticated_subject_id": "different_subject",
+            "identity_assurance": "verified",
+            "identity_event_id": "event_gz_case_001_identity_replacement",
+            "party_id": "party_a",
+            "type": "set_party_identity"
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "rejected",
+        "envelope_version_delta": 0,
+        "evidence_actions": [],
+        "exact_no_mutation": true,
+        "failure_reason": "invalid_operation",
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 0,
+        "required_source_references": [],
+        "resulting_envelope_hash": "9f9a406888cf451f99dd2a49a2b6094f045e44d1663085aefabc4d844a0562fb",
+        "resulting_envelope_version": 4,
+        "resulting_record_hash": "1c7c34a0b9fca77d4111301f865a1af583314786850f1c2935f1d9a1d1aef452",
+        "resulting_record_version": 4,
+        "workflow_state": "initial_story"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_party_consent",
+        "set_non_participation_policy",
+        "set_party_identity",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_001_turn_06_identity_replacement_rejected",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "9f9a406888cf451f99dd2a49a2b6094f045e44d1663085aefabc4d844a0562fb",
+      "base_envelope_version": 4,
+      "base_record_hash": "1c7c34a0b9fca77d4111301f865a1af583314786850f1c2935f1d9a1d1aef452",
+      "base_record_version": 4,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "9f9a406888cf451f99dd2a49a2b6094f045e44d1663085aefabc4d844a0562fb",
+        "base_envelope_version": 4,
+        "case_id": "gz_case_001",
+        "command_id": "command_gz_case_001_turn_07_person_b_preinvite_identity_rejected",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "authenticated_subject_id": "subject_party_b",
+            "identity_assurance": "authenticated",
+            "identity_event_id": "event_gz_case_001_identity_b_premature",
+            "party_id": "party_b",
+            "type": "set_party_identity"
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "rejected",
+        "envelope_version_delta": 0,
+        "evidence_actions": [],
+        "exact_no_mutation": true,
+        "failure_reason": "invalid_operation",
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 0,
+        "required_source_references": [],
+        "resulting_envelope_hash": "9f9a406888cf451f99dd2a49a2b6094f045e44d1663085aefabc4d844a0562fb",
+        "resulting_envelope_version": 4,
+        "resulting_record_hash": "1c7c34a0b9fca77d4111301f865a1af583314786850f1c2935f1d9a1d1aef452",
+        "resulting_record_version": 4,
+        "workflow_state": "initial_story"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_party_consent",
+        "set_non_participation_policy",
+        "set_party_identity",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_001_turn_07_person_b_preinvite_identity_rejected",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "9f9a406888cf451f99dd2a49a2b6094f045e44d1663085aefabc4d844a0562fb",
+      "base_envelope_version": 4,
+      "base_record_hash": "1c7c34a0b9fca77d4111301f865a1af583314786850f1c2935f1d9a1d1aef452",
+      "base_record_version": 4,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "9f9a406888cf451f99dd2a49a2b6094f045e44d1663085aefabc4d844a0562fb",
+        "base_envelope_version": 4,
+        "case_id": "gz_case_001",
+        "command_id": "command_gz_case_001_turn_08_person_b_preinvite_consent_rejected",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "consent_event_id": "event_gz_case_001_consent_b_premature",
+            "consent_status": "granted",
+            "party_id": "party_b",
+            "type": "record_party_consent"
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [
+          {
+            "basis": "system_state",
+            "fact_id": "fact_gz_case_001_b_unbound",
+            "party_attribution": null,
+            "source_references": [],
+            "statement": "Person B remains unbound, unverified, and not asked for consent."
+          }
+        ],
+        "authority_fragments": [],
+        "disposition": "rejected",
+        "envelope_version_delta": 0,
+        "evidence_actions": [],
+        "exact_no_mutation": true,
+        "failure_reason": "invalid_operation",
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 0,
+        "required_source_references": [],
+        "resulting_envelope_hash": "9f9a406888cf451f99dd2a49a2b6094f045e44d1663085aefabc4d844a0562fb",
+        "resulting_envelope_version": 4,
+        "resulting_record_hash": "1c7c34a0b9fca77d4111301f865a1af583314786850f1c2935f1d9a1d1aef452",
+        "resulting_record_version": 4,
+        "workflow_state": "initial_story"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_participation"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_party_consent",
+        "set_non_participation_policy",
+        "set_party_identity",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_001_turn_08_person_b_preinvite_consent_rejected",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_system_initialization"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,2246 @@
+{
+  "case_id": "gz_case_014",
+  "coverage": {
+    "failure": [
+      "deliverables",
+      "events",
+      "cross_party_mutation"
+    ],
+    "success": [
+      "deliverables",
+      "events",
+      "party_disagreement"
+    ]
+  },
+  "expected_adjudication_input": null,
+  "final_envelope": {
+    "actors": {},
+    "agreements": {},
+    "claimed_losses": {},
+    "classification": {
+      "authority": {
+        "adjudication_eligible": false,
+        "authority_detail": "initial classification placeholder",
+        "authority_kind": "system_observation",
+        "evidence_ids": [],
+        "introduced_by": {
+          "actor_id": "juryai_system",
+          "actor_type": "system"
+        },
+        "introduced_in_record_version": 1,
+        "last_material_command_id": "command_system_initialization",
+        "last_material_record_version": 1,
+        "party_stances": {
+          "party_a": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          },
+          "party_b": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          }
+        },
+        "resolution_status": "unresolved",
+        "source_references": [
+          {
+            "source_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+            "source_id": "source_system_initialization",
+            "span": null
+          }
+        ],
+        "subject_actor_ids": []
+      },
+      "case_category": null,
+      "maturity": "undetermined",
+      "required_fact_profile": null,
+      "safety_flags": [],
+      "scope_flags": [],
+      "suitability": "undetermined"
+    },
+    "control": {
+      "case_id": "gz_case_014",
+      "deadlines": {},
+      "eligibility": {
+        "reason_codes": [],
+        "status": "undetermined"
+      },
+      "envelope_hash": "dc6a5b231e647178e4438e4dc5eb044f0d664dd9bdb9c9e9bdd0d4634eb4d013",
+      "envelope_version": 12,
+      "lock": {
+        "lock_event_id": null,
+        "locked_at": null,
+        "mode": null,
+        "output_scope": null,
+        "status": "unlocked"
+      },
+      "protocol": {
+        "non_participation_mode": "prohibited",
+        "protocol_id": "commercial_fairness_v2",
+        "protocol_version": "juryai-formation-protocol-v2.0.0"
+      },
+      "record_hash": "6238de92f58a7a50ccade051ebf8226ffb4792a65c6f3146e314b4dac963d6d2",
+      "record_version": 12,
+      "schema_version": "juryai-case-envelope-v2.0.0",
+      "workflow_state": "reconciliation"
+    },
+    "deliverables": {
+      "deliverable_gz_case_014_page": {
+        "authority": {
+          "adjudication_eligible": true,
+          "authority_detail": "Authenticated party_a assertion",
+          "authority_kind": "party_assertion",
+          "evidence_ids": [],
+          "introduced_by": {
+            "actor_id": "subject_party_a",
+            "actor_type": "party"
+          },
+          "introduced_in_record_version": 2,
+          "last_material_command_id": "command_gz_case_014_turn_07_field_challenge",
+          "last_material_record_version": 7,
+          "party_stances": {
+            "party_a": {
+              "response_event_id": null,
+              "stance": "asserted"
+            },
+            "party_b": {
+              "response_event_id": "challenge_gz_case_014_primary",
+              "stance": "disputed"
+            }
+          },
+          "resolution_status": "disputed",
+          "source_references": [
+            {
+              "source_hash": "4566cb399cf517fc8628f3ef5b3d6a87082051f10a94bbbe4bdf623f58050ebf",
+              "source_id": "source_gz_case_014_a",
+              "span": {
+                "encoding": "utf16",
+                "end": 67,
+                "quote": "Person A says the page was partial and editable files were missing.",
+                "start": 0
+              }
+            },
+            {
+              "source_hash": "01560237d583cb5247ba318e4ea9d82027df253d0b83f10d8cf96203b556f273",
+              "source_id": "source_gz_case_014_b",
+              "span": {
+                "encoding": "utf16",
+                "end": 80,
+                "quote": "Person B says the agreed page was delivered and no editable files were included.",
+                "start": 0
+              }
+            }
+          ],
+          "subject_actor_ids": [
+            "subject_party_a"
+          ]
+        },
+        "completion_positions": {
+          "party_a": "partial",
+          "party_b": null
+        },
+        "defect_positions": {
+          "party_a": [
+            "editable files missing"
+          ],
+          "party_b": []
+        },
+        "deliverable_id": "deliverable_gz_case_014_page",
+        "expected_scope": "responsive launch page plus editable final files",
+        "linked_event_ids": [],
+        "linked_evidence_ids": [],
+        "linked_obligation_ids": [],
+        "name": "Launch page",
+        "responsible_actor_id": null
+      }
+    },
+    "events": {
+      "event_gz_case_014_partial_delivery": {
+        "actor_ids": [],
+        "authority": {
+          "adjudication_eligible": true,
+          "authority_detail": "Authenticated party_a assertion",
+          "authority_kind": "party_assertion",
+          "evidence_ids": [],
+          "introduced_by": {
+            "actor_id": "subject_party_a",
+            "actor_type": "party"
+          },
+          "introduced_in_record_version": 4,
+          "last_material_command_id": "command_gz_case_014_secondary",
+          "last_material_record_version": 4,
+          "party_stances": {
+            "party_a": {
+              "response_event_id": null,
+              "stance": "asserted"
+            },
+            "party_b": {
+              "response_event_id": null,
+              "stance": "unresponded"
+            }
+          },
+          "resolution_status": "unresolved",
+          "source_references": [
+            {
+              "source_hash": "4566cb399cf517fc8628f3ef5b3d6a87082051f10a94bbbe4bdf623f58050ebf",
+              "source_id": "source_gz_case_014_a",
+              "span": {
+                "encoding": "utf16",
+                "end": 67,
+                "quote": "Person A says the page was partial and editable files were missing.",
+                "start": 0
+              }
+            }
+          ],
+          "subject_actor_ids": [
+            "subject_party_a"
+          ]
+        },
+        "date": {
+          "approximate": true,
+          "end": null,
+          "precision": "unknown",
+          "start": null
+        },
+        "description": "Person A says a partial delivery occurred.",
+        "event_id": "event_gz_case_014_partial_delivery",
+        "event_type": "delivery",
+        "linked_deliverable_ids": [
+          "deliverable_gz_case_014_page"
+        ],
+        "linked_obligation_ids": [],
+        "linked_payment_ids": []
+      }
+    },
+    "evidence": {},
+    "formation": {
+      "ambiguities": [
+        "The parties give incompatible completion and defect accounts."
+      ],
+      "challenges": [
+        {
+          "challenge_id": "challenge_gz_case_014_primary",
+          "challenging_party_id": "party_b",
+          "resolution_event_id": "event_gz_case_014_challenge_rejected",
+          "resolution_source_references": [
+            {
+              "source_hash": "4566cb399cf517fc8628f3ef5b3d6a87082051f10a94bbbe4bdf623f58050ebf",
+              "source_id": "source_gz_case_014_a",
+              "span": {
+                "encoding": "utf16",
+                "end": 67,
+                "quote": "Person A says the page was partial and editable files were missing.",
+                "start": 0
+              }
+            }
+          ],
+          "source_references": [
+            {
+              "source_hash": "01560237d583cb5247ba318e4ea9d82027df253d0b83f10d8cf96203b556f273",
+              "source_id": "source_gz_case_014_b",
+              "span": {
+                "encoding": "utf16",
+                "end": 80,
+                "quote": "Person B says the agreed page was delivered and no editable files were included.",
+                "start": 0
+              }
+            }
+          ],
+          "status": "rejected",
+          "target_field": "expected_scope",
+          "target_namespace": "deliverables",
+          "target_object_id": "deliverable_gz_case_014_page"
+        }
+      ],
+      "confirmations": {
+        "party_a": null,
+        "party_b": null
+      },
+      "disclosure": {
+        "detailed_a_framing": "embargoed",
+        "disclosure_event_id": null,
+        "person_b_independent_account_source_id": null
+      },
+      "lock_blockers": [
+        "material_dispute_open"
+      ],
+      "lock_prerequisites": [
+        "party_disagreement_preserved"
+      ],
+      "material_change_events": [],
+      "non_participation": {
+        "correction_opportunity": "not_started",
+        "deadline_expired_event_id": null,
+        "invitation_event_id": null,
+        "notice_event_id": null,
+        "response_deadline": null
+      },
+      "open_required_fields": [],
+      "prior_locks": [],
+      "uncertainties": [
+        "review_checkpoint_12"
+      ]
+    },
+    "parties": {
+      "party_a": {
+        "authenticated_subject_id": "subject_party_a",
+        "consent_event_id": "event_gz_case_014_consent_a",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_014_identity_a",
+        "participation_state": "active",
+        "party_id": "party_a",
+        "role": "person_a"
+      },
+      "party_b": {
+        "authenticated_subject_id": "subject_party_b",
+        "consent_event_id": "event_gz_case_014_consent_b",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_014_identity_b",
+        "participation_state": "active",
+        "party_id": "party_b",
+        "role": "person_b"
+      }
+    },
+    "payments": {},
+    "positions": {},
+    "requested_outcomes": {}
+  },
+  "fixture_version": "juryai-gate-zero-case-fixture-v1.0.0",
+  "initial_envelope": {
+    "actors": {},
+    "agreements": {},
+    "claimed_losses": {},
+    "classification": {
+      "authority": {
+        "adjudication_eligible": false,
+        "authority_detail": "initial classification placeholder",
+        "authority_kind": "system_observation",
+        "evidence_ids": [],
+        "introduced_by": {
+          "actor_id": "juryai_system",
+          "actor_type": "system"
+        },
+        "introduced_in_record_version": 1,
+        "last_material_command_id": "command_system_initialization",
+        "last_material_record_version": 1,
+        "party_stances": {
+          "party_a": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          },
+          "party_b": {
+            "response_event_id": null,
+            "stance": "unresponded"
+          }
+        },
+        "resolution_status": "unresolved",
+        "source_references": [
+          {
+            "source_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+            "source_id": "source_system_initialization",
+            "span": null
+          }
+        ],
+        "subject_actor_ids": []
+      },
+      "case_category": null,
+      "maturity": "undetermined",
+      "required_fact_profile": null,
+      "safety_flags": [],
+      "scope_flags": [],
+      "suitability": "undetermined"
+    },
+    "control": {
+      "case_id": "gz_case_014",
+      "deadlines": {},
+      "eligibility": {
+        "reason_codes": [],
+        "status": "undetermined"
+      },
+      "envelope_hash": "023d2d9a9aa6638cab0c168e758f889cd554cabf24645e72b37b71b0777d7b51",
+      "envelope_version": 1,
+      "lock": {
+        "lock_event_id": null,
+        "locked_at": null,
+        "mode": null,
+        "output_scope": null,
+        "status": "unlocked"
+      },
+      "protocol": {
+        "non_participation_mode": "prohibited",
+        "protocol_id": "commercial_fairness_v2",
+        "protocol_version": "juryai-formation-protocol-v2.0.0"
+      },
+      "record_hash": "f885aa8edef47aec3a94bc8543cac6d4e37ca16442eed872a2034ddca3cc989c",
+      "record_version": 1,
+      "schema_version": "juryai-case-envelope-v2.0.0",
+      "workflow_state": "reconciliation"
+    },
+    "deliverables": {},
+    "events": {},
+    "evidence": {},
+    "formation": {
+      "ambiguities": [],
+      "challenges": [],
+      "confirmations": {
+        "party_a": null,
+        "party_b": null
+      },
+      "disclosure": {
+        "detailed_a_framing": "embargoed",
+        "disclosure_event_id": null,
+        "person_b_independent_account_source_id": null
+      },
+      "lock_blockers": [],
+      "lock_prerequisites": [],
+      "material_change_events": [],
+      "non_participation": {
+        "correction_opportunity": "not_started",
+        "deadline_expired_event_id": null,
+        "invitation_event_id": null,
+        "notice_event_id": null,
+        "response_deadline": null
+      },
+      "open_required_fields": [],
+      "prior_locks": [],
+      "uncertainties": []
+    },
+    "parties": {
+      "party_a": {
+        "authenticated_subject_id": "subject_party_a",
+        "consent_event_id": "event_gz_case_014_consent_a",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_014_identity_a",
+        "participation_state": "active",
+        "party_id": "party_a",
+        "role": "person_a"
+      },
+      "party_b": {
+        "authenticated_subject_id": "subject_party_b",
+        "consent_event_id": "event_gz_case_014_consent_b",
+        "consent_status": "granted",
+        "identity_assurance": "authenticated",
+        "identity_event_id": "event_gz_case_014_identity_b",
+        "participation_state": "active",
+        "party_id": "party_b",
+        "role": "person_b"
+      }
+    },
+    "payments": {},
+    "positions": {},
+    "requested_outcomes": {}
+  },
+  "matrix_version": "juryai-gate-zero-coverage-matrix-v1.0.0",
+  "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+  "title": "Partial deliverable with incompatible defect accounts",
+  "turns": [
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_a",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_a",
+        "party_id": "party_a"
+      },
+      "base_envelope_hash": "023d2d9a9aa6638cab0c168e758f889cd554cabf24645e72b37b71b0777d7b51",
+      "base_envelope_version": 1,
+      "base_record_hash": "f885aa8edef47aec3a94bc8543cac6d4e37ca16442eed872a2034ddca3cc989c",
+      "base_record_version": 1,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_a",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_a",
+          "party_id": "party_a"
+        },
+        "base_envelope_hash": "023d2d9a9aa6638cab0c168e758f889cd554cabf24645e72b37b71b0777d7b51",
+        "base_envelope_version": 1,
+        "case_id": "gz_case_014",
+        "command_id": "command_gz_case_014_primary",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "namespace": "deliverables",
+            "object": {
+              "authority": {
+                "adjudication_eligible": true,
+                "authority_detail": "Authenticated party_a assertion",
+                "authority_kind": "party_assertion",
+                "evidence_ids": [],
+                "introduced_by": {
+                  "actor_id": "subject_party_a",
+                  "actor_type": "party"
+                },
+                "introduced_in_record_version": 2,
+                "last_material_command_id": "command_gz_case_014_primary",
+                "last_material_record_version": 2,
+                "party_stances": {
+                  "party_a": {
+                    "response_event_id": null,
+                    "stance": "asserted"
+                  },
+                  "party_b": {
+                    "response_event_id": null,
+                    "stance": "unresponded"
+                  }
+                },
+                "resolution_status": "unresolved",
+                "source_references": [
+                  {
+                    "source_hash": "4566cb399cf517fc8628f3ef5b3d6a87082051f10a94bbbe4bdf623f58050ebf",
+                    "source_id": "source_gz_case_014_a",
+                    "span": {
+                      "encoding": "utf16",
+                      "end": 67,
+                      "quote": "Person A says the page was partial and editable files were missing.",
+                      "start": 0
+                    }
+                  }
+                ],
+                "subject_actor_ids": [
+                  "subject_party_a"
+                ]
+              },
+              "completion_positions": {
+                "party_a": "partial",
+                "party_b": null
+              },
+              "defect_positions": {
+                "party_a": [
+                  "editable files missing"
+                ],
+                "party_b": []
+              },
+              "deliverable_id": "deliverable_gz_case_014_page",
+              "expected_scope": "responsive launch page and final files",
+              "linked_event_ids": [],
+              "linked_evidence_ids": [],
+              "linked_obligation_ids": [],
+              "name": "Launch page",
+              "responsible_actor_id": null
+            },
+            "type": "add_object"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "4566cb399cf517fc8628f3ef5b3d6a87082051f10a94bbbe4bdf623f58050ebf",
+            "source_id": "source_gz_case_014_a",
+            "span": {
+              "encoding": "utf16",
+              "end": 67,
+              "quote": "Person A says the page was partial and editable files were missing.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [
+          {
+            "basis": "party_attributed_assertion",
+            "fact_id": "fact_gz_case_014_primary",
+            "party_attribution": "party_a",
+            "source_references": [
+              {
+                "source_hash": "4566cb399cf517fc8628f3ef5b3d6a87082051f10a94bbbe4bdf623f58050ebf",
+                "source_id": "source_gz_case_014_a",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 67,
+                  "quote": "Person A says the page was partial and editable files were missing.",
+                  "start": 0
+                }
+              }
+            ],
+            "statement": "Person A says the page was partial and editable files were missing."
+          }
+        ],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [
+          {
+            "prohibited_promotion": "objective_fact",
+            "proposition": "The introducing party assertion is objectively established.",
+            "proposition_id": "proposition_gz_case_014_objective",
+            "reason_code": "single_party_assertion_only",
+            "source_references": [
+              {
+                "source_hash": "4566cb399cf517fc8628f3ef5b3d6a87082051f10a94bbbe4bdf623f58050ebf",
+                "source_id": "source_gz_case_014_a",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 67,
+                  "quote": "Person A says the page was partial and editable files were missing.",
+                  "start": 0
+                }
+              }
+            ]
+          }
+        ],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [
+          {
+            "source_hash": "4566cb399cf517fc8628f3ef5b3d6a87082051f10a94bbbe4bdf623f58050ebf",
+            "source_id": "source_gz_case_014_a",
+            "span": {
+              "encoding": "utf16",
+              "end": 67,
+              "quote": "Person A says the page was partial and editable files were missing.",
+              "start": 0
+            }
+          }
+        ],
+        "resulting_envelope_hash": "b91b50ba788b2c76224b60b637333b6034e728d492a49bebe3b635500acc3660",
+        "resulting_envelope_version": 2,
+        "resulting_record_hash": "06085ed2cd72e6eb7c1040f67e57e5d9f045409b9ece20d9cbb63a2b44af80be",
+        "resulting_record_version": 2,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_challenge",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says the page was partial and editable files were missing.",
+          "content_hash": "4566cb399cf517fc8628f3ef5b3d6a87082051f10a94bbbe4bdf623f58050ebf",
+          "source_id": "source_gz_case_014_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_014_turn_01_primary_assertion",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_014_a",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "b91b50ba788b2c76224b60b637333b6034e728d492a49bebe3b635500acc3660",
+      "base_envelope_version": 2,
+      "base_record_hash": "06085ed2cd72e6eb7c1040f67e57e5d9f045409b9ece20d9cbb63a2b44af80be",
+      "base_record_version": 2,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "b91b50ba788b2c76224b60b637333b6034e728d492a49bebe3b635500acc3660",
+        "base_envelope_version": 2,
+        "case_id": "gz_case_014",
+        "command_id": "command_gz_case_014_turn_02_ambiguity_drives_question",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [
+              "The parties give incompatible completion and defect accounts."
+            ],
+            "lock_blockers": [
+              "material_ambiguity"
+            ],
+            "lock_prerequisites": [
+              "material_ambiguity_resolved"
+            ],
+            "open_required_fields": [
+              "deliverables.deliverable_gz_case_014_page.expected_scope"
+            ],
+            "type": "set_formation_requirements",
+            "uncertainties": []
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": {
+          "addressed_to_party": "party_a",
+          "field": "expected_scope",
+          "namespace": "deliverables",
+          "object_id": "deliverable_gz_case_014_page",
+          "reason_code": "resolve_gz_case_014_material_ambiguity"
+        },
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "cabe219f419cdf3c68609cd5510dd4bdb2cbcb1ab245f6ef27ab819fcf16f6ab",
+        "resulting_envelope_version": 3,
+        "resulting_record_hash": "222c34f9461b19cc870166f5f3a4303e856b6bc531e6557b063dee97c0f2ccf6",
+        "resulting_record_version": 3,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_identity"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_party_participation",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says the page was partial and editable files were missing.",
+          "content_hash": "4566cb399cf517fc8628f3ef5b3d6a87082051f10a94bbbe4bdf623f58050ebf",
+          "source_id": "source_gz_case_014_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_014_turn_02_ambiguity_drives_question",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_014_a",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_a",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_a",
+        "party_id": "party_a"
+      },
+      "base_envelope_hash": "cabe219f419cdf3c68609cd5510dd4bdb2cbcb1ab245f6ef27ab819fcf16f6ab",
+      "base_envelope_version": 3,
+      "base_record_hash": "222c34f9461b19cc870166f5f3a4303e856b6bc531e6557b063dee97c0f2ccf6",
+      "base_record_version": 3,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_a",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_a",
+          "party_id": "party_a"
+        },
+        "base_envelope_hash": "cabe219f419cdf3c68609cd5510dd4bdb2cbcb1ab245f6ef27ab819fcf16f6ab",
+        "base_envelope_version": 3,
+        "case_id": "gz_case_014",
+        "command_id": "command_gz_case_014_secondary",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "namespace": "events",
+            "object": {
+              "actor_ids": [],
+              "authority": {
+                "adjudication_eligible": true,
+                "authority_detail": "Authenticated party_a assertion",
+                "authority_kind": "party_assertion",
+                "evidence_ids": [],
+                "introduced_by": {
+                  "actor_id": "subject_party_a",
+                  "actor_type": "party"
+                },
+                "introduced_in_record_version": 4,
+                "last_material_command_id": "command_gz_case_014_secondary",
+                "last_material_record_version": 4,
+                "party_stances": {
+                  "party_a": {
+                    "response_event_id": null,
+                    "stance": "asserted"
+                  },
+                  "party_b": {
+                    "response_event_id": null,
+                    "stance": "unresponded"
+                  }
+                },
+                "resolution_status": "unresolved",
+                "source_references": [
+                  {
+                    "source_hash": "4566cb399cf517fc8628f3ef5b3d6a87082051f10a94bbbe4bdf623f58050ebf",
+                    "source_id": "source_gz_case_014_a",
+                    "span": {
+                      "encoding": "utf16",
+                      "end": 67,
+                      "quote": "Person A says the page was partial and editable files were missing.",
+                      "start": 0
+                    }
+                  }
+                ],
+                "subject_actor_ids": [
+                  "subject_party_a"
+                ]
+              },
+              "date": {
+                "approximate": true,
+                "end": null,
+                "precision": "unknown",
+                "start": null
+              },
+              "description": "Person A says a partial delivery occurred.",
+              "event_id": "event_gz_case_014_partial_delivery",
+              "event_type": "delivery",
+              "linked_deliverable_ids": [
+                "deliverable_gz_case_014_page"
+              ],
+              "linked_obligation_ids": [],
+              "linked_payment_ids": []
+            },
+            "type": "add_object"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "4566cb399cf517fc8628f3ef5b3d6a87082051f10a94bbbe4bdf623f58050ebf",
+            "source_id": "source_gz_case_014_a",
+            "span": {
+              "encoding": "utf16",
+              "end": 67,
+              "quote": "Person A says the page was partial and editable files were missing.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [
+          {
+            "source_hash": "4566cb399cf517fc8628f3ef5b3d6a87082051f10a94bbbe4bdf623f58050ebf",
+            "source_id": "source_gz_case_014_a",
+            "span": {
+              "encoding": "utf16",
+              "end": 67,
+              "quote": "Person A says the page was partial and editable files were missing.",
+              "start": 0
+            }
+          }
+        ],
+        "resulting_envelope_hash": "1bb25c49dab46a15590b3c7c9e14b95b16257c866bfd5dc33821dc1b493b2d4e",
+        "resulting_envelope_version": 4,
+        "resulting_record_hash": "1359a86685a763532caf97dd1c02c2054a31529ecc66f292d7ac1ef70768ce52",
+        "resulting_record_version": 4,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_challenge",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says the page was partial and editable files were missing.",
+          "content_hash": "4566cb399cf517fc8628f3ef5b3d6a87082051f10a94bbbe4bdf623f58050ebf",
+          "source_id": "source_gz_case_014_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B says the agreed page was delivered and no editable files were included.",
+          "content_hash": "01560237d583cb5247ba318e4ea9d82027df253d0b83f10d8cf96203b556f273",
+          "source_id": "source_gz_case_014_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_014_turn_03_linked_or_counter_object",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_014_a",
+        "source_gz_case_014_b",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_b",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_b",
+        "party_id": "party_b"
+      },
+      "base_envelope_hash": "1bb25c49dab46a15590b3c7c9e14b95b16257c866bfd5dc33821dc1b493b2d4e",
+      "base_envelope_version": 4,
+      "base_record_hash": "1359a86685a763532caf97dd1c02c2054a31529ecc66f292d7ac1ef70768ce52",
+      "base_record_version": 4,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_b",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_b",
+          "party_id": "party_b"
+        },
+        "base_envelope_hash": "1bb25c49dab46a15590b3c7c9e14b95b16257c866bfd5dc33821dc1b493b2d4e",
+        "base_envelope_version": 4,
+        "case_id": "gz_case_014",
+        "command_id": "command_gz_case_014_turn_04_person_b_disputes",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "namespace": "deliverables",
+            "object_id": "deliverable_gz_case_014_page",
+            "response_event_id": "event_gz_case_014_b_disputes",
+            "stance": "disputed",
+            "type": "set_own_stance"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "01560237d583cb5247ba318e4ea9d82027df253d0b83f10d8cf96203b556f273",
+            "source_id": "source_gz_case_014_b",
+            "span": {
+              "encoding": "utf16",
+              "end": 80,
+              "quote": "Person B says the agreed page was delivered and no editable files were included.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [
+          {
+            "prohibited_promotion": "bilateral_agreement",
+            "proposition": "The parties agree on the disputed proposition.",
+            "proposition_id": "proposition_gz_case_014_bilateral",
+            "reason_code": "person_b_explicitly_disputes",
+            "source_references": [
+              {
+                "source_hash": "4566cb399cf517fc8628f3ef5b3d6a87082051f10a94bbbe4bdf623f58050ebf",
+                "source_id": "source_gz_case_014_a",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 67,
+                  "quote": "Person A says the page was partial and editable files were missing.",
+                  "start": 0
+                }
+              },
+              {
+                "source_hash": "01560237d583cb5247ba318e4ea9d82027df253d0b83f10d8cf96203b556f273",
+                "source_id": "source_gz_case_014_b",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 80,
+                  "quote": "Person B says the agreed page was delivered and no editable files were included.",
+                  "start": 0
+                }
+              }
+            ]
+          }
+        ],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [
+          {
+            "source_hash": "01560237d583cb5247ba318e4ea9d82027df253d0b83f10d8cf96203b556f273",
+            "source_id": "source_gz_case_014_b",
+            "span": {
+              "encoding": "utf16",
+              "end": 80,
+              "quote": "Person B says the agreed page was delivered and no editable files were included.",
+              "start": 0
+            }
+          }
+        ],
+        "resulting_envelope_hash": "6b012764eedcc1dc8cd3b2ad15260b5f3ab111f0b1671b43cf89855b35ab89b2",
+        "resulting_envelope_version": 5,
+        "resulting_record_hash": "91c81be98913ccb8c2413467f4d15d34567f0d4bad5af469cd3e7d18b695bda1",
+        "resulting_record_version": 5,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_challenge",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says the page was partial and editable files were missing.",
+          "content_hash": "4566cb399cf517fc8628f3ef5b3d6a87082051f10a94bbbe4bdf623f58050ebf",
+          "source_id": "source_gz_case_014_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B says the agreed page was delivered and no editable files were included.",
+          "content_hash": "01560237d583cb5247ba318e4ea9d82027df253d0b83f10d8cf96203b556f273",
+          "source_id": "source_gz_case_014_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_014_turn_04_person_b_disputes",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_014_a",
+        "source_gz_case_014_b",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_b",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_b",
+        "party_id": "party_b"
+      },
+      "base_envelope_hash": "6b012764eedcc1dc8cd3b2ad15260b5f3ab111f0b1671b43cf89855b35ab89b2",
+      "base_envelope_version": 5,
+      "base_record_hash": "91c81be98913ccb8c2413467f4d15d34567f0d4bad5af469cd3e7d18b695bda1",
+      "base_record_version": 5,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_b",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_b",
+          "party_id": "party_b"
+        },
+        "base_envelope_hash": "6b012764eedcc1dc8cd3b2ad15260b5f3ab111f0b1671b43cf89855b35ab89b2",
+        "base_envelope_version": 5,
+        "case_id": "gz_case_014",
+        "command_id": "command_gz_case_014_turn_05_cross_party_overwrite_rejected",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "expected_prior_value": "responsive launch page and final files",
+            "field": "expected_scope",
+            "namespace": "deliverables",
+            "object_id": "deliverable_gz_case_014_page",
+            "replacement_value": "responsive launch page plus editable final files",
+            "type": "replace_own_field"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "01560237d583cb5247ba318e4ea9d82027df253d0b83f10d8cf96203b556f273",
+            "source_id": "source_gz_case_014_b",
+            "span": {
+              "encoding": "utf16",
+              "end": 80,
+              "quote": "Person B says the agreed page was delivered and no editable files were included.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "rejected",
+        "envelope_version_delta": 0,
+        "evidence_actions": [],
+        "exact_no_mutation": true,
+        "failure_reason": "cross_party_mutation",
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 0,
+        "required_source_references": [],
+        "resulting_envelope_hash": "6b012764eedcc1dc8cd3b2ad15260b5f3ab111f0b1671b43cf89855b35ab89b2",
+        "resulting_envelope_version": 5,
+        "resulting_record_hash": "91c81be98913ccb8c2413467f4d15d34567f0d4bad5af469cd3e7d18b695bda1",
+        "resulting_record_version": 5,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_challenge",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says the page was partial and editable files were missing.",
+          "content_hash": "4566cb399cf517fc8628f3ef5b3d6a87082051f10a94bbbe4bdf623f58050ebf",
+          "source_id": "source_gz_case_014_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B says the agreed page was delivered and no editable files were included.",
+          "content_hash": "01560237d583cb5247ba318e4ea9d82027df253d0b83f10d8cf96203b556f273",
+          "source_id": "source_gz_case_014_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_014_turn_05_cross_party_overwrite_rejected",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_014_a",
+        "source_gz_case_014_b",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_a",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_a",
+        "party_id": "party_a"
+      },
+      "base_envelope_hash": "6b012764eedcc1dc8cd3b2ad15260b5f3ab111f0b1671b43cf89855b35ab89b2",
+      "base_envelope_version": 5,
+      "base_record_hash": "91c81be98913ccb8c2413467f4d15d34567f0d4bad5af469cd3e7d18b695bda1",
+      "base_record_version": 5,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_a",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_a",
+          "party_id": "party_a"
+        },
+        "base_envelope_hash": "6b012764eedcc1dc8cd3b2ad15260b5f3ab111f0b1671b43cf89855b35ab89b2",
+        "base_envelope_version": 5,
+        "case_id": "gz_case_014",
+        "command_id": "command_gz_case_014_turn_06_owner_correction",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "expected_prior_value": "responsive launch page and final files",
+            "field": "expected_scope",
+            "namespace": "deliverables",
+            "object_id": "deliverable_gz_case_014_page",
+            "replacement_value": "responsive launch page plus editable final files",
+            "type": "replace_own_field"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "4566cb399cf517fc8628f3ef5b3d6a87082051f10a94bbbe4bdf623f58050ebf",
+            "source_id": "source_gz_case_014_a",
+            "span": {
+              "encoding": "utf16",
+              "end": 67,
+              "quote": "Person A says the page was partial and editable files were missing.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [
+          {
+            "source_hash": "4566cb399cf517fc8628f3ef5b3d6a87082051f10a94bbbe4bdf623f58050ebf",
+            "source_id": "source_gz_case_014_a",
+            "span": {
+              "encoding": "utf16",
+              "end": 67,
+              "quote": "Person A says the page was partial and editable files were missing.",
+              "start": 0
+            }
+          }
+        ],
+        "resulting_envelope_hash": "1691a070db64d60e63cb671a3ce9998bfdda584d024cbaba0f6c960964f5c391",
+        "resulting_envelope_version": 6,
+        "resulting_record_hash": "50cb10e13262f181c0f7748f2e6994ec0e6da6db613b64b5f872140266effe3a",
+        "resulting_record_version": 6,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_challenge",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says the page was partial and editable files were missing.",
+          "content_hash": "4566cb399cf517fc8628f3ef5b3d6a87082051f10a94bbbe4bdf623f58050ebf",
+          "source_id": "source_gz_case_014_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B says the agreed page was delivered and no editable files were included.",
+          "content_hash": "01560237d583cb5247ba318e4ea9d82027df253d0b83f10d8cf96203b556f273",
+          "source_id": "source_gz_case_014_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_014_turn_06_owner_correction",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_014_a",
+        "source_gz_case_014_b",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_b",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_b",
+        "party_id": "party_b"
+      },
+      "base_envelope_hash": "1691a070db64d60e63cb671a3ce9998bfdda584d024cbaba0f6c960964f5c391",
+      "base_envelope_version": 6,
+      "base_record_hash": "50cb10e13262f181c0f7748f2e6994ec0e6da6db613b64b5f872140266effe3a",
+      "base_record_version": 6,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_b",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_b",
+          "party_id": "party_b"
+        },
+        "base_envelope_hash": "1691a070db64d60e63cb671a3ce9998bfdda584d024cbaba0f6c960964f5c391",
+        "base_envelope_version": 6,
+        "case_id": "gz_case_014",
+        "command_id": "command_gz_case_014_turn_07_field_challenge",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "challenge_id": "challenge_gz_case_014_primary",
+            "source_references": [
+              {
+                "source_hash": "01560237d583cb5247ba318e4ea9d82027df253d0b83f10d8cf96203b556f273",
+                "source_id": "source_gz_case_014_b",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 80,
+                  "quote": "Person B says the agreed page was delivered and no editable files were included.",
+                  "start": 0
+                }
+              }
+            ],
+            "target_field": "expected_scope",
+            "target_namespace": "deliverables",
+            "target_object_id": "deliverable_gz_case_014_page",
+            "type": "record_challenge"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "01560237d583cb5247ba318e4ea9d82027df253d0b83f10d8cf96203b556f273",
+            "source_id": "source_gz_case_014_b",
+            "span": {
+              "encoding": "utf16",
+              "end": 80,
+              "quote": "Person B says the agreed page was delivered and no editable files were included.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [
+          {
+            "source_hash": "01560237d583cb5247ba318e4ea9d82027df253d0b83f10d8cf96203b556f273",
+            "source_id": "source_gz_case_014_b",
+            "span": {
+              "encoding": "utf16",
+              "end": 80,
+              "quote": "Person B says the agreed page was delivered and no editable files were included.",
+              "start": 0
+            }
+          }
+        ],
+        "resulting_envelope_hash": "42c630c0b761f68705d71827214bc47f07d5a8fd85bc5018c14b5ebb01e1e531",
+        "resulting_envelope_version": 7,
+        "resulting_record_hash": "aaf8adc774152efb6c400907dbd11a4d8244294ffc2f49f87e42fc968fee0897",
+        "resulting_record_version": 7,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_challenge",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says the page was partial and editable files were missing.",
+          "content_hash": "4566cb399cf517fc8628f3ef5b3d6a87082051f10a94bbbe4bdf623f58050ebf",
+          "source_id": "source_gz_case_014_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B says the agreed page was delivered and no editable files were included.",
+          "content_hash": "01560237d583cb5247ba318e4ea9d82027df253d0b83f10d8cf96203b556f273",
+          "source_id": "source_gz_case_014_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_014_turn_07_field_challenge",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_014_a",
+        "source_gz_case_014_b",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "subject_party_a",
+        "actor_type": "party",
+        "authenticated_subject_id": "subject_party_a",
+        "party_id": "party_a"
+      },
+      "base_envelope_hash": "42c630c0b761f68705d71827214bc47f07d5a8fd85bc5018c14b5ebb01e1e531",
+      "base_envelope_version": 7,
+      "base_record_hash": "aaf8adc774152efb6c400907dbd11a4d8244294ffc2f49f87e42fc968fee0897",
+      "base_record_version": 7,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "subject_party_a",
+          "actor_type": "party",
+          "authenticated_subject_id": "subject_party_a",
+          "party_id": "party_a"
+        },
+        "base_envelope_hash": "42c630c0b761f68705d71827214bc47f07d5a8fd85bc5018c14b5ebb01e1e531",
+        "base_envelope_version": 7,
+        "case_id": "gz_case_014",
+        "command_id": "command_gz_case_014_turn_08_owner_rejects_challenge",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "challenge_id": "challenge_gz_case_014_primary",
+            "resolution": "rejected",
+            "resolution_event_id": "event_gz_case_014_challenge_rejected",
+            "resolution_source_references": [
+              {
+                "source_hash": "4566cb399cf517fc8628f3ef5b3d6a87082051f10a94bbbe4bdf623f58050ebf",
+                "source_id": "source_gz_case_014_a",
+                "span": {
+                  "encoding": "utf16",
+                  "end": 67,
+                  "quote": "Person A says the page was partial and editable files were missing.",
+                  "start": 0
+                }
+              }
+            ],
+            "type": "resolve_challenge"
+          }
+        ],
+        "source_references": [
+          {
+            "source_hash": "4566cb399cf517fc8628f3ef5b3d6a87082051f10a94bbbe4bdf623f58050ebf",
+            "source_id": "source_gz_case_014_a",
+            "span": {
+              "encoding": "utf16",
+              "end": 67,
+              "quote": "Person A says the page was partial and editable files were missing.",
+              "start": 0
+            }
+          }
+        ]
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [
+          {
+            "source_hash": "4566cb399cf517fc8628f3ef5b3d6a87082051f10a94bbbe4bdf623f58050ebf",
+            "source_id": "source_gz_case_014_a",
+            "span": {
+              "encoding": "utf16",
+              "end": 67,
+              "quote": "Person A says the page was partial and editable files were missing.",
+              "start": 0
+            }
+          }
+        ],
+        "resulting_envelope_hash": "3b587aeed4c5d9a1fe207aa04fc8b6bde67934546247b71853453ae94c22de8e",
+        "resulting_envelope_version": 8,
+        "resulting_record_hash": "f950afda04ed32585f95dfbea0744074d290d88eb6f9e329e72d3abfe9f237b8",
+        "resulting_record_version": 8,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "lock",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_evidence_upload",
+        "record_independent_account",
+        "record_party_consent",
+        "reopen_material_change",
+        "set_classification",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_party_identity",
+        "set_party_participation",
+        "transition"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "add_object",
+        "record_challenge",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_own_evidence_availability",
+        "set_own_stance"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says the page was partial and editable files were missing.",
+          "content_hash": "4566cb399cf517fc8628f3ef5b3d6a87082051f10a94bbbe4bdf623f58050ebf",
+          "source_id": "source_gz_case_014_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B says the agreed page was delivered and no editable files were included.",
+          "content_hash": "01560237d583cb5247ba318e4ea9d82027df253d0b83f10d8cf96203b556f273",
+          "source_id": "source_gz_case_014_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_014_turn_08_owner_rejects_challenge",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_014_a",
+        "source_gz_case_014_b",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "3b587aeed4c5d9a1fe207aa04fc8b6bde67934546247b71853453ae94c22de8e",
+      "base_envelope_version": 8,
+      "base_record_hash": "f950afda04ed32585f95dfbea0744074d290d88eb6f9e329e72d3abfe9f237b8",
+      "base_record_version": 8,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "3b587aeed4c5d9a1fe207aa04fc8b6bde67934546247b71853453ae94c22de8e",
+        "base_envelope_version": 8,
+        "case_id": "gz_case_014",
+        "command_id": "command_gz_case_014_turn_09_formation_check",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [
+              "The parties give incompatible completion and defect accounts."
+            ],
+            "lock_blockers": [
+              "material_dispute_open"
+            ],
+            "lock_prerequisites": [
+              "party_disagreement_preserved"
+            ],
+            "open_required_fields": [],
+            "type": "set_formation_requirements",
+            "uncertainties": [
+              "review_checkpoint_9"
+            ]
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "1d98cbdb1ab0a5419f8873cd1cf661f7ef170ac1da6e726d638c8af2b41c04b7",
+        "resulting_envelope_version": 9,
+        "resulting_record_hash": "778a3aaa5b84c646634f92e04c2f7de41c6570a404faba0b5581cfa4d97ed83d",
+        "resulting_record_version": 9,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_identity"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_party_participation",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says the page was partial and editable files were missing.",
+          "content_hash": "4566cb399cf517fc8628f3ef5b3d6a87082051f10a94bbbe4bdf623f58050ebf",
+          "source_id": "source_gz_case_014_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B says the agreed page was delivered and no editable files were included.",
+          "content_hash": "01560237d583cb5247ba318e4ea9d82027df253d0b83f10d8cf96203b556f273",
+          "source_id": "source_gz_case_014_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_014_turn_09_formation_check",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_014_a",
+        "source_gz_case_014_b",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "1d98cbdb1ab0a5419f8873cd1cf661f7ef170ac1da6e726d638c8af2b41c04b7",
+      "base_envelope_version": 9,
+      "base_record_hash": "778a3aaa5b84c646634f92e04c2f7de41c6570a404faba0b5581cfa4d97ed83d",
+      "base_record_version": 9,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "1d98cbdb1ab0a5419f8873cd1cf661f7ef170ac1da6e726d638c8af2b41c04b7",
+        "base_envelope_version": 9,
+        "case_id": "gz_case_014",
+        "command_id": "command_gz_case_014_turn_10_formation_check",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [
+              "The parties give incompatible completion and defect accounts."
+            ],
+            "lock_blockers": [
+              "material_dispute_open"
+            ],
+            "lock_prerequisites": [
+              "party_disagreement_preserved"
+            ],
+            "open_required_fields": [],
+            "type": "set_formation_requirements",
+            "uncertainties": [
+              "review_checkpoint_10"
+            ]
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "9c46f05578e0f83b1b3990481bdfc581a464663bf7f3fb47889c7ecffea423af",
+        "resulting_envelope_version": 10,
+        "resulting_record_hash": "0ba7e5a8e29ff544651ccfdbd370c375036ce3fa7e01095ae002196f50f3e8aa",
+        "resulting_record_version": 10,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_identity"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_party_participation",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says the page was partial and editable files were missing.",
+          "content_hash": "4566cb399cf517fc8628f3ef5b3d6a87082051f10a94bbbe4bdf623f58050ebf",
+          "source_id": "source_gz_case_014_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B says the agreed page was delivered and no editable files were included.",
+          "content_hash": "01560237d583cb5247ba318e4ea9d82027df253d0b83f10d8cf96203b556f273",
+          "source_id": "source_gz_case_014_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_014_turn_10_formation_check",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_014_a",
+        "source_gz_case_014_b",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "9c46f05578e0f83b1b3990481bdfc581a464663bf7f3fb47889c7ecffea423af",
+      "base_envelope_version": 10,
+      "base_record_hash": "0ba7e5a8e29ff544651ccfdbd370c375036ce3fa7e01095ae002196f50f3e8aa",
+      "base_record_version": 10,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "9c46f05578e0f83b1b3990481bdfc581a464663bf7f3fb47889c7ecffea423af",
+        "base_envelope_version": 10,
+        "case_id": "gz_case_014",
+        "command_id": "command_gz_case_014_turn_11_formation_check",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [
+              "The parties give incompatible completion and defect accounts."
+            ],
+            "lock_blockers": [
+              "material_dispute_open"
+            ],
+            "lock_prerequisites": [
+              "party_disagreement_preserved"
+            ],
+            "open_required_fields": [],
+            "type": "set_formation_requirements",
+            "uncertainties": [
+              "review_checkpoint_11"
+            ]
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "1aecc6fc7d5038f4481cd2dd2272a5e3f5adbfe632078c8e5bc58535ba75478c",
+        "resulting_envelope_version": 11,
+        "resulting_record_hash": "31c5a42baab61f8547ce8b75fbb0280d6062a45c91d3b8b47f87cab811c4f638",
+        "resulting_record_version": 11,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_identity"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_party_participation",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says the page was partial and editable files were missing.",
+          "content_hash": "4566cb399cf517fc8628f3ef5b3d6a87082051f10a94bbbe4bdf623f58050ebf",
+          "source_id": "source_gz_case_014_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B says the agreed page was delivered and no editable files were included.",
+          "content_hash": "01560237d583cb5247ba318e4ea9d82027df253d0b83f10d8cf96203b556f273",
+          "source_id": "source_gz_case_014_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_014_turn_11_formation_check",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_014_a",
+        "source_gz_case_014_b",
+        "source_system_initialization"
+      ]
+    },
+    {
+      "authenticated_actor": {
+        "actor_id": "juryai_system",
+        "actor_type": "system",
+        "authenticated_subject_id": "juryai_system",
+        "party_id": null
+      },
+      "base_envelope_hash": "1aecc6fc7d5038f4481cd2dd2272a5e3f5adbfe632078c8e5bc58535ba75478c",
+      "base_envelope_version": 11,
+      "base_record_hash": "31c5a42baab61f8547ce8b75fbb0280d6062a45c91d3b8b47f87cab811c4f638",
+      "base_record_version": 11,
+      "command": {
+        "authenticated_actor": {
+          "actor_id": "juryai_system",
+          "actor_type": "system",
+          "authenticated_subject_id": "juryai_system",
+          "party_id": null
+        },
+        "base_envelope_hash": "1aecc6fc7d5038f4481cd2dd2272a5e3f5adbfe632078c8e5bc58535ba75478c",
+        "base_envelope_version": 11,
+        "case_id": "gz_case_014",
+        "command_id": "command_gz_case_014_turn_12_formation_check",
+        "command_version": "juryai-envelope-command-v2.0.0",
+        "confirmation_context": null,
+        "operations": [
+          {
+            "ambiguities": [
+              "The parties give incompatible completion and defect accounts."
+            ],
+            "lock_blockers": [
+              "material_dispute_open"
+            ],
+            "lock_prerequisites": [
+              "party_disagreement_preserved"
+            ],
+            "open_required_fields": [],
+            "type": "set_formation_requirements",
+            "uncertainties": [
+              "review_checkpoint_12"
+            ]
+          }
+        ],
+        "source_references": []
+      },
+      "embargoed_envelope_paths": [],
+      "expected": {
+        "allowed_user_visible_facts": [],
+        "authority_fragments": [],
+        "disposition": "applied",
+        "envelope_version_delta": 1,
+        "evidence_actions": [],
+        "exact_no_mutation": false,
+        "failure_reason": null,
+        "forbidden_factual_promotions": [],
+        "invalidated_confirmation_parties": [],
+        "lock_mode": null,
+        "lock_status": "unlocked",
+        "next_question_target": null,
+        "output_scope": null,
+        "record_version_delta": 1,
+        "required_source_references": [],
+        "resulting_envelope_hash": "dc6a5b231e647178e4438e4dc5eb044f0d664dd9bdb9c9e9bdd0d4634eb4d013",
+        "resulting_envelope_version": 12,
+        "resulting_record_hash": "6238de92f58a7a50ccade051ebf8226ffb4792a65c6f3146e314b4dac963d6d2",
+        "resulting_record_version": 12,
+        "workflow_state": "reconciliation"
+      },
+      "forbidden_operation_types": [
+        "add_object",
+        "lock",
+        "record_challenge",
+        "record_confirmation",
+        "record_detailed_disclosure",
+        "record_evidence_inspection",
+        "record_independent_account",
+        "reopen_material_change",
+        "replace_own_field",
+        "resolve_challenge",
+        "set_classification",
+        "set_non_participation_policy",
+        "set_non_participation_record",
+        "set_own_evidence_availability",
+        "set_own_stance",
+        "set_party_identity"
+      ],
+      "hidden_source_ids": [],
+      "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+      "permitted_operation_types": [
+        "record_evidence_upload",
+        "record_party_consent",
+        "set_evidence_visibility",
+        "set_formation_requirements",
+        "set_party_participation",
+        "transition"
+      ],
+      "source_records": [
+        {
+          "actor_id": "subject_party_a",
+          "content": "Person A says the page was partial and editable files were missing.",
+          "content_hash": "4566cb399cf517fc8628f3ef5b3d6a87082051f10a94bbbe4bdf623f58050ebf",
+          "source_id": "source_gz_case_014_a",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "subject_party_b",
+          "content": "Person B says the agreed page was delivered and no editable files were included.",
+          "content_hash": "01560237d583cb5247ba318e4ea9d82027df253d0b83f10d8cf96203b556f273",
+          "source_id": "source_gz_case_014_b",
+          "source_type": "clarification_answer"
+        },
+        {
+          "actor_id": "juryai_system",
+          "content": "Case envelope initialized by deterministic system code.",
+          "content_hash": "9258dd4c5f8875299657ee1a0df8356619d80a9f441d38dd91f32aa938051504",
+          "source_id": "source_system_initialization",
+          "source_type": "system_event"
+        }
+      ],
+      "turn_id": "gz_case_014_turn_12_formation_check",
+      "visible_envelope_paths": [
+        ""
+      ],
+      "visible_source_ids": [
+        "source_gz_case_014_a",
+        "source_gz_case_014_b",
+        "source_system_initialization"
+      ]
+    }
+  ]
+}

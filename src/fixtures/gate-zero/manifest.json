@@ -1,0 +1,228 @@
+{
+  "case_count": 36,
+  "cases": [
+    {
+      "case_id": "gz_case_001",
+      "path": "src/fixtures/gate-zero/cases/gz_case_001.json",
+      "sha256": "14be38f2672624209b2dd7711f233d72e48eea7ff7a75e20ec22f470fb0e60a8",
+      "turn_count": 8
+    },
+    {
+      "case_id": "gz_case_002",
+      "path": "src/fixtures/gate-zero/cases/gz_case_002.json",
+      "sha256": "60ed0ec0045f2dc64e4c20666bef45e06bb2b459f9b7f57a37b40d4d15cc087d",
+      "turn_count": 12
+    },
+    {
+      "case_id": "gz_case_003",
+      "path": "src/fixtures/gate-zero/cases/gz_case_003.json",
+      "sha256": "60231c96537ec8d1796176d3d7c0f8821c29ae9c47fa4ca8adf25c0919bd1c87",
+      "turn_count": 6
+    },
+    {
+      "case_id": "gz_case_004",
+      "path": "src/fixtures/gate-zero/cases/gz_case_004.json",
+      "sha256": "c4feb5b222274823b08fc20cf6912f9c741ae78b3377a7b3d13e8831678b89e0",
+      "turn_count": 10
+    },
+    {
+      "case_id": "gz_case_005",
+      "path": "src/fixtures/gate-zero/cases/gz_case_005.json",
+      "sha256": "f3f8b80ed268174fba0b6aaa18ce9af9c5db2308764448a7aa0146ca7583cfdb",
+      "turn_count": 8
+    },
+    {
+      "case_id": "gz_case_006",
+      "path": "src/fixtures/gate-zero/cases/gz_case_006.json",
+      "sha256": "203989e69df7613d2307d9c02e2a6c46caf83e9a720469baa833c79ca750a375",
+      "turn_count": 8
+    },
+    {
+      "case_id": "gz_case_007",
+      "path": "src/fixtures/gate-zero/cases/gz_case_007.json",
+      "sha256": "6018cb6211688be0e325a02acc340a50a82d536fd10ceefa8cb9074d44a08dd2",
+      "turn_count": 12
+    },
+    {
+      "case_id": "gz_case_008",
+      "path": "src/fixtures/gate-zero/cases/gz_case_008.json",
+      "sha256": "68f3000b965b97ad24a6b859b5f951399666a22bb7b8f62fd6930a335fee2e14",
+      "turn_count": 14
+    },
+    {
+      "case_id": "gz_case_009",
+      "path": "src/fixtures/gate-zero/cases/gz_case_009.json",
+      "sha256": "59dd5a92a157702fdc169f990fb9a9f7217a1bce275588c3eebdc35bf23787c7",
+      "turn_count": 12
+    },
+    {
+      "case_id": "gz_case_010",
+      "path": "src/fixtures/gate-zero/cases/gz_case_010.json",
+      "sha256": "7e9bbc2f20c8a0e7031354b0c593de0b7101f456159c0af82b574d4a1fb83c9f",
+      "turn_count": 14
+    },
+    {
+      "case_id": "gz_case_011",
+      "path": "src/fixtures/gate-zero/cases/gz_case_011.json",
+      "sha256": "bd6a977a17fb52bfe5828a85f6a2d7abd69f7e5a8d02a0d6dee9d9199cee038d",
+      "turn_count": 10
+    },
+    {
+      "case_id": "gz_case_012",
+      "path": "src/fixtures/gate-zero/cases/gz_case_012.json",
+      "sha256": "b7c701291f5b1cb48d6479797f28d7090ed0a61cf5d81a64f0923fd067f89dff",
+      "turn_count": 12
+    },
+    {
+      "case_id": "gz_case_013",
+      "path": "src/fixtures/gate-zero/cases/gz_case_013.json",
+      "sha256": "231f4a73bdd11a5542a563b2626bca5eced0569c6699bfdfa7a626d6db3dae5a",
+      "turn_count": 12
+    },
+    {
+      "case_id": "gz_case_014",
+      "path": "src/fixtures/gate-zero/cases/gz_case_014.json",
+      "sha256": "69ca3ebe2623942871bcc8fc0d759b14089a14ee20e2983aaadadca0592f107b",
+      "turn_count": 12
+    },
+    {
+      "case_id": "gz_case_015",
+      "path": "src/fixtures/gate-zero/cases/gz_case_015.json",
+      "sha256": "5d1b2963258d25c032050ce0f5f37b98c5da34dcde1af85e76d74dd64a61be2b",
+      "turn_count": 12
+    },
+    {
+      "case_id": "gz_case_016",
+      "path": "src/fixtures/gate-zero/cases/gz_case_016.json",
+      "sha256": "0c32fc780e7541ef1bcbd959ac9730f16d65880f305826eaaaaa7d7c5900776b",
+      "turn_count": 12
+    },
+    {
+      "case_id": "gz_case_017",
+      "path": "src/fixtures/gate-zero/cases/gz_case_017.json",
+      "sha256": "484d52f222b055fd0f9134b98fc1ddfef577047a32c4c8f55503a1b8e50ea1cc",
+      "turn_count": 8
+    },
+    {
+      "case_id": "gz_case_018",
+      "path": "src/fixtures/gate-zero/cases/gz_case_018.json",
+      "sha256": "58eddb35b0eb47ac2bdd592f1882715f180cc768f71886cfc886abc0b6df5357",
+      "turn_count": 10
+    },
+    {
+      "case_id": "gz_case_019",
+      "path": "src/fixtures/gate-zero/cases/gz_case_019.json",
+      "sha256": "9f29a1c586b8d851f9e00fd3ce308d6e233eac12124b531925130da1734118c8",
+      "turn_count": 10
+    },
+    {
+      "case_id": "gz_case_020",
+      "path": "src/fixtures/gate-zero/cases/gz_case_020.json",
+      "sha256": "1c69d79a5d60aad2bc8a0cb2dd57325ae048728dc32913b4c66f480592bd2e98",
+      "turn_count": 10
+    },
+    {
+      "case_id": "gz_case_021",
+      "path": "src/fixtures/gate-zero/cases/gz_case_021.json",
+      "sha256": "d1d96330189d758a9b8a9fd53a4ef9ac020a786ad2a795f260491fa3bf208d6f",
+      "turn_count": 10
+    },
+    {
+      "case_id": "gz_case_022",
+      "path": "src/fixtures/gate-zero/cases/gz_case_022.json",
+      "sha256": "82567e10b063884b170747c9151b8e6d897b346218855e009e068f8e8bff851e",
+      "turn_count": 10
+    },
+    {
+      "case_id": "gz_case_023",
+      "path": "src/fixtures/gate-zero/cases/gz_case_023.json",
+      "sha256": "57455b69b0ebcf3a1ad5ef6b2c16437e963fa0fb17eeac71de800b9685d3ce97",
+      "turn_count": 14
+    },
+    {
+      "case_id": "gz_case_024",
+      "path": "src/fixtures/gate-zero/cases/gz_case_024.json",
+      "sha256": "614d585af41f1e4216c02209ae209cf978e4d1298af808b7fb828e4e3a3d16eb",
+      "turn_count": 10
+    },
+    {
+      "case_id": "gz_case_025",
+      "path": "src/fixtures/gate-zero/cases/gz_case_025.json",
+      "sha256": "4e03666ca2eb12ee8b27f9b29fbab3d8239a5be1ea4bb5951f40420e60ee6c0c",
+      "turn_count": 14
+    },
+    {
+      "case_id": "gz_case_026",
+      "path": "src/fixtures/gate-zero/cases/gz_case_026.json",
+      "sha256": "c93197564ae53536bcc8733fe04af6a09a36f0937d8476b048c8265b29e1357b",
+      "turn_count": 10
+    },
+    {
+      "case_id": "gz_case_027",
+      "path": "src/fixtures/gate-zero/cases/gz_case_027.json",
+      "sha256": "980eb15b91dc7248d6fca29a16dacb752135ca9a621dd73f5b0cebddc3a14785",
+      "turn_count": 14
+    },
+    {
+      "case_id": "gz_case_028",
+      "path": "src/fixtures/gate-zero/cases/gz_case_028.json",
+      "sha256": "c0d5e17dc83082b5ea7e5e7506a03aae248ed257b7fa77887a78e03108efcfd5",
+      "turn_count": 10
+    },
+    {
+      "case_id": "gz_case_029",
+      "path": "src/fixtures/gate-zero/cases/gz_case_029.json",
+      "sha256": "021fe3dd437fa5a985f07d254227c447df05ee2f3c0245751caf3c881719a539",
+      "turn_count": 8
+    },
+    {
+      "case_id": "gz_case_030",
+      "path": "src/fixtures/gate-zero/cases/gz_case_030.json",
+      "sha256": "2aecd55471699d576610e983c8ea61bb82f8235a52d46c511b6f7095f10740a2",
+      "turn_count": 10
+    },
+    {
+      "case_id": "gz_case_031",
+      "path": "src/fixtures/gate-zero/cases/gz_case_031.json",
+      "sha256": "f078c98fa5d5d4aedbafde72c580d353802389ce2b44b55a020193c8584ba95c",
+      "turn_count": 12
+    },
+    {
+      "case_id": "gz_case_032",
+      "path": "src/fixtures/gate-zero/cases/gz_case_032.json",
+      "sha256": "c93ec5791a3ca3e5629730a8486889578d004ec6944b3d6173ae6dcac365ec5e",
+      "turn_count": 14
+    },
+    {
+      "case_id": "gz_case_033",
+      "path": "src/fixtures/gate-zero/cases/gz_case_033.json",
+      "sha256": "30473b74aaa975f4b7810741dfe539f0f1c1873ab59fc3fe47a51b07df504b16",
+      "turn_count": 10
+    },
+    {
+      "case_id": "gz_case_034",
+      "path": "src/fixtures/gate-zero/cases/gz_case_034.json",
+      "sha256": "3b815b30c7a884b5687e2a846d9cc33c66986c021d7cb2d18df393c51352daa8",
+      "turn_count": 10
+    },
+    {
+      "case_id": "gz_case_035",
+      "path": "src/fixtures/gate-zero/cases/gz_case_035.json",
+      "sha256": "4c83f0cd4968ba689e06a77c2efce4ce6593ad3197e17d7255148af488fe1236",
+      "turn_count": 10
+    },
+    {
+      "case_id": "gz_case_036",
+      "path": "src/fixtures/gate-zero/cases/gz_case_036.json",
+      "sha256": "e7e13078bbd2aa690d15ab953718a69d4d1dd7cb2706aa9780afd50617f4eeae",
+      "turn_count": 12
+    }
+  ],
+  "corpus_fingerprint": "a91f2184fce5b269afe7d36174c864e2c0789cf29bfe9c2eeec82da510574061",
+  "corpus_version": "juryai-gate-zero-corpus-v1.0.0",
+  "fixture_version": "juryai-gate-zero-case-fixture-v1.0.0",
+  "matrix_version": "juryai-gate-zero-coverage-matrix-v1.0.0",
+  "oracle_version": "juryai-gate-zero-turn-oracle-v2.1.0",
+  "revision_policy": "Any case or oracle byte change requires an explicit corpus-version decision, regenerated per-case SHA-256 identities, a new corpus fingerprint, adversarial review, and exact-head approval.",
+  "turn_count": 390
+}
