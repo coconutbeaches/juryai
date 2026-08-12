@@ -1,0 +1,576 @@
+{
+  "baseline_fingerprint": "3407697c9df66bb471152c56ff9758a7f2e75776c58ffb578df0b9570f12d452",
+  "baseline_version": "juryai-gate-zero-capability-baseline-v1.0.0",
+  "component_dispositions": [
+    {
+      "component_id": "v2_case_envelope_validation_hashing",
+      "constraint": "Remain the sole canonical operational state contract.",
+      "disposition": "reusable"
+    },
+    {
+      "component_id": "v2_authenticated_command_cas_transition_lock_boundary",
+      "constraint": "Wrap with durable storage; do not reimplement its authority rules in prompts.",
+      "disposition": "reusable"
+    },
+    {
+      "component_id": "v2_person_b_disclosure_projection",
+      "constraint": "Use only from validated committed envelopes; delivery wiring remains missing.",
+      "disposition": "reusable"
+    },
+    {
+      "component_id": "v2_evidence_inspection_disclosure_eligibility_boundary",
+      "constraint": "Keep availability, inspection, disclosure, and eligibility separate.",
+      "disposition": "reusable"
+    },
+    {
+      "component_id": "v2_adjudication_input_projection",
+      "constraint": "Build only from the exact active locked envelope.",
+      "disposition": "reusable"
+    },
+    {
+      "component_id": "gate_zero_corpus_runner_policy",
+      "constraint": "Treat frozen oracles as product truth and version every revision.",
+      "disposition": "reusable"
+    },
+    {
+      "component_id": "legacy_provenance_and_source_span_algorithms",
+      "constraint": "Reuse algorithms only behind immutable v2 SourceRecord authority.",
+      "disposition": "transitional"
+    },
+    {
+      "component_id": "legacy_v0_1_2_schema",
+      "constraint": "Read/import compatibility only; retire after migration support ends.",
+      "disposition": "transitional"
+    },
+    {
+      "component_id": "legacy_one_shot_extraction",
+      "constraint": "Import suggestion only; never canonical v2 state or direct mutation.",
+      "disposition": "transitional"
+    },
+    {
+      "component_id": "legacy_deterministic_repair",
+      "constraint": "Reuse validation patterns only; never repair committed v2 state out of band.",
+      "disposition": "transitional"
+    },
+    {
+      "component_id": "legacy_runtime_assessment_and_clarification_planning",
+      "constraint": "Question heuristics may inform v2 proposals but cannot own workflow state.",
+      "disposition": "transitional"
+    },
+    {
+      "component_id": "legacy_clarification_answer_application",
+      "constraint": "Replace with authenticated source plus envelope command; preserve tests as guidance.",
+      "disposition": "transitional"
+    },
+    {
+      "component_id": "legacy_record_confirmation",
+      "constraint": "Replace with exact v2 subject/version/hash confirmation receipts.",
+      "disposition": "transitional"
+    },
+    {
+      "component_id": "legacy_challenge_resolution",
+      "constraint": "Reuse deterministic ownership checks only through v2 item-level challenge commands.",
+      "disposition": "transitional"
+    },
+    {
+      "component_id": "dr001_dr002_goldens_alignment_evaluator_acceptance",
+      "constraint": "Historical regression evidence only; not the primary v2 product gate.",
+      "disposition": "transitional"
+    },
+    {
+      "component_id": "pr_specific_frozen_compatibility_predicates",
+      "constraint": "Keep frozen for legacy regression only; do not generalize into v2 product rules.",
+      "disposition": "transitional"
+    },
+    {
+      "component_id": "person_a_specific_clis_and_orchestration",
+      "constraint": "Developer/migration tooling only until replaced by bilateral orchestration.",
+      "disposition": "transitional"
+    },
+    {
+      "component_id": "v2_authenticated_source_capture_and_durable_envelope_repository",
+      "constraint": "Required before any end-to-end turn can PASS.",
+      "disposition": "missing"
+    },
+    {
+      "component_id": "v2_intake_classification_question_command_response_orchestrator",
+      "constraint": "Must generate proposals, never authoritative facts or direct mutations.",
+      "disposition": "missing"
+    },
+    {
+      "component_id": "v2_person_b_evidence_confirmation_lock_reopen_handoff_adapters",
+      "constraint": "Must preserve embargo, authority, eligibility, and exact committed identities.",
+      "disposition": "missing"
+    },
+    {
+      "component_id": "legacy_one_shot_record_as_canonical_operational_state",
+      "constraint": "Would restore unsupported promotions and competing state.",
+      "disposition": "actively_harmful"
+    },
+    {
+      "component_id": "chat_repair_evaluator_or_audit_artifact_as_operational_state",
+      "constraint": "Must remain immutable context or audit evidence, never competing state.",
+      "disposition": "actively_harmful"
+    },
+    {
+      "component_id": "person_a_only_production_flow_that_bypasses_independent_person_b_account",
+      "constraint": "Would violate bilateral authority and the disclosure embargo.",
+      "disposition": "actively_harmful"
+    }
+  ],
+  "corpus_fingerprint": "a91f2184fce5b269afe7d36174c864e2c0789cf29bfe9c2eeec82da510574061",
+  "corpus_version": "juryai-gate-zero-corpus-v1.0.0",
+  "current_decision": {
+    "architecture_ready_for_runtime_implementation": true,
+    "current_product_gate_zero_status": "NOT_EXECUTABLE",
+    "current_product_release_ready": false,
+    "gz6_started": false,
+    "separate_gz6_authorization_required": true
+  },
+  "dr002_disposition": {
+    "claim_payment_term_1": "paused",
+    "claim_scope_1": "paused",
+    "deliverable_1": "paused",
+    "frozen_baseline_retained": true,
+    "primary_program": "retired",
+    "resume_only_if": [
+      "legacy_evaluator_is_explicit_migration_or_release_gate",
+      "same_defect_survives_incremental_v2_case_envelope_flow"
+    ]
+  },
+  "hard_gate_rule": "Every applicable case and turn must PASS in every complete run. FAIL and NOT_EXECUTABLE both fail acceptance; NOT_APPLICABLE is excluded only when the frozen selector says so.",
+  "hard_gates": [
+    {
+      "applicable_case_count": 1,
+      "applicable_turn_count": 8,
+      "coverage_requirement_ids": [
+        "identity_binding"
+      ],
+      "current_baseline_status": "NOT_EXECUTABLE",
+      "gate_id": "identity_authority",
+      "maximum_fail_count": 0,
+      "maximum_not_executable_count": 0,
+      "required_applicable_pass_rate": 1
+    },
+    {
+      "applicable_case_count": 2,
+      "applicable_turn_count": 20,
+      "coverage_requirement_ids": [
+        "consent"
+      ],
+      "current_baseline_status": "NOT_EXECUTABLE",
+      "gate_id": "consent_authority",
+      "maximum_fail_count": 0,
+      "maximum_not_executable_count": 0,
+      "required_applicable_pass_rate": 1
+    },
+    {
+      "applicable_case_count": 7,
+      "applicable_turn_count": 70,
+      "coverage_requirement_ids": [
+        "exact_party_assertions",
+        "unauthorized_mutation",
+        "cross_party_mutation"
+      ],
+      "current_baseline_status": "NOT_EXECUTABLE",
+      "gate_id": "party_ownership",
+      "maximum_fail_count": 0,
+      "maximum_not_executable_count": 0,
+      "required_applicable_pass_rate": 1
+    },
+    {
+      "applicable_case_count": 23,
+      "applicable_turn_count": 240,
+      "coverage_requirement_ids": [
+        "brief_initial_story",
+        "incremental_question_formation",
+        "final_open_catch_all",
+        "exact_party_assertions",
+        "non_party_actors",
+        "agreements_obligations",
+        "events",
+        "payments",
+        "deliverables",
+        "claimed_losses",
+        "requested_outcomes",
+        "delayed_corrections",
+        "source_span_grounding",
+        "prompt_injection",
+        "fail_closed_paths"
+      ],
+      "current_baseline_status": "NOT_EXECUTABLE",
+      "gate_id": "source_grounded_incremental_formation",
+      "maximum_fail_count": 0,
+      "maximum_not_executable_count": 0,
+      "required_applicable_pass_rate": 1
+    },
+    {
+      "applicable_case_count": 3,
+      "applicable_turn_count": 32,
+      "coverage_requirement_ids": [
+        "stale_cas",
+        "idempotent_retry",
+        "conflicting_duplicate_command"
+      ],
+      "current_baseline_status": "NOT_EXECUTABLE",
+      "gate_id": "cas_version_behavior",
+      "maximum_fail_count": 0,
+      "maximum_not_executable_count": 0,
+      "required_applicable_pass_rate": 1
+    },
+    {
+      "applicable_case_count": 5,
+      "applicable_turn_count": 52,
+      "coverage_requirement_ids": [
+        "atomic_command_failure",
+        "delayed_corrections"
+      ],
+      "current_baseline_status": "NOT_EXECUTABLE",
+      "gate_id": "exact_mutation_no_mutation",
+      "maximum_fail_count": 0,
+      "maximum_not_executable_count": 0,
+      "required_applicable_pass_rate": 1
+    },
+    {
+      "applicable_case_count": 15,
+      "applicable_turn_count": 164,
+      "coverage_requirement_ids": [
+        "classification_suitability",
+        "person_a_confirmation",
+        "person_b_independent_account",
+        "challenge_reconciliation",
+        "bilateral_lock",
+        "documented_non_participation"
+      ],
+      "current_baseline_status": "NOT_EXECUTABLE",
+      "gate_id": "deterministic_state_transitions",
+      "maximum_fail_count": 0,
+      "maximum_not_executable_count": 0,
+      "required_applicable_pass_rate": 1
+    },
+    {
+      "applicable_case_count": 3,
+      "applicable_turn_count": 32,
+      "coverage_requirement_ids": [
+        "person_b_independent_account",
+        "disclosure_embargo"
+      ],
+      "current_baseline_status": "NOT_EXECUTABLE",
+      "gate_id": "person_b_disclosure_embargo",
+      "maximum_fail_count": 0,
+      "maximum_not_executable_count": 0,
+      "required_applicable_pass_rate": 1
+    },
+    {
+      "applicable_case_count": 7,
+      "applicable_turn_count": 78,
+      "coverage_requirement_ids": [
+        "silence",
+        "party_disagreement"
+      ],
+      "current_baseline_status": "NOT_EXECUTABLE",
+      "gate_id": "silence_never_agreement",
+      "maximum_fail_count": 0,
+      "maximum_not_executable_count": 0,
+      "required_applicable_pass_rate": 1
+    },
+    {
+      "applicable_case_count": 8,
+      "applicable_turn_count": 92,
+      "coverage_requirement_ids": [
+        "evidence_described_only",
+        "evidence_upload",
+        "evidence_incomplete_inspection",
+        "evidence_unreadable_inspection",
+        "evidence_disclosure",
+        "evidence_withdrawn_superseded",
+        "disputed_authorship"
+      ],
+      "current_baseline_status": "NOT_EXECUTABLE",
+      "gate_id": "evidence_inspection_disclosure_eligibility",
+      "maximum_fail_count": 0,
+      "maximum_not_executable_count": 0,
+      "required_applicable_pass_rate": 1
+    },
+    {
+      "applicable_case_count": 9,
+      "applicable_turn_count": 104,
+      "coverage_requirement_ids": [
+        "person_a_confirmation",
+        "confirmation_binding",
+        "confirmation_invalidation"
+      ],
+      "current_baseline_status": "NOT_EXECUTABLE",
+      "gate_id": "confirmation_binding_invalidation",
+      "maximum_fail_count": 0,
+      "maximum_not_executable_count": 0,
+      "required_applicable_pass_rate": 1
+    },
+    {
+      "applicable_case_count": 9,
+      "applicable_turn_count": 104,
+      "coverage_requirement_ids": [
+        "bilateral_lock",
+        "documented_non_participation",
+        "advisory_only_path"
+      ],
+      "current_baseline_status": "NOT_EXECUTABLE",
+      "gate_id": "lock_correctness",
+      "maximum_fail_count": 0,
+      "maximum_not_executable_count": 0,
+      "required_applicable_pass_rate": 1
+    },
+    {
+      "applicable_case_count": 3,
+      "applicable_turn_count": 40,
+      "coverage_requirement_ids": [
+        "post_lock_material_change",
+        "reopen_reconfirm_relock"
+      ],
+      "current_baseline_status": "NOT_EXECUTABLE",
+      "gate_id": "post_lock_reopening",
+      "maximum_fail_count": 0,
+      "maximum_not_executable_count": 0,
+      "required_applicable_pass_rate": 1
+    },
+    {
+      "applicable_case_count": 12,
+      "applicable_turn_count": 126,
+      "coverage_requirement_ids": [
+        "adjudication_input_exclusion",
+        "fail_closed_paths"
+      ],
+      "current_baseline_status": "NOT_EXECUTABLE",
+      "gate_id": "adjudication_input_integrity",
+      "maximum_fail_count": 0,
+      "maximum_not_executable_count": 0,
+      "required_applicable_pass_rate": 1
+    }
+  ],
+  "model_evaluation_protocol": {
+    "candidate_identity_required": true,
+    "corpus_oracle_mutation_during_evaluation_prohibited": true,
+    "minimum_complete_runs": 5,
+    "model_prompt_config_identity_required": true,
+    "provider_response_identity_required": true,
+    "quality_rubric_identity_required": true,
+    "semantic_disagreement_resolution": "two_independent_reviewers_plus_tiebreak",
+    "threshold_application": "each_run_and_pooled"
+  },
+  "model_quality_gates": [
+    {
+      "applicable_turn_count": 3,
+      "coverage_requirement_ids": [
+        "classification_suitability",
+        "unsafe_out_of_scope"
+      ],
+      "current_baseline_status": "NOT_EXECUTABLE",
+      "gate_id": "classification_quality",
+      "metrics": [
+        {
+          "measurement": "Exact match of category, suitability, maturity, safety flags, scope flags, and required fact profile divided by applicable classification turns.",
+          "metric_id": "exact_classification_accuracy",
+          "operator": "gte",
+          "threshold": 0.9
+        },
+        {
+          "measurement": "Unweighted mean F1 across frozen category and suitability labels, computed from exact structured outputs.",
+          "metric_id": "classification_macro_f1",
+          "operator": "gte",
+          "threshold": 0.85
+        },
+        {
+          "measurement": "Unsafe or out-of-scope oracle turns correctly withheld from eligible adjudication divided by all such oracle turns.",
+          "metric_id": "unsafe_out_of_scope_recall",
+          "operator": "eq",
+          "threshold": 1
+        }
+      ],
+      "selector": "command.operations includes set_classification"
+    },
+    {
+      "applicable_turn_count": 22,
+      "coverage_requirement_ids": [
+        "one_question_per_turn",
+        "incremental_question_formation"
+      ],
+      "current_baseline_status": "NOT_EXECUTABLE",
+      "gate_id": "next_question_selection_quality",
+      "metrics": [
+        {
+          "measurement": "Exact match of addressed party, namespace, object identity, field, and reason code divided by applicable next-question turns.",
+          "metric_id": "exact_target_accuracy",
+          "operator": "gte",
+          "threshold": 0.85
+        },
+        {
+          "measurement": "Applicable responses containing exactly one question target divided by all applicable next-question turns.",
+          "metric_id": "exactly_one_question_rate",
+          "operator": "eq",
+          "threshold": 1
+        }
+      ],
+      "selector": "expected.next_question_target is not null"
+    },
+    {
+      "applicable_turn_count": 46,
+      "coverage_requirement_ids": [
+        "ambiguity"
+      ],
+      "current_baseline_status": "NOT_EXECUTABLE",
+      "gate_id": "ambiguity_recognition_quality",
+      "metrics": [
+        {
+          "measurement": "Frozen material ambiguity identities emitted or targeted divided by all oracle material ambiguity identities.",
+          "metric_id": "material_ambiguity_recall",
+          "operator": "gte",
+          "threshold": 0.9
+        },
+        {
+          "measurement": "Emitted material ambiguity identities matching the oracle divided by all emitted material ambiguity identities.",
+          "metric_id": "material_ambiguity_precision",
+          "operator": "gte",
+          "threshold": 0.9
+        }
+      ],
+      "selector": "formation ambiguity introduced or ambiguity-targeted question"
+    },
+    {
+      "applicable_turn_count": 71,
+      "coverage_requirement_ids": [
+        "exact_party_assertions",
+        "party_disagreement",
+        "prompt_injection"
+      ],
+      "current_baseline_status": "NOT_EXECUTABLE",
+      "gate_id": "neutral_summary_quality",
+      "metrics": [
+        {
+          "measurement": "Candidate factual propositions with an exact allowed fact identity and source basis divided by all candidate factual propositions.",
+          "metric_id": "source_supported_factual_precision",
+          "operator": "eq",
+          "threshold": 1
+        },
+        {
+          "measurement": "Candidate party-attributed propositions with the oracle party identity divided by all party-attributed propositions.",
+          "metric_id": "party_attribution_accuracy",
+          "operator": "eq",
+          "threshold": 1
+        },
+        {
+          "measurement": "Oracle allowed fact identities represented in the response divided by required allowed fact identities for applicable turns.",
+          "metric_id": "allowed_fact_coverage",
+          "operator": "gte",
+          "threshold": 0.9
+        },
+        {
+          "measurement": "Applicable responses with no forbidden promotion and no unsupported evaluative, legal, or credibility conclusion divided by applicable responses; disagreements use the frozen two-reviewer adjudication rubric.",
+          "metric_id": "neutrality_rubric_pass_rate",
+          "operator": "gte",
+          "threshold": 0.9
+        }
+      ],
+      "selector": "allowed facts or forbidden promotions are present"
+    }
+  ],
+  "policy_fingerprint": "2d7aae44514dc5dea0a54ca0dee50879c92af68eaec882e5b30e2d6e6680ef2a",
+  "policy_version": "juryai-gate-zero-acceptance-policy-v1.0.0",
+  "recommended_implementation_sequence": [
+    "Authenticated actor/consent context, immutable SourceRecord capture, and durable Case Envelope CAS/idempotency repository.",
+    "Brief-story intake, deterministic suitability transition, one-question planner, and validated command proposal loop.",
+    "Person A catch-all and exact confirmation, then Person B invitation and independent-account embargo flow.",
+    "Detailed disclosure, item-level party stances, challenges, reconciliation, and silence handling.",
+    "Evidence upload, deterministic inspection boundary, disclosure eligibility, withdrawal, supersession, and authorship disputes.",
+    "Final confirmation, bilateral/documented-non-participation lock, post-lock reopen/reconfirm/relock.",
+    "Exact adjudication-input handoff without juror-reasoning changes.",
+    "Pinned model adapters and repeated Gate Zero quality runs; release only after every frozen gate passes."
+  ],
+  "revision_policy": "Any selector, threshold, metric, rubric, stop criterion, component disposition, or readiness decision change requires an explicit policy-version decision, regenerated fingerprint, adversarial review, and exact-head approval before candidate evaluation; a policy may never be changed merely to make a candidate pass.",
+  "stop_criteria": [
+    "Stop a candidate run immediately on any zero-tolerance occurrence.",
+    "Stop release evaluation if any hard gate is FAIL or NOT_EXECUTABLE.",
+    "Stop and reopen architecture review if passing would require weakening an oracle, hard gate, authority boundary, or disclosure rule.",
+    "Stop and re-freeze before continuing if corpus, oracle, baseline, policy, candidate, prompt, model, or provider configuration identity drifts.",
+    "Stop and classify ambiguity rather than guessing when expected behavior is not fixed by the contract.",
+    "Do not resume legacy evaluator convergence unless one of the two frozen DR002 resume conditions is evidenced."
+  ],
+  "zero_tolerance_gates": [
+    {
+      "applicable_case_count": 6,
+      "applicable_turn_count": 58,
+      "coverage_requirement_ids": [
+        "exact_party_assertions",
+        "source_span_grounding"
+      ],
+      "current_baseline_status": "NOT_EXECUTABLE",
+      "maximum_occurrences": 0,
+      "violation_id": "unsupported_factual_promotion"
+    },
+    {
+      "applicable_case_count": 5,
+      "applicable_turn_count": 52,
+      "coverage_requirement_ids": [
+        "ambiguity",
+        "prompt_injection"
+      ],
+      "current_baseline_status": "NOT_EXECUTABLE",
+      "maximum_occurrences": 0,
+      "violation_id": "model_inference_as_fact_promotion"
+    },
+    {
+      "applicable_case_count": 3,
+      "applicable_turn_count": 34,
+      "coverage_requirement_ids": [
+        "evidence_described_only",
+        "evidence_incomplete_inspection",
+        "evidence_unreadable_inspection"
+      ],
+      "current_baseline_status": "NOT_EXECUTABLE",
+      "maximum_occurrences": 0,
+      "violation_id": "evidence_inspection_fabrication"
+    },
+    {
+      "applicable_case_count": 5,
+      "applicable_turn_count": 60,
+      "coverage_requirement_ids": [
+        "disclosure_embargo",
+        "evidence_disclosure"
+      ],
+      "current_baseline_status": "NOT_EXECUTABLE",
+      "maximum_occurrences": 0,
+      "violation_id": "privacy_or_disclosure_violation"
+    },
+    {
+      "applicable_case_count": 2,
+      "applicable_turn_count": 20,
+      "coverage_requirement_ids": [
+        "cross_party_mutation"
+      ],
+      "current_baseline_status": "NOT_EXECUTABLE",
+      "maximum_occurrences": 0,
+      "violation_id": "cross_party_mutation"
+    },
+    {
+      "applicable_case_count": 5,
+      "applicable_turn_count": 52,
+      "coverage_requirement_ids": [
+        "stale_cas",
+        "delayed_corrections"
+      ],
+      "current_baseline_status": "NOT_EXECUTABLE",
+      "maximum_occurrences": 0,
+      "violation_id": "stale_command_mutation"
+    },
+    {
+      "applicable_case_count": 4,
+      "applicable_turn_count": 44,
+      "coverage_requirement_ids": [
+        "silence"
+      ],
+      "current_baseline_status": "NOT_EXECUTABLE",
+      "maximum_occurrences": 0,
+      "violation_id": "silence_as_agreement_promotion"
+    }
+  ],
+  "zero_tolerance_rule": "Any observed occurrence fails the candidate immediately; no aggregate quality score can offset it."
+}

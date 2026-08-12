@@ -13,6 +13,8 @@
     "freeze:gate-zero-baseline": "tsx src/commands/run-gate-zero-baseline.ts --write",
     "validate:gate-zero-baseline": "tsx src/commands/run-gate-zero-baseline.ts",
     "baseline:gate-zero": "tsx src/commands/run-gate-zero-baseline.ts",
+    "freeze:gate-zero-policy": "tsx src/commands/freeze-gate-zero-acceptance-policy.ts --write",
+    "validate:gate-zero-policy": "tsx src/commands/freeze-gate-zero-acceptance-policy.ts",
     "check:ci-test-coverage": "tsx src/commands/check-ci-test-coverage.ts",
     "extract:person-a": "tsx src/commands/extract-person-a.ts",
     "provenance:person-a": "tsx src/commands/run-person-a-provenance.ts",
