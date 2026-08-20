@@ -1,7 +1,4 @@
-import {
-  hashAdjudicationInput,
-  type AdjudicationInput,
-} from './adjudication-input.js';
+import { hashAdjudicationInput, type AdjudicationInput } from './adjudication-input.js';
 
 export const P3_JURY_SIZE = 7;
 
@@ -193,7 +190,9 @@ export async function bailiffValidateWithOneRepair(
 }
 
 export function buildOutcomeMatrix(finalDecisions: FinalJurorDecision[]): OutcomeMatrix {
-  const qualified = finalDecisions.filter((decision) => decision.bailiff_status !== 'disqualified');
+  const qualified = finalDecisions.filter(
+    (decision) => decision.bailiff_status !== 'disqualified',
+  );
   const voteCounts: Record<string, number> = {};
   for (const decision of qualified) {
     voteCounts[decision.final_vote] = (voteCounts[decision.final_vote] ?? 0) + 1;
@@ -218,7 +217,9 @@ export function judgeFinalize(outcome: OutcomeMatrix): JudgeOutput {
   const majorityJurors = majority
     ? outcome.jurors.filter((decision) => decision.final_vote === majority)
     : [];
-  const majorityReasoning = [...new Set(majorityJurors.flatMap((decision) => decision.controlling_reasons))];
+  const majorityReasoning = [
+    ...new Set(majorityJurors.flatMap((decision) => decision.controlling_reasons)),
+  ];
   return {
     final_recommendation: majority,
     vote_summary: Object.entries(outcome.vote_counts)
@@ -260,12 +261,12 @@ export async function runP3Adjudication(
   const reasoningMatrix = buildReasoningMatrix(secondarySummaries, peerScoreBatches.flat());
 
   const finalRaw = await Promise.all(
-    jurorIds.map((jurorId) =>
-      adapters[jurorId]!.finalDecision(input, jurorId, reasoningMatrix),
-    ),
+    jurorIds.map((jurorId) => adapters[jurorId]!.finalDecision(input, jurorId, reasoningMatrix)),
   );
   const finalDecisions = await Promise.all(
-    finalRaw.map((decision) => bailiffValidateWithOneRepair(input, adapters[decision.juror_id]!, decision)),
+    finalRaw.map((decision) =>
+      bailiffValidateWithOneRepair(input, adapters[decision.juror_id]!, decision),
+    ),
   );
 
   const outcomeMatrix = buildOutcomeMatrix(finalDecisions);
