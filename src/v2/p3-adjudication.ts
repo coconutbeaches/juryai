@@ -1,4 +1,7 @@
-import { hashAdjudicationInput, type AdjudicationInput } from './adjudication-input.js';
+import {
+  hashAdjudicationInput,
+  type AdjudicationInput,
+} from './adjudication-input.js';
 
 export const P3_JURY_SIZE = 7;
 
@@ -63,7 +66,10 @@ export interface JudgeOutput {
 }
 
 export interface P3ModelAdapter {
-  initialDecision(input: AdjudicationInput, jurorId: string): Promise<InitialSummaryDecision>;
+  initialDecision(
+    input: AdjudicationInput,
+    jurorId: string,
+  ): Promise<InitialSummaryDecision>;
   secondaryDecision(
     input: AdjudicationInput,
     jurorId: string,
@@ -151,7 +157,11 @@ export function validateFinalJurorDecision(
   const issues: string[] = [];
   if (!decision.juror_id) issues.push('missing_juror_id');
   if (!decision.final_vote) issues.push('missing_final_vote');
-  if (!Number.isFinite(decision.confidence) || decision.confidence < 0 || decision.confidence > 10) {
+  if (
+    !Number.isFinite(decision.confidence) ||
+    decision.confidence < 0 ||
+    decision.confidence > 10
+  ) {
     issues.push('invalid_confidence');
   }
   if (!decision.recommended_remedy) issues.push('missing_recommended_remedy');
@@ -261,7 +271,9 @@ export async function runP3Adjudication(
   const reasoningMatrix = buildReasoningMatrix(secondarySummaries, peerScoreBatches.flat());
 
   const finalRaw = await Promise.all(
-    jurorIds.map((jurorId) => adapters[jurorId]!.finalDecision(input, jurorId, reasoningMatrix)),
+    jurorIds.map((jurorId) =>
+      adapters[jurorId]!.finalDecision(input, jurorId, reasoningMatrix),
+    ),
   );
   const finalDecisions = await Promise.all(
     finalRaw.map((decision) =>
