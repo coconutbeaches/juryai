@@ -34,9 +34,9 @@ class MockJuror implements P3ModelAdapter {
     anonymizedInitials: InitialSummaryDecision[],
   ): Promise<SecondarySummaryDecision> {
     expect(anonymizedInitials).toHaveLength(P3_JURY_SIZE);
-    expect(anonymizedInitials.every((summary) => /^Juror \d+$/.test(summary.juror_id))).toBe(
-      true,
-    );
+    expect(
+      anonymizedInitials.every((summary) => /^Juror \d+$/.test(summary.juror_id)),
+    ).toBe(true);
     return {
       juror_id: this.jurorId,
       summary: `${this.jurorId} secondary view`,
@@ -52,9 +52,9 @@ class MockJuror implements P3ModelAdapter {
     _jurorId: string,
     anonymizedSecondaries: SecondarySummaryDecision[],
   ): Promise<PeerScore[]> {
-    expect(anonymizedSecondaries.every((summary) => /^Juror \d+$/.test(summary.juror_id))).toBe(
-      true,
-    );
+    expect(
+      anonymizedSecondaries.every((summary) => /^Juror \d+$/.test(summary.juror_id)),
+    ).toBe(true);
     return anonymizedSecondaries.map((summary) => ({
       scorer_juror_id: this.jurorId,
       target_juror_id: summary.juror_id,
