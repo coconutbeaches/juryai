@@ -20,9 +20,11 @@ import {
 import {
   appendTurn,
   computePayloadCommitment,
+  computeSourceTurnMetadataCommitment,
   createSpan,
   normalizeForStorage,
   normalizePayload,
+  sourceTurnMetadataProjection,
   validatePayloadShape,
   verifyTurnSpan,
   type SourceTurnPayload,
@@ -268,6 +270,71 @@ describe('span addressing', () => {
     const messy = payload('No,   that   was basically what I expected.');
     const span = createSpan('turn_1', messy, 'answer', null, 4, 8);
     expect(span.quote).toBe('that');
+  });
+});
+
+describe('source-turn metadata commitment', () => {
+  it('is deterministic over an explicit source-time projection', () => {
+    const source = turn({ turn_id: 'turn_1', request_fingerprint: 'a'.repeat(64) });
+    expect(computeSourceTurnMetadataCommitment(source)).toBe(
+      computeSourceTurnMetadataCommitment(structuredClone(source)),
+    );
+    expect(Object.keys(sourceTurnMetadataProjection(source))).toEqual([
+      'turn_id',
+      'case_id',
+      'case_version_before',
+      'received_at',
+      'principal_id',
+      'source_channel',
+      'relaying_agent',
+      'source_language',
+      'translation_indicated',
+      'in_reply_to',
+      'client_turn_id',
+      'request_fingerprint',
+    ]);
+  });
+
+  it.each<[string, Partial<SourceTurnRecord>]>([
+    ['turn_id', { turn_id: 'turn_2' }],
+    ['case_id', { case_id: 'case_other' }],
+    ['case_version_before', { case_version_before: 2 }],
+    ['received_at', { received_at: '2026-08-29T06:01:00.000Z' }],
+    ['principal_id', { principal_id: 'user_other' }],
+    ['source_channel', { source_channel: 'first_party_input' }],
+    ['relaying_agent', { relaying_agent: 'Different relay' }],
+    ['source_language', { source_language: 'fr' }],
+    ['translation_indicated', { translation_indicated: true }],
+    ['in_reply_to', { in_reply_to: ['R25'] }],
+    ['client_turn_id', { client_turn_id: 'client-turn-2' }],
+    ['request_fingerprint', { request_fingerprint: 'b'.repeat(64) }],
+  ])('changes when %s changes', (_field, override) => {
+    const source = turn({ turn_id: 'turn_1', request_fingerprint: 'a'.repeat(64) });
+    expect(computeSourceTurnMetadataCommitment({ ...source, ...override })).not.toBe(
+      computeSourceTurnMetadataCommitment(source),
+    );
+  });
+
+  it('keeps payload erasure material and processing linkage outside the metadata commitment', () => {
+    const source = turn({ turn_id: 'turn_1', request_fingerprint: 'a'.repeat(64) });
+    const changedPayload = payload('A different answer.');
+    const changedSalt = 'different-salt';
+    const changedPayloadCommitment = computePayloadCommitment(changedPayload, changedSalt);
+    const altered: SourceTurnRecord = {
+      ...source,
+      payload: changedPayload,
+      payload_commitment_salt: changedSalt,
+      payload_commitment: changedPayloadCommitment,
+      compile_run_id: 'run_later',
+    };
+
+    expect(computeSourceTurnMetadataCommitment(altered)).toBe(
+      computeSourceTurnMetadataCommitment(source),
+    );
+    expect(changedPayloadCommitment).not.toBe(source.payload_commitment);
+    expect(computePayloadCommitment(source.payload, source.payload_commitment_salt)).toBe(
+      source.payload_commitment,
+    );
   });
 });
 
@@ -1181,6 +1248,9 @@ describe('attestation', () => {
     if (result.kind !== 'accepted') throw new Error('expected acceptance');
     expect(result.record.unresolved_requirement_ids).toEqual([]);
     expect(result.record.source_turn_commitments).toEqual([state.turn_log[0]?.payload_commitment]);
+    expect(result.record.source_turn_metadata_commitments).toEqual(
+      state.turn_log.map(computeSourceTurnMetadataCommitment),
+    );
     expect(result.record.compiler_version_ids).toEqual([DEFAULT_COMPILER_VERSION_ID]);
     expect(result.record.compiler_version_ids).not.toContain('run_1');
   });
@@ -1531,6 +1601,85 @@ describe('structural validator', () => {
       ],
     });
     expect(codesFor(state)).not.toContain('turn_requirement_unknown');
+  });
+
+  it('accepts a proposition requirement claimed by its source turn', () => {
+    expect(codesFor(baseState())).not.toContain('proposition_source_requirement_mismatch');
+  });
+
+  it('rejects a proposition requirement not claimed by its source turn', () => {
+    const state = baseState({
+      requirements: [requirement('R24', ['target_date']), requirement('R25', ['target_date'])],
+      propositions: [proposition('prop_1', { in_reply_to: 'R25', type: 'target_date' })],
+    });
+    expect(codesFor(state)).toContain('proposition_source_requirement_mismatch');
+  });
+
+  it('accepts a proposition requirement among multiple claims on its source turn', () => {
+    const state = baseState({
+      requirements: [requirement('R24', ['target_date']), requirement('R25', ['target_date'])],
+      turn_log: [
+        turn({
+          turn_id: 'turn_1',
+          in_reply_to: ['R24', 'R25'],
+          request_fingerprint: 'a'.repeat(64),
+        }),
+      ],
+      propositions: [proposition('prop_1', { in_reply_to: 'R25', type: 'target_date' })],
+    });
+    expect(codesFor(state)).not.toContain('proposition_source_requirement_mismatch');
+  });
+
+  it('accepts a multi-source proposition when every source claims its requirement', () => {
+    const state = baseState({
+      requirements: [requirement('R25', ['target_date'])],
+      turn_log: [
+        turn({
+          turn_id: 'turn_1',
+          in_reply_to: ['R25'],
+          request_fingerprint: 'a'.repeat(64),
+        }),
+        turn({
+          turn_id: 'turn_2',
+          in_reply_to: ['R25'],
+          request_fingerprint: 'b'.repeat(64),
+        }),
+      ],
+      propositions: [
+        proposition('prop_1', {
+          in_reply_to: 'R25',
+          type: 'target_date',
+          derived_from_turn_ids: ['turn_1', 'turn_2'],
+        }),
+      ],
+    });
+    expect(validateCaseState(state).issues).toEqual([]);
+  });
+
+  it('rejects a multi-source proposition when one source omits its requirement', () => {
+    const state = baseState({
+      requirements: [requirement('R24', ['target_date']), requirement('R25', ['target_date'])],
+      turn_log: [
+        turn({
+          turn_id: 'turn_1',
+          in_reply_to: ['R25'],
+          request_fingerprint: 'a'.repeat(64),
+        }),
+        turn({
+          turn_id: 'turn_2',
+          in_reply_to: ['R24'],
+          request_fingerprint: 'b'.repeat(64),
+        }),
+      ],
+      propositions: [
+        proposition('prop_1', {
+          in_reply_to: 'R25',
+          type: 'target_date',
+          derived_from_turn_ids: ['turn_1', 'turn_2'],
+        }),
+      ],
+    });
+    expect(codesFor(state)).toContain('proposition_source_requirement_mismatch');
   });
 
   it('requires every canonical proposition to carry an exact span', () => {
@@ -2038,6 +2187,47 @@ describe('structural validator', () => {
     expect(amended.attestations).toEqual([record]);
   });
 
+  it('rejects immutable source metadata rewritten on the current attested version', () => {
+    const state = baseState();
+    const record = attestationFor(state);
+    const rewritten: CaseState = {
+      ...state,
+      turn_log: [
+        {
+          ...state.turn_log[0]!,
+          received_at: '2026-08-29T06:01:00.000Z',
+        },
+      ],
+      attestations: [record],
+    };
+    expect(codesFor(rewritten)).toContain('attestation_source_turn_metadata_drift');
+  });
+
+  it('rejects immutable metadata rewritten inside a historical attestation prefix', () => {
+    const state = baseState();
+    const record = attestationFor(state);
+    const appended = turn({
+      turn_id: 'turn_2',
+      case_version_before: state.case_version,
+      request_fingerprint: 'b'.repeat(64),
+    });
+    const amended: CaseState = {
+      ...state,
+      case_version: state.case_version + 1,
+      turn_log: [{ ...state.turn_log[0]!, source_language: 'fr' }, appended],
+      attestations: [record],
+    };
+    expect(codesFor(amended)).toContain('attestation_source_turn_metadata_drift');
+  });
+
+  it('requires metadata commitments to match source-turn arity', () => {
+    const state = baseState();
+    const record = { ...attestationFor(state), source_turn_metadata_commitments: [] };
+    const codes = codesFor({ ...state, attestations: [record] });
+    expect(codes).toContain('attestation_commitment_arity');
+    expect(codes).toContain('attestation_source_turn_metadata_drift');
+  });
+
   it('rejects insertion before a historical attestation turn prefix', () => {
     const state = twoTurnState();
     const record = attestationFor(state);
@@ -2094,6 +2284,7 @@ describe('structural validator', () => {
       signature_alg: null,
       source_turn_ids: [],
       source_turn_commitments: [],
+      source_turn_metadata_commitments: [],
       evidence_refs: [],
       unresolved_requirement_ids: [],
       schema_version: 's',

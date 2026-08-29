@@ -303,6 +303,32 @@ export interface SourceTurnRecord {
   compile_run_id: string | null;
 }
 
+/**
+ * Explicit immutable source-time metadata bound separately from the erasable
+ * payload. Processing linkage and payload storage material are intentionally
+ * outside this projection.
+ */
+export function sourceTurnMetadataProjection(turn: SourceTurnRecord) {
+  return {
+    turn_id: turn.turn_id,
+    case_id: turn.case_id,
+    case_version_before: turn.case_version_before,
+    received_at: turn.received_at,
+    principal_id: turn.principal_id,
+    source_channel: turn.source_channel,
+    relaying_agent: turn.relaying_agent,
+    source_language: turn.source_language,
+    translation_indicated: turn.translation_indicated,
+    in_reply_to: turn.in_reply_to,
+    client_turn_id: turn.client_turn_id,
+    request_fingerprint: turn.request_fingerprint,
+  };
+}
+
+export function computeSourceTurnMetadataCommitment(turn: SourceTurnRecord): string {
+  return sha256(canonicalSerialize(sourceTurnMetadataProjection(turn)));
+}
+
 export type SourceTurnLog = readonly SourceTurnRecord[];
 
 export function appendTurn(log: SourceTurnLog, record: SourceTurnRecord): SourceTurnRecord[] {

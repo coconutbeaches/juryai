@@ -33,7 +33,11 @@ import {
 } from './attestation.js';
 import { findUnresolvedCollisions, validateProposition, type Proposition } from './propositions.js';
 import { deriveReadiness, validateRequirementSet } from './requirements.js';
-import { validateSourceTurnRecord, verifyTurnSpan } from './turns.js';
+import {
+  computeSourceTurnMetadataCommitment,
+  validateSourceTurnRecord,
+  verifyTurnSpan,
+} from './turns.js';
 
 export interface StructuralValidationReport {
   validator_version: string;
@@ -269,6 +273,19 @@ export function validateCaseState(state: CaseState): StructuralValidationReport 
             'proposition_relaying_agent_mismatch',
             path + '.relaying_agent',
             "Proposition relaying_agent does not match source turn '" + turnId + "'.",
+          ),
+        );
+      }
+      if (!sourceTurn.in_reply_to.includes(proposition.in_reply_to)) {
+        issues.push(
+          issue(
+            'proposition_source_requirement_mismatch',
+            path + '.in_reply_to',
+            "Source turn '" +
+              turnId +
+              "' did not claim to answer requirement '" +
+              proposition.in_reply_to +
+              "'.",
           ),
         );
       }
@@ -559,6 +576,28 @@ function validateAttestations(state: CaseState): ContractIssue[] {
           'attestation_source_turns_drift',
           path + '.source_turn_ids',
           'Attested source turns and commitments must be an exact prefix of the current turn log.',
+        ),
+      );
+    }
+
+    const metadataPrefixMatches =
+      attestation.source_turn_metadata_commitments.length <= state.turn_log.length &&
+      attestation.source_turn_metadata_commitments.length === attestation.source_turn_ids.length &&
+      attestation.source_turn_metadata_commitments.every(
+        (commitment, turnIndex) =>
+          commitment === computeSourceTurnMetadataCommitment(state.turn_log[turnIndex]!),
+      );
+    const metadataCoversCurrentLog =
+      attestation.source_turn_metadata_commitments.length === state.turn_log.length;
+    if (
+      !metadataPrefixMatches ||
+      (attestation.case_version === state.case_version && !metadataCoversCurrentLog)
+    ) {
+      issues.push(
+        issue(
+          'attestation_source_turn_metadata_drift',
+          path + '.source_turn_metadata_commitments',
+          'Attested source-turn metadata must be an exact prefix of the current turn log.',
         ),
       );
     }

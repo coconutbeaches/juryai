@@ -36,7 +36,7 @@ import {
   type ClarificationRequest,
   type RequirementDefinition,
 } from './requirements.js';
-import type { SourceTurnRecord } from './turns.js';
+import { computeSourceTurnMetadataCommitment, type SourceTurnRecord } from './turns.js';
 
 export const ATTESTATION_CONTRACT_VERSION = 'juryai-webmcp-attestation-v0.2.0';
 export const DEFAULT_CHALLENGE_TTL_MS = 15 * 60 * 1000;
@@ -267,6 +267,8 @@ export interface AttestationRecord {
   source_turn_ids: string[];
   /** Salted commitments, so erasure never invalidates the attestation. */
   source_turn_commitments: string[];
+  /** Deterministic commitments over explicit immutable source-time metadata. */
+  source_turn_metadata_commitments: string[];
   evidence_refs: AttestedEvidenceRef[];
   unresolved_requirement_ids: string[];
   schema_version: string;
@@ -423,6 +425,7 @@ export function verifyAttestationAttempt(
     signature_alg: attempt.signature_alg,
     source_turn_ids: state.turn_log.map((turn) => turn.turn_id),
     source_turn_commitments: state.turn_log.map((turn) => turn.payload_commitment),
+    source_turn_metadata_commitments: state.turn_log.map(computeSourceTurnMetadataCommitment),
     evidence_refs: state.evidence_references.map((reference) => ({
       evidence_ref_id: reference.evidence_ref_id,
       label: reference.label,
@@ -513,14 +516,28 @@ export function validateAttestationRecord(
       ),
     );
   }
-  if (record.source_turn_ids.length !== record.source_turn_commitments.length) {
+  if (
+    record.source_turn_ids.length !== record.source_turn_commitments.length ||
+    record.source_turn_ids.length !== record.source_turn_metadata_commitments.length
+  ) {
     issues.push(
       issue(
         'attestation_commitment_arity',
         path + '.source_turn_commitments',
-        'Every attested source turn must carry exactly one commitment.',
+        'Every attested source turn must carry exactly one payload and metadata commitment.',
       ),
     );
+  }
+  for (const [index, commitment] of record.source_turn_metadata_commitments.entries()) {
+    if (!isHash(commitment)) {
+      issues.push(
+        issue(
+          'attestation_metadata_commitment_invalid',
+          path + '.source_turn_metadata_commitments[' + String(index) + ']',
+          'Source-turn metadata commitment must be a sha256 hex digest.',
+        ),
+      );
+    }
   }
   return issues;
 }
