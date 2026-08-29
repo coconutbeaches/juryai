@@ -169,6 +169,41 @@ export function applyCompilerOutput(input: MutationInput): MutationResult {
     }
   }
 
+  // Clarification prompts are rendered back to the relay through the core's
+  // agent-facing wrapper. A prompt that is not a non-empty string survives the
+  // compiler contract check, commits, and then throws every time the case is
+  // projected — durable poisoned state. It is refused here, and never repaired:
+  // coercing `undefined` to '' or a number to its digits would put a question
+  // in the record that no component actually asked.
+  const knownRequirementIds = new Set(
+    state.requirements.map((definition) => definition.requirement_id),
+  );
+  for (const [index, request] of output.clarifications_requested.entries()) {
+    const at = 'compiler_output.clarifications_requested[' + String(index) + ']';
+    if (typeof request !== 'object' || request === null) {
+      issues.push(issue('mutation_clarification_malformed', at, 'Clarification is not an object.'));
+      continue;
+    }
+    if (typeof request.prompt !== 'string' || request.prompt.trim().length === 0) {
+      issues.push(
+        issue(
+          'mutation_clarification_prompt_invalid',
+          at + '.prompt',
+          'A clarification prompt must be a non-empty string.',
+        ),
+      );
+    }
+    if (!knownRequirementIds.has(request.requirement_id)) {
+      issues.push(
+        issue(
+          'mutation_clarification_requirement_unknown',
+          at + '.requirement_id',
+          'Clarification names a requirement this case does not have.',
+        ),
+      );
+    }
+  }
+
   if (issues.length > 0) return { ok: false, issues };
 
   let propositions: Proposition[] = [...state.propositions, ...created];

@@ -12,7 +12,8 @@
  *    turn that recorded nothing canonical (a `no_assertions` compile) be lost
  *    by a concurrent writer whose CAS still matched.
  *
- *  - Committing a turn writes canonical case state AND the idempotency record.
+ *  - Creating a case writes canonical state AND its start-request record; and
+ *    committing a turn writes canonical case state AND the idempotency record.
  *    Those two writes must land together or not at all: a committed turn
  *    without its idempotency record turns the next retry into a duplicate
  *    write. `commitTurn` exists so that requirement is a method signature
@@ -35,22 +36,6 @@ export interface StoredCase {
   state: CaseState;
 }
 
-/**
- * Raised when a second active draft would be created for a principal. The
- * uniqueness rule lives in storage, not in a runtime read-then-write, because
- * two concurrent `start_case` calls both read "no draft" before either writes.
- * A SQL adapter enforces it with a unique partial index.
- */
-export class ActiveDraftExistsError extends Error {
-  readonly principal_id: string;
-
-  constructor(principalId: string) {
-    super('Principal already has an active draft case.');
-    this.name = 'ActiveDraftExistsError';
-    this.principal_id = principalId;
-  }
-}
-
 export interface CaseRepository {
   findById(caseId: string): Promise<StoredCase | null>;
   /**
@@ -59,9 +44,47 @@ export interface CaseRepository {
    * from the attestation collection and never stored as a column of its own.
    */
   findActiveDraftByPrincipal(principalId: string): Promise<StoredCase | null>;
-  /** Throws `ActiveDraftExistsError` rather than creating a second draft. */
-  create(state: CaseState): Promise<StoredCase>;
 }
+
+/**
+ * Durable identity of a `start_case` operation, so a retry of the same logical
+ * create replays its original result instead of colliding with the draft it
+ * itself produced. `client_request_id` is adapter-issued transport metadata and
+ * deliberately lives here rather than in canonical `CaseState`.
+ */
+export interface StartCaseIdempotencyRecord {
+  principal_id: string;
+  client_request_id: string;
+  case_id: string;
+  recorded_at_ms: number;
+}
+
+export interface StartCaseIdempotencyRepository {
+  findByRequest(
+    principalId: string,
+    clientRequestId: string,
+  ): Promise<StartCaseIdempotencyRecord | null>;
+}
+
+export interface StartCaseCommit {
+  state: CaseState;
+  idempotency: StartCaseIdempotencyRecord;
+}
+
+export type CaseCreateResult =
+  | { ok: true; stored: StoredCase }
+  /**
+   * This exact (principal, client_request_id) already created a case. The
+   * caller replays that case as its own `created` result.
+   */
+  | { ok: false; reason: 'start_request_replayed'; stored: StoredCase | null }
+  /**
+   * A DIFFERENT request already opened this principal's draft. Storage owns
+   * this rule rather than a runtime read-then-write, because two concurrent
+   * `start_case` calls both read "no draft" before either writes. A SQL
+   * adapter enforces it with a unique partial index.
+   */
+  | { ok: false; reason: 'active_draft_exists'; stored: StoredCase | null };
 
 export interface CompileRunRepository {
   /** Append-only. Rejects a second write under the same compile_run_id. */
@@ -100,6 +123,14 @@ export interface CaseRuntimeStore {
   readonly cases: CaseRepository;
   readonly compileRuns: CompileRunRepository;
   readonly idempotency: IdempotencyRepository;
+  readonly startRequests: StartCaseIdempotencyRepository;
   readonly compilerRegistry: CompilerRegistryRepository;
+  /**
+   * Atomic: writes the new case AND its start-request record together. Split
+   * into two writes, a crash between them recreates exactly the lost-response
+   * ambiguity the record exists to remove — the case exists, nothing records
+   * which request made it, and the retry looks like a second create.
+   */
+  createCase(commit: StartCaseCommit): Promise<CaseCreateResult>;
   commitTurn(commit: TurnCommit): Promise<TurnCommitResult>;
 }

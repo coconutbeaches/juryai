@@ -56,11 +56,13 @@ export type RuntimeDiagnosticKind =
   | 'structural_validation_failed'
   | 'source_turn_invalid'
   | 'case_creation_failed'
+  | 'repository_unavailable'
   | 'commit_contention_exhausted';
 
 export interface RuntimeDiagnosticEvent {
   kind: RuntimeDiagnosticKind;
-  case_id: string;
+  /** Null when the failure happened before a case was identified. */
+  case_id: string | null;
   turn_id: string | null;
   compile_run_id: string | null;
   message: string;
@@ -86,7 +88,12 @@ export function recordingDiagnosticsSink(): RuntimeDiagnosticsSink & {
 /* ------------------------------------------------------------------------ */
 
 export type StartCaseOutcome =
-  | { kind: 'created'; case: CaseStateResponse }
+  /**
+   * `replayed` marks the second and later results of ONE logical create. A
+   * retried `start_case` returns the case its own first attempt made, rather
+   * than an error describing that draft as somebody else's.
+   */
+  | { kind: 'created'; replayed: boolean; case: CaseStateResponse }
   /** Never a silent resume. The existing draft is returned so work continues. */
   | { kind: 'open_draft_exists'; case: CaseStateResponse }
   | { kind: 'failed'; failure: RuntimeFailure };

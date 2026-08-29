@@ -59,11 +59,12 @@ import {
   type RequirementSetProvider,
 } from './initial-requirements.js';
 import { applyCompilerOutput } from './mutation-application.js';
-import { ActiveDraftExistsError, type CaseRuntimeStore, type StoredCase } from './repositories.js';
+import type { CaseCreateResult, CaseRuntimeStore, StoredCase } from './repositories.js';
 import {
   failure,
   interpretationSlot,
   noopDiagnosticsSink,
+  type RuntimeFailure,
   type GetCaseStateOutcome,
   type RuntimeDiagnosticsSink,
   type StartCaseOutcome,
@@ -93,6 +94,16 @@ export interface RuntimeRequestContext {
   source_channel?: SourceChannel;
   /** Relay's self-reported identity. Recorded for the record, never trusted. */
   relaying_agent?: string | null;
+}
+
+/**
+ * The runtime's own start command. It intentionally mirrors, rather than
+ * imports, the transport DTO: `client_request_id` is adapter-issued transport
+ * metadata identifying the OPERATION, and the runtime owns what that means
+ * without depending on the tools layer.
+ */
+export interface StartCaseCommand {
+  client_request_id: string;
 }
 
 /**
@@ -169,17 +180,62 @@ export class CaseRuntime {
   /* start_case                                                             */
   /* --------------------------------------------------------------------- */
 
-  async startCase(context: RuntimeRequestContext): Promise<StartCaseOutcome> {
+  async startCase(
+    context: RuntimeRequestContext,
+    command: StartCaseCommand,
+  ): Promise<StartCaseOutcome> {
     const principalId = principalOf(context);
     if (principalId === null) {
       return { kind: 'failed', failure: failure('AUTH_REQUIRED', 'No authenticated principal.') };
     }
+    if (typeof command?.client_request_id !== 'string' || command.client_request_id.length === 0) {
+      return {
+        kind: 'failed',
+        failure: failure('INVALID_INPUT', 'A start request must carry a request id.'),
+      };
+    }
 
-    const existing = await this.#deps.store.cases.findActiveDraftByPrincipal(principalId);
-    if (existing) {
+    // A retry of the same logical create replays its original result. Without
+    // this, a lost create response comes back as OPEN_DRAFT_EXISTS — an error
+    // describing the very draft the caller's own first attempt produced.
+    const prior = await this.#guardedRead('start_request_lookup', null, () =>
+      this.#deps.store.startRequests.findByRequest(principalId, command.client_request_id),
+    );
+    if (!prior.ok) {
+      return { kind: 'failed', failure: unavailable('The case could not be created.') };
+    }
+    const priorRecord = prior.value;
+    if (priorRecord !== null) {
+      const replayed = await this.#guardedRead('case_by_start_request', priorRecord.case_id, () =>
+        this.#deps.store.cases.findById(priorRecord.case_id),
+      );
+      if (!replayed.ok) {
+        return { kind: 'failed', failure: unavailable('The case could not be created.') };
+      }
+      if (replayed.value && replayed.value.state.principal_id === principalId) {
+        return { kind: 'created', replayed: true, case: this.#project(replayed.value.state) };
+      }
+      this.#diagnostics.record({
+        kind: 'repository_unavailable',
+        case_id: priorRecord.case_id,
+        turn_id: null,
+        compile_run_id: null,
+        message: 'A start-request record names a case that cannot be read for this principal.',
+        issues: [],
+      });
+      return { kind: 'failed', failure: unavailable('The case could not be created.') };
+    }
+
+    const existing = await this.#guardedRead('active_draft_lookup', null, () =>
+      this.#deps.store.cases.findActiveDraftByPrincipal(principalId),
+    );
+    if (!existing.ok) {
+      return { kind: 'failed', failure: unavailable('The case could not be created.') };
+    }
+    if (existing.value) {
       // Never a silent resume: an agent that "starts a case" while one is open
       // must be told, or a second conversation quietly overwrites the first.
-      return { kind: 'open_draft_exists', case: this.#project(existing.state) };
+      return { kind: 'open_draft_exists', case: this.#project(existing.value.state) };
     }
 
     const nowMs = this.#deps.clock.now();
@@ -215,15 +271,19 @@ export class CaseRuntime {
       };
     }
 
+    let result: CaseCreateResult;
     try {
-      const stored = await this.#deps.store.cases.create(state);
-      return { kind: 'created', case: this.#project(stored.state) };
+      // Case and start-request record commit together, or not at all.
+      result = await this.#deps.store.createCase({
+        state,
+        idempotency: {
+          principal_id: principalId,
+          client_request_id: command.client_request_id,
+          case_id: state.case_id,
+          recorded_at_ms: nowMs,
+        },
+      });
     } catch (error) {
-      if (error instanceof ActiveDraftExistsError) {
-        // Lost a create race. The other writer's draft is the live one.
-        const winner = await this.#deps.store.cases.findActiveDraftByPrincipal(principalId);
-        if (winner) return { kind: 'open_draft_exists', case: this.#project(winner.state) };
-      }
       this.#diagnostics.record({
         kind: 'case_creation_failed',
         case_id: state.case_id,
@@ -232,11 +292,20 @@ export class CaseRuntime {
         message: error instanceof Error ? error.message : 'Case creation failed.',
         issues: [],
       });
-      return {
-        kind: 'failed',
-        failure: failure('INTERNAL_ERROR', 'The case could not be created.', true),
-      };
+      return { kind: 'failed', failure: unavailable('The case could not be created.') };
     }
+
+    if (result.ok) {
+      return { kind: 'created', replayed: false, case: this.#project(result.stored.state) };
+    }
+    if (result.stored === null) {
+      return { kind: 'failed', failure: unavailable('The case could not be created.') };
+    }
+    // Lost a create race. The same request id means the winner IS this
+    // operation; a different one means the principal already has a draft.
+    return result.reason === 'start_request_replayed'
+      ? { kind: 'created', replayed: true, case: this.#project(result.stored.state) }
+      : { kind: 'open_draft_exists', case: this.#project(result.stored.state) };
   }
 
   /* --------------------------------------------------------------------- */
@@ -252,13 +321,20 @@ export class CaseRuntime {
       return { kind: 'failed', failure: failure('AUTH_REQUIRED', 'No authenticated principal.') };
     }
 
-    const stored =
+    const read = await this.#guardedRead('case_read', query.case_id ?? null, () =>
       query.case_id === undefined
-        ? await this.#deps.store.cases.findActiveDraftByPrincipal(principalId)
-        : await this.#deps.store.cases.findById(query.case_id);
+        ? this.#deps.store.cases.findActiveDraftByPrincipal(principalId)
+        : this.#deps.store.cases.findById(query.case_id),
+    );
+    // A storage failure is not "no such case": telling the caller its case is
+    // gone when the database merely blinked is both wrong and unrecoverable.
+    if (!read.ok) {
+      return { kind: 'failed', failure: unavailable('The case could not be read.') };
+    }
 
     // A foreign case is reported as not found rather than as forbidden: the
     // distinction is an existence oracle over other people's case ids.
+    const stored = read.value;
     if (!stored || stored.state.principal_id !== principalId) {
       return { kind: 'failed', failure: failure('CASE_NOT_FOUND', 'No such case.') };
     }
@@ -322,15 +398,6 @@ export class CaseRuntime {
       };
     }
 
-    try {
-      await this.#ensureCompilerRegistered();
-    } catch {
-      return {
-        kind: 'failed',
-        failure: failure('INTERNAL_ERROR', 'That answer could not be processed. Try again.', true),
-      };
-    }
-
     const attempts = this.#deps.maxCommitAttempts ?? DEFAULT_MAX_COMMIT_ATTEMPTS;
     for (let attempt = 0; attempt < attempts; attempt += 1) {
       const outcome = await this.#attemptSubmit(
@@ -376,16 +443,29 @@ export class CaseRuntime {
     relayClaims: { source_language: string | null; translation_indicated: boolean },
     options: RuntimeCallOptions,
   ): Promise<SubmitTurnOutcome | 'contended'> {
-    const stored = await this.#deps.store.cases.findById(request.case_id);
+    const read = await this.#guardedRead('case_read', request.case_id, () =>
+      this.#deps.store.cases.findById(request.case_id),
+    );
+    if (!read.ok) {
+      return { kind: 'failed', failure: unavailable('That answer could not be processed.') };
+    }
+    const stored = read.value;
     if (!stored || stored.state.principal_id !== principalId) {
       return { kind: 'failed', failure: failure('CASE_NOT_FOUND', 'No such case.') };
     }
     const state = stored.state;
 
     /* --- idempotency first, then the lock, then CAS. --------------------- */
-    const idempotencyRecords = await this.#deps.store.idempotency.listByCase(request.case_id);
+    const idempotencyRead = await this.#guardedRead('idempotency_read', request.case_id, () =>
+      this.#deps.store.idempotency.listByCase(request.case_id),
+    );
+    // Proceeding without the replay store would turn a lost-response retry
+    // into a duplicate write, which is the one failure this store prevents.
+    if (!idempotencyRead.ok) {
+      return { kind: 'failed', failure: unavailable('That answer could not be processed.') };
+    }
     const precheck = precheckSubmit(request, {
-      store: idempotencyRecords,
+      store: idempotencyRead.value,
       log: state.turn_log,
       current_case_version: state.case_version,
       now_ms: this.#deps.clock.now(),
@@ -429,6 +509,27 @@ export class CaseRuntime {
         likely_already_recorded: precheck.likely_already_recorded,
         case: this.#project(state),
       };
+    }
+
+    // Only a fresh write needs a compiler, so registration happens here rather
+    // than at entry. A replay, a locked case and a stale write are all decided
+    // from durable state alone; making them depend on the registry means a
+    // registry outage can hide an already-committed result from the caller
+    // that is asking what happened to it.
+    try {
+      await this.#ensureCompilerRegistered();
+    } catch (error) {
+      this.#diagnostics.record({
+        kind: 'repository_unavailable',
+        case_id: state.case_id,
+        turn_id: null,
+        compile_run_id: null,
+        message:
+          'compiler_registry_register: ' +
+          (error instanceof Error ? error.message : 'unknown error'),
+        issues: [],
+      });
+      return { kind: 'failed', failure: unavailable('That answer could not be processed.') };
     }
 
     const known = new Set(state.requirements.map((definition) => definition.requirement_id));
@@ -510,7 +611,15 @@ export class CaseRuntime {
     const startedAt = isoFrom(this.#deps.clock.now());
     let output: CompilerOutput;
     try {
-      output = await this.#deps.compiler.compile(compilerInput, { signal: options.signal });
+      // The adapter gets a DETACHED copy. `buildCompilerInput` builds fresh
+      // arrays but still holds the runtime's own requirement, proposition and
+      // turn objects; an adapter that writes through them would edit canonical
+      // state on its way past, and a `no_assertions` verdict would then commit
+      // a mutation nothing proposed. The runtime keeps `compilerInput`
+      // untouched for validation, the run record and the input hash.
+      output = await this.#deps.compiler.compile(structuredClone(compilerInput), {
+        signal: options.signal,
+      });
     } catch (error) {
       // A cancelled execution is not a failed one. Flattening it into
       // INTERNAL_ERROR would tell the transport to consider retrying work the
@@ -571,11 +680,17 @@ export class CaseRuntime {
     // never proposed X" indistinguishable from "the runtime refused X".
     try {
       await this.#deps.store.compileRuns.append(runRecord);
-    } catch {
-      return {
-        kind: 'failed',
-        failure: failure('INTERNAL_ERROR', 'That answer could not be processed. Try again.', true),
-      };
+    } catch (error) {
+      this.#diagnostics.record({
+        kind: 'repository_unavailable',
+        case_id: state.case_id,
+        turn_id: turnId,
+        compile_run_id: compileRunId,
+        message:
+          'compile_run_append: ' + (error instanceof Error ? error.message : 'unknown error'),
+        issues: [],
+      });
+      return { kind: 'failed', failure: unavailable('That answer could not be processed.') };
     }
 
     if (runRecord.contract_issues.length > 0) {
@@ -675,10 +790,19 @@ export class CaseRuntime {
         next_state: nextState,
         idempotency,
       });
-    } catch {
-      // The store refused the write (a uniqueness rule it enforces itself).
-      // Nothing was committed, and the safe reading is contention.
-      return 'contended';
+    } catch (error) {
+      // A THROW is the store failing, not the store declining: contention is
+      // modelled as a result. Retrying the pipeline here would recompile
+      // against the same failure and bill another compile run for it.
+      this.#diagnostics.record({
+        kind: 'repository_unavailable',
+        case_id: state.case_id,
+        turn_id: turnId,
+        compile_run_id: compileRunId,
+        message: 'commit_turn: ' + (error instanceof Error ? error.message : 'unknown error'),
+        issues: [],
+      });
+      return { kind: 'failed', failure: unavailable('That answer could not be processed.') };
     }
     if (!commit.ok) return 'contended';
 
@@ -710,6 +834,31 @@ export class CaseRuntime {
     });
   }
 
+  /**
+   * Repository reads reject in production. Cancellation is the one intentional
+   * rejection this runtime propagates; a database blinking is not that, and
+   * must become a `RuntimeFailure` the transport can act on.
+   */
+  async #guardedRead<T>(
+    operation: string,
+    caseId: string | null,
+    read: () => Promise<T>,
+  ): Promise<{ ok: true; value: T } | { ok: false }> {
+    try {
+      return { ok: true, value: await read() };
+    } catch (error) {
+      this.#diagnostics.record({
+        kind: 'repository_unavailable',
+        case_id: caseId,
+        turn_id: null,
+        compile_run_id: null,
+        message: operation + ': ' + (error instanceof Error ? error.message : 'unknown error'),
+        issues: [],
+      });
+      return { ok: false };
+    }
+  }
+
   #ensureCompilerRegistered(): Promise<void> {
     // A failed registration is not cached: caching the rejected promise would
     // make one transient storage error permanent for the process.
@@ -726,6 +875,14 @@ export class CaseRuntime {
 /* ------------------------------------------------------------------------ */
 /* Helpers                                                                   */
 /* ------------------------------------------------------------------------ */
+
+/**
+ * A storage failure is opaque to the caller and retryable. Table names, driver
+ * text and stack detail go to the diagnostics sink, never across the boundary.
+ */
+function unavailable(message: string): RuntimeFailure {
+  return failure('INTERNAL_ERROR', message + ' Try again.', true);
+}
 
 function principalOf(context: RuntimeRequestContext): string | null {
   const value = context.principal?.principal_id;

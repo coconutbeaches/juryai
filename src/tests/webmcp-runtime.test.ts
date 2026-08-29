@@ -14,6 +14,7 @@ import {
   type CompilerScript,
   type RuntimeRequestContext,
   type SemanticCompilerPort,
+  type StartCaseCommand,
   type StoredCase,
   type SubmitTurnCommand,
   type SubmitTurnOutcome,
@@ -41,7 +42,11 @@ import {
   turnCarriesSpanFidelity,
   type SourceTurnPayload,
 } from '../webmcp/core/turns.js';
-import type { CompilerInput, CompilerOutput } from '../webmcp/core/compiler-contract.js';
+import {
+  compilerInputHash,
+  type CompilerInput,
+  type CompilerOutput,
+} from '../webmcp/core/compiler-contract.js';
 
 /* ------------------------------------------------------------------------ */
 /* Harness                                                                   */
@@ -90,8 +95,14 @@ function payload(answer: string, context: string[] = []): SourceTurnPayload {
   });
 }
 
+let startRequestCounter = 0;
+function startCommand(clientRequestId?: string): StartCaseCommand {
+  startRequestCounter += 1;
+  return { client_request_id: clientRequestId ?? 'start_req_' + String(startRequestCounter) };
+}
+
 async function startedCase(h: ReturnType<typeof harness>, who = ALICE) {
-  const outcome = await h.runtime.startCase(who);
+  const outcome = await h.runtime.startCase(who, startCommand());
   if (outcome.kind !== 'created') throw new Error('expected a created case');
   return outcome.case.case_id;
 }
@@ -143,7 +154,7 @@ function committed(outcome: SubmitTurnOutcome) {
 describe('startCase', () => {
   it('creates a version-0 draft carrying the canonical requirement set', async () => {
     const h = harness();
-    const outcome = await h.runtime.startCase(ALICE);
+    const outcome = await h.runtime.startCase(ALICE, startCommand());
 
     expect(outcome.kind).toBe('created');
     if (outcome.kind !== 'created') return;
@@ -178,7 +189,7 @@ describe('startCase', () => {
     const caseId = await startedCase(h);
     const before = await h.store.cases.findById(caseId);
 
-    const second = await h.runtime.startCase(ALICE);
+    const second = await h.runtime.startCase(ALICE, startCommand());
     expect(second.kind).toBe('open_draft_exists');
     if (second.kind !== 'open_draft_exists') return;
     expect(second.case.case_id).toBe(caseId);
@@ -200,14 +211,17 @@ describe('startCase', () => {
 
   it('emits only permitted response slots', async () => {
     const h = harness();
-    const outcome = await h.runtime.startCase(ALICE);
+    const outcome = await h.runtime.startCase(ALICE, startCommand());
     if (outcome.kind !== 'created') throw new Error('expected creation');
     expect(assertNoForbiddenSlots(outcome.case as unknown as Record<string, unknown>)).toEqual([]);
   });
 
   it('refuses to act without an authenticated principal', async () => {
     const h = harness();
-    const outcome = await h.runtime.startCase({ principal: { principal_id: '  ' } });
+    const outcome = await h.runtime.startCase(
+      { principal: { principal_id: '  ' } },
+      startCommand(),
+    );
     expect(outcome.kind).toBe('failed');
     if (outcome.kind !== 'failed') return;
     expect(outcome.failure.code).toBe('AUTH_REQUIRED');
@@ -995,8 +1009,9 @@ function lockingStore(inner: InMemoryCaseRuntimeStore) {
         const found = await inner.cases.findActiveDraftByPrincipal(principalId);
         return found && locked.has(found.state.case_id) ? null : found;
       },
-      create: (state) => inner.cases.create(state),
     },
+    startRequests: inner.startRequests,
+    createCase: (commit) => inner.createCase(commit),
     commitTurn: (commit) => inner.commitTurn(commit),
   };
   return { store, lock: (caseId: string) => locked.add(caseId) };
@@ -1013,7 +1028,15 @@ describe('locked case versions', () => {
       principal_id: 'user_bob',
       turn_log: [],
     };
-    await h.store.cases.create({ ...base, attestations: [attestationFor(base)] });
+    await h.store.createCase({
+      state: { ...base, attestations: [attestationFor(base)] },
+      idempotency: {
+        principal_id: base.principal_id,
+        client_request_id: 'start_req_locked',
+        case_id: base.case_id,
+        recorded_at_ms: START_MS,
+      },
+    });
 
     const outcome = await h.runtime.submitTurn(BOB, submitCommand({ case_id: 'case_locked' }));
     expect(outcome.kind).toBe('failed');
@@ -1140,6 +1163,536 @@ describe('replay survives the case being locked', () => {
     if (stale.kind !== 'failed') return;
     expect(stale.failure.code).toBe('CASE_LOCKED');
     expect((await loadState(h, caseId)).turn_log).toHaveLength(1);
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Shared doubles for the fault-injection suites                             */
+/* ------------------------------------------------------------------------ */
+
+interface FailPoints {
+  casesFindById?: () => Error;
+  casesFindActiveDraft?: () => Error;
+  idempotencyList?: () => Error;
+  startRequestsFind?: () => Error;
+  registryRegister?: () => Error;
+}
+
+/** Mutable so a test can commit real work first and fail a later read. */
+function storeFailingAt(inner: InMemoryCaseRuntimeStore, fail: FailPoints): CaseRuntimeStore {
+  const boom = (make?: () => Error): void => {
+    if (make) throw make();
+  };
+  return {
+    cases: {
+      findById: async (caseId) => {
+        boom(fail.casesFindById);
+        return inner.cases.findById(caseId);
+      },
+      findActiveDraftByPrincipal: async (principalId) => {
+        boom(fail.casesFindActiveDraft);
+        return inner.cases.findActiveDraftByPrincipal(principalId);
+      },
+    },
+    compileRuns: inner.compileRuns,
+    idempotency: {
+      listByCase: async (caseId) => {
+        boom(fail.idempotencyList);
+        return inner.idempotency.listByCase(caseId);
+      },
+    },
+    startRequests: {
+      findByRequest: async (principalId, clientRequestId) => {
+        boom(fail.startRequestsFind);
+        return inner.startRequests.findByRequest(principalId, clientRequestId);
+      },
+    },
+    compilerRegistry: {
+      register: async (entry) => {
+        boom(fail.registryRegister);
+        return inner.compilerRegistry.register(entry);
+      },
+      findById: (compilerVersionId) => inner.compilerRegistry.findById(compilerVersionId),
+    },
+    createCase: (commit) => inner.createCase(commit),
+    commitTurn: (commit) => inner.commitTurn(commit),
+  };
+}
+
+/** A second runtime instance over shared storage, i.e. a fresh process. */
+function runtimeOver(store: CaseRuntimeStore, compiler: SemanticCompilerPort, prefix = 'p2_') {
+  const diagnostics = recordingDiagnosticsSink();
+  const runtime = new CaseRuntime({
+    store,
+    compiler,
+    clock: steppingClock(START_MS + 60_000, 1000),
+    ids: sequentialIdFactory(prefix),
+    salts: sequentialSaltFactory(prefix + 'salt'),
+    reviewUrl: (caseId) => 'https://juryai.test/cases/' + caseId,
+    disclosure: { version: DISCLOSURE },
+    diagnostics,
+  });
+  return { runtime, diagnostics };
+}
+
+const DB_ERROR = 'relation "public.cases" does not exist; pgcode 42P01 at Supabase pooler';
+
+function assertOpaqueRetryableFailure(failureValue: { code: string; message: string }) {
+  expect(failureValue.code).toBe('INTERNAL_ERROR');
+  const surfaced = JSON.stringify(failureValue);
+  expect(surfaced).not.toContain('relation');
+  expect(surfaced).not.toContain('pgcode');
+  expect(surfaced).not.toContain('Supabase');
+  expect(surfaced).not.toContain('public.cases');
+}
+
+/* ------------------------------------------------------------------------ */
+/* start_case idempotency                                                    */
+/* ------------------------------------------------------------------------ */
+
+describe('start_case idempotency', () => {
+  it('replays the original created result when the create response was lost', async () => {
+    const h = harness();
+    const first = await h.runtime.startCase(ALICE, startCommand('request_1'));
+    expect(first.kind).toBe('created');
+    if (first.kind !== 'created') return;
+    expect(first.replayed).toBe(false);
+
+    const before = (await h.store.cases.findById(first.case.case_id))!;
+
+    // The caller never saw the response and retries the same logical create.
+    const retry = await h.runtime.startCase(ALICE, startCommand('request_1'));
+    expect(retry.kind).toBe('created');
+    if (retry.kind !== 'created') return;
+    expect(retry.replayed).toBe(true);
+    expect(retry.case.case_id).toBe(first.case.case_id);
+    expect(retry.case.case_version).toBe(0);
+
+    // No second case: the next id the factory would have minted is unused.
+    expect(await h.store.cases.findById('case_2')).toBeNull();
+    const after = (await h.store.cases.findById(first.case.case_id))!;
+    expect(after.revision).toBe(before.revision);
+    expect(after.state).toEqual(before.state);
+
+    // Exactly one start-request record, and none invented for other ids.
+    const record = await h.store.startRequests.findByRequest('user_alice', 'request_1');
+    expect(record?.case_id).toBe(first.case.case_id);
+    expect(await h.store.startRequests.findByRequest('user_alice', 'request_2')).toBeNull();
+  });
+
+  it('still reports an open draft for a genuinely different request id', async () => {
+    const h = harness();
+    const first = await h.runtime.startCase(ALICE, startCommand('request_1'));
+    if (first.kind !== 'created') throw new Error('expected creation');
+
+    const second = await h.runtime.startCase(ALICE, startCommand('request_2'));
+    expect(second.kind).toBe('open_draft_exists');
+    if (second.kind !== 'open_draft_exists') return;
+    expect(second.case.case_id).toBe(first.case.case_id);
+  });
+
+  it('converges two concurrent identical starts on one created case', async () => {
+    const h = harness();
+    const [a, b] = await Promise.all([
+      h.runtime.startCase(ALICE, startCommand('request_1')),
+      h.runtime.startCase(ALICE, startCommand('request_1')),
+    ]);
+
+    expect(a!.kind).toBe('created');
+    expect(b!.kind).toBe('created');
+    if (a!.kind !== 'created' || b!.kind !== 'created') return;
+    expect(a!.case.case_id).toBe(b!.case.case_id);
+    // Exactly one of them actually did the create.
+    expect([a!.replayed, b!.replayed].sort()).toEqual([false, true]);
+
+    const draft = await h.store.cases.findActiveDraftByPrincipal('user_alice');
+    expect(draft?.state.case_id).toBe(a!.case.case_id);
+    expect(draft?.revision).toBe(1);
+  });
+
+  it('lets only one of two concurrent different starts create the draft', async () => {
+    const h = harness();
+    const outcomes = await Promise.all([
+      h.runtime.startCase(ALICE, startCommand('request_1')),
+      h.runtime.startCase(ALICE, startCommand('request_2')),
+    ]);
+
+    expect(outcomes.map((outcome) => outcome.kind).sort()).toEqual([
+      'created',
+      'open_draft_exists',
+    ]);
+    const ids = new Set(
+      outcomes.map((outcome) => (outcome.kind === 'failed' ? '' : outcome.case.case_id)),
+    );
+    expect(ids.size).toBe(1);
+
+    const draft = await h.store.cases.findActiveDraftByPrincipal('user_alice');
+    expect(draft).not.toBeNull();
+    expect(await h.store.cases.findById('case_2')).toBeNull();
+  });
+
+  it('rejects a start with no request id', async () => {
+    const h = harness();
+    const outcome = await h.runtime.startCase(ALICE, { client_request_id: '' });
+    expect(outcome.kind).toBe('failed');
+    if (outcome.kind !== 'failed') return;
+    expect(outcome.failure.code).toBe('INVALID_INPUT');
+    expect(await h.store.cases.findActiveDraftByPrincipal('user_alice')).toBeNull();
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Replay does not depend on the compiler registry                           */
+/* ------------------------------------------------------------------------ */
+
+class NeverCallCompiler implements SemanticCompilerPort {
+  readonly registryEntry = scriptedRegistryEntry();
+  async compile(): Promise<CompilerOutput> {
+    throw new Error('the compiler must not run for a replay');
+  }
+}
+
+describe('replay resolves before compiler registration', () => {
+  it('replays a committed turn while the compiler registry is unavailable', async () => {
+    const inner = new InMemoryCaseRuntimeStore();
+    const fail: FailPoints = {};
+    const store = storeFailingAt(inner, fail);
+
+    // Process 1: a working runtime commits the turn.
+    const first = runtimeOver(store, new ScriptedSemanticCompiler(expectedDateScript), 'p1_');
+    const started = await first.runtime.startCase(ALICE, startCommand('request_1'));
+    if (started.kind !== 'created') throw new Error('expected creation');
+    const caseId = started.case.case_id;
+    const commit = await first.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId }));
+    expect(commit.kind).toBe('committed');
+    if (commit.kind !== 'committed') return;
+    const before = (await inner.cases.findById(caseId))!;
+
+    // Process 2: fresh instance, registry down, compiler that refuses to run.
+    fail.registryRegister = () => new Error(DB_ERROR);
+    const second = runtimeOver(store, new NeverCallCompiler(), 'p2_');
+    const retry = await second.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId }));
+
+    expect(retry.kind).toBe('replayed');
+    if (retry.kind !== 'replayed') return;
+    expect(retry.match).toBe('client_turn_id');
+    expect(retry.turn_id).toBe(commit.turn_id);
+    expect(retry.accepted_proposition_ids).toEqual(commit.accepted_proposition_ids);
+
+    // The registry was never consulted, and nothing moved.
+    expect(second.diagnostics.events).toEqual([]);
+    const after = (await inner.cases.findById(caseId))!;
+    expect(after.revision).toBe(before.revision);
+    expect(after.state).toEqual(before.state);
+    expect(await inner.compileRuns.listByCase(caseId)).toHaveLength(1);
+  });
+
+  it('still refuses a fresh write when the compiler registry is unavailable', async () => {
+    const inner = new InMemoryCaseRuntimeStore();
+    const fail: FailPoints = {};
+    const store = storeFailingAt(inner, fail);
+    const first = runtimeOver(store, new ScriptedSemanticCompiler(expectedDateScript), 'p1_');
+    const started = await first.runtime.startCase(ALICE, startCommand('request_1'));
+    if (started.kind !== 'created') throw new Error('expected creation');
+    const caseId = started.case.case_id;
+    const before = (await inner.cases.findById(caseId))!;
+
+    fail.registryRegister = () => new Error(DB_ERROR);
+    const second = runtimeOver(store, new ScriptedSemanticCompiler(expectedDateScript), 'p2_');
+    const fresh = await second.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId }));
+
+    expect(fresh.kind).toBe('failed');
+    if (fresh.kind !== 'failed') return;
+    assertOpaqueRetryableFailure(fresh.failure);
+    expect(fresh.failure.retryable).toBe(true);
+    expect(second.diagnostics.events.map((event) => event.kind)).toContain(
+      'repository_unavailable',
+    );
+
+    const after = (await inner.cases.findById(caseId))!;
+    expect(after.revision).toBe(before.revision);
+    expect(after.state.turn_log).toHaveLength(0);
+    expect(await inner.idempotency.listByCase(caseId)).toEqual([]);
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Compiler input isolation                                                  */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * Behaves on the first call so the case has a live proposition, then writes
+ * through every canonical object it was handed and reports no assertions.
+ */
+class HostileCompiler implements SemanticCompilerPort {
+  readonly registryEntry = scriptedRegistryEntry();
+  #inner = new ScriptedSemanticCompiler(expectedDateScript);
+  calls = 0;
+
+  async compile(input: CompilerInput, options?: CompileOptions): Promise<CompilerOutput> {
+    this.calls += 1;
+    if (this.calls === 1) return this.#inner.compile(input, options);
+
+    const proposition = input.existing_propositions[0];
+    if (proposition) proposition.statement = 'MUTATED BY THE ADAPTER';
+    const requirement = input.requirement_context[0];
+    if (requirement) requirement.prompt = 'MUTATED PROMPT';
+    input.turn.payload.answer.text = 'MUTATED ANSWER';
+
+    return {
+      compile_run_id: input.compile_run_id,
+      compiler_version_id: input.compiler_version_id,
+      verdict: 'no_assertions',
+      assertions: [],
+      rejected_candidates: [],
+      clarifications_requested: [],
+      raw_model_output: null,
+    };
+  }
+}
+
+describe('the compiler cannot write through its input', () => {
+  it('hands the adapter a detached copy, so a no_assertions run mutates nothing', async () => {
+    const compiler = new HostileCompiler();
+    const h = harness({ compiler });
+    const caseId = await startedCase(h);
+    await h.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId }));
+
+    const seeded = await loadState(h, caseId);
+    const originalStatement = seeded.propositions[0]!.statement;
+    const originalPrompts = seeded.requirements.map((definition) => definition.prompt);
+    const originalAnswer = seeded.turn_log[0]!.payload.answer.text;
+
+    const outcome = await h.runtime.submitTurn(
+      ALICE,
+      submitCommand({
+        case_id: caseId,
+        client_turn_id: 'client_2',
+        expected_case_version: 1,
+        in_reply_to: ['req_paid'],
+        payload: payload('Nothing else comes to mind about payments.'),
+      }),
+    );
+    expect(outcome.kind).toBe('committed');
+    expect(compiler.calls).toBe(2);
+
+    const after = await loadState(h, caseId);
+    // Canonical state carries only runtime-owned effects: the new turn.
+    expect(after.propositions[0]!.statement).toBe(originalStatement);
+    expect(after.requirements.map((definition) => definition.prompt)).toEqual(originalPrompts);
+    expect(after.turn_log[0]!.payload.answer.text).toBe(originalAnswer);
+    expect(after.turn_log[1]!.payload.answer.text).toBe(
+      'Nothing else comes to mind about payments.',
+    );
+    // A no_assertions verdict moves no canonical version.
+    expect(after.case_version).toBe(1);
+    expect(after.propositions).toHaveLength(1);
+
+    // Historical compile-run input is the pre-adapter input, not what the
+    // adapter left behind.
+    const runs = await h.store.compileRuns.listByCase(caseId);
+    const hostileRun = runs.find((run) => run.turn_id === after.turn_log[1]!.turn_id)!;
+    expect(hostileRun.input.existing_propositions[0]!.statement).toBe(originalStatement);
+    expect(hostileRun.input.requirement_context[0]!.prompt).not.toBe('MUTATED PROMPT');
+    expect(hostileRun.input.turn.payload.answer.text).toBe(
+      'Nothing else comes to mind about payments.',
+    );
+    expect(hostileRun.input_hash).toBe(compilerInputHash(hostileRun.input));
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Malformed clarification prompts                                           */
+/* ------------------------------------------------------------------------ */
+
+describe('malformed clarification prompts never reach canonical state', () => {
+  const ambiguousWithPrompt =
+    (prompt: unknown): CompilerScript =>
+    () => ({
+      verdict: 'raw',
+      output: {
+        verdict: 'ambiguous',
+        assertions: [],
+        rejected_candidates: [],
+        clarifications_requested: [
+          {
+            requirement_id: 'req_expected_date',
+            reason: 'multiple_incompatible_readings',
+            prompt: prompt as string,
+          },
+        ],
+        raw_model_output: null,
+      },
+    });
+
+  for (const [label, prompt] of [
+    ['undefined', undefined],
+    ['a number', 123],
+    ['whitespace only', '   '],
+    ['empty', ''],
+  ] as const) {
+    it('fails closed when the prompt is ' + label, async () => {
+      const h = harness();
+      h.scripted.setScript(ambiguousWithPrompt(prompt));
+      const caseId = await startedCase(h);
+      const before = (await h.store.cases.findById(caseId))!;
+
+      const outcome = await h.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId }));
+
+      expect(outcome.kind).toBe('failed');
+      if (outcome.kind !== 'failed') return;
+      expect(outcome.failure.code).toBe('INTERNAL_ERROR');
+      // Nothing about the provider value is echoed back.
+      const surfaced = JSON.stringify(outcome.failure);
+      expect(surfaced).not.toContain('prompt');
+      expect(surfaced).not.toContain('clarification');
+
+      const event = h.diagnostics.events.find((entry) => entry.kind === 'mutation_rejected');
+      expect(event?.issues.map((entry) => entry.code)).toContain(
+        'mutation_clarification_prompt_invalid',
+      );
+
+      const after = (await h.store.cases.findById(caseId))!;
+      expect(after.revision).toBe(before.revision);
+      expect(after.state).toEqual(before.state);
+      expect(after.state.clarifications).toEqual([]);
+      expect(after.state.turn_log).toHaveLength(0);
+      expect(await h.store.idempotency.listByCase(caseId)).toEqual([]);
+
+      // The case is still readable, and the retry key is still fresh.
+      const read = await h.runtime.getCaseState(ALICE, { case_id: caseId });
+      expect(read.kind).toBe('ok');
+      h.scripted.setScript(expectedDateScript);
+      const retry = committed(
+        await h.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId })),
+      );
+      expect(retry.case.case_version).toBe(1);
+    });
+  }
+
+  it('rejects a clarification naming a requirement the case does not have', async () => {
+    const h = harness();
+    h.scripted.setScript(() => ({
+      verdict: 'raw',
+      output: {
+        verdict: 'ambiguous',
+        assertions: [],
+        rejected_candidates: [],
+        clarifications_requested: [
+          {
+            requirement_id: 'req_not_on_this_case',
+            reason: 'multiple_incompatible_readings',
+            prompt: 'Which did you mean?',
+          },
+        ],
+        raw_model_output: null,
+      },
+    }));
+    const caseId = await startedCase(h);
+
+    const outcome = await h.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId }));
+    expect(outcome.kind).toBe('failed');
+    expect((await loadState(h, caseId)).clarifications).toEqual([]);
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Repository failure containment                                            */
+/* ------------------------------------------------------------------------ */
+
+describe('repository failures resolve as safe runtime failures', () => {
+  it('contains a cases.findById failure during submitTurn', async () => {
+    const inner = new InMemoryCaseRuntimeStore();
+    const fail: FailPoints = {};
+    const store = storeFailingAt(inner, fail);
+    const h = runtimeOver(store, new ScriptedSemanticCompiler(expectedDateScript));
+    const started = await h.runtime.startCase(ALICE, startCommand('request_1'));
+    if (started.kind !== 'created') throw new Error('expected creation');
+    const caseId = started.case.case_id;
+    const before = (await inner.cases.findById(caseId))!;
+
+    fail.casesFindById = () => new Error(DB_ERROR);
+    const outcome = await h.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId }));
+
+    expect(outcome.kind).toBe('failed');
+    if (outcome.kind !== 'failed') return;
+    assertOpaqueRetryableFailure(outcome.failure);
+    expect(outcome.failure.retryable).toBe(true);
+    const event = h.diagnostics.events.find((entry) => entry.kind === 'repository_unavailable');
+    expect(event?.message).toContain(DB_ERROR);
+
+    fail.casesFindById = undefined;
+    const after = (await inner.cases.findById(caseId))!;
+    expect(after.revision).toBe(before.revision);
+    expect(after.state.turn_log).toHaveLength(0);
+  });
+
+  it('contains an idempotency.listByCase failure during submitTurn', async () => {
+    const inner = new InMemoryCaseRuntimeStore();
+    const fail: FailPoints = {};
+    const store = storeFailingAt(inner, fail);
+    const compiler = new ScriptedSemanticCompiler(expectedDateScript);
+    const h = runtimeOver(store, compiler);
+    const started = await h.runtime.startCase(ALICE, startCommand('request_1'));
+    if (started.kind !== 'created') throw new Error('expected creation');
+    const caseId = started.case.case_id;
+
+    fail.idempotencyList = () => new Error(DB_ERROR);
+    const outcome = await h.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId }));
+
+    expect(outcome.kind).toBe('failed');
+    if (outcome.kind !== 'failed') return;
+    assertOpaqueRetryableFailure(outcome.failure);
+    expect(outcome.failure.retryable).toBe(true);
+    // Never proceed without the replay store: that is how a lost-response
+    // retry becomes a duplicate write.
+    expect(compiler.calls).toHaveLength(0);
+    expect((await inner.cases.findById(caseId))!.state.turn_log).toHaveLength(0);
+  });
+
+  it('contains a start-request read failure during startCase', async () => {
+    const inner = new InMemoryCaseRuntimeStore();
+    const fail: FailPoints = { startRequestsFind: () => new Error(DB_ERROR) };
+    const store = storeFailingAt(inner, fail);
+    const h = runtimeOver(store, new ScriptedSemanticCompiler());
+
+    const outcome = await h.runtime.startCase(ALICE, startCommand('request_1'));
+
+    expect(outcome.kind).toBe('failed');
+    if (outcome.kind !== 'failed') return;
+    assertOpaqueRetryableFailure(outcome.failure);
+    expect(outcome.failure.retryable).toBe(true);
+    expect(h.diagnostics.events.map((event) => event.kind)).toContain('repository_unavailable');
+
+    fail.startRequestsFind = undefined;
+    expect(await inner.cases.findActiveDraftByPrincipal('user_alice')).toBeNull();
+  });
+
+  it('contains a case read failure during getCaseState', async () => {
+    const inner = new InMemoryCaseRuntimeStore();
+    const fail: FailPoints = {};
+    const store = storeFailingAt(inner, fail);
+    const h = runtimeOver(store, new ScriptedSemanticCompiler());
+    const started = await h.runtime.startCase(ALICE, startCommand('request_1'));
+    if (started.kind !== 'created') throw new Error('expected creation');
+
+    fail.casesFindById = () => new Error(DB_ERROR);
+    const byId = await h.runtime.getCaseState(ALICE, { case_id: started.case.case_id });
+    expect(byId.kind).toBe('failed');
+    if (byId.kind !== 'failed') return;
+    // A storage blink must never be reported as CASE_NOT_FOUND.
+    assertOpaqueRetryableFailure(byId.failure);
+    expect(byId.failure.retryable).toBe(true);
+
+    fail.casesFindById = undefined;
+    fail.casesFindActiveDraft = () => new Error(DB_ERROR);
+    const draft = await h.runtime.getCaseState(ALICE);
+    expect(draft.kind).toBe('failed');
+    if (draft.kind !== 'failed') return;
+    assertOpaqueRetryableFailure(draft.failure);
+    expect(
+      h.diagnostics.events.filter((event) => event.kind === 'repository_unavailable'),
+    ).toHaveLength(2);
   });
 });
 

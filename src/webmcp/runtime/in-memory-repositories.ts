@@ -19,12 +19,15 @@ import {
 } from '../core/compiler-contract.js';
 import { recordIdempotency, type IdempotencyRecord } from '../core/idempotency.js';
 import {
-  ActiveDraftExistsError,
+  type CaseCreateResult,
   type CaseRepository,
   type CaseRuntimeStore,
   type CompileRunRepository,
   type CompilerRegistryRepository,
   type IdempotencyRepository,
+  type StartCaseCommit,
+  type StartCaseIdempotencyRecord,
+  type StartCaseIdempotencyRepository,
   type StoredCase,
   type TurnCommit,
   type TurnCommitResult,
@@ -38,6 +41,7 @@ interface CaseSlot {
 export class InMemoryCaseRuntimeStore implements CaseRuntimeStore {
   readonly #cases = new Map<string, CaseSlot>();
   #idempotency: IdempotencyRecord[] = [];
+  #startRequests: StartCaseIdempotencyRecord[] = [];
   readonly #compileRuns = new Map<string, CompileRunRecord>();
   #registry: CompilerRegistry = [];
 
@@ -51,20 +55,12 @@ export class InMemoryCaseRuntimeStore implements CaseRuntimeStore {
       }
       return null;
     },
-    create: async (state) => {
-      if (this.#cases.has(state.case_id)) {
-        throw new TypeError("Case '" + state.case_id + "' already exists.");
-      }
-      for (const slot of this.#cases.values()) {
-        if (
-          slot.state.principal_id === state.principal_id &&
-          deriveCaseStatus(slot.state) === 'draft'
-        ) {
-          throw new ActiveDraftExistsError(state.principal_id);
-        }
-      }
-      this.#cases.set(state.case_id, { revision: 1, state: structuredClone(state) });
-      return this.#read(state.case_id) as StoredCase;
+  };
+
+  readonly startRequests: StartCaseIdempotencyRepository = {
+    findByRequest: async (principalId, clientRequestId) => {
+      const found = this.#findStartRequest(principalId, clientRequestId);
+      return found ? structuredClone(found) : null;
     },
   };
 
@@ -106,6 +102,40 @@ export class InMemoryCaseRuntimeStore implements CaseRuntimeStore {
   };
 
   /**
+   * The case and its start-request record land together. Both uniqueness rules
+   * are decided HERE, at the write, not by the caller's earlier read: two
+   * concurrent starts have both already read "no draft" by the time either
+   * gets here.
+   */
+  async createCase(commit: StartCaseCommit): Promise<CaseCreateResult> {
+    const { state, idempotency } = commit;
+    // A retry of the same logical create replays its own case, even though
+    // that case is now the principal's open draft.
+    const prior = this.#findStartRequest(idempotency.principal_id, idempotency.client_request_id);
+    if (prior) {
+      return { ok: false, reason: 'start_request_replayed', stored: this.#read(prior.case_id) };
+    }
+    for (const slot of this.#cases.values()) {
+      if (
+        slot.state.principal_id === state.principal_id &&
+        deriveCaseStatus(slot.state) === 'draft'
+      ) {
+        return {
+          ok: false,
+          reason: 'active_draft_exists',
+          stored: this.#read(slot.state.case_id),
+        };
+      }
+    }
+    if (this.#cases.has(state.case_id)) {
+      throw new TypeError("Case '" + state.case_id + "' already exists.");
+    }
+    this.#cases.set(state.case_id, { revision: 1, state: structuredClone(state) });
+    this.#startRequests.push(structuredClone(idempotency));
+    return { ok: true, stored: this.#read(state.case_id) as StoredCase };
+  }
+
+  /**
    * Canonical state and the idempotency record land together. The revision
    * check is the compare-and-swap: a mutation prepared against a revision that
    * has since moved is refused rather than overwriting the winner.
@@ -126,6 +156,16 @@ export class InMemoryCaseRuntimeStore implements CaseRuntimeStore {
     });
     this.#idempotency = nextIdempotency;
     return { ok: true, stored: this.#read(commit.case_id) as StoredCase };
+  }
+
+  #findStartRequest(
+    principalId: string,
+    clientRequestId: string,
+  ): StartCaseIdempotencyRecord | undefined {
+    return this.#startRequests.find(
+      (record) =>
+        record.principal_id === principalId && record.client_request_id === clientRequestId,
+    );
   }
 
   #read(caseId: string): StoredCase | null {
