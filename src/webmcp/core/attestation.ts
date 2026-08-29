@@ -299,6 +299,11 @@ export type AttestationVerification =
   | { kind: 'accepted'; record: AttestationRecord }
   | { kind: 'rejected'; reason: AttestationRejection; issues: ContractIssue[] };
 
+export type AttestationStructuralValidator = (state: CaseState) => {
+  ok: boolean;
+  issues: ContractIssue[];
+};
+
 export type AttestationRejection =
   | 'challenge_unknown'
   | 'challenge_expired'
@@ -306,18 +311,22 @@ export type AttestationRejection =
   | 'principal_mismatch'
   | 'state_changed'
   | 'render_changed'
+  | 'structurally_invalid'
   | 'not_ready'
   | 'already_locked';
 
 /**
  * Verifies a confirmation attempt against CURRENT state. Any drift between
  * render and click fails closed and the human must review the updated account.
+ * The real structural validator is a mandatory dependency so this module does
+ * not duplicate its rules or create a runtime import cycle.
  */
 export function verifyAttestationAttempt(
   state: CaseState,
   challenge: RenderChallenge,
   attempt: AttestationAttempt,
   nowMs: number,
+  validateStructure: AttestationStructuralValidator,
 ): AttestationVerification {
   const reject = (
     reason: AttestationRejection,
@@ -373,6 +382,21 @@ export function verifyAttestationAttempt(
       'attestation_render_changed',
       'The rendered account no longer matches what was confirmed.',
     );
+  }
+  const structuralReport = validateStructure(state);
+  if (!structuralReport.ok) {
+    return {
+      kind: 'rejected',
+      reason: 'structurally_invalid',
+      issues: [
+        issue(
+          'attestation_structurally_invalid',
+          'attestation',
+          'The case must pass structural validation before it can be attested.',
+        ),
+        ...structuralReport.issues,
+      ],
+    };
   }
   const readiness = deriveReadiness(state.requirements, state.propositions, state.clarifications);
   if (!readiness.ready) {
@@ -532,7 +556,7 @@ export function projectCaseState(
     statement: wrapAgentFacingText(proposition.statement),
     type: proposition.type,
     epistemic_strength: proposition.epistemic_strength,
-    attribution: attributionFor(proposition),
+    attribution: wrapAgentFacingText(attributionFor(proposition)),
   }));
 
   return {
@@ -553,7 +577,7 @@ export function projectCaseState(
     recent_interpretations: recent,
     evidence_references: state.evidence_references.map((reference) => ({
       evidence_ref_id: reference.evidence_ref_id,
-      label: reference.label,
+      label: wrapAgentFacingText(reference.label),
       inspection_status: reference.inspection_status,
     })),
     warnings: options.warnings ?? [],

@@ -132,7 +132,6 @@ export function validateCaseState(state: CaseState): StructuralValidationReport 
   const requirementById = new Map(
     state.requirements.map((definition) => [definition.requirement_id, definition]),
   );
-  const turnIds = new Set(state.turn_log.map((turn) => turn.turn_id));
   const turnById = new Map(state.turn_log.map((turn) => [turn.turn_id, turn]));
   const evidenceById = new Map(
     state.evidence_references.map((reference) => [reference.evidence_ref_id, reference]),
@@ -140,6 +139,19 @@ export function validateCaseState(state: CaseState): StructuralValidationReport 
   const propositionById = new Map(
     state.propositions.map((proposition) => [proposition.proposition_id, proposition]),
   );
+
+  /* --- evidence references ---------------------------------------------- */
+  for (const [index, reference] of state.evidence_references.entries()) {
+    if (reference.case_id !== state.case_id) {
+      issues.push(
+        issue(
+          'evidence_foreign_case',
+          'evidence_references[' + String(index) + '].case_id',
+          'Evidence reference belongs to another case.',
+        ),
+      );
+    }
+  }
 
   /* --- propositions ------------------------------------------------------ */
   for (const [index, proposition] of state.propositions.entries()) {
@@ -179,12 +191,32 @@ export function validateCaseState(state: CaseState): StructuralValidationReport 
     }
 
     for (const turnId of proposition.derived_from_turn_ids) {
-      if (!turnIds.has(turnId)) {
+      const sourceTurn = turnById.get(turnId);
+      if (!sourceTurn) {
         issues.push(
           issue(
             'proposition_source_turn_unknown',
             path + '.derived_from_turn_ids',
             "Proposition names unknown source turn '" + turnId + "'.",
+          ),
+        );
+        continue;
+      }
+      if (proposition.source_channel !== sourceTurn.source_channel) {
+        issues.push(
+          issue(
+            'proposition_source_channel_mismatch',
+            path + '.source_channel',
+            "Proposition source_channel does not match source turn '" + turnId + "'.",
+          ),
+        );
+      }
+      if (proposition.relaying_agent !== sourceTurn.relaying_agent) {
+        issues.push(
+          issue(
+            'proposition_relaying_agent_mismatch',
+            path + '.relaying_agent',
+            "Proposition relaying_agent does not match source turn '" + turnId + "'.",
           ),
         );
       }
@@ -223,6 +255,14 @@ export function validateCaseState(state: CaseState): StructuralValidationReport 
             'proposition_evidence_missing',
             path + '.evidence_ref_id',
             "Type '" + proposition.type + "' requires an evidence reference.",
+          ),
+        );
+      } else if (reference.case_id !== state.case_id) {
+        issues.push(
+          issue(
+            'proposition_evidence_foreign_case',
+            path + '.evidence_ref_id',
+            'Foreign-case evidence cannot satisfy verified document content.',
           ),
         );
       } else if (reference.inspection_status !== 'inspected') {
@@ -419,6 +459,15 @@ function validateAttestations(state: CaseState): ContractIssue[] {
           'attestation_foreign_case',
           path + '.case_id',
           'Attestation belongs to another case.',
+        ),
+      );
+    }
+    if (attestation.principal_id !== state.principal_id) {
+      issues.push(
+        issue(
+          'attestation_principal_mismatch',
+          path + '.principal_id',
+          'Attestation principal does not match the case principal.',
         ),
       );
     }

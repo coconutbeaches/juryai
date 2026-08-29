@@ -146,6 +146,12 @@ export function compilerInputHash(input: CompilerInput): string {
 
 export type CompilerVerdict = 'accepted_candidates' | 'ambiguous' | 'no_assertions';
 
+const COMPILER_VERDICTS: readonly CompilerVerdict[] = [
+  'accepted_candidates',
+  'ambiguous',
+  'no_assertions',
+];
+
 export type AmbiguityReason =
   | 'answer_does_not_address_requirement'
   | 'multiple_incompatible_readings'
@@ -217,6 +223,15 @@ export function validateCompilerOutput(
         'compiler_version_mismatch',
         path + '.compiler_version_id',
         'Output compiler_version_id does not match its input.',
+      ),
+    );
+  }
+  if (!COMPILER_VERDICTS.includes(output.verdict)) {
+    issues.push(
+      issue(
+        'compiler_verdict_unknown',
+        path + '.verdict',
+        'verdict is not a recognized compiler verdict.',
       ),
     );
   }
