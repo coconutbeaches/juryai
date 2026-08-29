@@ -1,0 +1,560 @@
+/**
+ * Canonical case state, first-party rendering, and the append-only
+ * attestation model.
+ *
+ * There is no `awaiting_confirmation` state. Review is a UI activity, not a
+ * canonical case state. The snapshot is taken AT confirm time from current
+ * state, and the confirm request carries the hash of the document the human
+ * actually read. If anything changed between render and click, the hashes
+ * disagree and confirmation fails safely.
+ *
+ * Attestations are an append-only collection keyed to a case version, and
+ * lock status is DERIVED from it. That is what makes post-lock amendment a
+ * natural extension rather than schema surgery on records that are themselves
+ * legal artefacts.
+ */
+
+import {
+  canonicalSerialize,
+  describeEpistemicStrength,
+  isCanonicalId,
+  isHash,
+  issue,
+  RENDER_TEMPLATE_VERSION,
+  sha256,
+  STRUCTURAL_VALIDATOR_VERSION,
+  WEBMCP_CORE_SCHEMA_VERSION,
+  WEBMCP_PROTOCOL_VERSION,
+  wrapAgentFacingText,
+  type CaseStateResponse,
+  type CaseStatus,
+  type ContractIssue,
+  type EvidenceReference,
+} from './types.js';
+import { attributionFor, livePropositions, type Proposition } from './propositions.js';
+import {
+  deriveReadiness,
+  type ClarificationRequest,
+  type RequirementDefinition,
+} from './requirements.js';
+import type { SourceTurnRecord } from './turns.js';
+
+export const ATTESTATION_CONTRACT_VERSION = 'juryai-webmcp-attestation-v0.2.0';
+export const DEFAULT_CHALLENGE_TTL_MS = 15 * 60 * 1000;
+
+/* ------------------------------------------------------------------------ */
+/* Canonical case state                                                      */
+/* ------------------------------------------------------------------------ */
+
+export interface CaseState {
+  case_id: string;
+  case_version: number;
+  principal_id: string;
+  /** Disclosure the principal accepted at case creation. Never backfillable. */
+  disclosure_version: string;
+  disclosure_accepted_at: string;
+  requirements: RequirementDefinition[];
+  propositions: Proposition[];
+  clarifications: ClarificationRequest[];
+  evidence_references: EvidenceReference[];
+  turn_log: SourceTurnRecord[];
+  attestations: AttestationRecord[];
+}
+
+export function canonicalStateProjection(state: CaseState): unknown {
+  return {
+    case_id: state.case_id,
+    case_version: state.case_version,
+    disclosure_version: state.disclosure_version,
+    requirements: state.requirements,
+    propositions: state.propositions,
+    clarifications: state.clarifications,
+    evidence_references: state.evidence_references,
+  };
+}
+
+export function hashCanonicalState(state: CaseState): string {
+  return sha256(canonicalSerialize(canonicalStateProjection(state)));
+}
+
+/**
+ * Lock status is derived: the case is locked when its CURRENT version carries
+ * an attestation. An amendment raises the version and the case returns to
+ * draft until a human attests again; the earlier attestation stays valid and
+ * visible forever.
+ */
+export function deriveCaseStatus(state: CaseState): CaseStatus {
+  return state.attestations.some((attestation) => attestation.case_version === state.case_version)
+    ? 'locked'
+    : 'draft';
+}
+
+export function attestedVersions(state: CaseState): number[] {
+  return [...new Set(state.attestations.map((attestation) => attestation.case_version))].sort(
+    (a, b) => a - b,
+  );
+}
+
+/* ------------------------------------------------------------------------ */
+/* First-party render                                                        */
+/* ------------------------------------------------------------------------ */
+
+export interface RenderedAccount {
+  render_template_version: string;
+  case_id: string;
+  case_version: number;
+  document: string;
+  document_hash: string;
+}
+
+/**
+ * The rendering the human reads. It must show what is MISSING as well as what
+ * is present: selective omission by the relay is the one corruption mode
+ * nothing else in the architecture touches, and this is the only place a
+ * human can catch it. Epistemic strength is surfaced for every proposition
+ * because it is the most error-prone attribute the validator cannot check.
+ */
+export function renderCanonicalAccount(state: CaseState): RenderedAccount {
+  const readiness = deriveReadiness(state.requirements, state.propositions, state.clarifications);
+  const live = livePropositions(state.propositions);
+  const superseded = state.propositions.filter((p) => p.superseded_by !== null);
+  const lines: string[] = [];
+
+  lines.push('JURYAI CANONICAL ACCOUNT');
+  lines.push('template: ' + RENDER_TEMPLATE_VERSION);
+  lines.push('case: ' + state.case_id + ' (version ' + String(state.case_version) + ')');
+  lines.push('');
+  lines.push('WHAT JURYAI HAS RECORDED');
+  if (live.length === 0) {
+    lines.push('  (nothing recorded yet)');
+  }
+  for (const proposition of live) {
+    lines.push('  - [' + proposition.type + '] ' + proposition.statement);
+    lines.push('      answering: ' + proposition.in_reply_to);
+    lines.push('      standing: ' + attributionFor(proposition));
+  }
+
+  lines.push('');
+  lines.push('WHAT IS STILL MISSING');
+  if (readiness.unresolved_requirement_ids.length === 0) {
+    lines.push('  (nothing outstanding)');
+  }
+  for (const requirementId of readiness.unresolved_requirement_ids) {
+    const definition = state.requirements.find((r) => r.requirement_id === requirementId);
+    lines.push('  - ' + requirementId + ': ' + (definition?.prompt ?? '(unknown requirement)'));
+  }
+
+  lines.push('');
+  lines.push('OPEN CLARIFICATIONS');
+  const open = state.clarifications.filter((c) => c.resolved_at_case_version === null);
+  if (open.length === 0) lines.push('  (none)');
+  for (const clarification of open) {
+    lines.push('  - ' + clarification.clarification_id + ': ' + clarification.prompt);
+  }
+
+  lines.push('');
+  lines.push('CHANGES AND CORRECTIONS');
+  if (superseded.length === 0) lines.push('  (none)');
+  for (const proposition of superseded) {
+    lines.push(
+      '  - superseded: ' +
+        proposition.statement +
+        ' (was ' +
+        describeEpistemicStrength(proposition.epistemic_strength) +
+        ')',
+    );
+  }
+
+  lines.push('');
+  lines.push('EVIDENCE REFERENCED');
+  if (state.evidence_references.length === 0) lines.push('  (none)');
+  for (const reference of state.evidence_references) {
+    lines.push('  - ' + reference.label + ' [' + reference.inspection_status + ']');
+  }
+
+  const document = lines.join('\n') + '\n';
+  return {
+    render_template_version: RENDER_TEMPLATE_VERSION,
+    case_id: state.case_id,
+    case_version: state.case_version,
+    document,
+    document_hash: sha256(document),
+  };
+}
+
+/* ------------------------------------------------------------------------ */
+/* Render challenge                                                          */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * A server-side nonce is issued at RENDER time and required in the confirm
+ * request from day one, even though V0 only checks that it matches and has not
+ * expired. That is what makes the WebAuthn upgrade "sign the challenge you are
+ * already issuing" rather than a new flow with new state.
+ */
+export interface RenderChallenge {
+  challenge: string;
+  case_id: string;
+  case_version: number;
+  rendered_document_hash: string;
+  render_template_version: string;
+  issued_at_ms: number;
+  expires_at_ms: number;
+}
+
+export function issueRenderChallenge(
+  render: RenderedAccount,
+  caseId: string,
+  nonce: string,
+  nowMs: number,
+  ttlMs: number = DEFAULT_CHALLENGE_TTL_MS,
+): RenderChallenge {
+  return {
+    challenge: nonce,
+    case_id: caseId,
+    case_version: render.case_version,
+    rendered_document_hash: render.document_hash,
+    render_template_version: render.render_template_version,
+    issued_at_ms: nowMs,
+    expires_at_ms: nowMs + ttlMs,
+  };
+}
+
+/* ------------------------------------------------------------------------ */
+/* Attestation records                                                       */
+/* ------------------------------------------------------------------------ */
+
+export type AssuranceLevel = 'ui_click' | 'email_oob' | 'webauthn_uv';
+
+const ASSURANCE_BY_METHOD = new Map<string, AssuranceLevel>([
+  ['first_party_ui_click', 'ui_click'],
+  ['email_confirmation_link', 'email_oob'],
+  ['webauthn_user_verification', 'webauthn_uv'],
+]);
+
+export function deriveAssuranceLevel(verificationMethod: string): AssuranceLevel {
+  return ASSURANCE_BY_METHOD.get(verificationMethod) ?? 'ui_click';
+}
+
+export interface AuthenticatorRef {
+  credential_id: string;
+  aaguid: string | null;
+  sign_count: number | null;
+}
+
+export interface AttestedEvidenceRef {
+  evidence_ref_id: string;
+  label: string;
+  inspection_status: EvidenceReference['inspection_status'];
+}
+
+export interface AttestationRecord {
+  attestation_id: string;
+  case_id: string;
+  case_version: number;
+  canonical_state_hash: string;
+  rendered_document: string;
+  rendered_document_hash: string;
+  render_template_version: string;
+  challenge: string;
+  /** Open string, never a boolean "confirmed". */
+  verification_method: string;
+  assurance_level: AssuranceLevel;
+  authenticator_ref: AuthenticatorRef | null;
+  signature: string | null;
+  signature_alg: string | null;
+  source_turn_ids: string[];
+  /** Salted commitments, so erasure never invalidates the attestation. */
+  source_turn_commitments: string[];
+  evidence_refs: AttestedEvidenceRef[];
+  unresolved_requirement_ids: string[];
+  schema_version: string;
+  protocol_version: string;
+  compiler_version_ids: string[];
+  structural_validator_version: string;
+  principal_id: string;
+  created_at: string;
+  client_ip: string | null;
+  user_agent: string | null;
+}
+
+export interface AttestationAttempt {
+  attestation_id: string;
+  case_id: string;
+  principal_id: string;
+  challenge: string;
+  rendered_document_hash: string;
+  verification_method: string;
+  authenticator_ref: AuthenticatorRef | null;
+  signature: string | null;
+  signature_alg: string | null;
+  created_at: string;
+  client_ip: string | null;
+  user_agent: string | null;
+}
+
+export type AttestationVerification =
+  | { kind: 'accepted'; record: AttestationRecord }
+  | { kind: 'rejected'; reason: AttestationRejection; issues: ContractIssue[] };
+
+export type AttestationRejection =
+  | 'challenge_unknown'
+  | 'challenge_expired'
+  | 'case_mismatch'
+  | 'principal_mismatch'
+  | 'state_changed'
+  | 'render_changed'
+  | 'not_ready'
+  | 'already_locked';
+
+/**
+ * Verifies a confirmation attempt against CURRENT state. Any drift between
+ * render and click fails closed and the human must review the updated account.
+ */
+export function verifyAttestationAttempt(
+  state: CaseState,
+  challenge: RenderChallenge,
+  attempt: AttestationAttempt,
+  nowMs: number,
+): AttestationVerification {
+  const reject = (
+    reason: AttestationRejection,
+    code: string,
+    message: string,
+  ): AttestationVerification => ({
+    kind: 'rejected',
+    reason,
+    issues: [issue(code, 'attestation', message)],
+  });
+
+  if (attempt.challenge !== challenge.challenge) {
+    return reject(
+      'challenge_unknown',
+      'attestation_challenge_unknown',
+      'Challenge does not match.',
+    );
+  }
+  if (nowMs > challenge.expires_at_ms) {
+    return reject('challenge_expired', 'attestation_challenge_expired', 'Challenge has expired.');
+  }
+  if (challenge.case_id !== state.case_id || attempt.case_id !== state.case_id) {
+    return reject('case_mismatch', 'attestation_case_mismatch', 'Challenge is for another case.');
+  }
+  if (attempt.principal_id !== state.principal_id) {
+    return reject(
+      'principal_mismatch',
+      'attestation_principal_mismatch',
+      'Attesting principal does not own this case.',
+    );
+  }
+  if (deriveCaseStatus(state) === 'locked') {
+    return reject(
+      'already_locked',
+      'attestation_already_locked',
+      'The current case version is already attested.',
+    );
+  }
+  if (challenge.case_version !== state.case_version) {
+    return reject(
+      'state_changed',
+      'attestation_state_changed',
+      'Case state changed after the account was rendered.',
+    );
+  }
+  const render = renderCanonicalAccount(state);
+  if (
+    render.document_hash !== challenge.rendered_document_hash ||
+    render.document_hash !== attempt.rendered_document_hash
+  ) {
+    return reject(
+      'render_changed',
+      'attestation_render_changed',
+      'The rendered account no longer matches what was confirmed.',
+    );
+  }
+  const readiness = deriveReadiness(state.requirements, state.propositions, state.clarifications);
+  if (!readiness.ready) {
+    return reject(
+      'not_ready',
+      'attestation_not_ready',
+      'The case still has unresolved requirements or open clarifications.',
+    );
+  }
+
+  const record: AttestationRecord = {
+    attestation_id: attempt.attestation_id,
+    case_id: state.case_id,
+    case_version: state.case_version,
+    canonical_state_hash: hashCanonicalState(state),
+    rendered_document: render.document,
+    rendered_document_hash: render.document_hash,
+    render_template_version: render.render_template_version,
+    challenge: attempt.challenge,
+    verification_method: attempt.verification_method,
+    assurance_level: deriveAssuranceLevel(attempt.verification_method),
+    authenticator_ref: attempt.authenticator_ref,
+    signature: attempt.signature,
+    signature_alg: attempt.signature_alg,
+    source_turn_ids: state.turn_log.map((turn) => turn.turn_id),
+    source_turn_commitments: state.turn_log.map((turn) => turn.payload_commitment),
+    evidence_refs: state.evidence_references.map((reference) => ({
+      evidence_ref_id: reference.evidence_ref_id,
+      label: reference.label,
+      inspection_status: reference.inspection_status,
+    })),
+    unresolved_requirement_ids: readiness.unresolved_requirement_ids,
+    schema_version: WEBMCP_CORE_SCHEMA_VERSION,
+    protocol_version: WEBMCP_PROTOCOL_VERSION,
+    compiler_version_ids: [
+      ...new Set(state.propositions.map((proposition) => proposition.compile_run_id)),
+    ].sort(),
+    structural_validator_version: STRUCTURAL_VALIDATOR_VERSION,
+    principal_id: state.principal_id,
+    created_at: attempt.created_at,
+    client_ip: attempt.client_ip,
+    user_agent: attempt.user_agent,
+  };
+  return { kind: 'accepted', record };
+}
+
+/** Append-only. Never overwrites, never regresses, never deduplicates away. */
+export function appendAttestation(
+  attestations: readonly AttestationRecord[],
+  record: AttestationRecord,
+): AttestationRecord[] {
+  if (attestations.some((entry) => entry.attestation_id === record.attestation_id)) {
+    throw new TypeError(
+      "Attestations are append-only; '" + record.attestation_id + "' already exists.",
+    );
+  }
+  if (attestations.some((entry) => entry.case_version === record.case_version)) {
+    throw new TypeError('Case version ' + String(record.case_version) + ' is already attested.');
+  }
+  const highest = attestations.reduce((max, entry) => Math.max(max, entry.case_version), -1);
+  if (record.case_version < highest) {
+    throw new TypeError('Attestation case_version must not regress below an existing attestation.');
+  }
+  return [...attestations, record];
+}
+
+export function validateAttestationRecord(
+  record: AttestationRecord,
+  path: string,
+): ContractIssue[] {
+  const issues: ContractIssue[] = [];
+  if (!isCanonicalId(record.attestation_id)) {
+    issues.push(
+      issue(
+        'attestation_id_invalid',
+        path + '.attestation_id',
+        'attestation_id is not a canonical id.',
+      ),
+    );
+  }
+  if (!isHash(record.canonical_state_hash)) {
+    issues.push(
+      issue(
+        'attestation_state_hash_invalid',
+        path + '.canonical_state_hash',
+        'canonical_state_hash must be a sha256 hex digest.',
+      ),
+    );
+  }
+  if (sha256(record.rendered_document) !== record.rendered_document_hash) {
+    issues.push(
+      issue(
+        'attestation_render_hash_mismatch',
+        path + '.rendered_document_hash',
+        'rendered_document_hash does not match the stored rendered_document.',
+      ),
+    );
+  }
+  if (record.challenge.trim().length === 0) {
+    issues.push(
+      issue(
+        'attestation_challenge_missing',
+        path + '.challenge',
+        'A render-time challenge is required for every attestation.',
+      ),
+    );
+  }
+  if (record.verification_method.trim().length === 0) {
+    issues.push(
+      issue(
+        'attestation_method_missing',
+        path + '.verification_method',
+        'verification_method must name how human presence was established.',
+      ),
+    );
+  }
+  if (record.source_turn_ids.length !== record.source_turn_commitments.length) {
+    issues.push(
+      issue(
+        'attestation_commitment_arity',
+        path + '.source_turn_commitments',
+        'Every attested source turn must carry exactly one commitment.',
+      ),
+    );
+  }
+  return issues;
+}
+
+/* ------------------------------------------------------------------------ */
+/* Response-slot projection                                                  */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * Builds the agent-facing `get_case_state` response from canonical state.
+ * Construction is by allowlist: nothing reaches the relay unless it is one of
+ * the permitted slots. In particular there is no readiness score, no legal
+ * assessment, no compiler internals and no adverse-fact detection logic.
+ */
+export function projectCaseState(
+  state: CaseState,
+  options: { review_url: string; warnings?: string[]; recent_interpretation_limit?: number },
+): CaseStateResponse {
+  const readiness = deriveReadiness(state.requirements, state.propositions, state.clarifications);
+  const unresolved = new Set(readiness.unresolved_requirement_ids);
+  const next = state.requirements
+    .filter((definition) => unresolved.has(definition.requirement_id))
+    .slice(0, 3)
+    .map((definition) => ({
+      requirement_id: definition.requirement_id,
+      prompt: wrapAgentFacingText(definition.prompt),
+    }));
+  const live = livePropositions(state.propositions);
+  const limit = options.recent_interpretation_limit ?? 5;
+  const recent = live.slice(Math.max(0, live.length - limit)).map((proposition) => ({
+    proposition_id: proposition.proposition_id,
+    requirement_id: proposition.in_reply_to,
+    statement: wrapAgentFacingText(proposition.statement),
+    type: proposition.type,
+    epistemic_strength: proposition.epistemic_strength,
+    attribution: attributionFor(proposition),
+  }));
+
+  return {
+    case_id: state.case_id,
+    case_version: state.case_version,
+    protocol_version: WEBMCP_PROTOCOL_VERSION,
+    schema_version: WEBMCP_CORE_SCHEMA_VERSION,
+    status: deriveCaseStatus(state),
+    unresolved_requirement_count: readiness.unresolved_requirement_ids.length,
+    next_requirements: next,
+    open_clarifications: state.clarifications
+      .filter((clarification) => clarification.resolved_at_case_version === null)
+      .map((clarification) => ({
+        clarification_id: clarification.clarification_id,
+        requirement_id: clarification.requirement_id,
+        prompt: wrapAgentFacingText(clarification.prompt),
+      })),
+    recent_interpretations: recent,
+    evidence_references: state.evidence_references.map((reference) => ({
+      evidence_ref_id: reference.evidence_ref_id,
+      label: reference.label,
+      inspection_status: reference.inspection_status,
+    })),
+    warnings: options.warnings ?? [],
+    review_url: options.review_url,
+  };
+}
