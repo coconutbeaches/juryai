@@ -22,7 +22,12 @@
  */
 
 import { deriveCaseStatus, projectCaseState, type CaseState } from '../core/attestation.js';
-import { buildCompileRunRecord, buildCompilerInput } from '../core/compiler-contract.js';
+import {
+  buildCompileRunRecord,
+  buildCompilerInput,
+  type CompileRunRecord,
+  type CompilerOutput,
+} from '../core/compiler-contract.js';
 import {
   precheckSubmit,
   validateSubmitRequest,
@@ -88,6 +93,15 @@ export interface RuntimeRequestContext {
   source_channel?: SourceChannel;
   /** Relay's self-reported identity. Recorded for the record, never trusted. */
   relaying_agent?: string | null;
+}
+
+/**
+ * Per-call execution context. Deliberately separate from the command: an
+ * `AbortSignal` is how the caller is still listening, not something the case
+ * records. Nothing here ever reaches canonical state.
+ */
+export interface RuntimeCallOptions {
+  signal?: AbortSignal;
 }
 
 export interface GetCaseStateQuery {
@@ -255,10 +269,22 @@ export class CaseRuntime {
   /* submit_turn                                                            */
   /* --------------------------------------------------------------------- */
 
+  /**
+   * Returns a `SubmitTurnOutcome` for every outcome the case can have,
+   * including every failure. The single exception is cancellation: if the
+   * caller's own signal aborts, that abort is rethrown rather than flattened
+   * into a failure, so the transport's execution and retry path can unwind
+   * instead of treating a cancelled request as a processing error.
+   */
   async submitTurn(
     context: RuntimeRequestContext,
     command: SubmitTurnCommand,
+    options: RuntimeCallOptions = {},
   ): Promise<SubmitTurnOutcome> {
+    // An already-cancelled call does no work at all: no state read, no
+    // compiler execution, no commit.
+    options.signal?.throwIfAborted();
+
     const principalId = principalOf(context);
     if (principalId === null) {
       return { kind: 'failed', failure: failure('AUTH_REQUIRED', 'No authenticated principal.') };
@@ -307,13 +333,19 @@ export class CaseRuntime {
 
     const attempts = this.#deps.maxCommitAttempts ?? DEFAULT_MAX_COMMIT_ATTEMPTS;
     for (let attempt = 0; attempt < attempts; attempt += 1) {
-      const outcome = await this.#attemptSubmit(context, principalId, request, {
-        // Self-reported by the relay and recorded as such. A translated answer
-        // has no span fidelity to anything the human actually typed, so the
-        // claim is stored rather than quietly dropped.
-        source_language: command.source_language ?? null,
-        translation_indicated: command.translation_indicated === true,
-      });
+      const outcome = await this.#attemptSubmit(
+        context,
+        principalId,
+        request,
+        {
+          // Self-reported by the relay and recorded as such. A translated
+          // answer has no span fidelity to anything the human actually typed,
+          // so the claim is stored rather than quietly dropped.
+          source_language: command.source_language ?? null,
+          translation_indicated: command.translation_indicated === true,
+        },
+        options,
+      );
       if (outcome !== 'contended') return outcome;
     }
 
@@ -342,6 +374,7 @@ export class CaseRuntime {
     principalId: string,
     request: SubmitRequest,
     relayClaims: { source_language: string | null; translation_indicated: boolean },
+    options: RuntimeCallOptions,
   ): Promise<SubmitTurnOutcome | 'contended'> {
     const stored = await this.#deps.store.cases.findById(request.case_id);
     if (!stored || stored.state.principal_id !== principalId) {
@@ -349,14 +382,7 @@ export class CaseRuntime {
     }
     const state = stored.state;
 
-    if (deriveCaseStatus(state) === 'locked') {
-      return {
-        kind: 'failed',
-        failure: failure('CASE_LOCKED', 'This case version has been attested and cannot change.'),
-      };
-    }
-
-    /* --- idempotency, then CAS. Never the other way around. -------------- */
+    /* --- idempotency first, then the lock, then CAS. --------------------- */
     const idempotencyRecords = await this.#deps.store.idempotency.listByCase(request.case_id);
     const precheck = precheckSubmit(request, {
       store: idempotencyRecords,
@@ -379,6 +405,19 @@ export class CaseRuntime {
         superseded_proposition_ids: [...previous.superseded_proposition_ids],
         opened_clarification_ids: [...previous.opened_clarification_ids],
         warnings: [...previous.warnings],
+      };
+    }
+
+    // Only a genuinely NEW write is refused by the lock. An operation that
+    // already happened stays replayable for the lifetime of the case: the
+    // caller that lost a response is asking what its earlier write did, and
+    // a later attestation does not unmake it. This check sits ahead of the
+    // version conflict deliberately — telling a caller its version is stale
+    // invites a refresh-and-retry against a case that can never accept it.
+    if (deriveCaseStatus(state) === 'locked') {
+      return {
+        kind: 'failed',
+        failure: failure('CASE_LOCKED', 'This case version has been attested and cannot change.'),
       };
     }
 
@@ -463,11 +502,22 @@ export class CaseRuntime {
       livePropositions: livePropositions(state.propositions),
     });
 
+    // Re-checked here as well as at entry: the compare-and-swap retry loop can
+    // re-enter this method, and a cancelled call must not start a second
+    // expensive execution.
+    options.signal?.throwIfAborted();
+
     const startedAt = isoFrom(this.#deps.clock.now());
-    let output;
+    let output: CompilerOutput;
     try {
-      output = await this.#deps.compiler.compile(compilerInput);
+      output = await this.#deps.compiler.compile(compilerInput, { signal: options.signal });
     } catch (error) {
+      // A cancelled execution is not a failed one. Flattening it into
+      // INTERNAL_ERROR would tell the transport to consider retrying work the
+      // caller has already walked away from.
+      if (options.signal?.aborted === true) {
+        throw options.signal.reason ?? error;
+      }
       this.#diagnostics.record({
         kind: 'compiler_threw',
         case_id: state.case_id,
@@ -485,10 +535,37 @@ export class CaseRuntime {
     }
     const finishedAt = isoFrom(this.#deps.clock.now());
 
-    const runRecord = buildCompileRunRecord(compilerInput, output, {
-      started_at: startedAt,
-      finished_at: finishedAt,
-    });
+    /* --- fix the compiler's output at the runtime boundary ---------------- */
+    // Everything above this line is ours; `output` is the first object in the
+    // pipeline produced outside the runtime. A provider adapter that returns a
+    // structurally malformed value makes the core contract check dereference
+    // fields that are not there, and an exception thrown here would escape
+    // `submitTurn` instead of becoming a runtime failure. The boundary is
+    // enforced here rather than by loosening the frozen core validator.
+    let runRecord: CompileRunRecord;
+    try {
+      runRecord = buildCompileRunRecord(compilerInput, output, {
+        started_at: startedAt,
+        finished_at: finishedAt,
+      });
+    } catch (error) {
+      this.#diagnostics.record({
+        kind: 'compiler_contract_violation',
+        case_id: state.case_id,
+        turn_id: turnId,
+        compile_run_id: compileRunId,
+        message:
+          'Compiler output was too malformed to record as a compile run: ' +
+          (error instanceof Error ? error.message : 'unknown error'),
+        issues: [],
+      });
+      // No run record can be built, so none is persisted; the failure lives in
+      // the diagnostics sink. Nothing is committed, so the retry key is fresh.
+      return {
+        kind: 'failed',
+        failure: failure('INTERNAL_ERROR', 'That answer could not be processed.', false),
+      };
+    }
     // Append-only audit, written whether or not the result is absorbed. A run
     // that happened and was rejected is history; hiding it makes "the compiler
     // never proposed X" indistinguishable from "the runtime refused X".

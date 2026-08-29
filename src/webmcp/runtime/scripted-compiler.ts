@@ -96,6 +96,8 @@ export function scriptedRegistryEntry(
 export class ScriptedSemanticCompiler implements SemanticCompilerPort {
   readonly registryEntry: CompilerRegistryEntry;
   readonly calls: CompilerInput[] = [];
+  /** Execution context seen per call, so signal propagation is observable. */
+  readonly optionsSeen: (CompileOptions | undefined)[] = [];
   #script: CompilerScript;
 
   constructor(script: CompilerScript = () => ({ verdict: 'no_assertions' })) {
@@ -107,8 +109,9 @@ export class ScriptedSemanticCompiler implements SemanticCompilerPort {
     this.#script = script;
   }
 
-  async compile(input: CompilerInput, _options?: CompileOptions): Promise<CompilerOutput> {
+  async compile(input: CompilerInput, options?: CompileOptions): Promise<CompilerOutput> {
     this.calls.push(structuredClone(input));
+    this.optionsSeen.push(options);
     const scripted = this.#script(input);
     const base = {
       compile_run_id: input.compile_run_id,

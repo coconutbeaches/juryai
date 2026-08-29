@@ -6,23 +6,37 @@ import {
   initialRequirementSet,
   recordingDiagnosticsSink,
   sequentialIdFactory,
+  scriptedRegistryEntry,
   sequentialSaltFactory,
   steppingClock,
+  type CaseRuntimeStore,
+  type CompileOptions,
   type CompilerScript,
   type RuntimeRequestContext,
   type SemanticCompilerPort,
+  type StoredCase,
   type SubmitTurnCommand,
   type SubmitTurnOutcome,
 } from '../webmcp/runtime/index.js';
 import {
+  hashCanonicalState,
   projectCaseState,
+  renderCanonicalAccount,
   type AttestationRecord,
   type CaseState,
 } from '../webmcp/core/attestation.js';
-import { assertNoForbiddenSlots, sha256 } from '../webmcp/core/types.js';
+import {
+  assertNoForbiddenSlots,
+  sha256,
+  STRUCTURAL_VALIDATOR_VERSION,
+  WEBMCP_CORE_SCHEMA_VERSION,
+  WEBMCP_PROTOCOL_VERSION,
+} from '../webmcp/core/types.js';
+import { deriveReadiness } from '../webmcp/core/requirements.js';
 import { computeRequestFingerprint } from '../webmcp/core/idempotency.js';
 import {
   computePayloadCommitment,
+  computeSourceTurnMetadataCommitment,
   normalizePayload,
   turnCarriesSpanFidelity,
   type SourceTurnPayload,
@@ -45,13 +59,19 @@ const BOB: RuntimeRequestContext = {
   relaying_agent: 'ChatGPT (gpt-x)',
 };
 
-function harness(options: { compiler?: SemanticCompilerPort } = {}) {
+function harness(
+  options: {
+    compiler?: SemanticCompilerPort;
+    /** Wraps the store the runtime sees; assertions still read the inner one. */
+    wrapStore?: (inner: InMemoryCaseRuntimeStore) => CaseRuntimeStore;
+  } = {},
+) {
   const store = new InMemoryCaseRuntimeStore();
   const scripted = new ScriptedSemanticCompiler();
   const compiler = options.compiler ?? scripted;
   const diagnostics = recordingDiagnosticsSink();
   const runtime = new CaseRuntime({
-    store,
+    store: options.wrapStore ? options.wrapStore(store) : store,
     compiler,
     clock: steppingClock(START_MS, 1000),
     ids: sequentialIdFactory(),
@@ -904,38 +924,85 @@ describe('correction flow', () => {
 /* Locked case                                                               */
 /* ------------------------------------------------------------------------ */
 
-describe('locked case versions', () => {
-  function lockedAttestation(state: CaseState): AttestationRecord {
-    return {
-      attestation_id: 'att_1',
-      case_id: state.case_id,
-      case_version: state.case_version,
-      canonical_state_hash: 'a'.repeat(64),
-      rendered_document: 'document',
-      rendered_document_hash: sha256('document'),
-      render_template_version: 'juryai-canonical-account-render-v0.2.0',
-      challenge: 'challenge',
-      verification_method: 'first_party_ui_click',
-      assurance_level: 'ui_click',
-      authenticator_ref: null,
-      signature: null,
-      signature_alg: null,
-      source_turn_ids: [],
-      source_turn_commitments: [],
-      source_turn_metadata_commitments: [],
-      evidence_refs: [],
-      unresolved_requirement_ids: [],
-      schema_version: 'juryai-webmcp-core-v0.2.0',
-      protocol_version: 'juryai-webmcp-protocol-v0.2.0',
-      compiler_version_ids: [],
-      structural_validator_version: 'juryai-structural-validator-v0.2.0',
-      principal_id: state.principal_id,
-      created_at: new Date(START_MS).toISOString(),
-      client_ip: null,
-      user_agent: null,
-    };
-  }
+/**
+ * A well-formed attestation over the given state. Attestation TRANSPORT is not
+ * part of this branch, so the record is built here from the core's own render,
+ * state hash and turn commitments rather than hand-rolled; what it is not is
+ * readiness-complete, which no path under test reaches.
+ */
+function attestationFor(state: CaseState): AttestationRecord {
+  const render = renderCanonicalAccount(state);
+  const readiness = deriveReadiness(state.requirements, state.propositions, state.clarifications);
+  return {
+    attestation_id: 'att_' + state.case_id,
+    case_id: state.case_id,
+    case_version: state.case_version,
+    canonical_state_hash: hashCanonicalState(state),
+    rendered_document: render.document,
+    rendered_document_hash: render.document_hash,
+    render_template_version: render.render_template_version,
+    challenge: 'challenge_' + state.case_id,
+    verification_method: 'first_party_ui_click',
+    assurance_level: 'ui_click',
+    authenticator_ref: null,
+    signature: null,
+    signature_alg: null,
+    source_turn_ids: state.turn_log.map((turn) => turn.turn_id),
+    source_turn_commitments: state.turn_log.map((turn) => turn.payload_commitment),
+    source_turn_metadata_commitments: state.turn_log.map(computeSourceTurnMetadataCommitment),
+    evidence_refs: state.evidence_references.map((reference) => ({
+      evidence_ref_id: reference.evidence_ref_id,
+      label: reference.label,
+      inspection_status: reference.inspection_status,
+    })),
+    unresolved_requirement_ids: readiness.unresolved_requirement_ids,
+    schema_version: WEBMCP_CORE_SCHEMA_VERSION,
+    protocol_version: WEBMCP_PROTOCOL_VERSION,
+    compiler_version_ids: [
+      ...new Set(state.propositions.map((proposition) => proposition.compiler_version_id)),
+    ].sort(),
+    structural_validator_version: STRUCTURAL_VALIDATOR_VERSION,
+    principal_id: state.principal_id,
+    created_at: new Date(START_MS).toISOString(),
+    client_ip: null,
+    user_agent: null,
+  };
+}
 
+/**
+ * Presents a chosen case as attested at its current version. The lock is
+ * injected at the READ boundary because that is exactly what the store would
+ * return once a human attested; faking it through a turn commit would require
+ * inventing an idempotency record for a turn that never happened, which is the
+ * very state these tests are about.
+ */
+function lockingStore(inner: InMemoryCaseRuntimeStore) {
+  const locked = new Set<string>();
+  const withLock = (stored: StoredCase | null): StoredCase | null => {
+    if (!stored || !locked.has(stored.state.case_id)) return stored;
+    return {
+      revision: stored.revision,
+      state: { ...stored.state, attestations: [attestationFor(stored.state)] },
+    };
+  };
+  const store: CaseRuntimeStore = {
+    compileRuns: inner.compileRuns,
+    idempotency: inner.idempotency,
+    compilerRegistry: inner.compilerRegistry,
+    cases: {
+      findById: async (caseId) => withLock(await inner.cases.findById(caseId)),
+      findActiveDraftByPrincipal: async (principalId) => {
+        const found = await inner.cases.findActiveDraftByPrincipal(principalId);
+        return found && locked.has(found.state.case_id) ? null : found;
+      },
+      create: (state) => inner.cases.create(state),
+    },
+    commitTurn: (commit) => inner.commitTurn(commit),
+  };
+  return { store, lock: (caseId: string) => locked.add(caseId) };
+}
+
+describe('locked case versions', () => {
   it('refuses to mutate an attested current version, and is not an active draft', async () => {
     const h = harness();
     const draftId = await startedCase(h, ALICE);
@@ -946,7 +1013,7 @@ describe('locked case versions', () => {
       principal_id: 'user_bob',
       turn_log: [],
     };
-    await h.store.cases.create({ ...base, attestations: [lockedAttestation(base)] });
+    await h.store.cases.create({ ...base, attestations: [attestationFor(base)] });
 
     const outcome = await h.runtime.submitTurn(BOB, submitCommand({ case_id: 'case_locked' }));
     expect(outcome.kind).toBe('failed');
@@ -963,6 +1030,307 @@ describe('locked case versions', () => {
     // Alice's own draft is untouched by any of that.
     const alice = await h.runtime.getCaseState(ALICE);
     expect(alice.kind === 'ok' && alice.case.case_id).toBe(draftId);
+  });
+});
+
+describe('replay survives the case being locked', () => {
+  async function committedThenLocked() {
+    let lockCase: (caseId: string) => void = () => {};
+    const h = harness({
+      wrapStore: (inner) => {
+        const wrapper = lockingStore(inner);
+        lockCase = wrapper.lock;
+        return wrapper.store;
+      },
+    });
+    h.scripted.setScript(expectedDateScript);
+    const caseId = await startedCase(h);
+    const first = committed(await h.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId })));
+
+    // The human reviews the account and attests version 1.
+    lockCase(caseId);
+    const before = (await h.store.cases.findById(caseId))!;
+    return { h, caseId, first, before };
+  }
+
+  it('replays an exact client_turn_id retry after the version was attested', async () => {
+    const { h, caseId, first, before } = await committedThenLocked();
+
+    // The caller never saw the original response and retries the same request.
+    const retry = await h.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId }));
+
+    expect(retry.kind).toBe('replayed');
+    if (retry.kind !== 'replayed') return;
+    expect(retry.match).toBe('client_turn_id');
+    expect(retry.turn_id).toBe(first.turn_id);
+    expect(retry.accepted_proposition_ids).toEqual(first.accepted_proposition_ids);
+    expect(retry.recorded_at_case_version).toBe(1);
+
+    const after = (await h.store.cases.findById(caseId))!;
+    expect(after.revision).toBe(before.revision);
+    expect(after.state).toEqual(before.state);
+    expect(after.state.turn_log).toHaveLength(1);
+    expect(after.state.propositions).toHaveLength(1);
+    expect(after.state.case_version).toBe(1);
+    expect(await h.store.compileRuns.listByCase(caseId)).toHaveLength(1);
+    expect(await h.store.idempotency.listByCase(caseId)).toHaveLength(1);
+  });
+
+  it('replays a regenerated retry by fingerprint after the version was attested', async () => {
+    const { h, caseId, first } = await committedThenLocked();
+
+    const retry = await h.runtime.submitTurn(
+      ALICE,
+      submitCommand({
+        case_id: caseId,
+        client_turn_id: 'client_2',
+        expected_case_version: 1,
+        payload: payload('I expected it finished by April 25 — and nobody ever said otherwise!'),
+      }),
+    );
+
+    expect(retry.kind).toBe('replayed');
+    if (retry.kind !== 'replayed') return;
+    expect(retry.match).toBe('fingerprint');
+    expect(retry.turn_id).toBe(first.turn_id);
+    expect((await loadState(h, caseId)).turn_log).toHaveLength(1);
+  });
+
+  it('still refuses a genuinely fresh write to a locked version', async () => {
+    const { h, caseId, before } = await committedThenLocked();
+
+    const fresh = await h.runtime.submitTurn(
+      ALICE,
+      submitCommand({
+        case_id: caseId,
+        client_turn_id: 'client_2',
+        expected_case_version: 1,
+        in_reply_to: ['req_paid'],
+        payload: payload('I paid the deposit on 1 March.'),
+      }),
+    );
+
+    expect(fresh.kind).toBe('failed');
+    if (fresh.kind !== 'failed') return;
+    expect(fresh.failure.code).toBe('CASE_LOCKED');
+
+    const after = (await h.store.cases.findById(caseId))!;
+    expect(after.revision).toBe(before.revision);
+    expect(after.state.turn_log).toHaveLength(1);
+    expect(await h.store.compileRuns.listByCase(caseId)).toHaveLength(1);
+  });
+
+  it('reports a stale fresh write to a locked version as locked, not as a conflict', async () => {
+    const { h, caseId } = await committedThenLocked();
+
+    // Stale expected_case_version AND a new statement. Answering VERSION_CONFLICT
+    // would invite a refresh-and-retry against a case that can never accept it.
+    const stale = await h.runtime.submitTurn(
+      ALICE,
+      submitCommand({
+        case_id: caseId,
+        client_turn_id: 'client_2',
+        expected_case_version: 0,
+        in_reply_to: ['req_paid'],
+        payload: payload('I paid the deposit on 1 March.'),
+      }),
+    );
+
+    expect(stale.kind).toBe('failed');
+    if (stale.kind !== 'failed') return;
+    expect(stale.failure.code).toBe('CASE_LOCKED');
+    expect((await loadState(h, caseId)).turn_log).toHaveLength(1);
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Malformed compiler output                                                 */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * A provider adapter that returns an object the core contract check cannot even
+ * inspect: the verdict claims accepted candidates, but the arrays the check
+ * dereferences are simply absent. This is a different failure class from a
+ * compiler that throws, and from one whose output merely fails the contract.
+ */
+class MalformedCompiler implements SemanticCompilerPort {
+  readonly registryEntry = scriptedRegistryEntry();
+  calls = 0;
+
+  async compile(input: CompilerInput): Promise<CompilerOutput> {
+    this.calls += 1;
+    return {
+      compile_run_id: input.compile_run_id,
+      compiler_version_id: input.compiler_version_id,
+      verdict: 'accepted_candidates',
+      // assertions, rejected_candidates and clarifications_requested missing.
+    } as unknown as CompilerOutput;
+  }
+}
+
+describe('malformed compiler output is contained at the runtime boundary', () => {
+  it('resolves to a safe failure instead of rejecting the submit promise', async () => {
+    const compiler = new MalformedCompiler();
+    const h = harness({ compiler });
+    const caseId = await startedCase(h);
+    const before = (await h.store.cases.findById(caseId))!;
+
+    // Resolving at all is half the assertion: an uncaught throw here would
+    // escape submitTurn and bypass the runtime's failure contract entirely.
+    const outcome = await h.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId }));
+
+    expect(outcome.kind).toBe('failed');
+    if (outcome.kind !== 'failed') return;
+    expect(outcome.failure.code).toBe('INTERNAL_ERROR');
+    expect(compiler.calls).toBe(1);
+
+    // Nothing about the malformed object reaches the caller.
+    const surfaced = JSON.stringify(outcome.failure);
+    expect(surfaced).not.toContain('assertions');
+    expect(surfaced).not.toContain('accepted_candidates');
+    expect(surfaced).not.toContain('undefined');
+
+    const event = h.diagnostics.events.find(
+      (entry) => entry.kind === 'compiler_contract_violation',
+    );
+    expect(event).toBeDefined();
+    expect(event?.turn_id).not.toBeNull();
+
+    // No case mutation, no source turn, no idempotency record.
+    const after = (await h.store.cases.findById(caseId))!;
+    expect(after.revision).toBe(before.revision);
+    expect(after.state).toEqual(before.state);
+    expect(after.state.turn_log).toHaveLength(0);
+    expect(after.state.case_version).toBe(0);
+    expect(await h.store.idempotency.listByCase(caseId)).toEqual([]);
+  });
+
+  it('leaves the retry key fresh so a working compiler can still record the turn', async () => {
+    const malformed = new MalformedCompiler();
+    const h = harness({ compiler: malformed });
+    const caseId = await startedCase(h);
+    await h.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId }));
+
+    // Same runtime, same client_turn_id, a compiler that now behaves.
+    const working = new ScriptedSemanticCompiler(expectedDateScript);
+    const recovered = harness({ compiler: working });
+    const recoveredCase = await startedCase(recovered);
+    const outcome = committed(
+      await recovered.runtime.submitTurn(ALICE, submitCommand({ case_id: recoveredCase })),
+    );
+    expect(outcome.case.case_version).toBe(1);
+
+    expect(await h.store.idempotency.listByCase(caseId)).toEqual([]);
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Cancellation                                                              */
+/* ------------------------------------------------------------------------ */
+
+/** Blocks until the supplied signal aborts, so the mid-flight path is exact. */
+class AbortAwareCompiler implements SemanticCompilerPort {
+  readonly registryEntry = scriptedRegistryEntry();
+  calls = 0;
+  readonly started: Promise<void>;
+  #markStarted!: () => void;
+
+  constructor() {
+    this.started = new Promise<void>((resolve) => {
+      this.#markStarted = resolve;
+    });
+  }
+
+  async compile(_input: CompilerInput, options?: CompileOptions): Promise<CompilerOutput> {
+    this.calls += 1;
+    this.#markStarted();
+    return new Promise<CompilerOutput>((_resolve, reject) => {
+      options?.signal?.addEventListener('abort', () => {
+        // Deliberately NOT the signal reason: the runtime must surface the
+        // cancellation, not whatever the provider happened to reject with.
+        reject(new Error('provider stream closed'));
+      });
+    });
+  }
+}
+
+describe('cancellation', () => {
+  it('forwards the caller signal identity into the compiler call', async () => {
+    const h = harness();
+    h.scripted.setScript(expectedDateScript);
+    const caseId = await startedCase(h);
+    const controller = new AbortController();
+
+    const outcome = await h.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId }), {
+      signal: controller.signal,
+    });
+
+    expect(outcome.kind).toBe('committed');
+    expect(h.scripted.optionsSeen).toHaveLength(1);
+    expect(h.scripted.optionsSeen[0]?.signal).toBe(controller.signal);
+  });
+
+  it('still works with no options supplied at all', async () => {
+    const h = harness();
+    h.scripted.setScript(expectedDateScript);
+    const caseId = await startedCase(h);
+
+    const outcome = committed(
+      await h.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId })),
+    );
+    expect(outcome.case.case_version).toBe(1);
+    expect(h.scripted.optionsSeen[0]?.signal).toBeUndefined();
+  });
+
+  it('propagates an abort mid-compile instead of returning INTERNAL_ERROR', async () => {
+    const compiler = new AbortAwareCompiler();
+    const h = harness({ compiler });
+    const caseId = await startedCase(h);
+    const before = (await h.store.cases.findById(caseId))!;
+    const controller = new AbortController();
+    const reason = new Error('the user navigated away');
+
+    const pending = h.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId }), {
+      signal: controller.signal,
+    });
+    await compiler.started;
+    controller.abort(reason);
+
+    // The abort stays an abort, and keeps the caller's own reason identity.
+    await expect(pending).rejects.toBe(reason);
+    expect(compiler.calls).toBe(1);
+
+    // A cancelled execution is not retried internally, and commits nothing.
+    const after = (await h.store.cases.findById(caseId))!;
+    expect(after.revision).toBe(before.revision);
+    expect(after.state).toEqual(before.state);
+    expect(after.state.turn_log).toHaveLength(0);
+    expect(await h.store.idempotency.listByCase(caseId)).toEqual([]);
+    expect(await h.store.compileRuns.listByCase(caseId)).toEqual([]);
+    expect(h.diagnostics.events.map((event) => event.kind)).not.toContain('compiler_threw');
+  });
+
+  it('does no work at all when the signal is already aborted', async () => {
+    const compiler = new AbortAwareCompiler();
+    const h = harness({ compiler });
+    const caseId = await startedCase(h);
+    const before = (await h.store.cases.findById(caseId))!;
+    const controller = new AbortController();
+    const reason = new Error('cancelled before dispatch');
+    controller.abort(reason);
+
+    await expect(
+      h.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId }), {
+        signal: controller.signal,
+      }),
+    ).rejects.toBe(reason);
+
+    expect(compiler.calls).toBe(0);
+    const after = (await h.store.cases.findById(caseId))!;
+    expect(after.revision).toBe(before.revision);
+    expect(after.state.turn_log).toHaveLength(0);
+    expect(await h.store.idempotency.listByCase(caseId)).toEqual([]);
+    expect(h.diagnostics.events).toEqual([]);
   });
 });
 
