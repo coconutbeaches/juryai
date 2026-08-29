@@ -1,6 +1,6 @@
 import { mkdtemp, mkdir, readFile, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, resolve } from 'node:path';
+import { dirname, relative, resolve } from 'node:path';
 import {
   isCallExpression,
   isElementAccessExpression,
@@ -784,6 +784,13 @@ function isForbiddenDependencyPath(path: string): boolean {
   );
 }
 
+function repositoryRelativeDependencyPath(
+  absolutePath: string,
+  projectRoot = process.cwd(),
+): string {
+  return relative(projectRoot, absolutePath).replaceAll('\\', '/');
+}
+
 describe('Person A acceptance dependency isolation', () => {
   it('has no provider, environment, network, persistence, runtime, Supabase, or Person B dependency', () => {
     const roots = [
@@ -823,8 +830,39 @@ describe('Person A acceptance dependency isolation', () => {
     ]);
     expect([...forbiddenConstructs]).toEqual([]);
     for (const path of visited) {
-      expect(isForbiddenDependencyPath(path)).toBe(false);
+      expect(isForbiddenDependencyPath(repositoryRelativeDependencyPath(path))).toBe(false);
     }
+  });
+
+  it('ignores checkout-prefix tokens without ignoring forbidden repository paths', () => {
+    const runtimeCheckoutRoot = resolve('/tmp/webmcp-v02-runtime/juryai');
+    const acceptanceSource = resolve(
+      runtimeCheckoutRoot,
+      'src/evaluation/person-a-extraction-acceptance.ts',
+    );
+    const acceptanceRepositoryPath = repositoryRelativeDependencyPath(
+      acceptanceSource,
+      runtimeCheckoutRoot,
+    );
+
+    expect(acceptanceRepositoryPath).toBe('src/evaluation/person-a-extraction-acceptance.ts');
+    expect(isForbiddenDependencyPath(acceptanceSource)).toBe(true);
+    expect(isForbiddenDependencyPath(acceptanceRepositoryPath)).toBe(false);
+
+    const safeProjectRoot = resolve('/tmp/safe/juryai');
+    const runtimeRepositoryPath = repositoryRelativeDependencyPath(
+      resolve(safeProjectRoot, 'src/webmcp/runtime/foo.ts'),
+      safeProjectRoot,
+    );
+    const providerRepositoryPath = repositoryRelativeDependencyPath(
+      resolve(safeProjectRoot, 'src/provider/foo.ts'),
+      safeProjectRoot,
+    );
+
+    expect(runtimeRepositoryPath).toBe('src/webmcp/runtime/foo.ts');
+    expect(isForbiddenDependencyPath(runtimeRepositoryPath)).toBe(true);
+    expect(providerRepositoryPath).toBe('src/provider/foo.ts');
+    expect(isForbiddenDependencyPath(providerRepositoryPath)).toBe(true);
   });
 
   it('detects representative hidden dependency and side-effect constructs through the AST', async () => {
