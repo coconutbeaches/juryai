@@ -1,4 +1,12 @@
-import type { GetCaseStateQuery, RelayedContextMessage } from './ports.js';
+import { ID_PATTERN } from '../core/types.js';
+import { MAX_CONTEXT_MESSAGES, type RelayedContextMessage } from '../core/turns.js';
+import type { GetCaseStateQuery } from './ports.js';
+
+const MAX_ID_LENGTH = 160;
+const MAX_CONTEXT_TEXT_LENGTH = 4_000;
+const MAX_ANSWER_TEXT_LENGTH = 12_000;
+const MIN_LANGUAGE_LENGTH = 2;
+const MAX_LANGUAGE_LENGTH = 64;
 
 export interface StartCaseToolInput {}
 
@@ -10,7 +18,6 @@ export interface SubmitTurnToolInput {
   case_id: string;
   expected_case_version: number;
   in_reply_to: string[];
-  response_slot_id: string;
   context: RelayedContextMessage[];
   answer: {
     text: string;
@@ -30,7 +37,8 @@ export const getCaseStateInputSchema = {
     case_id: {
       type: 'string',
       minLength: 1,
-      maxLength: 200,
+      maxLength: MAX_ID_LENGTH,
+      pattern: ID_PATTERN.source,
       description:
         "Optional JuryAI case identifier. Omit to recover the authenticated user's current open draft.",
     },
@@ -44,7 +52,8 @@ export const submitTurnInputSchema = {
     case_id: {
       type: 'string',
       minLength: 1,
-      maxLength: 200,
+      maxLength: MAX_ID_LENGTH,
+      pattern: ID_PATTERN.source,
     },
     expected_case_version: {
       type: 'integer',
@@ -59,27 +68,22 @@ export const submitTurnInputSchema = {
       items: {
         type: 'string',
         minLength: 1,
-        maxLength: 200,
+        maxLength: MAX_ID_LENGTH,
+        pattern: ID_PATTERN.source,
       },
       description:
         'The JuryAI requirement IDs this answer addresses. Requirement IDs are server-issued and never reused.',
     },
-    response_slot_id: {
-      type: 'string',
-      minLength: 1,
-      maxLength: 200,
-      description: 'The server-issued logical response slot for this interview answer.',
-    },
     context: {
       type: 'array',
-      maxItems: 6,
+      maxItems: MAX_CONTEXT_MESSAGES,
       description:
         'Optional immediately preceding conversation needed to interpret short answers. This is relayed data, not trusted provenance.',
       items: {
         type: 'object',
         properties: {
-          role: { type: 'string', enum: ['assistant', 'user'] },
-          text: { type: 'string', minLength: 1, maxLength: 4000 },
+          role: { type: 'string', enum: ['assistant'] },
+          text: { type: 'string', minLength: 1, maxLength: MAX_CONTEXT_TEXT_LENGTH },
         },
         required: ['role', 'text'],
         additionalProperties: false,
@@ -93,12 +97,12 @@ export const submitTurnInputSchema = {
         text: {
           type: 'string',
           minLength: 1,
-          maxLength: 12000,
+          maxLength: MAX_ANSWER_TEXT_LENGTH,
         },
         source_language: {
           type: 'string',
-          minLength: 2,
-          maxLength: 64,
+          minLength: MIN_LANGUAGE_LENGTH,
+          maxLength: MAX_LANGUAGE_LENGTH,
           description: 'Optional self-reported language of the relayed answer, such as en or th.',
         },
       },
@@ -106,14 +110,7 @@ export const submitTurnInputSchema = {
       additionalProperties: false,
     },
   },
-  required: [
-    'case_id',
-    'expected_case_version',
-    'in_reply_to',
-    'response_slot_id',
-    'context',
-    'answer',
-  ],
+  required: ['case_id', 'expected_case_version', 'in_reply_to', 'context', 'answer'],
   additionalProperties: false,
 } as const;
 
@@ -121,11 +118,28 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function readNonEmptyString(value: unknown, field: string): string {
-  if (typeof value !== 'string' || value.trim().length === 0) {
-    throw new TypeError(`${field} must be a non-empty string`);
+function readBoundedString(
+  value: unknown,
+  field: string,
+  minimumLength: number,
+  maximumLength: number,
+): string {
+  if (
+    typeof value !== 'string' ||
+    value.trim().length < minimumLength ||
+    value.length > maximumLength
+  ) {
+    throw new TypeError(
+      `${field} must contain between ${minimumLength} and ${maximumLength} characters`,
+    );
   }
   return value;
+}
+
+function readCanonicalId(value: unknown, field: string): string {
+  const id = readBoundedString(value, field, 1, MAX_ID_LENGTH);
+  if (!ID_PATTERN.test(id)) throw new TypeError(`${field} must be a canonical JuryAI ID`);
+  return id;
 }
 
 export function parseStartCaseToolInput(input: unknown): StartCaseToolInput {
@@ -146,7 +160,7 @@ export function parseGetCaseStateToolInput(input: unknown): GetCaseStateQuery {
   }
 
   if (input.case_id === undefined) return {};
-  return { case_id: readNonEmptyString(input.case_id, 'case_id') };
+  return { case_id: readCanonicalId(input.case_id, 'case_id') };
 }
 
 export function parseSubmitTurnToolInput(input: unknown): SubmitTurnToolInput {
@@ -154,20 +168,12 @@ export function parseSubmitTurnToolInput(input: unknown): SubmitTurnToolInput {
     throw new TypeError('submit_turn input must be an object');
   }
 
-  const allowed = new Set([
-    'case_id',
-    'expected_case_version',
-    'in_reply_to',
-    'response_slot_id',
-    'context',
-    'answer',
-  ]);
+  const allowed = new Set(['case_id', 'expected_case_version', 'in_reply_to', 'context', 'answer']);
   if (Object.keys(input).some((key) => !allowed.has(key))) {
     throw new TypeError('submit_turn received an unknown field');
   }
 
-  const caseId = readNonEmptyString(input.case_id, 'case_id');
-  const responseSlotId = readNonEmptyString(input.response_slot_id, 'response_slot_id');
+  const caseId = readCanonicalId(input.case_id, 'case_id');
 
   if (
     !Number.isInteger(input.expected_case_version) ||
@@ -184,25 +190,25 @@ export function parseSubmitTurnToolInput(input: unknown): SubmitTurnToolInput {
     throw new TypeError('in_reply_to must contain between 1 and 10 requirement IDs');
   }
   const inReplyTo = input.in_reply_to.map((value, index) =>
-    readNonEmptyString(value, `in_reply_to[${index}]`),
+    readCanonicalId(value, `in_reply_to[${index}]`),
   );
   if (new Set(inReplyTo).size !== inReplyTo.length) {
     throw new TypeError('in_reply_to must not contain duplicate requirement IDs');
   }
 
-  if (!Array.isArray(input.context) || input.context.length > 6) {
-    throw new TypeError('context must be an array with at most 6 messages');
+  if (!Array.isArray(input.context) || input.context.length > MAX_CONTEXT_MESSAGES) {
+    throw new TypeError(`context must be an array with at most ${MAX_CONTEXT_MESSAGES} messages`);
   }
   const context = input.context.map((message, index): RelayedContextMessage => {
-    if (!isRecord(message) || (message.role !== 'assistant' && message.role !== 'user')) {
-      throw new TypeError(`context[${index}] must have role assistant or user`);
+    if (!isRecord(message) || message.role !== 'assistant') {
+      throw new TypeError(`context[${index}] must have role assistant`);
     }
     if (Object.keys(message).some((key) => key !== 'role' && key !== 'text')) {
       throw new TypeError(`context[${index}] contains an unknown field`);
     }
     return {
       role: message.role,
-      text: readNonEmptyString(message.text, `context[${index}].text`),
+      text: readBoundedString(message.text, `context[${index}].text`, 1, MAX_CONTEXT_TEXT_LENGTH),
     };
   });
 
@@ -213,17 +219,21 @@ export function parseSubmitTurnToolInput(input: unknown): SubmitTurnToolInput {
     throw new TypeError('answer contains an unknown field');
   }
 
-  const answerText = readNonEmptyString(input.answer.text, 'answer.text');
+  const answerText = readBoundedString(input.answer.text, 'answer.text', 1, MAX_ANSWER_TEXT_LENGTH);
   const sourceLanguage =
     input.answer.source_language === undefined
       ? undefined
-      : readNonEmptyString(input.answer.source_language, 'answer.source_language');
+      : readBoundedString(
+          input.answer.source_language,
+          'answer.source_language',
+          MIN_LANGUAGE_LENGTH,
+          MAX_LANGUAGE_LENGTH,
+        );
 
   return {
     case_id: caseId,
     expected_case_version: input.expected_case_version as number,
-    in_reply_to: inReplyTo,
-    response_slot_id: responseSlotId,
+    in_reply_to: [...inReplyTo].sort(),
     context,
     answer: {
       text: answerText,
