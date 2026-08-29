@@ -31,7 +31,8 @@ export const getCaseStateInputSchema = {
       type: 'string',
       minLength: 1,
       maxLength: 200,
-      description: 'Optional JuryAI case identifier. Omit to recover the authenticated user\'s current open draft.',
+      description:
+        "Optional JuryAI case identifier. Omit to recover the authenticated user's current open draft.",
     },
   },
   additionalProperties: false,
@@ -60,7 +61,8 @@ export const submitTurnInputSchema = {
         minLength: 1,
         maxLength: 200,
       },
-      description: 'The JuryAI requirement IDs this answer addresses. Requirement IDs are server-issued and never reused.',
+      description:
+        'The JuryAI requirement IDs this answer addresses. Requirement IDs are server-issued and never reused.',
     },
     response_slot_id: {
       type: 'string',
@@ -71,7 +73,8 @@ export const submitTurnInputSchema = {
     context: {
       type: 'array',
       maxItems: 6,
-      description: 'Optional immediately preceding conversation needed to interpret short answers. This is relayed data, not trusted provenance.',
+      description:
+        'Optional immediately preceding conversation needed to interpret short answers. This is relayed data, not trusted provenance.',
       items: {
         type: 'object',
         properties: {
@@ -84,7 +87,8 @@ export const submitTurnInputSchema = {
     },
     answer: {
       type: 'object',
-      description: 'The user answer being relayed. Preserve the user\'s own wording rather than replacing it with an agent-authored canonical summary.',
+      description:
+        "The user answer being relayed. Preserve the user's own wording rather than replacing it with an agent-authored canonical summary.",
       properties: {
         text: {
           type: 'string',
@@ -102,7 +106,14 @@ export const submitTurnInputSchema = {
       additionalProperties: false,
     },
   },
-  required: ['case_id', 'expected_case_version', 'in_reply_to', 'response_slot_id', 'context', 'answer'],
+  required: [
+    'case_id',
+    'expected_case_version',
+    'in_reply_to',
+    'response_slot_id',
+    'context',
+    'answer',
+  ],
   additionalProperties: false,
 } as const;
 
@@ -158,14 +169,23 @@ export function parseSubmitTurnToolInput(input: unknown): SubmitTurnToolInput {
   const caseId = readNonEmptyString(input.case_id, 'case_id');
   const responseSlotId = readNonEmptyString(input.response_slot_id, 'response_slot_id');
 
-  if (!Number.isInteger(input.expected_case_version) || (input.expected_case_version as number) < 1) {
+  if (
+    !Number.isInteger(input.expected_case_version) ||
+    (input.expected_case_version as number) < 1
+  ) {
     throw new TypeError('expected_case_version must be a positive integer');
   }
 
-  if (!Array.isArray(input.in_reply_to) || input.in_reply_to.length < 1 || input.in_reply_to.length > 10) {
+  if (
+    !Array.isArray(input.in_reply_to) ||
+    input.in_reply_to.length < 1 ||
+    input.in_reply_to.length > 10
+  ) {
     throw new TypeError('in_reply_to must contain between 1 and 10 requirement IDs');
   }
-  const inReplyTo = input.in_reply_to.map((value, index) => readNonEmptyString(value, `in_reply_to[${index}]`));
+  const inReplyTo = input.in_reply_to.map((value, index) =>
+    readNonEmptyString(value, `in_reply_to[${index}]`),
+  );
   if (new Set(inReplyTo).size !== inReplyTo.length) {
     throw new TypeError('in_reply_to must not contain duplicate requirement IDs');
   }

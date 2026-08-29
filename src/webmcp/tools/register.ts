@@ -1,4 +1,8 @@
-import { createJuryAiToolDefinitions, type ToolDefinitionOptions, type WebMcpToolDefinition } from './definitions.js';
+import {
+  createJuryAiToolDefinitions,
+  type ToolDefinitionOptions,
+  type WebMcpToolDefinition,
+} from './definitions.js';
 import type { CaseServicePort } from './ports.js';
 
 export interface ModelContextLike {
