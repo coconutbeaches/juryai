@@ -65,7 +65,9 @@ export function canonicalStateProjection(state: CaseState): unknown {
   return {
     case_id: state.case_id,
     case_version: state.case_version,
+    principal_id: state.principal_id,
     disclosure_version: state.disclosure_version,
+    disclosure_accepted_at: state.disclosure_accepted_at,
     requirements: state.requirements,
     propositions: state.propositions,
     clarifications: state.clarifications,
@@ -406,7 +408,7 @@ export function verifyAttestationAttempt(
     schema_version: WEBMCP_CORE_SCHEMA_VERSION,
     protocol_version: WEBMCP_PROTOCOL_VERSION,
     compiler_version_ids: [
-      ...new Set(state.propositions.map((proposition) => proposition.compile_run_id)),
+      ...new Set(state.propositions.map((proposition) => proposition.compiler_version_id)),
     ].sort(),
     structural_validator_version: STRUCTURAL_VALIDATOR_VERSION,
     principal_id: state.principal_id,

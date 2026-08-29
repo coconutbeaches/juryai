@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest';
 import {
   assertNoForbiddenSlots,
   canSatisfyRole,
+  canonicalSerialize,
   describeSourceChannel,
   FORBIDDEN_CASE_STATE_SLOTS,
   NON_COERCIBLE_TYPE_PAIRS,
   PERMITTED_CASE_STATE_SLOTS,
   propositionTypeDescriptor,
+  sha256,
   wrapAgentFacingText,
   type EpistemicStrength,
   type EvidenceReference,
@@ -63,6 +65,7 @@ import { validateCaseState } from '../webmcp/core/structural-validator.js';
 import {
   buildCompileRunRecord,
   buildCompilerInput,
+  compilerInputHash,
   compilerVersionId,
   registerCompilerVersion,
   validateCompilerOutput,
@@ -76,6 +79,7 @@ import {
 
 const PRINCIPAL = 'user_tyler';
 const CASE_ID = 'case_dr002';
+const DEFAULT_COMPILER_VERSION_ID = 'e'.repeat(64);
 
 function payload(answer: string, context: string[] = []): SourceTurnPayload {
   return normalizePayload({
@@ -142,6 +146,7 @@ function proposition(
     superseded_at_case_version: null,
     created_at_case_version: 1,
     compile_run_id: 'run_1',
+    compiler_version_id: DEFAULT_COMPILER_VERSION_ID,
     evidence_ref_id: null,
     ...overrides,
   };
@@ -821,6 +826,23 @@ function attempt(overrides: Partial<AttestationAttempt> = {}): AttestationAttemp
   };
 }
 
+function attestationFor(state: CaseState) {
+  const challenge = issueRenderChallenge(
+    renderCanonicalAccount(state),
+    state.case_id,
+    'nonce-1',
+    0,
+  );
+  const result = verifyAttestationAttempt(
+    state,
+    challenge,
+    attempt({ rendered_document_hash: challenge.rendered_document_hash }),
+    1_000,
+  );
+  if (result.kind !== 'accepted') throw new Error('expected acceptance');
+  return result.record;
+}
+
 describe('first-party render', () => {
   it('shows what is missing, not only what is present', () => {
     const state = baseState({
@@ -870,6 +892,22 @@ describe('first-party render', () => {
     const render = renderCanonicalAccount(baseState());
     expect(render.document_hash).toMatch(/^[a-f0-9]{64}$/u);
     expect(renderCanonicalAccount(baseState()).document_hash).toBe(render.document_hash);
+  });
+});
+
+describe('canonical state hash', () => {
+  it('binds the principal identity', () => {
+    const state = baseState();
+    expect(hashCanonicalState({ ...state, principal_id: 'user_other' })).not.toBe(
+      hashCanonicalState(state),
+    );
+  });
+
+  it('binds the disclosure acceptance timestamp', () => {
+    const state = baseState();
+    expect(
+      hashCanonicalState({ ...state, disclosure_accepted_at: '2026-08-29T06:00:00.000Z' }),
+    ).not.toBe(hashCanonicalState(state));
   });
 });
 
@@ -1021,25 +1059,57 @@ describe('attestation', () => {
     if (result.kind !== 'accepted') throw new Error('expected acceptance');
     expect(result.record.unresolved_requirement_ids).toEqual([]);
     expect(result.record.source_turn_commitments).toEqual([state.turn_log[0]?.payload_commitment]);
+    expect(result.record.compiler_version_ids).toEqual([DEFAULT_COMPILER_VERSION_ID]);
+    expect(result.record.compiler_version_ids).not.toContain('run_1');
+  });
+
+  it('deduplicates and deterministically orders compiler version ids', () => {
+    const firstVersion = 'f'.repeat(64);
+    const state = baseState({
+      requirements: [
+        requirement('R24', ['target_date']),
+        requirement('R25', ['payment']),
+        requirement('R26', ['requested_scope']),
+      ],
+      propositions: [
+        proposition('prop_1', {
+          in_reply_to: 'R24',
+          type: 'target_date',
+          compile_run_id: 'run_1',
+          compiler_version_id: firstVersion,
+        }),
+        proposition('prop_2', {
+          in_reply_to: 'R25',
+          type: 'payment',
+          compile_run_id: 'run_2',
+          compiler_version_id: DEFAULT_COMPILER_VERSION_ID,
+        }),
+        proposition('prop_3', {
+          in_reply_to: 'R26',
+          type: 'requested_scope',
+          compile_run_id: 'run_3',
+          compiler_version_id: firstVersion,
+        }),
+      ],
+      turn_log: [
+        turn({
+          turn_id: 'turn_1',
+          in_reply_to: ['R24', 'R25', 'R26'],
+          request_fingerprint: 'a'.repeat(64),
+        }),
+      ],
+    });
+    expect(validateCaseState(state).issues).toEqual([]);
+    expect(attestationFor(state).compiler_version_ids).toEqual([
+      DEFAULT_COMPILER_VERSION_ID,
+      firstVersion,
+    ]);
   });
 });
 
 describe('append-only attestations and derived lock', () => {
   function attested(state: CaseState) {
-    const challenge = issueRenderChallenge(
-      renderCanonicalAccount(state),
-      state.case_id,
-      'nonce-1',
-      0,
-    );
-    const result = verifyAttestationAttempt(
-      state,
-      challenge,
-      attempt({ rendered_document_hash: challenge.rendered_document_hash }),
-      1_000,
-    );
-    if (result.kind !== 'accepted') throw new Error('expected acceptance');
-    return result.record;
+    return attestationFor(state);
   }
 
   it('derives locked status from the attestation collection', () => {
@@ -1180,6 +1250,31 @@ describe('structural validator', () => {
 
   it('requires a disclosure captured at case creation', () => {
     expect(codesFor(baseState({ disclosure_version: '  ' }))).toContain('case_disclosure_missing');
+  });
+
+  it('keeps compile run and compiler version identities independent', () => {
+    const value = proposition('prop_1', {
+      in_reply_to: 'R24',
+      type: 'target_date',
+      compile_run_id: 'run_individual',
+      compiler_version_id: 'a'.repeat(64),
+    });
+    expect(value.compile_run_id).toBe('run_individual');
+    expect(value.compiler_version_id).toBe('a'.repeat(64));
+    expect(value.compile_run_id).not.toBe(value.compiler_version_id);
+  });
+
+  it('rejects a malformed compiler version id on a proposition', () => {
+    const state = baseState({
+      propositions: [
+        proposition('prop_1', {
+          in_reply_to: 'R24',
+          type: 'target_date',
+          compiler_version_id: 'compiler-v1',
+        }),
+      ],
+    });
+    expect(codesFor(state)).toContain('proposition_compiler_version_invalid');
   });
 
   it('rejects a proposition whose type cannot satisfy its requirement', () => {
@@ -1350,6 +1445,61 @@ describe('structural validator', () => {
     expect(codesFor(baseState({ turn_log: [tampered] }))).toContain('turn_commitment_mismatch');
   });
 
+  it('detects principal drift on the current attested version', () => {
+    const state = baseState();
+    const record = attestationFor(state);
+    expect(codesFor({ ...state, principal_id: 'user_other', attestations: [record] })).toContain(
+      'attestation_state_drift',
+    );
+  });
+
+  it('detects disclosure acceptance drift on the current attested version', () => {
+    const state = baseState();
+    const record = attestationFor(state);
+    expect(
+      codesFor({
+        ...state,
+        disclosure_accepted_at: '2026-08-29T06:00:00.000Z',
+        attestations: [record],
+      }),
+    ).toContain('attestation_state_drift');
+  });
+
+  it('rejects a source turn appended without advancing an attested case version', () => {
+    const state = baseState();
+    const record = attestationFor(state);
+    const appended = turn({
+      turn_id: 'turn_2',
+      case_version_before: state.case_version,
+      request_fingerprint: 'b'.repeat(64),
+    });
+    const corrupted: CaseState = {
+      ...state,
+      turn_log: [...state.turn_log, appended],
+      attestations: [record],
+    };
+    expect(codesFor(corrupted)).toContain('attestation_source_turns_drift');
+  });
+
+  it('preserves a historical attestation after a legitimate versioned amendment', () => {
+    const state = baseState();
+    const record = attestationFor(state);
+    const appended = turn({
+      turn_id: 'turn_2',
+      case_version_before: state.case_version,
+      request_fingerprint: 'b'.repeat(64),
+    });
+    const amended: CaseState = {
+      ...state,
+      case_version: state.case_version + 1,
+      turn_log: [...state.turn_log, appended],
+      attestations: [record],
+    };
+    expect(deriveCaseStatus(amended)).toBe('draft');
+    expect(validateCaseState(amended).issues).toEqual([]);
+    expect(amended.attestations).toEqual([record]);
+  });
+
   it('rejects an attestation bound to a version that does not exist yet', () => {
     const state = baseState();
     const bad = {
@@ -1387,9 +1537,12 @@ describe('structural validator', () => {
 /* Compiler contract                                                         */
 /* ------------------------------------------------------------------------ */
 
+const COMPILER_PROMPT = 'Classify the answer into a canonical type.';
+const COMPILER_CONFIG = { mode: 'single_pass' };
+
 const COMPILER_VERSION: CompilerVersion = {
-  prompt_hash: 'c'.repeat(64),
-  config_hash: 'd'.repeat(64),
+  prompt_hash: sha256(COMPILER_PROMPT),
+  config_hash: sha256(canonicalSerialize(COMPILER_CONFIG)),
   model_id: 'example-model',
   model_snapshot: '2026-08-01',
   decoding: { temperature: 0, top_p: null, max_output_tokens: 2048, seed: null },
@@ -1519,8 +1672,9 @@ describe('compiler contract', () => {
   });
 
   it('preserves what the compiler proposed and discarded', () => {
+    const input = compilerInput();
     const record = buildCompileRunRecord(
-      compilerInput(),
+      input,
       compilerOutput({
         rejected_candidates: [
           {
@@ -1533,9 +1687,31 @@ describe('compiler contract', () => {
       }),
       { started_at: '2026-08-29T06:00:00.000Z', finished_at: '2026-08-29T06:00:01.000Z' },
     );
+    expect(record.input).toEqual(input);
+    expect(record.input).not.toBe(input);
+    expect(record.input_hash).toBe(compilerInputHash(record.input));
     expect(record.output.rejected_candidates).toHaveLength(1);
     expect(record.input_hash).toMatch(/^[a-f0-9]{64}$/u);
     expect(record.contract_issues).toEqual([]);
+  });
+
+  it('stores a detached snapshot of the complete compiler input', () => {
+    const input = compilerInput();
+    const originalAnswer = input.turn.payload.answer.text;
+    const originalPrompt = input.requirement_context[0]?.prompt;
+    const record = buildCompileRunRecord(input, compilerOutput(), {
+      started_at: '2026-08-29T06:00:00.000Z',
+      finished_at: '2026-08-29T06:00:01.000Z',
+    });
+
+    input.turn.payload.answer.text = 'Later external mutation.';
+    if (input.requirement_context[0]) input.requirement_context[0].prompt = 'Changed requirement.';
+
+    expect(record.input.turn.payload.answer.text).toBe(originalAnswer);
+    expect(record.input.requirement_context[0]?.prompt).toBe(originalPrompt);
+    expect(record.input.case_version).toBe(1);
+    expect(record.input.existing_propositions).toEqual([]);
+    expect(record.input_hash).toBe(compilerInputHash(record.input));
   });
 });
 
@@ -1543,8 +1719,8 @@ describe('compiler registry', () => {
   const entry = {
     compiler_version_id: compilerVersionId(COMPILER_VERSION),
     version: COMPILER_VERSION,
-    prompt_text: 'Classify the answer into a canonical type.',
-    config: { mode: 'single_pass' },
+    prompt_text: COMPILER_PROMPT,
+    config: COMPILER_CONFIG,
     registered_at: '2026-08-29T06:00:00.000Z',
   };
 
@@ -1560,6 +1736,18 @@ describe('compiler registry', () => {
     ).toThrow(/does not match/u);
   });
 
+  it('rejects changed prompt text that retains the old prompt hash', () => {
+    expect(() =>
+      registerCompilerVersion([], { ...entry, prompt_text: 'A different prompt.' }),
+    ).toThrow(/prompt_hash/u);
+  });
+
+  it('rejects changed config that retains the old config hash', () => {
+    expect(() => registerCompilerVersion([], { ...entry, config: { mode: 'ensemble' } })).toThrow(
+      /config_hash/u,
+    );
+  });
+
   it('is idempotent for an identical artefact', () => {
     const once = registerCompilerVersion([], entry);
     expect(registerCompilerVersion(once, entry)).toHaveLength(1);
@@ -1568,8 +1756,25 @@ describe('compiler registry', () => {
   it('refuses to shadow a version with a different artefact', () => {
     const once = registerCompilerVersion([], entry);
     expect(() =>
-      registerCompilerVersion(once, { ...entry, prompt_text: 'A different prompt.' }),
+      registerCompilerVersion(once, { ...entry, registered_at: '2026-08-29T06:00:01.000Z' }),
     ).toThrow(/different artefact/u);
+  });
+
+  it('gives different valid prompt artefacts different compiler identities', () => {
+    const promptText = 'Classify the answer conservatively into a canonical type.';
+    const version: CompilerVersion = {
+      ...COMPILER_VERSION,
+      prompt_hash: sha256(promptText),
+    };
+    const different = {
+      ...entry,
+      compiler_version_id: compilerVersionId(version),
+      version,
+      prompt_text: promptText,
+    };
+    const registry = registerCompilerVersion(registerCompilerVersion([], entry), different);
+    expect(different.compiler_version_id).not.toBe(entry.compiler_version_id);
+    expect(registry).toHaveLength(2);
   });
 
   it('changes identity when the model snapshot changes', () => {

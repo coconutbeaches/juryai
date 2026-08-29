@@ -13,6 +13,7 @@ import {
   describeSourceChannel,
   isCanonicalId,
   isEpistemicStrength,
+  isHash,
   isPropositionType,
   issue,
   propositionTypeDescriptor,
@@ -43,7 +44,10 @@ export interface Proposition {
   superseded_by: string | null;
   superseded_at_case_version: number | null;
   created_at_case_version: number;
+  /** Individual semantic compilation run that produced this proposition. */
   compile_run_id: string;
+  /** Compiler prompt/configuration identity used by that run. */
+  compiler_version_id: string;
   evidence_ref_id: string | null;
 }
 
@@ -270,6 +274,15 @@ export function validateProposition(proposition: Proposition, path: string): Con
         'proposition_compile_run_missing',
         path + '.compile_run_id',
         'Every derived proposition must record the compile run that produced it.',
+      ),
+    );
+  }
+  if (!isHash(proposition.compiler_version_id)) {
+    issues.push(
+      issue(
+        'proposition_compiler_version_invalid',
+        path + '.compiler_version_id',
+        'Every derived proposition must record a sha256 compiler version id.',
       ),
     );
   }

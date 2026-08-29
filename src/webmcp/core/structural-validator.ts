@@ -466,6 +466,26 @@ function validateAttestations(state: CaseState): ContractIssue[] {
     }
 
     if (attestation.case_version === state.case_version) {
+      const currentTurnIds = state.turn_log.map((turn) => turn.turn_id);
+      const currentTurnCommitments = state.turn_log.map((turn) => turn.payload_commitment);
+      const sourceTurnsMatch =
+        attestation.source_turn_ids.length === currentTurnIds.length &&
+        attestation.source_turn_ids.every(
+          (turnId, turnIndex) => turnId === currentTurnIds[turnIndex],
+        ) &&
+        attestation.source_turn_commitments.length === currentTurnCommitments.length &&
+        attestation.source_turn_commitments.every(
+          (commitment, turnIndex) => commitment === currentTurnCommitments[turnIndex],
+        );
+      if (!sourceTurnsMatch) {
+        issues.push(
+          issue(
+            'attestation_source_turns_drift',
+            path + '.source_turn_ids',
+            'Current source turns and commitments do not exactly match the attested append order.',
+          ),
+        );
+      }
       const render = renderCanonicalAccount(state);
       if (render.document_hash !== attestation.rendered_document_hash) {
         issues.push(

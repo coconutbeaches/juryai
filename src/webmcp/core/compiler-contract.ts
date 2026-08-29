@@ -70,6 +70,12 @@ export function registerCompilerVersion(
   registry: CompilerRegistry,
   entry: CompilerRegistryEntry,
 ): CompilerRegistryEntry[] {
+  if (entry.version.prompt_hash !== sha256(entry.prompt_text)) {
+    throw new TypeError('prompt_hash does not match the stored prompt artefact.');
+  }
+  if (entry.version.config_hash !== sha256(canonicalSerialize(entry.config))) {
+    throw new TypeError('config_hash does not match the stored config artefact.');
+  }
   const expected = compilerVersionId(entry.version);
   if (entry.compiler_version_id !== expected) {
     throw new TypeError('compiler_version_id does not match the canonical hash of its version.');
@@ -358,6 +364,8 @@ export interface CompileRunRecord {
   case_id: string;
   turn_id: string;
   compiler_version_id: string;
+  /** Detached historical snapshot of exactly what the compiler received. */
+  input: CompilerInput;
   input_hash: string;
   input_template_version: string;
   output: CompilerOutput;
@@ -371,12 +379,14 @@ export function buildCompileRunRecord(
   output: CompilerOutput,
   timing: { started_at: string; finished_at: string },
 ): CompileRunRecord {
+  const inputSnapshot = structuredClone(input);
   return {
     compile_run_id: input.compile_run_id,
     case_id: input.case_id,
     turn_id: input.turn.turn_id,
     compiler_version_id: input.compiler_version_id,
-    input_hash: compilerInputHash(input),
+    input: inputSnapshot,
+    input_hash: compilerInputHash(inputSnapshot),
     input_template_version: input.input_template_version,
     output,
     contract_issues: validateCompilerOutput(input, output),
