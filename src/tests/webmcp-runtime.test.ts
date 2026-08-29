@@ -1171,17 +1171,19 @@ describe('replay survives the case being locked', () => {
 /* ------------------------------------------------------------------------ */
 
 interface FailPoints {
-  casesFindById?: () => Error;
-  casesFindActiveDraft?: () => Error;
-  idempotencyList?: () => Error;
-  startRequestsFind?: () => Error;
-  registryRegister?: () => Error;
+  /** Returning undefined lets that particular call through. */
+  casesFindById?: () => Error | undefined;
+  casesFindActiveDraft?: () => Error | undefined;
+  idempotencyList?: () => Error | undefined;
+  startRequestsFind?: () => Error | undefined;
+  registryRegister?: () => Error | undefined;
 }
 
 /** Mutable so a test can commit real work first and fail a later read. */
 function storeFailingAt(inner: InMemoryCaseRuntimeStore, fail: FailPoints): CaseRuntimeStore {
-  const boom = (make?: () => Error): void => {
-    if (make) throw make();
+  const boom = (make?: () => Error | undefined): void => {
+    const error = make?.();
+    if (error) throw error;
   };
   return {
     cases: {
@@ -1593,6 +1595,169 @@ describe('malformed clarification prompts never reach canonical state', () => {
     const outcome = await h.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId }));
     expect(outcome.kind).toBe('failed');
     expect((await loadState(h, caseId)).clarifications).toEqual([]);
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Replay is built from state consistent with the record it matched          */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * Serves one pre-arranged stale snapshot for the next `findById`, then goes
+ * back to real reads. That is exactly the interleaving ordinary read-committed
+ * storage permits: the case is read before a concurrent commit, the idempotency
+ * list is read after it.
+ */
+function staleReadOnceStore(inner: InMemoryCaseRuntimeStore) {
+  let stale: StoredCase | null = null;
+  let remaining = 0;
+  const store: CaseRuntimeStore = {
+    cases: {
+      findById: async (caseId) => {
+        if (stale !== null && remaining > 0 && stale.state.case_id === caseId) {
+          remaining -= 1;
+          return stale;
+        }
+        return inner.cases.findById(caseId);
+      },
+      findActiveDraftByPrincipal: (principalId) =>
+        inner.cases.findActiveDraftByPrincipal(principalId),
+    },
+    compileRuns: inner.compileRuns,
+    idempotency: inner.idempotency,
+    startRequests: inner.startRequests,
+    compilerRegistry: inner.compilerRegistry,
+    createCase: (commit) => inner.createCase(commit),
+    commitTurn: (commit) => inner.commitTurn(commit),
+  };
+  return {
+    store,
+    serveStale: (snapshot: StoredCase, times = 1) => {
+      stale = snapshot;
+      remaining = times;
+    },
+  };
+}
+
+describe('replay refreshes the case before describing the committed result', () => {
+  it('does not mix committed proposition ids with a pre-commit case snapshot', async () => {
+    const inner = new InMemoryCaseRuntimeStore();
+    const staged = staleReadOnceStore(inner);
+    const compiler = new ScriptedSemanticCompiler(expectedDateScript);
+    const h = runtimeOver(staged.store, compiler);
+
+    const started = await h.runtime.startCase(ALICE, startCommand('request_1'));
+    if (started.kind !== 'created') throw new Error('expected creation');
+    const caseId = started.case.case_id;
+
+    // Duplicate request A reads the case at version 0 ...
+    const preCommit = (await inner.cases.findById(caseId))!;
+    expect(preCommit.state.case_version).toBe(0);
+
+    // ... original request B commits, moving the case to version 1 and
+    // writing the durable replay record ...
+    const original = committed(
+      await h.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId })),
+    );
+    expect(original.case.case_version).toBe(1);
+    const afterCommit = (await inner.cases.findById(caseId))!;
+
+    // ... and only now does A read the idempotency records, seeing B's.
+    staged.serveStale(preCommit);
+    const replay = await h.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId }));
+
+    expect(replay.kind).toBe('replayed');
+    if (replay.kind !== 'replayed') return;
+    // Built from refreshed state, not from the version-0 snapshot A held.
+    expect(replay.case.case_version).toBe(1);
+    expect(replay.turn_id).toBe(original.turn_id);
+    expect(replay.accepted_proposition_ids).toEqual(original.accepted_proposition_ids);
+    expect(replay.recorded).toEqual(original.recorded);
+    expect(replay.recorded).toHaveLength(1);
+
+    // A replay is a read: no compiler, no new write of any kind.
+    expect(compiler.calls).toHaveLength(1);
+    expect(await inner.compileRuns.listByCase(caseId)).toHaveLength(1);
+    expect(await inner.idempotency.listByCase(caseId)).toHaveLength(1);
+    const after = (await inner.cases.findById(caseId))!;
+    expect(after.revision).toBe(afterCommit.revision);
+    expect(after.state).toEqual(afterCommit.state);
+    expect(after.state.turn_log).toHaveLength(1);
+    expect(after.state.propositions).toHaveLength(1);
+    expect(after.state.case_version).toBe(1);
+  });
+
+  it('contains a repository failure during the replay refresh', async () => {
+    const inner = new InMemoryCaseRuntimeStore();
+    const fail: FailPoints = {};
+    const store = storeFailingAt(inner, fail);
+    const compiler = new ScriptedSemanticCompiler(expectedDateScript);
+    const h = runtimeOver(store, compiler);
+
+    const started = await h.runtime.startCase(ALICE, startCommand('request_1'));
+    if (started.kind !== 'created') throw new Error('expected creation');
+    const caseId = started.case.case_id;
+    await h.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId }));
+    const before = (await inner.cases.findById(caseId))!;
+    const compileCallsBefore = compiler.calls.length;
+
+    // The initial read of the retry succeeds; the replay refresh does not.
+    let reads = 0;
+    fail.casesFindById = () => {
+      reads += 1;
+      return reads >= 2 ? new Error(DB_ERROR) : undefined;
+    };
+    const outcome = await h.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId }));
+
+    expect(outcome.kind).toBe('failed');
+    if (outcome.kind !== 'failed') return;
+    assertOpaqueRetryableFailure(outcome.failure);
+    expect(outcome.failure.retryable).toBe(true);
+    const event = h.diagnostics.events.find(
+      (entry) => entry.kind === 'repository_unavailable' && entry.message.includes('refresh'),
+    );
+    expect(event?.message).toContain(DB_ERROR);
+
+    fail.casesFindById = undefined;
+    expect(compiler.calls).toHaveLength(compileCallsBefore);
+    const after = (await inner.cases.findById(caseId))!;
+    expect(after.revision).toBe(before.revision);
+    expect(after.state).toEqual(before.state);
+    expect(await inner.idempotency.listByCase(caseId)).toHaveLength(1);
+  });
+
+  it('fails closed when a replay record names a result the case cannot support', async () => {
+    const inner = new InMemoryCaseRuntimeStore();
+    const staged = staleReadOnceStore(inner);
+    const compiler = new ScriptedSemanticCompiler(expectedDateScript);
+    const h = runtimeOver(staged.store, compiler);
+
+    const started = await h.runtime.startCase(ALICE, startCommand('request_1'));
+    if (started.kind !== 'created') throw new Error('expected creation');
+    const caseId = started.case.case_id;
+    const preCommit = (await inner.cases.findById(caseId))!;
+    await h.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId }));
+    const before = (await inner.cases.findById(caseId))!;
+    const compileCallsBefore = compiler.calls.length;
+
+    // Both the initial read AND the refresh see the pre-commit case, so the
+    // durable record proves a commit the case cannot account for. Returning a
+    // replay with an empty `recorded` would describe an outcome that does not
+    // exist; inventing the entries would describe one that never did.
+    staged.serveStale(preCommit, 2);
+    const outcome = await h.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId }));
+
+    expect(outcome.kind).toBe('failed');
+    if (outcome.kind !== 'failed') return;
+    assertOpaqueRetryableFailure(outcome.failure);
+    expect(outcome.failure.retryable).toBe(true);
+    const event = h.diagnostics.events.find((entry) => entry.kind === 'replay_state_inconsistent');
+    expect(event?.turn_id).not.toBeNull();
+
+    expect(compiler.calls).toHaveLength(compileCallsBefore);
+    const after = (await inner.cases.findById(caseId))!;
+    expect(after.revision).toBe(before.revision);
+    expect(after.state).toEqual(before.state);
   });
 });
 

@@ -474,13 +474,61 @@ export class CaseRuntime {
 
     if (precheck.kind === 'replay') {
       const previous = precheck.record.response;
+
+      // The case above was read BEFORE the idempotency record that proves the
+      // original write committed. Those two reads are not one snapshot under
+      // ordinary read-committed storage, so a duplicate can hold a pre-commit
+      // case while matching a post-commit replay record — and would then
+      // describe a committed result using a version and proposition set that
+      // predate it: accepted ids from the record, `case_version` and
+      // `recorded` from before those propositions existed. Re-read, so the
+      // replay is built from state at least as fresh as the record it matched.
+      const refreshed = await this.#guardedRead('replay_case_refresh', request.case_id, () =>
+        this.#deps.store.cases.findById(request.case_id),
+      );
+      if (!refreshed.ok) {
+        return { kind: 'failed', failure: unavailable('That answer could not be processed.') };
+      }
+      if (!refreshed.value || refreshed.value.state.principal_id !== principalId) {
+        return { kind: 'failed', failure: failure('CASE_NOT_FOUND', 'No such case.') };
+      }
+      const replayState = refreshed.value.state;
+      const recorded = resolveRecorded(replayState.propositions, previous.accepted_proposition_ids);
+
+      // The refreshed case must actually be able to support the result the
+      // record claims. If it cannot, the two stores disagree; a partial replay
+      // would describe an outcome that does not exist, and inventing the
+      // missing entries would describe one that never did.
+      if (
+        !replayState.turn_log.some((turn) => turn.turn_id === previous.turn_id) ||
+        recorded.length !== previous.accepted_proposition_ids.length
+      ) {
+        this.#diagnostics.record({
+          kind: 'replay_state_inconsistent',
+          case_id: request.case_id,
+          turn_id: previous.turn_id,
+          compile_run_id: null,
+          message:
+            'A replay record claims a committed result the refreshed case cannot support: ' +
+            'turn present=' +
+            String(replayState.turn_log.some((turn) => turn.turn_id === previous.turn_id)) +
+            ', propositions resolved=' +
+            String(recorded.length) +
+            '/' +
+            String(previous.accepted_proposition_ids.length) +
+            '.',
+          issues: [],
+        });
+        return { kind: 'failed', failure: unavailable('That answer could not be processed.') };
+      }
+
       return {
         kind: 'replayed',
         match: precheck.match,
         recorded_at_case_version: previous.case_version,
         turn_id: previous.turn_id,
-        case: this.#project(state, previous.warnings),
-        recorded: resolveRecorded(state.propositions, previous.accepted_proposition_ids),
+        case: this.#project(replayState, previous.warnings),
+        recorded,
         accepted_proposition_ids: [...previous.accepted_proposition_ids],
         superseded_proposition_ids: [...previous.superseded_proposition_ids],
         opened_clarification_ids: [...previous.opened_clarification_ids],

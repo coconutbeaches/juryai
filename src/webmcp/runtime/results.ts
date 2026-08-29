@@ -57,6 +57,7 @@ export type RuntimeDiagnosticKind =
   | 'source_turn_invalid'
   | 'case_creation_failed'
   | 'repository_unavailable'
+  | 'replay_state_inconsistent'
   | 'commit_contention_exhausted';
 
 export interface RuntimeDiagnosticEvent {
