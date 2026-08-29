@@ -7,13 +7,10 @@ export interface RetryOptions {
 export type ClientIdFactory = () => string;
 
 export function defaultClientIdFactory(): string {
-  if (typeof globalThis.crypto?.randomUUID === 'function') {
-    return globalThis.crypto.randomUUID();
+  if (typeof globalThis.crypto?.randomUUID !== 'function') {
+    throw new Error('crypto.randomUUID() is required for WebMCP write idempotency');
   }
-
-  // Compatibility fallback for runtimes without Web Crypto. Server-issued
-  // response slots remain the logical write identity for submit_turn.
-  return `juryai-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  return globalThis.crypto.randomUUID();
 }
 
 function abortReason(signal: AbortSignal): unknown {
