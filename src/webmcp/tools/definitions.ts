@@ -7,7 +7,7 @@ import {
   startCaseInputSchema,
   submitTurnInputSchema,
 } from './schemas.js';
-import { asInputError, asWebMcpData } from './results.js';
+import { asInputError, asWebMcpServiceData } from './results.js';
 import { defaultClientIdFactory, withStableClientIdRetry, type ClientIdFactory } from './retry.js';
 
 export interface ToolExecutionContext {
@@ -61,7 +61,7 @@ export function createJuryAiToolDefinitions(
         idFactory,
         { signal: context?.signal, max_attempts: maxAttempts },
       );
-      return asWebMcpData(result);
+      return asWebMcpServiceData(result);
     },
   };
 
@@ -84,7 +84,7 @@ export function createJuryAiToolDefinitions(
       }
 
       const result = await service.getCaseState(query, { signal: context?.signal });
-      return asWebMcpData(result);
+      return asWebMcpServiceData(result);
     },
   };
 
@@ -127,7 +127,7 @@ export function createJuryAiToolDefinitions(
         idFactory,
         { signal: context?.signal, max_attempts: maxAttempts },
       );
-      return asWebMcpData(result);
+      return asWebMcpServiceData(result);
     },
   };
 

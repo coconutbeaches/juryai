@@ -57,7 +57,7 @@ export const submitTurnInputSchema = {
     },
     expected_case_version: {
       type: 'integer',
-      minimum: 1,
+      minimum: 0,
       description: 'The case version observed when this interview turn was prepared.',
     },
     in_reply_to: {
@@ -177,9 +177,9 @@ export function parseSubmitTurnToolInput(input: unknown): SubmitTurnToolInput {
 
   if (
     !Number.isInteger(input.expected_case_version) ||
-    (input.expected_case_version as number) < 1
+    (input.expected_case_version as number) < 0
   ) {
-    throw new TypeError('expected_case_version must be a positive integer');
+    throw new TypeError('expected_case_version must be a non-negative integer');
   }
 
   if (

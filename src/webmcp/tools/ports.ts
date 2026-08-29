@@ -1,3 +1,4 @@
+import type { ConflictTurnSummary } from '../core/idempotency.js';
 import type { CaseStateResponse, RecentInterpretationSlot } from '../core/types.js';
 import type { SourceTurnPayload } from '../core/turns.js';
 
@@ -5,7 +6,6 @@ export type JuryAiErrorCode =
   | 'AUTH_REQUIRED'
   | 'CASE_NOT_FOUND'
   | 'CASE_LOCKED'
-  | 'VERSION_CONFLICT'
   | 'INVALID_INPUT'
   | 'CONFLICT'
   | 'INTERNAL_ERROR';
@@ -50,9 +50,23 @@ export interface SubmitTurnSuccess {
   superseded: string[];
 }
 
+/** Stale writes preserve the canonical recovery context for lost-response retries. */
+export interface VersionConflictResult {
+  ok: false;
+  error: {
+    code: 'VERSION_CONFLICT';
+    message: string;
+    retryable: false;
+  };
+  current_case_version: number;
+  recent_turns: ConflictTurnSummary[];
+  likely_already_recorded: boolean;
+  case: CaseStateResponse;
+}
+
 export type StartCaseResult = StartCaseSuccess | OpenDraftExistsResult | JuryAiServiceError;
 export type GetCaseStateResult = GetCaseStateSuccess | JuryAiServiceError;
-export type SubmitTurnResult = SubmitTurnSuccess | JuryAiServiceError;
+export type SubmitTurnResult = SubmitTurnSuccess | VersionConflictResult | JuryAiServiceError;
 
 export interface StartCaseCommand {
   client_request_id: string;

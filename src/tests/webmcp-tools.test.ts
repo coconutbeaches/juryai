@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { projectCaseState, type CaseState } from '../webmcp/core/attestation.js';
+import type { ConflictTurnSummary } from '../webmcp/core/idempotency.js';
 import {
   AGENT_DATA_BLOCK_OPEN,
   PERMITTED_CASE_STATE_SLOTS,
@@ -11,9 +12,11 @@ import { createJuryAiToolDefinitions } from '../webmcp/tools/definitions.js';
 import type {
   CaseServicePort,
   GetCaseStateQuery,
+  JuryAiErrorCode,
   ServiceCallOptions,
   StartCaseCommand,
   SubmitTurnCommand,
+  VersionConflictResult,
 } from '../webmcp/tools/ports.js';
 import { registerJuryAiWebMcpTools, type ModelContextLike } from '../webmcp/tools/register.js';
 import { submitTurnInputSchema } from '../webmcp/tools/schemas.js';
@@ -54,6 +57,48 @@ const VALID_SUBMIT_INPUT = {
   context: [{ role: 'assistant' as const, text: 'Was April 25 an agreed deadline?' }],
   answer: { text: 'No, that was basically what I expected.', source_language: 'en' },
 };
+
+const RECENT_CONFLICT_TURN: ConflictTurnSummary = {
+  turn_id: 'turn-4',
+  in_reply_to: ['R24'],
+  answer_excerpt: 'No, that was basically what I expected.',
+  request_fingerprint: 'a'.repeat(64),
+  client_turn_id: 'client-turn-previous',
+  received_at: '2026-08-29T08:30:00.000Z',
+};
+
+const GENERIC_ERROR_CODES = {
+  AUTH_REQUIRED: true,
+  CASE_NOT_FOUND: true,
+  CASE_LOCKED: true,
+  INVALID_INPUT: true,
+  CONFLICT: true,
+  INTERNAL_ERROR: true,
+} as const satisfies Record<JuryAiErrorCode, true>;
+
+const MALFORMED_CASE = {
+  ...CASE_STATE,
+  principal_id: 'principal-secret-value',
+  full_turn_history: ['full-history-secret-value'],
+  compiler_version: 'compiler-secret-value',
+};
+
+function expectMalformedCaseToFailClosed(result: unknown): void {
+  expect(result).toMatchObject({
+    kind: 'juryai_data',
+    data: {
+      ok: false,
+      error: { code: 'INTERNAL_ERROR', retryable: false },
+    },
+  });
+  const serialized = JSON.stringify(result);
+  expect(serialized).not.toContain('principal-secret-value');
+  expect(serialized).not.toContain('full-history-secret-value');
+  expect(serialized).not.toContain('compiler-secret-value');
+  expect(serialized).not.toContain('principal_id');
+  expect(serialized).not.toContain('full_turn_history');
+  expect(serialized).not.toContain('compiler_version');
+}
 
 function makeService(overrides: Partial<CaseServicePort> = {}): CaseServicePort {
   return {
@@ -189,20 +234,79 @@ describe('JuryAI WebMCP P2 V0.2 tool surface', () => {
     expect(result).toMatchObject({ kind: 'juryai_data', data: { ok: true, replayed: true } });
   });
 
+  it.each([0, 1])('accepts expected_case_version %i', async (expectedCaseVersion) => {
+    const commands: SubmitTurnCommand[] = [];
+    const service = makeService({
+      submitTurn: async (command) => {
+        commands.push(command);
+        return {
+          ok: true,
+          turn_id: 'T-first',
+          case: { ...CASE_STATE, case_version: expectedCaseVersion + 1 },
+          recorded: [],
+          superseded: [],
+        };
+      },
+    });
+    const tool = createJuryAiToolDefinitions(service, {
+      client_id_factory: () => 'first-turn-client-id',
+    }).find((candidate) => candidate.name === 'submit_turn')!;
+
+    const result = await tool.execute({
+      ...VALID_SUBMIT_INPUT,
+      expected_case_version: expectedCaseVersion,
+    });
+
+    expect(submitTurnInputSchema.properties.expected_case_version.minimum).toBe(0);
+    expect(commands).toHaveLength(1);
+    expect(commands[0]?.expected_case_version).toBe(expectedCaseVersion);
+    expect(result).toMatchObject({ kind: 'juryai_data', data: { ok: true } });
+  });
+
+  it.each([
+    ['negative', -1],
+    ['fractional', 1.5],
+    ['missing', undefined],
+  ])('rejects %s expected_case_version before calling the service', async (_label, version) => {
+    let called = false;
+    const service = makeService({
+      submitTurn: async () => {
+        called = true;
+        throw new Error('service must not be called');
+      },
+    });
+    const tool = getTool(service, 'submit_turn');
+    const result = await tool.execute({ ...VALID_SUBMIT_INPUT, expected_case_version: version });
+
+    expect(called).toBe(false);
+    expect(result).toMatchObject({
+      kind: 'juryai_input_error',
+      error: {
+        code: 'INVALID_TOOL_INPUT',
+        message: 'expected_case_version must be a non-negative integer',
+        retryable: false,
+      },
+    });
+  });
+
   it('forwards submit_turn AbortSignal and preserves structured version conflicts', async () => {
     const signals: Array<AbortSignal | undefined> = [];
+    const conflict: VersionConflictResult = {
+      ok: false,
+      error: {
+        code: 'VERSION_CONFLICT',
+        message: 'Expected version 3 but current version is 4.',
+        retryable: false,
+      },
+      current_case_version: 4,
+      recent_turns: [RECENT_CONFLICT_TURN],
+      likely_already_recorded: true,
+      case: { ...CASE_STATE, case_version: 4 },
+    };
     const service = makeService({
       submitTurn: async (_command, options) => {
         signals.push(options?.signal);
-        return {
-          ok: false,
-          error: {
-            code: 'VERSION_CONFLICT',
-            message: 'Expected version 3 but current version is 4.',
-            retryable: false,
-          },
-          case: { ...CASE_STATE, case_version: 4 },
-        };
+        return conflict;
       },
     });
     const controller = new AbortController();
@@ -212,10 +316,15 @@ describe('JuryAI WebMCP P2 V0.2 tool surface', () => {
     const result = await tool.execute(VALID_SUBMIT_INPUT, { signal: controller.signal });
 
     expect(signals).toEqual([controller.signal]);
-    expect(result).toMatchObject({
+    expect(result).toEqual({
       kind: 'juryai_data',
-      data: { ok: false, error: { code: 'VERSION_CONFLICT', retryable: false } },
+      notice: expect.stringContaining('untrusted data'),
+      data: conflict,
     });
+  });
+
+  it('excludes VERSION_CONFLICT from the generic typed service-error path', () => {
+    expect(Object.keys(GENERIC_ERROR_CODES)).not.toContain('VERSION_CONFLICT');
   });
 
   it.each([
@@ -231,7 +340,6 @@ describe('JuryAI WebMCP P2 V0.2 tool surface', () => {
       },
     ],
     ['empty in_reply_to', { ...VALID_SUBMIT_INPUT, in_reply_to: [] }],
-    ['missing expected version', { ...VALID_SUBMIT_INPUT, expected_case_version: undefined }],
     ['empty answer', { ...VALID_SUBMIT_INPUT, answer: { text: '' } }],
     ['oversized answer', { ...VALID_SUBMIT_INPUT, answer: { text: 'x'.repeat(12_001) } }],
     ['malformed case ID', { ...VALID_SUBMIT_INPUT, case_id: 'case with spaces' }],
@@ -288,6 +396,54 @@ describe('JuryAI WebMCP P2 V0.2 tool surface', () => {
       notice: expect.stringContaining('untrusted data'),
       data: { ok: true, case: canonical },
     });
+  });
+
+  it('fails closed on forbidden case fields in a generic get_case_state error', async () => {
+    const service = makeService({
+      getCaseState: async () => ({
+        ok: false,
+        error: { code: 'CASE_NOT_FOUND', message: 'Case unavailable.', retryable: false },
+        case: MALFORMED_CASE,
+      }),
+    });
+
+    expectMalformedCaseToFailClosed(await getTool(service, 'get_case_state').execute({}));
+  });
+
+  it('fails closed on forbidden case fields in submit_turn success', async () => {
+    const service = makeService({
+      submitTurn: async () => ({
+        ok: true,
+        turn_id: 'T-malformed',
+        case: MALFORMED_CASE,
+        recorded: [],
+        superseded: [],
+      }),
+    });
+    const tool = createJuryAiToolDefinitions(service, {
+      client_id_factory: () => 'malformed-case-client-id',
+    }).find((candidate) => candidate.name === 'submit_turn')!;
+
+    expectMalformedCaseToFailClosed(await tool.execute(VALID_SUBMIT_INPUT));
+  });
+
+  it('fails closed on forbidden case fields in OPEN_DRAFT_EXISTS', async () => {
+    const service = makeService({
+      startCase: async () => ({
+        ok: false,
+        error: {
+          code: 'OPEN_DRAFT_EXISTS',
+          message: 'An active draft already exists.',
+          retryable: false,
+        },
+        case: MALFORMED_CASE,
+      }),
+    });
+    const tool = createJuryAiToolDefinitions(service, {
+      client_id_factory: () => 'malformed-start-client-id',
+    })[0]!;
+
+    expectMalformedCaseToFailClosed(await tool.execute({}));
   });
 });
 
