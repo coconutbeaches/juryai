@@ -22,7 +22,6 @@ import {
   issue,
   RENDER_TEMPLATE_VERSION,
   sha256,
-  STRUCTURAL_VALIDATOR_VERSION,
   WEBMCP_CORE_SCHEMA_VERSION,
   WEBMCP_PROTOCOL_VERSION,
   wrapAgentFacingText,
@@ -300,6 +299,7 @@ export type AttestationVerification =
   | { kind: 'rejected'; reason: AttestationRejection; issues: ContractIssue[] };
 
 export type AttestationStructuralValidator = (state: CaseState) => {
+  validator_version: string;
   ok: boolean;
   issues: ContractIssue[];
 };
@@ -434,7 +434,7 @@ export function verifyAttestationAttempt(
     compiler_version_ids: [
       ...new Set(state.propositions.map((proposition) => proposition.compiler_version_id)),
     ].sort(),
-    structural_validator_version: STRUCTURAL_VALIDATOR_VERSION,
+    structural_validator_version: structuralReport.validator_version,
     principal_id: state.principal_id,
     created_at: attempt.created_at,
     client_ip: attempt.client_ip,
@@ -580,7 +580,7 @@ export function projectCaseState(
       label: wrapAgentFacingText(reference.label),
       inspection_status: reference.inspection_status,
     })),
-    warnings: options.warnings ?? [],
+    warnings: (options.warnings ?? []).map(wrapAgentFacingText),
     review_url: options.review_url,
   };
 }

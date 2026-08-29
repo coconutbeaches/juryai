@@ -337,6 +337,24 @@ export function validateCompilerOutput(
         ),
       );
     }
+    if (assertion.spans.length === 0) {
+      issues.push(
+        issue(
+          'compiler_assertion_spans_missing',
+          at + '.spans',
+          'An accepted assertion must cite at least one exact source span.',
+        ),
+      );
+    }
+    if (!assertion.spans.some((span) => span.region === 'answer')) {
+      issues.push(
+        issue(
+          'compiler_assertion_answer_span_missing',
+          at + '.spans',
+          'An accepted assertion must cite at least one span from the answer region.',
+        ),
+      );
+    }
     for (const [spanIndex, span] of assertion.spans.entries()) {
       const spanPath = at + '.spans[' + String(spanIndex) + ']';
       if (span.turn_id !== input.turn.turn_id) {
@@ -395,6 +413,7 @@ export function buildCompileRunRecord(
   timing: { started_at: string; finished_at: string },
 ): CompileRunRecord {
   const inputSnapshot = structuredClone(input);
+  const outputSnapshot = structuredClone(output);
   return {
     compile_run_id: input.compile_run_id,
     case_id: input.case_id,
@@ -403,8 +422,8 @@ export function buildCompileRunRecord(
     input: inputSnapshot,
     input_hash: compilerInputHash(inputSnapshot),
     input_template_version: input.input_template_version,
-    output,
-    contract_issues: validateCompilerOutput(input, output),
+    output: outputSnapshot,
+    contract_issues: validateCompilerOutput(inputSnapshot, outputSnapshot),
     started_at: timing.started_at,
     finished_at: timing.finished_at,
   };

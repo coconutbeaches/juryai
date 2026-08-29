@@ -21,6 +21,7 @@ import {
   issue,
   NON_COERCIBLE_TYPE_PAIRS,
   propositionTypeDescriptor,
+  STRUCTURAL_VALIDATOR_VERSION,
   type ContractIssue,
 } from './types.js';
 import {
@@ -110,11 +111,32 @@ export function validateCaseState(state: CaseState): StructuralValidationReport 
   }
 
   /* --- turns ------------------------------------------------------------- */
+  const requirementIds = new Set(state.requirements.map((definition) => definition.requirement_id));
   for (const [index, turn] of state.turn_log.entries()) {
     const path = 'turn_log[' + String(index) + ']';
     issues.push(...validateSourceTurnRecord(turn, path));
     if (turn.case_id !== state.case_id) {
       issues.push(issue('turn_foreign_case', path + '.case_id', 'Turn belongs to another case.'));
+    }
+    if (turn.principal_id !== state.principal_id) {
+      issues.push(
+        issue(
+          'turn_principal_mismatch',
+          path + '.principal_id',
+          'Turn principal does not match the case principal.',
+        ),
+      );
+    }
+    for (const [replyIndex, requirementId] of turn.in_reply_to.entries()) {
+      if (!requirementIds.has(requirementId)) {
+        issues.push(
+          issue(
+            'turn_requirement_unknown',
+            path + '.in_reply_to[' + String(replyIndex) + ']',
+            "Turn answers unknown requirement '" + requirementId + "'.",
+          ),
+        );
+      }
     }
     if (turn.request_fingerprint.length > 0 && !isHash(turn.request_fingerprint)) {
       issues.push(
@@ -188,6 +210,36 @@ export function validateCaseState(state: CaseState): StructuralValidationReport 
             "'.",
         ),
       );
+    }
+
+    if (proposition.spans.length === 0) {
+      issues.push(
+        issue(
+          'proposition_spans_missing',
+          path + '.spans',
+          'A canonical proposition must cite at least one exact source span.',
+        ),
+      );
+    }
+    if (!proposition.spans.some((span) => span.region === 'answer')) {
+      issues.push(
+        issue(
+          'proposition_answer_span_missing',
+          path + '.spans',
+          'A canonical proposition must cite at least one span from an answer region.',
+        ),
+      );
+    }
+    for (const turnId of proposition.derived_from_turn_ids) {
+      if (!proposition.spans.some((span) => span.turn_id === turnId)) {
+        issues.push(
+          issue(
+            'proposition_source_turn_ungrounded',
+            path + '.derived_from_turn_ids',
+            "Derived source turn '" + turnId + "' must be represented by an exact span.",
+          ),
+        );
+      }
     }
 
     for (const turnId of proposition.derived_from_turn_ids) {
@@ -412,7 +464,7 @@ export function validateCaseState(state: CaseState): StructuralValidationReport 
   issues.push(...validateAttestations(state));
 
   return {
-    validator_version: 'juryai-structural-validator-v0.2.0',
+    validator_version: STRUCTURAL_VALIDATOR_VERSION,
     ok: issues.length === 0,
     issues,
   };
@@ -491,6 +543,26 @@ function validateAttestations(state: CaseState): ContractIssue[] {
     }
     highest = Math.max(highest, attestation.case_version);
 
+    const prefixMatches =
+      attestation.source_turn_ids.length <= state.turn_log.length &&
+      attestation.source_turn_commitments.length === attestation.source_turn_ids.length &&
+      attestation.source_turn_ids.every(
+        (turnId, turnIndex) => turnId === state.turn_log[turnIndex]?.turn_id,
+      ) &&
+      attestation.source_turn_commitments.every(
+        (commitment, turnIndex) => commitment === state.turn_log[turnIndex]?.payload_commitment,
+      );
+    const coversCurrentLog = attestation.source_turn_ids.length === state.turn_log.length;
+    if (!prefixMatches || (attestation.case_version === state.case_version && !coversCurrentLog)) {
+      issues.push(
+        issue(
+          'attestation_source_turns_drift',
+          path + '.source_turn_ids',
+          'Attested source turns and commitments must be an exact prefix of the current turn log.',
+        ),
+      );
+    }
+
     for (const [turnIndex, turnId] of attestation.source_turn_ids.entries()) {
       if (!turnIds.has(turnId)) {
         issues.push(
@@ -515,26 +587,6 @@ function validateAttestations(state: CaseState): ContractIssue[] {
     }
 
     if (attestation.case_version === state.case_version) {
-      const currentTurnIds = state.turn_log.map((turn) => turn.turn_id);
-      const currentTurnCommitments = state.turn_log.map((turn) => turn.payload_commitment);
-      const sourceTurnsMatch =
-        attestation.source_turn_ids.length === currentTurnIds.length &&
-        attestation.source_turn_ids.every(
-          (turnId, turnIndex) => turnId === currentTurnIds[turnIndex],
-        ) &&
-        attestation.source_turn_commitments.length === currentTurnCommitments.length &&
-        attestation.source_turn_commitments.every(
-          (commitment, turnIndex) => commitment === currentTurnCommitments[turnIndex],
-        );
-      if (!sourceTurnsMatch) {
-        issues.push(
-          issue(
-            'attestation_source_turns_drift',
-            path + '.source_turn_ids',
-            'Current source turns and commitments do not exactly match the attested append order.',
-          ),
-        );
-      }
       const render = renderCanonicalAccount(state);
       if (render.document_hash !== attestation.rendered_document_hash) {
         issues.push(

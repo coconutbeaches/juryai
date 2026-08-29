@@ -45,20 +45,25 @@ export function normalizeForStorage(text: string): string {
 /* Relayed payload: explicit context + answer                                */
 /* ------------------------------------------------------------------------ */
 
-export type RelayedRole = 'assistant' | 'user';
-
-export interface RelayedMessage {
-  role: RelayedRole;
+export interface RelayedContextMessage {
+  role: 'assistant';
   text: string;
 }
+
+export interface RelayedAnswer {
+  role: 'user';
+  text: string;
+}
+
+export type RelayedMessage = RelayedContextMessage | RelayedAnswer;
 
 /**
  * The answer is a named slot, never "the last user message in an array".
  * Nothing downstream is permitted to infer which utterance is the answer.
  */
 export interface SourceTurnPayload {
-  context: RelayedMessage[];
-  answer: RelayedMessage;
+  context: RelayedContextMessage[];
+  answer: RelayedAnswer;
 }
 
 export const MAX_CONTEXT_MESSAGES = 6;
@@ -89,6 +94,19 @@ export function validatePayloadShape(payload: SourceTurnPayload, path: string): 
           '.',
       ),
     );
+  }
+  if (Array.isArray(payload.context)) {
+    for (const [index, message] of payload.context.entries()) {
+      if (message.role !== 'assistant') {
+        issues.push(
+          issue(
+            'turn_context_not_assistant',
+            path + '.context[' + String(index) + '].role',
+            "context messages must have role 'assistant'.",
+          ),
+        );
+      }
+    }
   }
   if (payload.answer.role !== 'user') {
     issues.push(
