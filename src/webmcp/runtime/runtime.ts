@@ -489,37 +489,53 @@ export class CaseRuntime {
       if (!refreshed.ok) {
         return { kind: 'failed', failure: unavailable('That answer could not be processed.') };
       }
-      if (!refreshed.value || refreshed.value.state.principal_id !== principalId) {
-        return { kind: 'failed', failure: failure('CASE_NOT_FOUND', 'No such case.') };
-      }
-      const replayState = refreshed.value.state;
-      const recorded = resolveRecorded(replayState.propositions, previous.accepted_proposition_ids);
 
-      // The refreshed case must actually be able to support the result the
-      // record claims. If it cannot, the two stores disagree; a partial replay
-      // would describe an outcome that does not exist, and inventing the
-      // missing entries would describe one that never did.
-      if (
-        !replayState.turn_log.some((turn) => turn.turn_id === previous.turn_id) ||
-        recorded.length !== previous.accepted_proposition_ids.length
-      ) {
+      // Everything below is an INCONSISTENCY, never a missing case. By this
+      // point this attempt has already read the case, authorised the principal
+      // against it, and matched a durable record proving the write committed.
+      // A refresh that now returns nothing, or a different owner for an
+      // immutable field, means the reads disagree — a lagging replica, most
+      // likely. Answering CASE_NOT_FOUND would be non-retryable, so the
+      // transport would stop and a committed lost-response retry would become
+      // permanently unrecoverable. Fail closed, retryably, and say why
+      // internally.
+      const inconsistent = (reason: string): SubmitTurnOutcome => {
         this.#diagnostics.record({
           kind: 'replay_state_inconsistent',
           case_id: request.case_id,
           turn_id: previous.turn_id,
           compile_run_id: null,
-          message:
-            'A replay record claims a committed result the refreshed case cannot support: ' +
-            'turn present=' +
-            String(replayState.turn_log.some((turn) => turn.turn_id === previous.turn_id)) +
+          message: 'Replay refresh disagrees with the durable replay record: ' + reason,
+          issues: [],
+        });
+        return { kind: 'failed', failure: unavailable('That answer could not be processed.') };
+      };
+
+      if (!refreshed.value) {
+        return inconsistent('the refreshed read returned no case.');
+      }
+      if (refreshed.value.state.principal_id !== principalId) {
+        return inconsistent('the refreshed case reports a different principal.');
+      }
+
+      const replayState = refreshed.value.state;
+      const recorded = resolveRecorded(replayState.propositions, previous.accepted_proposition_ids);
+
+      // The refreshed case must also be able to support the result the record
+      // claims. A partial replay would describe an outcome that does not
+      // exist, and inventing the missing entries would describe one that
+      // never did.
+      const turnPresent = replayState.turn_log.some((turn) => turn.turn_id === previous.turn_id);
+      if (turnPresent === false || recorded.length !== previous.accepted_proposition_ids.length) {
+        return inconsistent(
+          'turn present=' +
+            String(turnPresent) +
             ', propositions resolved=' +
             String(recorded.length) +
             '/' +
             String(previous.accepted_proposition_ids.length) +
             '.',
-          issues: [],
-        });
-        return { kind: 'failed', failure: unavailable('That answer could not be processed.') };
+        );
       }
 
       return {
