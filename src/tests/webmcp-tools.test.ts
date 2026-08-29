@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { createJuryAiToolDefinitions } from '../webmcp/tools/definitions.js';
 import type {
   CaseServicePort,
@@ -134,8 +134,19 @@ describe('JuryAI WebMCP P2 V0.2 tool surface', () => {
   });
 
   it('rejects malformed submit_turn input before calling the service', async () => {
-    const submitTurn = vi.fn<CaseServicePort['submitTurn']>();
-    const service = makeService({ submitTurn });
+    let called = false;
+    const service = makeService({
+      submitTurn: async () => {
+        called = true;
+        return {
+          ok: true,
+          turn_id: 'unexpected',
+          case: CASE_STATE,
+          recorded: [],
+          superseded: [],
+        };
+      },
+    });
     const tool = getTool(service, 'submit_turn');
 
     const result = await tool.execute({
@@ -147,7 +158,7 @@ describe('JuryAI WebMCP P2 V0.2 tool surface', () => {
       answer: { text: '' },
     });
 
-    expect(submitTurn).not.toHaveBeenCalled();
+    expect(called).toBe(false);
     expect(result).toMatchObject({
       kind: 'juryai_input_error',
       error: { code: 'INVALID_TOOL_INPUT', retryable: false },
