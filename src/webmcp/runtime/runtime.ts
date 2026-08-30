@@ -49,6 +49,7 @@ import {
   type SourceTurnRecord,
 } from '../core/turns.js';
 import { canonicalSerialize, type CaseStateResponse, type SourceChannel } from '../core/types.js';
+import type { CompilerRegistryEntry } from '../core/compiler-contract.js';
 import type { SemanticCompilerPort } from './compiler-port.js';
 import {
   isoFrom,
@@ -183,7 +184,7 @@ export class CaseRuntime {
   readonly #deps: CaseRuntimeDependencies;
   readonly #requirements: RequirementSetProvider;
   readonly #diagnostics: RuntimeDiagnosticsSink;
-  #compilerRegistered: Promise<void> | null = null;
+  #compilerRegistered: Promise<CompilerRegistryEntry> | null = null;
 
   constructor(dependencies: CaseRuntimeDependencies) {
     this.#deps = dependencies;
@@ -750,8 +751,9 @@ export class CaseRuntime {
     // from durable state alone; making them depend on the registry means a
     // registry outage can hide an already-committed result from the caller
     // that is asking what happened to it.
+    let pinnedCompiler: CompilerRegistryEntry;
     try {
-      await this.#ensureCompilerRegistered();
+      pinnedCompiler = await this.#ensureCompilerRegistered();
     } catch (error) {
       this.#diagnostics.record({
         kind: 'repository_unavailable',
@@ -819,7 +821,11 @@ export class CaseRuntime {
     /* --- semantic compilation -------------------------------------------- */
     const compilerInput = buildCompilerInput({
       compile_run_id: compileRunId,
-      compiler_version_id: this.#deps.compiler.registryEntry.compiler_version_id,
+      // The PINNED snapshot, never the adapter's live object. The adapter owns
+      // `registryEntry` and may mutate it after registration; a run citing a
+      // mutated version id would name an artefact the registry never received,
+      // and every proposition it produced would claim an unregistered compiler.
+      compiler_version_id: pinnedCompiler.compiler_version_id,
       state: { case_id: state.case_id, case_version: state.case_version },
       turn,
       requirements: state.requirements,
@@ -922,6 +928,14 @@ export class CaseRuntime {
     try {
       await this.#deps.store.compileRuns.append(runRecord);
     } catch (error) {
+      // The caller may have aborted while this append was in flight, and the
+      // append may then have failed for its own reasons. Cancellation wins:
+      // reporting a storage failure would tell the caller its submission broke
+      // when in fact the caller withdrew it, and `retryable: true` would invite
+      // it to send again.
+      if (options.signal?.aborted === true) {
+        throw options.signal.reason;
+      }
       this.#diagnostics.record({
         kind: 'repository_unavailable',
         case_id: state.case_id,
@@ -1124,15 +1138,24 @@ export class CaseRuntime {
     }
   }
 
-  #ensureCompilerRegistered(): Promise<void> {
+  /**
+   * Registers the compiler artefact once and returns the snapshot that was
+   * registered. Everything downstream cites THAT, not `compiler.registryEntry`:
+   * the adapter owns its entry object and may mutate it afterwards, and a
+   * compile run naming a version id the registry never received cannot be
+   * reproduced — which is the entire point of storing the artefact.
+   */
+  #ensureCompilerRegistered(): Promise<CompilerRegistryEntry> {
     // A failed registration is not cached: caching the rejected promise would
     // make one transient storage error permanent for the process.
-    this.#compilerRegistered ??= this.#deps.store.compilerRegistry
-      .register(this.#deps.compiler.registryEntry)
-      .catch((error: unknown) => {
-        this.#compilerRegistered = null;
-        throw error;
-      });
+    this.#compilerRegistered ??= (async () => {
+      const pinned = structuredClone(this.#deps.compiler.registryEntry);
+      await this.#deps.store.compilerRegistry.register(pinned);
+      return pinned;
+    })().catch((error: unknown) => {
+      this.#compilerRegistered = null;
+      throw error;
+    });
     return this.#compilerRegistered;
   }
 }

@@ -3249,6 +3249,7 @@ function gatedAuditAppendStore(inner: InMemoryCaseRuntimeStore) {
   let releaseGate: () => void = () => {};
   let gate: Promise<void> = Promise.resolve();
   let commitCalls = 0;
+  let appendError: Error | null = null;
 
   const store: CaseRuntimeStore = {
     cases: inner.cases,
@@ -3262,6 +3263,7 @@ function gatedAuditAppendStore(inner: InMemoryCaseRuntimeStore) {
           signalEntered();
           await gate;
         }
+        if (appendError) throw appendError;
         return inner.compileRuns.append(record);
       },
       findById: (id) => inner.compileRuns.findById(id),
@@ -3284,7 +3286,14 @@ function gatedAuditAppendStore(inner: InMemoryCaseRuntimeStore) {
     });
     return { entered, release: () => releaseGate() };
   };
-  return { store, arm, commitCalls: () => commitCalls };
+  return {
+    store,
+    arm,
+    commitCalls: () => commitCalls,
+    failAppendWith: (error: Error | null) => {
+      appendError = error;
+    },
+  };
 }
 
 describe('cancellation is arbitrated again before the canonical commit starts', () => {
@@ -3417,6 +3426,62 @@ describe('cancellation is arbitrated again before the canonical commit starts', 
     expect(after.revision).toBe(before.revision);
     expect(after.state.turn_log).toHaveLength(0);
     expect(after.state.propositions).toHaveLength(0);
+  });
+
+  it('answers cancellation, not a storage failure, when the append itself rejects', async () => {
+    const inner = new InMemoryCaseRuntimeStore();
+    const gated = gatedAuditAppendStore(inner);
+    const compiler = new ScriptedSemanticCompiler(expectedDateScript);
+    const h = runtimeOver(gated.store, compiler);
+
+    const started = await h.runtime.startCase(ALICE, startCommand('request_1'));
+    if (started.kind !== 'created') throw new Error('expected creation');
+    const caseId = started.case.case_id;
+    const before = (await inner.cases.findById(caseId))!;
+
+    const controller = new AbortController();
+    const reason = new Error('the caller disconnected');
+    const gate = gated.arm();
+    const pending = h.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId }), {
+      signal: controller.signal,
+    });
+    await gate.entered;
+    // The caller aborts AND the audit write then fails on its own.
+    controller.abort(reason);
+    gated.failAppendWith(new Error(DB_ERROR));
+    gate.release();
+
+    // Reporting a retryable storage failure would tell the caller its
+    // submission broke when in fact the caller withdrew it, and invite a resend.
+    await expect(pending).rejects.toBe(reason);
+    expect(h.diagnostics.events).toEqual([]);
+    expect(gated.commitCalls()).toBe(0);
+    const after = (await inner.cases.findById(caseId))!;
+    expect(after.revision).toBe(before.revision);
+    expect(after.state.turn_log).toHaveLength(0);
+    expect(await inner.idempotency.listByCase(caseId)).toEqual([]);
+  });
+
+  it('still reports a failing append as a retryable storage failure with no abort', async () => {
+    const inner = new InMemoryCaseRuntimeStore();
+    const gated = gatedAuditAppendStore(inner);
+    const h = runtimeOver(gated.store, new ScriptedSemanticCompiler(expectedDateScript));
+
+    const started = await h.runtime.startCase(ALICE, startCommand('request_1'));
+    if (started.kind !== 'created') throw new Error('expected creation');
+    const caseId = started.case.case_id;
+
+    gated.failAppendWith(new Error(DB_ERROR));
+    const outcome = await h.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId }));
+
+    expect(outcome.kind).toBe('failed');
+    if (outcome.kind !== 'failed') return;
+    assertOpaqueRetryableFailure(outcome.failure);
+    expect(outcome.failure.retryable).toBe(true);
+    const event = h.diagnostics.events.find((entry) => entry.kind === 'repository_unavailable');
+    expect(event?.message).toContain('compile_run_append');
+    expect(gated.commitCalls()).toBe(0);
+    expect((await inner.cases.findById(caseId))!.state.turn_log).toHaveLength(0);
   });
 
   it('commits normally when the same append gate is released without an abort', async () => {
@@ -3733,6 +3798,88 @@ describe('concurrent writers', () => {
 
     expect(commit.ok).toBe(false);
     expect(await h.store.idempotency.listByCase(caseId)).toEqual([]);
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* The registered compiler artefact is pinned                                */
+/* ------------------------------------------------------------------------ */
+
+describe('an adapter cannot change its identity after registration', () => {
+  it('cites the registered snapshot on every later run', async () => {
+    const h = harness();
+    h.scripted.setScript(expectedDateScript);
+    const caseId = await startedCase(h);
+    const pinnedId = h.scripted.registryEntry.compiler_version_id;
+    const pinnedPrompt = h.scripted.registryEntry.prompt_text;
+
+    await h.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId }));
+
+    // The adapter mutates the object it still owns, after registration.
+    const live = h.scripted.registryEntry;
+    live.compiler_version_id = 'f'.repeat(64);
+    live.prompt_text = 'an entirely different prompt';
+    live.version.model_id = 'some-other-model';
+
+    h.scripted.setScript(() => ({
+      verdict: 'accepted_candidates',
+      assertions: [
+        {
+          quote: '1 March',
+          requirement_id: 'req_paid',
+          type: 'payment',
+          epistemic_strength: 'asserted_confident',
+          statement: 'The user paid a deposit on 1 March.',
+        },
+      ],
+    }));
+    const second = committed(
+      await h.runtime.submitTurn(
+        ALICE,
+        submitCommand({
+          case_id: caseId,
+          client_turn_id: 'client_2',
+          expected_case_version: 1,
+          in_reply_to: ['req_paid'],
+          payload: payload('I paid the deposit on 1 March.'),
+        }),
+      ),
+    );
+    expect(second.case.case_version).toBe(2);
+
+    // Nothing canonical claims the mutated identity.
+    const state = await loadState(h, caseId);
+    expect(state.propositions).toHaveLength(2);
+    for (const proposition of state.propositions) {
+      expect(proposition.compiler_version_id).toBe(pinnedId);
+    }
+    const runs = await h.store.compileRuns.listByCase(caseId);
+    expect(runs).toHaveLength(2);
+    for (const run of runs) {
+      expect(run.compiler_version_id).toBe(pinnedId);
+      expect(run.input.compiler_version_id).toBe(pinnedId);
+    }
+
+    // The pinned artefact is registered and reproducible; the mutated one was
+    // never registered, so a run citing it could never be re-executed.
+    const registered = await h.store.compilerRegistry.findById(pinnedId);
+    expect(registered?.prompt_text).toBe(pinnedPrompt);
+    expect(registered?.version.model_id).not.toBe('some-other-model');
+    expect(await h.store.compilerRegistry.findById('f'.repeat(64))).toBeNull();
+  });
+
+  it('registers a detached copy, so a later mutation cannot rewrite history', async () => {
+    const h = harness();
+    h.scripted.setScript(expectedDateScript);
+    const caseId = await startedCase(h);
+    const pinnedId = h.scripted.registryEntry.compiler_version_id;
+    await h.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId }));
+
+    h.scripted.registryEntry.prompt_text = 'rewritten after the fact';
+
+    const registered = await h.store.compilerRegistry.findById(pinnedId);
+    expect(registered?.prompt_text).not.toBe('rewritten after the fact');
+    expect(registered?.version.prompt_hash).toBe(sha256(registered!.prompt_text));
   });
 });
 
