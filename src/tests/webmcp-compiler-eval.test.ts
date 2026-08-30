@@ -693,6 +693,42 @@ describe('the graders themselves have teeth', () => {
     expect(grade.failures.join(' ')).toMatch(/polarity/u);
   });
 
+  it('allows a failed first attempt followed by a completed payment', async () => {
+    const attemptThenPaid = structuredClone(anchor);
+    attemptThenPaid.answer =
+      'After an unsuccessful first attempt, I successfully paid them 2,000 pounds by bank transfer on 25 April.';
+    const { scenario, output } = await compileCompletion(
+      attemptThenPaid,
+      JSON.stringify({
+        verdict: 'accepted_candidates',
+        assertions: [
+          {
+            requirement_id: 'req_paid',
+            proposed_type: 'payment',
+            epistemic_strength: 'asserted_confident',
+            statement:
+              'The user, after an unsuccessful first attempt, successfully paid the other party 2,000 pounds by bank transfer on 25 April.',
+            supersedes_candidate: null,
+            citations: [
+              {
+                region: 'answer',
+                message_index: null,
+                quote:
+                  'After an unsuccessful first attempt, I successfully paid them 2,000 pounds by bank transfer on 25 April.',
+              },
+            ],
+          },
+        ],
+        rejected_candidates: [],
+        clarifications_requested: [],
+      }),
+    );
+
+    const grade = gradeCompilerOutput(attemptThenPaid, scenario.input, output);
+    expect(grade.failures).toEqual([]);
+    expect(grade.ok).toBe(true);
+  });
+
   it('keeps negation on the coordinated predicate it modifies', async () => {
     const { scenario, output } = await compileCompletion(
       anchor,

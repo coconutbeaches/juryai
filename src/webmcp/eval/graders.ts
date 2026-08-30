@@ -335,6 +335,10 @@ const POLARITY_PREDICATES: Partial<Record<PropositionType, ReadonlySet<string>>>
     'remitted',
     'settle',
     'settled',
+    'succeed',
+    'succeeded',
+    'successful',
+    'successfully',
     'tender',
     'tendered',
     'transfer',
@@ -414,23 +418,6 @@ const LEXICAL_POLARITY_REVERSERS: Partial<Record<PropositionType, ReadonlySet<st
     'waived',
     'withdrawn',
   ]),
-  payment: new Set([
-    'attempt',
-    'attempted',
-    'attempting',
-    'cancelled',
-    'canceled',
-    'defaulted',
-    'failed',
-    'refused',
-    'reversed',
-    'unmade',
-    'unpaid',
-    'unsuccessful',
-    'withheld',
-    'withhold',
-    'withholding',
-  ]),
   disputed_balance: new Set([
     'accepted',
     'acknowledged',
@@ -460,6 +447,43 @@ const LEXICAL_POLARITY_REVERSERS: Partial<Record<PropositionType, ReadonlySet<st
     'waived',
   ]),
 };
+
+const PAYMENT_LEXICAL_REVERSERS = new Set([
+  'attempt',
+  'attempted',
+  'attempting',
+  'cancelled',
+  'canceled',
+  'defaulted',
+  'failed',
+  'refused',
+  'reversed',
+  'unmade',
+  'unpaid',
+  'unsuccessful',
+  'withheld',
+  'withhold',
+  'withholding',
+]);
+
+const PAYMENT_COMPLETION_MARKERS = new Set([
+  'complete',
+  'completed',
+  'made',
+  'pay',
+  'paid',
+  'remit',
+  'remitted',
+  'settle',
+  'settled',
+  'succeed',
+  'succeeded',
+  'successful',
+  'successfully',
+  'tender',
+  'tendered',
+  'transferred',
+]);
 
 const NARRATIVE_POLARITY_FAMILIES: readonly ReadonlySet<string>[] = [
   new Set(['claim', 'claimed', 'claims']),
@@ -511,7 +535,15 @@ function reversesAssertionPolarity(
 ): boolean {
   const statementWords = words(statement);
   const citationWords = words(answerCitations);
-  if (statementWords.some((word) => LEXICAL_POLARITY_REVERSERS[type]?.has(word) ?? false)) {
+  if (type === 'payment') {
+    let lastReversal = -1;
+    let lastSuccess = -1;
+    for (const [index, word] of statementWords.entries()) {
+      if (PAYMENT_LEXICAL_REVERSERS.has(word)) lastReversal = index;
+      if (PAYMENT_COMPLETION_MARKERS.has(word)) lastSuccess = index;
+    }
+    if (lastReversal > lastSuccess) return true;
+  } else if (statementWords.some((word) => LEXICAL_POLARITY_REVERSERS[type]?.has(word) ?? false)) {
     return true;
   }
   if (type === 'narrative_fact') {
