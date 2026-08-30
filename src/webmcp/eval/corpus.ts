@@ -475,9 +475,50 @@ const EPISTEMIC: SemanticEvalCase[] = [
     }),
   },
   {
+    id: 'epistemic.strength_indeterminate',
+    category: 'epistemic_strength',
+    description: 'A date is stated, but the wording does not fix how firmly the user holds it.',
+    in_reply_to: ['req_expected_date'],
+    answer: 'The 25th. Or that is the date in my head anyway.',
+    expect: {
+      verdict: 'ambiguous',
+      clarification_reasons: ['epistemic_strength_indeterminate'],
+      forbid_supersession: true,
+    },
+    offline_completion: completion({
+      verdict: 'ambiguous',
+      clarifications_requested: [
+        {
+          requirement_id: 'req_expected_date',
+          reason: 'epistemic_strength_indeterminate',
+          prompt:
+            'Is the 25th a date you are confident about, or one you are recalling and would want to check first?',
+        },
+      ],
+    }),
+    traps: [
+      {
+        name: 'picks a strength the wording does not fix',
+        caught_by: 'grader',
+        completion: completion({
+          verdict: 'accepted_candidates',
+          assertions: [
+            {
+              requirement_id: 'req_expected_date',
+              proposed_type: 'target_date',
+              epistemic_strength: 'asserted_confident',
+              statement: 'The user expected the work to be finished by the 25th.',
+              citations: [answerCite('The 25th.')],
+            },
+          ],
+        }),
+      },
+    ],
+  },
+  {
     id: 'epistemic.indeterminate',
     category: 'epistemic_strength',
-    description: 'Where the wording fixes no strength, the compiler must fail closed.',
+    description: 'A bare hedge that answers nothing must ask, not guess a reading.',
     in_reply_to: ['req_paid'],
     answer: 'Not sure, sorry.',
     expect: {
@@ -813,6 +854,48 @@ const NON_ANSWERS: SemanticEvalCase[] = [
         },
       ],
     }),
+  },
+  {
+    id: 'ambiguous.type_indeterminate',
+    category: 'multiple_readings',
+    description:
+      'A transaction that could be either side of the money is a type the compiler must not pick.',
+    in_reply_to: ['req_invoiced', 'req_paid'],
+    answer: 'There was a 2,000 pound transaction between us in April.',
+    expect: {
+      verdict: 'ambiguous',
+      clarification_reasons: ['type_classification_indeterminate'],
+      forbidden_types: ['invoice', 'payment'],
+    },
+    offline_completion: completion({
+      verdict: 'ambiguous',
+      clarifications_requested: [
+        {
+          requirement_id: 'req_invoiced',
+          reason: 'type_classification_indeterminate',
+          prompt:
+            'Was the 2,000 pounds an amount they billed you, or an amount you paid them? Please say which.',
+        },
+      ],
+    }),
+    traps: [
+      {
+        name: 'picks a direction for the money',
+        caught_by: 'grader',
+        completion: completion({
+          verdict: 'accepted_candidates',
+          assertions: [
+            {
+              requirement_id: 'req_paid',
+              proposed_type: 'payment',
+              epistemic_strength: 'asserted_confident',
+              statement: 'The user paid 2,000 pounds in April.',
+              citations: [answerCite('a 2,000 pound transaction between us in April')],
+            },
+          ],
+        }),
+      },
+    ],
   },
 ];
 
