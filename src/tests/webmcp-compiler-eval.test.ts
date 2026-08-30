@@ -614,9 +614,30 @@ describe('the graders themselves have teeth', () => {
     expect(grade.failures.join(' ')).not.toContain('Alice');
   });
 
+  it('refuses an uncited recipient hidden behind a neutral determiner', async () => {
+    const { scenario, output } = await paymentWithStatement(
+      'The user paid the contractor alice 2,000 pounds by bank transfer on 25 April.',
+    );
+
+    const grade = gradeCompilerOutput(anchor, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/unsupported entity/u);
+    expect(grade.failures.join(' ')).not.toContain('contractor alice');
+  });
+
   it('refuses a statement that reverses the expected assertion polarity', async () => {
     const { scenario, output } = await paymentWithStatement(
       'The user has not paid the other party 2,000 pounds by bank transfer on 25 April.',
+    );
+
+    const grade = gradeCompilerOutput(anchor, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/polarity/u);
+  });
+
+  it('refuses a lexical reversal of the expected assertion polarity', async () => {
+    const { scenario, output } = await paymentWithStatement(
+      'The user failed to pay the other party 2,000 pounds by bank transfer on 25 April.',
     );
 
     const grade = gradeCompilerOutput(anchor, scenario.input, output);

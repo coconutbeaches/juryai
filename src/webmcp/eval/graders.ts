@@ -92,6 +92,8 @@ const ENTITY_NEUTRAL_WORDS = new Set([
   'were',
 ]);
 
+const ENTITY_BRIDGE_WORDS = new Set(['a', 'an', 'other', 'parties', 'party', 'the', 'user']);
+
 const ENTITY_INTRODUCERS: Partial<Record<PropositionType, ReadonlySet<string>>> = {
   payment: new Set(['paid', 'pay', 'to']),
   invoice: new Set(['by', 'from']),
@@ -124,8 +126,13 @@ function addsUnsupportedEntityToken(
   const introducers = ENTITY_INTRODUCERS[type] ?? new Set<string>();
   for (const [index, token] of tokens.entries()) {
     if (cited.has(token.folded) || ENTITY_NEUTRAL_WORDS.has(token.folded)) continue;
+    if (POLARITY_PREDICATES[type]?.has(token.folded) ?? false) continue;
     if (/^\p{Lu}/u.test(token.raw) && !isSentenceInitial(statement, tokens, index)) return true;
-    const previous = tokens[index - 1]?.folded;
+    let previousIndex = index - 1;
+    while (previousIndex >= 0 && ENTITY_BRIDGE_WORDS.has(tokens[previousIndex]?.folded ?? '')) {
+      previousIndex -= 1;
+    }
+    const previous = tokens[previousIndex]?.folded;
     if (previous !== undefined && introducers.has(previous)) return true;
     if (previous === 'named' || previous === 'called' || previous === 'met') return true;
   }
@@ -138,6 +145,9 @@ const NEGATION_WORDS = new Set([
   'cannot',
   "didn't",
   "doesn't",
+  'failed',
+  'fails',
+  'failure',
   "hadn't",
   "hasn't",
   "haven't",
@@ -145,6 +155,9 @@ const NEGATION_WORDS = new Set([
   'never',
   'no',
   'not',
+  'refused',
+  'refuses',
+  'unable',
   "wasn't",
   "weren't",
   "won't",
@@ -185,18 +198,6 @@ const POLARITY_PREDICATES: Partial<Record<PropositionType, ReadonlySet<string>>>
     'seeks',
     'want',
     'wants',
-  ]),
-  narrative_fact: new Set([
-    'find',
-    'found',
-    'require',
-    'required',
-    'say',
-    'says',
-    'send',
-    'sent',
-    'state',
-    'states',
   ]),
   target_date: new Set(['expect', 'expected']),
   contractual_deadline: new Set(['agree', 'agreed']),
