@@ -3559,6 +3559,342 @@ describe('an explicit null abort reason is still the caller reason', () => {
 });
 
 /* ------------------------------------------------------------------------ */
+/* Cancellation arbitration on every pre-commit await                        */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * Suspends, or fails, any single repository call by name, so a test can abort
+ * while exactly one await is in flight.
+ */
+function gatedRuntimeStore(inner: InMemoryCaseRuntimeStore) {
+  interface Pending {
+    skips: number;
+    open: () => void;
+    wait: Promise<void>;
+  }
+  const pending = new Map<string, Pending>();
+  const failures = new Map<string, Error>();
+  const counts = new Map<string, number>();
+
+  const step = async <T>(name: string, operation: () => Promise<T>): Promise<T> => {
+    counts.set(name, (counts.get(name) ?? 0) + 1);
+    const gate = pending.get(name);
+    if (gate) {
+      if (gate.skips > 0) {
+        gate.skips -= 1;
+      } else {
+        pending.delete(name);
+        gate.open();
+        await gate.wait;
+      }
+    }
+    const failure = failures.get(name);
+    if (failure) {
+      failures.delete(name);
+      throw failure;
+    }
+    return operation();
+  };
+
+  const store: CaseRuntimeStore = {
+    cases: {
+      findById: (caseId) => step('cases.findById', () => inner.cases.findById(caseId)),
+      findActiveDraftByPrincipal: (principalId) =>
+        inner.cases.findActiveDraftByPrincipal(principalId),
+    },
+    idempotency: {
+      listByCase: (caseId) =>
+        step('idempotency.listByCase', () => inner.idempotency.listByCase(caseId)),
+    },
+    startRequests: inner.startRequests,
+    compileRuns: inner.compileRuns,
+    compilerRegistry: {
+      register: (entry) => step('registry.register', () => inner.compilerRegistry.register(entry)),
+      findById: (id) => inner.compilerRegistry.findById(id),
+    },
+    createCase: (commit) => inner.createCase(commit),
+    commitTurn: (commit) => step('commitTurn', () => inner.commitTurn(commit)),
+  };
+
+  return {
+    store,
+    /** Suspends the next call to `name`, after `skips` earlier ones pass. */
+    gate: (name: string, skips = 0) => {
+      let open: () => void = () => {};
+      const entered = new Promise<void>((resolve) => {
+        open = resolve;
+      });
+      let release: () => void = () => {};
+      const wait = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      pending.set(name, { skips, open: () => open(), wait });
+      return { entered, release: () => release() };
+    },
+    failNext: (name: string, error: Error) => failures.set(name, error),
+    calls: (name: string) => counts.get(name) ?? 0,
+  };
+}
+
+describe('cancellation wins over every pre-commit await', () => {
+  async function draftedCase(compiler = new ScriptedSemanticCompiler(expectedDateScript)) {
+    const inner = new InMemoryCaseRuntimeStore();
+    const gated = gatedRuntimeStore(inner);
+    const h = runtimeOver(gated.store, compiler);
+    const started = await h.runtime.startCase(RELAY_ALICE, startCommand('request_1'));
+    if (started.kind !== 'created') throw new Error('expected creation');
+    return { inner, gated, h, compiler, caseId: started.case.case_id };
+  }
+
+  async function expectNothingWritten(inner: InMemoryCaseRuntimeStore, caseId: string) {
+    const stored = (await inner.cases.findById(caseId))!;
+    expect(stored.state.turn_log).toHaveLength(0);
+    expect(stored.state.propositions).toHaveLength(0);
+    expect(stored.state.case_version).toBe(0);
+    expect(stored.revision).toBe(1);
+    expect(await inner.idempotency.listByCase(caseId)).toEqual([]);
+    expect(await inner.compileRuns.listByCase(caseId)).toEqual([]);
+  }
+
+  it('never interprets a case read that resolved after an abort', async () => {
+    const { inner, gated, h, compiler, caseId } = await draftedCase();
+    const controller = new AbortController();
+    const reason = new Error('the caller disconnected');
+
+    // Aimed at a case that does not exist, so an un-arbitrated read would
+    // resolve to null and classify as CASE_NOT_FOUND rather than rejecting.
+    const gate = gated.gate('cases.findById');
+    const pending = h.runtime.submitTurn(
+      RELAY_ALICE,
+      submitCommand({ case_id: 'case_that_does_not_exist' }),
+      { signal: controller.signal },
+    );
+    await gate.entered;
+    controller.abort(reason);
+    gate.release();
+
+    await expect(pending).rejects.toBe(reason);
+    expect(compiler.calls).toHaveLength(0);
+    expect(gated.calls('registry.register')).toBe(0);
+    expect(gated.calls('commitTurn')).toBe(0);
+    expect(h.diagnostics.events).toEqual([]);
+    await expectNothingWritten(inner, caseId);
+  });
+
+  it('never interprets an idempotency read that resolved after an abort', async () => {
+    const { inner, gated, h, compiler, caseId } = await draftedCase();
+    // A committed turn, so an un-arbitrated read would find the replay record
+    // and return `replayed` instead of rejecting.
+    await h.runtime.submitTurn(RELAY_ALICE, submitCommand({ case_id: caseId }));
+    const before = (await inner.cases.findById(caseId))!;
+    const compilerCalls = compiler.calls.length;
+
+    const controller = new AbortController();
+    const reason = new Error('the caller disconnected');
+    const gate = gated.gate('idempotency.listByCase');
+    const pending = h.runtime.submitTurn(
+      RELAY_ALICE,
+      submitCommand({ case_id: caseId, expected_case_version: 1 }),
+      { signal: controller.signal },
+    );
+    await gate.entered;
+    controller.abort(reason);
+    gate.release();
+
+    await expect(pending).rejects.toBe(reason);
+    expect(compiler.calls).toHaveLength(compilerCalls);
+    expect(h.diagnostics.events).toEqual([]);
+    const after = (await inner.cases.findById(caseId))!;
+    expect(after.revision).toBe(before.revision);
+    expect(after.state).toEqual(before.state);
+  });
+
+  for (const gateName of ['cases.findById', 'idempotency.listByCase'] as const) {
+    it('rejects with the caller reason when ' + gateName + ' rejects after an abort', async () => {
+      const { inner, gated, h, compiler, caseId } = await draftedCase();
+      const controller = new AbortController();
+      const reason = new Error('the caller disconnected');
+
+      const gate = gated.gate(gateName);
+      const pending = h.runtime.submitTurn(RELAY_ALICE, submitCommand({ case_id: caseId }), {
+        signal: controller.signal,
+      });
+      await gate.entered;
+      controller.abort(reason);
+      gated.failNext(gateName, new Error(DB_ERROR));
+      gate.release();
+
+      await expect(pending).rejects.toBe(reason);
+      // A cancelled request is not blamed for a storage failure it did not cause.
+      expect(h.diagnostics.events).toEqual([]);
+      expect(compiler.calls).toHaveLength(0);
+      await expectNothingWritten(inner, caseId);
+    });
+  }
+
+  it('rejects with the caller reason when the replay refresh settles after an abort', async () => {
+    const { inner, gated, h, compiler, caseId } = await draftedCase();
+    // A committed turn, so the retry below takes the durable replay path and
+    // the refresh read actually happens.
+    const original = committed(
+      await h.runtime.submitTurn(RELAY_ALICE, submitCommand({ case_id: caseId })),
+    );
+    const before = (await inner.cases.findById(caseId))!;
+    const compilerCalls = compiler.calls.length;
+
+    const controller = new AbortController();
+    const reason = new Error('the caller disconnected');
+    // Skip the retry's initial case read; gate its replay refresh.
+    const gate = gated.gate('cases.findById', 1);
+    const pending = h.runtime.submitTurn(
+      RELAY_ALICE,
+      submitCommand({ case_id: caseId, expected_case_version: 1 }),
+      { signal: controller.signal },
+    );
+    await gate.entered;
+    controller.abort(reason);
+    gate.release();
+
+    // No replay response is built from the refreshed state.
+    await expect(pending).rejects.toBe(reason);
+    expect(compiler.calls).toHaveLength(compilerCalls);
+    expect(gated.calls('commitTurn')).toBe(1); // the original commit only
+    const after = (await inner.cases.findById(caseId))!;
+    expect(after.revision).toBe(before.revision);
+    expect(after.state).toEqual(before.state);
+    expect(await inner.idempotency.listByCase(caseId)).toHaveLength(1);
+    expect(original.turn_id).toBeDefined();
+  });
+
+  it('rejects with the caller reason when registration fails after an abort', async () => {
+    const { inner, gated, h, compiler, caseId } = await draftedCase();
+    const controller = new AbortController();
+    const reason = new Error('the caller disconnected');
+
+    const gate = gated.gate('registry.register');
+    const pending = h.runtime.submitTurn(RELAY_ALICE, submitCommand({ case_id: caseId }), {
+      signal: controller.signal,
+    });
+    await gate.entered;
+    controller.abort(reason);
+    gated.failNext('registry.register', new Error(DB_ERROR));
+    gate.release();
+
+    await expect(pending).rejects.toBe(reason);
+    expect(h.diagnostics.events).toEqual([]);
+    expect(compiler.calls).toHaveLength(0);
+    await expectNothingWritten(inner, caseId);
+  });
+
+  it('keeps a successful shared registration when one caller stops waiting', async () => {
+    const { inner, gated, h, caseId } = await draftedCase();
+    const controller = new AbortController();
+    const reason = new Error('the caller disconnected');
+
+    const gate = gated.gate('registry.register');
+    const abandoned = h.runtime.submitTurn(RELAY_ALICE, submitCommand({ case_id: caseId }), {
+      signal: controller.signal,
+    });
+    await gate.entered;
+    controller.abort(reason);
+    // Registration itself succeeds; only the caller walked away.
+    gate.release();
+    await expect(abandoned).rejects.toBe(reason);
+
+    // A later submission on the same runtime instance finds the artefact
+    // already pinned: the abandoned caller did not discard it.
+    const second = committed(
+      await h.runtime.submitTurn(
+        RELAY_ALICE,
+        submitCommand({ case_id: caseId, client_turn_id: 'client_2' }),
+      ),
+    );
+    expect(second.case.case_version).toBe(1);
+    expect(gated.calls('registry.register')).toBe(1);
+    // The proposition cites the artefact that was actually registered.
+    const state = (await inner.cases.findById(caseId))!.state;
+    const cited = state.propositions[0]!.compiler_version_id;
+    expect(await inner.compilerRegistry.findById(cited)).not.toBeNull();
+  });
+
+  it('propagates an explicit null reason through the shared primitive', async () => {
+    const { inner, gated, h, caseId } = await draftedCase();
+    const controller = new AbortController();
+
+    const gate = gated.gate('cases.findById');
+    const pending = h.runtime.submitTurn(RELAY_ALICE, submitCommand({ case_id: caseId }), {
+      signal: controller.signal,
+    });
+    await gate.entered;
+    controller.abort(null);
+    gate.release();
+
+    let thrown: unknown = 'nothing was thrown';
+    try {
+      await pending;
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeNull();
+    await expectNothingWritten(inner, caseId);
+  });
+
+  it('still reports an uncancelled repository failure as retryable', async () => {
+    const { inner, gated, h, caseId } = await draftedCase();
+    gated.failNext('cases.findById', new Error(DB_ERROR));
+
+    const outcome = await h.runtime.submitTurn(RELAY_ALICE, submitCommand({ case_id: caseId }));
+    expect(outcome.kind).toBe('failed');
+    if (outcome.kind !== 'failed') return;
+    assertOpaqueRetryableFailure(outcome.failure);
+    expect(outcome.failure.retryable).toBe(true);
+    const event = h.diagnostics.events.find((entry) => entry.kind === 'repository_unavailable');
+    expect(event?.message).toContain('case_read');
+    await expectNothingWritten(inner, caseId);
+  });
+
+  it('still reports an uncancelled registration failure as retryable', async () => {
+    const { inner, gated, h, caseId } = await draftedCase();
+    gated.failNext('registry.register', new Error(DB_ERROR));
+
+    const outcome = await h.runtime.submitTurn(RELAY_ALICE, submitCommand({ case_id: caseId }));
+    expect(outcome.kind).toBe('failed');
+    if (outcome.kind !== 'failed') return;
+    assertOpaqueRetryableFailure(outcome.failure);
+    expect(outcome.failure.retryable).toBe(true);
+    const event = h.diagnostics.events.find((entry) => entry.kind === 'repository_unavailable');
+    expect(event?.message).toContain('compiler_registry_register');
+    await expectNothingWritten(inner, caseId);
+  });
+
+  it('does NOT extend cancellation across the atomic commit', async () => {
+    const { inner, gated, h, caseId } = await draftedCase();
+    const controller = new AbortController();
+
+    // Every pre-commit await has already passed arbitration; the abort lands
+    // only once the atomic commit is under way.
+    const gate = gated.gate('commitTurn');
+    const pending = h.runtime.submitTurn(RELAY_ALICE, submitCommand({ case_id: caseId }), {
+      signal: controller.signal,
+    });
+    await gate.entered;
+    controller.abort(new Error('too late'));
+    gate.release();
+
+    // Telling the caller nothing was written while canonical state HAD changed
+    // would invite a resend. The commit's own result wins.
+    const outcome = committed(await pending);
+    expect(outcome.case.case_version).toBe(1);
+
+    const state = (await inner.cases.findById(caseId))!;
+    expect(state.state.turn_log).toHaveLength(1);
+    expect(state.state.propositions).toHaveLength(1);
+    expect(state.state.turn_log[0]!.turn_id).toBe(outcome.turn_id);
+    expect(await inner.idempotency.listByCase(caseId)).toHaveLength(1);
+  });
+});
+
+/* ------------------------------------------------------------------------ */
 /* An empty operation id is not an identity                                  */
 /* ------------------------------------------------------------------------ */
 

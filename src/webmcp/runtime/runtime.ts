@@ -481,8 +481,11 @@ export class CaseRuntime {
     relayClaims: RelayClaims,
     options: RuntimeCallOptions,
   ): Promise<SubmitTurnOutcome | AttemptSignal> {
-    const read = await this.#guardedRead('case_read', request.case_id, () =>
-      this.#deps.store.cases.findById(request.case_id),
+    const read = await this.#guardedRead(
+      'case_read',
+      request.case_id,
+      () => this.#deps.store.cases.findById(request.case_id),
+      options.signal,
     );
     if (!read.ok) {
       return { kind: 'failed', failure: unavailable('That answer could not be processed.') };
@@ -494,8 +497,11 @@ export class CaseRuntime {
     const state = stored.state;
 
     /* --- idempotency first, then the lock, then CAS. --------------------- */
-    const idempotencyRead = await this.#guardedRead('idempotency_read', request.case_id, () =>
-      this.#deps.store.idempotency.listByCase(request.case_id),
+    const idempotencyRead = await this.#guardedRead(
+      'idempotency_read',
+      request.case_id,
+      () => this.#deps.store.idempotency.listByCase(request.case_id),
+      options.signal,
     );
     // Proceeding without the replay store would turn a lost-response retry
     // into a duplicate write, which is the one failure this store prevents.
@@ -554,8 +560,11 @@ export class CaseRuntime {
       // predate it: accepted ids from the record, `case_version` and
       // `recorded` from before those propositions existed. Re-read, so the
       // replay is built from state at least as fresh as the record it matched.
-      const refreshed = await this.#guardedRead('replay_case_refresh', request.case_id, () =>
-        this.#deps.store.cases.findById(request.case_id),
+      const refreshed = await this.#guardedRead(
+        'replay_case_refresh',
+        request.case_id,
+        () => this.#deps.store.cases.findById(request.case_id),
+        options.signal,
       );
       if (!refreshed.ok) {
         return { kind: 'failed', failure: unavailable('That answer could not be processed.') };
@@ -751,10 +760,14 @@ export class CaseRuntime {
     // from durable state alone; making them depend on the registry means a
     // registry outage can hide an already-committed result from the caller
     // that is asking what happened to it.
-    let pinnedCompiler: CompilerRegistryEntry;
-    try {
-      pinnedCompiler = await this.#ensureCompilerRegistered();
-    } catch (error) {
+    // The shared registration promise is deliberately NOT bound to this
+    // caller's signal: one caller giving up must neither discard an artefact
+    // that registered successfully for everybody else, nor stop a failed one
+    // from being retried. What is arbitrated is THIS caller's wait for it.
+    const registration = await awaitPreCommit(options.signal, () =>
+      this.#ensureCompilerRegistered(),
+    );
+    if (!registration.ok) {
       this.#diagnostics.record({
         kind: 'repository_unavailable',
         case_id: state.case_id,
@@ -762,11 +775,12 @@ export class CaseRuntime {
         compile_run_id: null,
         message:
           'compiler_registry_register: ' +
-          (error instanceof Error ? error.message : 'unknown error'),
+          (registration.error instanceof Error ? registration.error.message : 'unknown error'),
         issues: [],
       });
       return { kind: 'failed', failure: unavailable('That answer could not be processed.') };
     }
+    const pinnedCompiler: CompilerRegistryEntry = registration.value;
 
     /* --- immutable source turn ------------------------------------------- */
     const compileRunId = this.#deps.ids.compileRunId();
@@ -832,40 +846,28 @@ export class CaseRuntime {
       livePropositions: livePropositions(state.propositions),
     });
 
-    // Re-checked here as well as at entry: the compare-and-swap retry loop can
-    // re-enter this method, and a cancelled call must not start a second
-    // expensive execution.
-    options.signal?.throwIfAborted();
-
     const startedAt = isoFrom(this.#deps.clock.now());
-    let output: CompilerOutput;
-    try {
-      // The adapter gets a DETACHED copy. `buildCompilerInput` builds fresh
-      // arrays but still holds the runtime's own requirement, proposition and
-      // turn objects; an adapter that writes through them would edit canonical
-      // state on its way past, and a `no_assertions` verdict would then commit
-      // a mutation nothing proposed. The runtime keeps `compilerInput`
-      // untouched for validation, the run record and the input hash.
-      output = await this.#deps.compiler.compile(structuredClone(compilerInput), {
-        signal: options.signal,
-      });
-    } catch (error) {
-      // A cancelled execution is not a failed one. Flattening it into
-      // INTERNAL_ERROR would tell the transport to consider retrying work the
-      // caller has already walked away from.
-      if (options.signal?.aborted === true) {
-        // `signal.reason` and nothing else. A caller that called `abort(null)`
-        // chose null as its reason, and `?? error` would silently hand back the
-        // adapter's rejection instead — reporting a compiler failure for an
-        // operation the caller cancelled.
-        throw options.signal.reason;
-      }
+    // The adapter gets a DETACHED copy. `buildCompilerInput` builds fresh
+    // arrays but still holds the runtime's own requirement, proposition and
+    // turn objects; an adapter that writes through them would edit canonical
+    // state on its way past, and a `no_assertions` verdict would then commit a
+    // mutation nothing proposed. The runtime keeps `compilerInput` untouched
+    // for validation, the run record and the input hash.
+    //
+    // The signal is still forwarded so a cooperative adapter can stop early,
+    // but forwarding is advisory: an adapter may ignore it, may fail to abort
+    // its provider request, or may simply win the race. The guarantee comes
+    // from arbitrating the wait, not from the adapter honouring it.
+    const compiled = await awaitPreCommit(options.signal, () =>
+      this.#deps.compiler.compile(structuredClone(compilerInput), { signal: options.signal }),
+    );
+    if (!compiled.ok) {
       this.#diagnostics.record({
         kind: 'compiler_threw',
         case_id: state.case_id,
         turn_id: turnId,
         compile_run_id: compileRunId,
-        message: error instanceof Error ? error.message : 'Compiler failed.',
+        message: compiled.error instanceof Error ? compiled.error.message : 'Compiler failed.',
         issues: [],
       });
       // Nothing is committed: no turn, no run, no version movement. A retry
@@ -875,15 +877,8 @@ export class CaseRuntime {
         failure: failure('INTERNAL_ERROR', 'That answer could not be processed. Try again.', true),
       };
     }
+    const output: CompilerOutput = compiled.value;
     const finishedAt = isoFrom(this.#deps.clock.now());
-
-    // Cancellation is re-checked HERE, before anything is persisted. Passing
-    // the signal to the adapter is advisory: an adapter may ignore it, may
-    // fail to abort its provider request, or may simply win the race and
-    // resolve a moment after the caller walked away. Without this check the
-    // runtime would hand the caller an abort while still committing the very
-    // submission it says was cancelled. Everything after this line writes.
-    options.signal?.throwIfAborted();
 
     /* --- fix the compiler's output at the runtime boundary ---------------- */
     // Everything above this line is ours; `output` is the first object in the
@@ -925,24 +920,18 @@ export class CaseRuntime {
     // make a cancellation look tidier would falsify the audit trail. What
     // cancellation must prevent is the CANONICAL commit below, not the history
     // of what already ran.
-    try {
-      await this.#deps.store.compileRuns.append(runRecord);
-    } catch (error) {
-      // The caller may have aborted while this append was in flight, and the
-      // append may then have failed for its own reasons. Cancellation wins:
-      // reporting a storage failure would tell the caller its submission broke
-      // when in fact the caller withdrew it, and `retryable: true` would invite
-      // it to send again.
-      if (options.signal?.aborted === true) {
-        throw options.signal.reason;
-      }
+    const appended = await awaitPreCommit(options.signal, () =>
+      this.#deps.store.compileRuns.append(runRecord),
+    );
+    if (!appended.ok) {
       this.#diagnostics.record({
         kind: 'repository_unavailable',
         case_id: state.case_id,
         turn_id: turnId,
         compile_run_id: compileRunId,
         message:
-          'compile_run_append: ' + (error instanceof Error ? error.message : 'unknown error'),
+          'compile_run_append: ' +
+          (appended.error instanceof Error ? appended.error.message : 'unknown error'),
         issues: [],
       });
       return { kind: 'failed', failure: unavailable('That answer could not be processed.') };
@@ -950,23 +939,6 @@ export class CaseRuntime {
 
     // From here on `runRecord.output` is the authoritative compiler output.
     // The adapter-owned `output` object is not read again.
-    // Last safe boundary, placed immediately after the append and BEFORE the
-    // recorded output is inspected. The append is the final await before the
-    // commit, and everything between here and `commitTurn` is synchronous, so
-    // one check covers the whole window — but only from here. Below this line
-    // sit the contract, mutation and structural-validation early returns, and
-    // reaching one of those first would answer a cancelled caller with
-    // INTERNAL_ERROR instead of its own cancellation. A caller that has walked
-    // away is not owed a verdict on the compiler's output.
-    //
-    // The signal deliberately stops HERE and is not handed to `commitTurn`.
-    // Once an atomic canonical commit has started, interrupting it would trade
-    // a clean cancellation for an indeterminate half-written case, which is
-    // strictly worse than honouring a commit the caller no longer wants. Any
-    // asynchronous step added between this point and the commit needs the same
-    // arbitration after it.
-    options.signal?.throwIfAborted();
-
     if (runRecord.contract_issues.length > 0) {
       this.#diagnostics.record({
         kind: 'compiler_contract_violation',
@@ -1061,6 +1033,17 @@ export class CaseRuntime {
       response,
     };
 
+    /* --- ATOMIC BOUNDARY: cancellation stops here ------------------------ */
+    // Every await above this line runs through `awaitPreCommit`, so the caller's
+    // abort has already had first refusal on all of them. `commitTurn` does NOT,
+    // and the signal is deliberately not passed into it.
+    //
+    // Arbitrating cancellation around the commit would allow: commit begins →
+    // caller aborts → commit succeeds → runtime throws cancellation. The caller
+    // would be told nothing was written while canonical state had in fact
+    // changed, and would resend. Once the atomic commit has started, its result
+    // wins — including a modelled contention result, which is a commit outcome
+    // and not something a later abort may overwrite.
     let commit;
     try {
       commit = await this.#deps.store.commitTurn({
@@ -1122,20 +1105,27 @@ export class CaseRuntime {
     operation: string,
     caseId: string | null,
     read: () => Promise<T>,
+    signal?: AbortSignal,
   ): Promise<{ ok: true; value: T } | { ok: false }> {
-    try {
-      return { ok: true, value: await read() };
-    } catch (error) {
-      this.#diagnostics.record({
-        kind: 'repository_unavailable',
-        case_id: caseId,
-        turn_id: null,
-        compile_run_id: null,
-        message: operation + ': ' + (error instanceof Error ? error.message : 'unknown error'),
-        issues: [],
-      });
-      return { ok: false };
-    }
+    // Reads on the submit path pass a signal and therefore inherit
+    // cancellation arbitration; `startCase` and `getCaseState` pass none and
+    // behave exactly as before.
+    const settled = await awaitPreCommit(signal, read);
+    if (settled.ok) return { ok: true, value: settled.value };
+    // Only reached when the signal did NOT abort: a cancelled request never
+    // gets a storage diagnostic for a failure it did not cause.
+    this.#diagnostics.record({
+      kind: 'repository_unavailable',
+      case_id: caseId,
+      turn_id: null,
+      compile_run_id: null,
+      message:
+        operation +
+        ': ' +
+        (settled.error instanceof Error ? settled.error.message : 'unknown error'),
+      issues: [],
+    });
+    return { ok: false };
   }
 
   /**
@@ -1267,6 +1257,43 @@ function provenanceKey(source: {
     source_language: source.source_language ?? null,
     translation_indicated: source.translation_indicated === true,
   });
+}
+
+/** The outcome of an operation whose result has not been interpreted yet. */
+type Settled<T> = { ok: true; value: T } | { ok: false; error: unknown };
+
+/**
+ * The single cancellation-arbitration point for every await before the
+ * canonical commit.
+ *
+ * Cancellation gets FIRST REFUSAL on the result. The operation is awaited into
+ * a settled value — success or failure, neither interpreted yet — and only then
+ * is the signal consulted. If the caller aborted at any point, its own
+ * `signal.reason` is thrown exactly, whether the operation went on to resolve
+ * or to reject.
+ *
+ * That ordering is the whole point. Checking the signal only on the success
+ * path lets a failure be reported as a storage error the caller never caused;
+ * checking it only in a catch lets a late success be committed for a caller
+ * that walked away. Both were shipped as separate bugs before this existed,
+ * which is why the rule is now expressed once rather than at each call site.
+ *
+ * `throwIfAborted()` throws `signal.reason` verbatim, so an explicit
+ * `abort(null)` propagates as exactly `null` with no `??` fallback anywhere.
+ */
+async function awaitPreCommit<T>(
+  signal: AbortSignal | undefined,
+  operation: () => Promise<T>,
+): Promise<Settled<T>> {
+  signal?.throwIfAborted();
+  let settled: Settled<T>;
+  try {
+    settled = { ok: true, value: await operation() };
+  } catch (error) {
+    settled = { ok: false, error };
+  }
+  signal?.throwIfAborted();
+  return settled;
 }
 
 /**
