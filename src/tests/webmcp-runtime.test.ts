@@ -3239,6 +3239,125 @@ describe('a compiler that ignores the abort cannot commit the cancelled turn', (
   });
 });
 
+/**
+ * Suspends `compileRuns.append` and records whether `commitTurn` was ever
+ * reached, so a test can abort while the audit write is in flight.
+ */
+function gatedAuditAppendStore(inner: InMemoryCaseRuntimeStore) {
+  let armed = false;
+  let signalEntered: () => void = () => {};
+  let releaseGate: () => void = () => {};
+  let gate: Promise<void> = Promise.resolve();
+  let commitCalls = 0;
+
+  const store: CaseRuntimeStore = {
+    cases: inner.cases,
+    idempotency: inner.idempotency,
+    startRequests: inner.startRequests,
+    compilerRegistry: inner.compilerRegistry,
+    compileRuns: {
+      append: async (record) => {
+        if (armed) {
+          armed = false;
+          signalEntered();
+          await gate;
+        }
+        return inner.compileRuns.append(record);
+      },
+      findById: (id) => inner.compileRuns.findById(id),
+      listByCase: (caseId) => inner.compileRuns.listByCase(caseId),
+    },
+    createCase: (commit) => inner.createCase(commit),
+    commitTurn: (commit) => {
+      commitCalls += 1;
+      return inner.commitTurn(commit);
+    },
+  };
+
+  const arm = () => {
+    armed = true;
+    const entered = new Promise<void>((resolve) => {
+      signalEntered = resolve;
+    });
+    gate = new Promise<void>((resolve) => {
+      releaseGate = resolve;
+    });
+    return { entered, release: () => releaseGate() };
+  };
+  return { store, arm, commitCalls: () => commitCalls };
+}
+
+describe('cancellation is arbitrated again before the canonical commit starts', () => {
+  it('refuses to commit when the abort lands while the audit append is in flight', async () => {
+    const inner = new InMemoryCaseRuntimeStore();
+    const gated = gatedAuditAppendStore(inner);
+    const compiler = new ScriptedSemanticCompiler(expectedDateScript);
+    const h = runtimeOver(gated.store, compiler);
+
+    const started = await h.runtime.startCase(ALICE, startCommand('request_1'));
+    if (started.kind !== 'created') throw new Error('expected creation');
+    const caseId = started.case.case_id;
+    const before = (await inner.cases.findById(caseId))!;
+
+    const controller = new AbortController();
+    const reason = new Error('the caller disconnected');
+    const gate = gated.arm();
+
+    // Compile succeeds and the first post-compile check passes; the abort
+    // lands only once the audit append is already pending.
+    const pending = h.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId }), {
+      signal: controller.signal,
+    });
+    await gate.entered;
+    controller.abort(reason);
+    gate.release();
+
+    await expect(pending).rejects.toBe(reason);
+
+    // Nothing canonical happened, and the commit was never even attempted.
+    expect(gated.commitCalls()).toBe(0);
+    const after = (await inner.cases.findById(caseId))!;
+    expect(after.revision).toBe(before.revision);
+    expect(after.state).toEqual(before.state);
+    expect(after.state.turn_log).toHaveLength(0);
+    expect(after.state.propositions).toHaveLength(0);
+    expect(after.state.case_version).toBe(0);
+    expect(await inner.idempotency.listByCase(caseId)).toEqual([]);
+
+    // The compile-run audit record legitimately stands: the compiler really
+    // did execute, and the log is append-only. Deleting it to make the
+    // cancellation look tidier would falsify the audit trail.
+    const runs = await inner.compileRuns.listByCase(caseId);
+    expect(runs).toHaveLength(1);
+    expect(runs[0]!.output.assertions).toHaveLength(1);
+    // ... and it describes a turn that never became canonical.
+    expect(after.state.turn_log.map((turn) => turn.turn_id)).not.toContain(runs[0]!.turn_id);
+  });
+
+  it('commits normally when the same append gate is released without an abort', async () => {
+    const inner = new InMemoryCaseRuntimeStore();
+    const gated = gatedAuditAppendStore(inner);
+    const h = runtimeOver(gated.store, new ScriptedSemanticCompiler(expectedDateScript));
+
+    const started = await h.runtime.startCase(ALICE, startCommand('request_1'));
+    if (started.kind !== 'created') throw new Error('expected creation');
+    const caseId = started.case.case_id;
+
+    const controller = new AbortController();
+    const gate = gated.arm();
+    const pending = h.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId }), {
+      signal: controller.signal,
+    });
+    await gate.entered;
+    gate.release();
+
+    const outcome = committed(await pending);
+    expect(outcome.case.case_version).toBe(1);
+    expect(gated.commitCalls()).toBe(1);
+    expect((await inner.cases.findById(caseId))!.state.turn_log).toHaveLength(1);
+  });
+});
+
 /* ------------------------------------------------------------------------ */
 /* An empty operation id is not an identity                                  */
 /* ------------------------------------------------------------------------ */

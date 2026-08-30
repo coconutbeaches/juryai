@@ -909,6 +909,12 @@ export class CaseRuntime {
     // Append-only audit, written whether or not the result is absorbed. A run
     // that happened and was rejected is history; hiding it makes "the compiler
     // never proposed X" indistinguishable from "the runtime refused X".
+    //
+    // This also holds when the caller aborts while this append is in flight:
+    // the compiler really did execute, so the record stands. Deleting it to
+    // make a cancellation look tidier would falsify the audit trail. What
+    // cancellation must prevent is the CANONICAL commit below, not the history
+    // of what already ran.
     try {
       await this.#deps.store.compileRuns.append(runRecord);
     } catch (error) {
@@ -1019,6 +1025,18 @@ export class CaseRuntime {
       recorded_at_ms: receivedAtMs,
       response,
     };
+
+    // Last safe boundary. The audit append above is awaited, so the caller can
+    // abort while it is in flight; without this the runtime would resolve
+    // `committed` for a submission it had already been told to abandon. Any
+    // asynchronous step added between the post-compile check and here needs the
+    // same arbitration after it.
+    //
+    // The signal deliberately stops HERE and is not handed to `commitTurn`.
+    // Once an atomic canonical commit has started, interrupting it would trade
+    // a clean cancellation for an indeterminate half-written case, which is
+    // strictly worse than honouring a commit the caller no longer wants.
+    options.signal?.throwIfAborted();
 
     let commit;
     try {
