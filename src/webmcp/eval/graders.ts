@@ -64,6 +64,11 @@ const ENTITY_NEUTRAL_WORDS = new Set([
   'been',
   'being',
   'by',
+  'can',
+  'could',
+  'did',
+  'do',
+  'does',
   'for',
   'from',
   'gbp',
@@ -77,6 +82,9 @@ const ENTITY_NEUTRAL_WORDS = new Set([
   'is',
   'it',
   'its',
+  'may',
+  'might',
+  'must',
   'of',
   'on',
   'or',
@@ -84,6 +92,8 @@ const ENTITY_NEUTRAL_WORDS = new Set([
   'parties',
   'party',
   'she',
+  'shall',
+  'should',
   'that',
   'the',
   'their',
@@ -171,18 +181,6 @@ const SENTENCE_INITIAL_NON_ENTITY_WORDS = new Set([
   'work',
 ]);
 
-const ENTITY_SUBJECT_PREDICATES: Partial<Record<PropositionType, ReadonlySet<string>>> = {
-  requested_scope: new Set(['asked', 'hired', 'requested', 'told', 'wanted']),
-  accepted_scope: new Set(['accepted', 'agreed', 'approved', 'consented', 'signed']),
-  invoice: new Set(['billed', 'invoiced', 'issued', 'sent']),
-  payment: new Set(['paid', 'received', 'remitted', 'transferred']),
-  disputed_balance: new Set(['contested', 'disputed']),
-  requested_remedy: new Set(['asked', 'requested', 'sought', 'wanted']),
-  target_date: new Set(['expected']),
-  contractual_deadline: new Set(['agreed']),
-  narrative_fact: new Set(['admitted', 'claimed', 'contended', 'said', 'stated']),
-};
-
 function isSentenceInitial(text: string, tokens: readonly WordToken[], index: number): boolean {
   if (index === 0) return true;
   return /[.!?]\s*$/u.test(text.slice(tokens[index - 1]!.end, tokens[index]!.start));
@@ -232,17 +230,7 @@ function addsUnsupportedEntityToken(
       isSubjectPosition(statement, tokens, index) &&
       !SENTENCE_INITIAL_NON_ENTITY_WORDS.has(token.folded)
     ) {
-      const subjectPredicates = ENTITY_SUBJECT_PREDICATES[type] ?? new Set<string>();
-      for (let predicateIndex = index + 1; predicateIndex < tokens.length; predicateIndex += 1) {
-        if (
-          /[.!?]/u.test(
-            statement.slice(tokens[predicateIndex - 1]!.end, tokens[predicateIndex]!.start),
-          )
-        ) {
-          break;
-        }
-        if (subjectPredicates.has(tokens[predicateIndex]!.folded)) return true;
-      }
+      return true;
     }
     const previous = tokens[index - 1]?.folded;
     if (previous !== undefined && introducers.has(previous)) return true;
@@ -815,6 +803,18 @@ const ORDINAL_NUMBER_WORDS = new Map<string, number>([
   ['thousandth', 1_000],
 ]);
 
+const QUANTITY_WORD_MARKERS = new Map<string, string>([
+  ['half', 'fraction:1/2'],
+  ['halves', 'fraction:1/2'],
+  ['quarter', 'fraction:1/4'],
+  ['quarters', 'fraction:1/4'],
+  ['double', 'multiplier:2'],
+  ['twice', 'multiplier:2'],
+  ['triple', 'multiplier:3'],
+  ['thrice', 'multiplier:3'],
+  ['dozen', 'quantity:12'],
+]);
+
 function numberWordMarkers(text: string): string[] {
   const tokens = words(text);
   const markers: string[] = [];
@@ -860,6 +860,8 @@ function factMarkers(text: string): string[] {
   for (const word of words(text)) {
     const ordinal = ORDINAL_NUMBER_WORDS.get(word);
     if (ordinal !== undefined) markers.push(`ordinal:${ordinal}`);
+    const quantity = QUANTITY_WORD_MARKERS.get(word);
+    if (quantity !== undefined) markers.push(quantity);
   }
   for (const match of text.matchAll(/\b(\d+)(?:st|nd|rd|th)\b/giu)) {
     markers.push(`ordinal:${Number(match[1])}`);

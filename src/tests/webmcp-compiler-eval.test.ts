@@ -1077,6 +1077,16 @@ describe('the graders themselves have teeth', () => {
     expect(grade.failures.join(' ')).toMatch(/unsupported entity/u);
   });
 
+  it('rejects an unsupported subject regardless of its predicate', async () => {
+    const { scenario, output } = await paymentWithStatement(
+      'The user paid the other party 2,000 pounds by bank transfer on 25 April, and alice kept the money.',
+    );
+
+    const grade = gradeCompilerOutput(anchor, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/unsupported entity/u);
+  });
+
   it('refuses an unsupported spelled-out amount', async () => {
     const { scenario, output } = await paymentWithStatement(
       'The user paid the other party 2,000 pounds by bank transfer on 25 April and included a fee of fifty.',
@@ -1131,6 +1141,16 @@ describe('the graders themselves have teeth', () => {
     const grade = gradeCompilerOutput(ordinalPayment, scenario.input, output);
     expect(grade.failures).toEqual([]);
     expect(grade.ok).toBe(true);
+  });
+
+  it('refuses an unsupported fractional amount', async () => {
+    const { scenario, output } = await paymentWithStatement(
+      'The user paid the other party 2,000 pounds by bank transfer on 25 April, and the fee was half the payment amount.',
+    );
+
+    const grade = gradeCompilerOutput(anchor, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/unsupported fact/u);
   });
 
   it('allows a supported descriptor after a payment determiner', async () => {
