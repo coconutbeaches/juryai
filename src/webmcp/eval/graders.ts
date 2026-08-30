@@ -87,6 +87,9 @@ const ENTITY_NEUTRAL_WORDS = new Set([
   'may',
   'might',
   'must',
+  'never',
+  'no',
+  'not',
   'nothing',
   'of',
   'on',
@@ -152,6 +155,8 @@ const SENTENCE_INITIAL_NON_ENTITY_WORDS = new Set([
   'conversely',
   'date',
   'deadline',
+  'earlier',
+  'eventually',
   'fact',
   'finally',
   'fortunately',
@@ -161,6 +166,7 @@ const SENTENCE_INITIAL_NON_ENTITY_WORDS = new Set([
   'importantly',
   'indeed',
   'invoice',
+  'later',
   'money',
   'moreover',
   'nevertheless',
@@ -168,7 +174,14 @@ const SENTENCE_INITIAL_NON_ENTITY_WORDS = new Set([
   'obviously',
   'overall',
   'perhaps',
+  'previously',
   'payment',
+  'pound',
+  'pounds',
+  'dollar',
+  'dollars',
+  'euro',
+  'euros',
   'position',
   'quote',
   'relief',
@@ -177,6 +190,7 @@ const SENTENCE_INITIAL_NON_ENTITY_WORDS = new Set([
   'request',
   'scope',
   'sum',
+  'subsequently',
   'therefore',
   'thus',
   'transfer',
@@ -229,8 +243,6 @@ function addsUnsupportedEntityToken(
     if (cited.has(token.folded) || ENTITY_NEUTRAL_WORDS.has(token.folded)) continue;
     if (POLARITY_PREDICATES[type]?.has(token.folded) ?? false) continue;
     const sentenceInitial = isSentenceInitial(statement, tokens, index);
-    const followingGap = statement.slice(token.end, tokens[index + 1]?.start ?? statement.length);
-    if (sentenceInitial && /ly$/u.test(token.folded) && /,/u.test(followingGap)) continue;
     if (/^\p{Lu}/u.test(token.raw) && !sentenceInitial) return true;
     if (
       isSubjectPosition(statement, tokens, index) &&
@@ -243,6 +255,16 @@ function addsUnsupportedEntityToken(
       previous !== undefined &&
       !ENTITY_NEUTRAL_WORDS.has(previous) &&
       /(?:ed|ing)$/u.test(previous) &&
+      !SENTENCE_INITIAL_NON_ENTITY_WORDS.has(token.folded)
+    ) {
+      return true;
+    }
+    const beforePrevious = tokens[index - 2]?.folded;
+    if (
+      previous !== undefined &&
+      beforePrevious !== undefined &&
+      ['he', 'it', 'she', 'they', 'user'].includes(beforePrevious) &&
+      !ENTITY_NEUTRAL_WORDS.has(previous) &&
       !SENTENCE_INITIAL_NON_ENTITY_WORDS.has(token.folded)
     ) {
       return true;

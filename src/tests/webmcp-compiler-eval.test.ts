@@ -1097,9 +1097,29 @@ describe('the graders themselves have teeth', () => {
     expect(grade.ok).toBe(true);
   });
 
+  it('does not treat a sentence-initial name ending in ly as an adverb', async () => {
+    const { scenario, output } = await paymentWithStatement(
+      'Emily, the user paid the other party 2,000 pounds by bank transfer on 25 April.',
+    );
+
+    const grade = gradeCompilerOutput(anchor, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/unsupported entity/u);
+  });
+
   it('rejects an unsupported lowercase entity in a predicate object position', async () => {
     const { scenario, output } = await paymentWithStatement(
       'The user paid the other party 2,000 pounds by bank transfer on 25 April after thanking alice.',
+    );
+
+    const grade = gradeCompilerOutput(anchor, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/unsupported entity/u);
+  });
+
+  it('rejects an unsupported entity object after an irregular verb', async () => {
+    const { scenario, output } = await paymentWithStatement(
+      'The user paid the other party 2,000 pounds by bank transfer on 25 April after he saw alice.',
     );
 
     const grade = gradeCompilerOutput(anchor, scenario.input, output);
