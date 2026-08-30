@@ -337,6 +337,43 @@ describe('the graders themselves have teeth', () => {
     expect(grade.failures.join(' ')).toMatch(/clarification.*prompt.*topic/u);
   });
 
+  it('refuses duplicate metadata even when a later prompt has the right topics', async () => {
+    const { scenario, output } = await compileCompletion(
+      ambiguous,
+      JSON.stringify({
+        verdict: 'ambiguous',
+        assertions: [],
+        rejected_candidates: [],
+        clarifications_requested: [
+          {
+            requirement_id: 'req_invoiced',
+            reason: 'multiple_incompatible_readings',
+            prompt: 'How much sleep did you get last night?',
+          },
+          {
+            requirement_id: 'req_invoiced',
+            reason: 'multiple_incompatible_readings',
+            prompt: 'Is the 15th the invoice date or the payment date?',
+          },
+        ],
+      }),
+    );
+
+    // The runtime commits the first clarification and drops the duplicate, so
+    // existential grading would approve the second prompt while exposing the
+    // unrelated first prompt to the human.
+    expect(validateCompilerOutput(scenario.input, output)).toEqual([]);
+    expect(
+      runBoundary(scenario.state, scenario.input, output, ambiguous, scenario.next_case_version)
+        .disposition,
+    ).toBe('committed');
+
+    const grade = gradeCompilerOutput(ambiguous, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/duplicate clarification/u);
+    expect(grade.failures.join(' ')).toMatch(/prompt.*topic/u);
+  });
+
   it('allows an invoice clarification to name the subject it asks about', async () => {
     const { scenario, output } = await compileCompletion(
       unrelated,

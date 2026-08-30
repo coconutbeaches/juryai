@@ -297,19 +297,29 @@ function gradeClarificationSet(
       continue;
     }
 
-    const promptMatches = metadataMatches.some((clarification) =>
-      pair.prompt_must_mention.every((alternatives) =>
-        alternatives.some((term) => fold(clarification.prompt).includes(fold(term))),
-      ),
-    );
-    if (!promptMatches) {
+    if (metadataMatches.length > 1) {
       failures.push(
-        'clarification: prompt for ' +
+        'clarification: duplicate clarification metadata for ' +
           pair.requirement_id +
-          " carried the expected reason '" +
+          " with reason '" +
           pair.reason +
-          "' but did not ask about every required topic",
+          "'",
       );
+    }
+
+    for (const clarification of metadataMatches) {
+      const promptMatches = pair.prompt_must_mention.every((alternatives) =>
+        alternatives.some((term) => fold(clarification.prompt).includes(fold(term))),
+      );
+      if (!promptMatches) {
+        failures.push(
+          'clarification: prompt for ' +
+            pair.requirement_id +
+            " carried the expected reason '" +
+            pair.reason +
+            "' but did not ask about every required topic",
+        );
+      }
     }
   }
 
