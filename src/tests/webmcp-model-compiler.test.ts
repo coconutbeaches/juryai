@@ -942,6 +942,38 @@ describe('provider telemetry', () => {
     expect(compiler.telemetry[0]!.attempts).toBe(3);
   });
 
+  it('accumulates usage across transient failures before a successful retry', async () => {
+    const client = new ScriptedSemanticModelClient((_request, attempt) => {
+      if (attempt < 3) {
+        return {
+          kind: 'error',
+          error: new SemanticModelError('503', {
+            transient: true,
+            diagnostics: {
+              reported_model: 'test-model-2026-01-01',
+              usage: {
+                input_tokens: attempt === 1 ? 100 : 200,
+                output_tokens: attempt === 1 ? 10 : 20,
+              },
+            },
+          }),
+        };
+      }
+      return { kind: 'text', text: draft(), reported_model: 'test-model-2026-01-01' };
+    });
+    const compiler = compilerOver(client, { max_transient_retries: 2 });
+
+    await compiler.compile(inputOf());
+
+    expect(compiler.telemetry[0]).toMatchObject({
+      outcome: 'compiled',
+      attempts: 3,
+      reported_model: 'test-model-2026-01-01',
+      input_tokens: 300,
+      output_tokens: 30,
+    });
+  });
+
   it('records a cancellation that lands while a retry backoff is pending', async () => {
     // `abortableDelay` rejects from inside the catch handler, so without an
     // explicit record here the throw leaves `compile()` past every other

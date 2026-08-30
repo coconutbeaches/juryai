@@ -373,25 +373,46 @@ export class ModelSemanticCompiler implements SemanticCompilerPort {
     let attempts = 0;
     let response: SemanticModelResponse | null = null;
     let lastError: unknown = null;
+    let reportedModel: string | null = null;
+    let inputTokens = 0;
+    let outputTokens = 0;
+    let hasInputTokens = false;
+    let hasOutputTokens = false;
+
+    const accumulateDiagnostics = (
+      diagnostics: {
+        reported_model: string | null;
+        usage: { input_tokens: number | null; output_tokens: number | null } | null;
+      } | null,
+    ): void => {
+      if (diagnostics === null) return;
+      if (diagnostics.reported_model !== null) reportedModel = diagnostics.reported_model;
+      if (
+        diagnostics.usage?.input_tokens !== null &&
+        diagnostics.usage?.input_tokens !== undefined
+      ) {
+        inputTokens += diagnostics.usage.input_tokens;
+        hasInputTokens = true;
+      }
+      if (
+        diagnostics.usage?.output_tokens !== null &&
+        diagnostics.usage?.output_tokens !== undefined
+      ) {
+        outputTokens += diagnostics.usage.output_tokens;
+        hasOutputTokens = true;
+      }
+    };
 
     // Every terminal path below records exactly once, so provider-call counts
     // and token totals describe the whole run rather than only its successes.
-    const record = (
-      outcome: ModelCompileOutcome,
-      seen: SemanticModelResponse | null = null,
-    ): void => {
-      // With no response in hand, fall back to whatever the failed call itself
-      // reported. A refusal, a truncated completion or an HTTP error can all
-      // carry real usage, and dropping it understates the run in the direction
-      // that hides a misbehaving model.
-      const failed = lastError instanceof SemanticModelError ? lastError.diagnostics : null;
+    const record = (outcome: ModelCompileOutcome): void => {
       this.#recordTelemetry({
         compile_run_id: input.compile_run_id,
         attempts,
         elapsed_ms: Date.now() - startedAt,
-        reported_model: seen?.reported_model ?? failed?.reported_model ?? null,
-        input_tokens: seen?.usage?.input_tokens ?? failed?.usage?.input_tokens ?? null,
-        output_tokens: seen?.usage?.output_tokens ?? failed?.usage?.output_tokens ?? null,
+        reported_model: reportedModel,
+        input_tokens: hasInputTokens ? inputTokens : null,
+        output_tokens: hasOutputTokens ? outputTokens : null,
         outcome,
       });
     };
@@ -406,8 +427,16 @@ export class ModelSemanticCompiler implements SemanticCompilerPort {
       attempts += 1;
       try {
         response = await this.#client.generate(request, { signal });
+        accumulateDiagnostics(response);
         break;
       } catch (error) {
+        lastError = error;
+        if (error instanceof SemanticModelError) {
+          // Each attempt may already have been billed even when a later retry
+          // succeeds. Accumulate at the catch boundary so no terminal path can
+          // accidentally report only the final attempt.
+          accumulateDiagnostics(error.diagnostics);
+        }
         // Cancellation is never a retry condition, and is never flattened into
         // a provider error: the caller's abort leaves as the caller's abort.
         // The attempts it already billed are still recorded.
@@ -419,7 +448,6 @@ export class ModelSemanticCompiler implements SemanticCompilerPort {
           record('cancelled');
           throw error;
         }
-        lastError = error;
         const transient = error instanceof SemanticModelError && error.transient;
         if (!transient || attempts > this.#resolved.max_transient_retries) break;
         const backoff = this.#resolved.retry_backoff_ms;
@@ -462,14 +490,14 @@ export class ModelSemanticCompiler implements SemanticCompilerPort {
     // telemetry.
     const pinned = this.#resolved.model_snapshot;
     if (pinned !== null && response.reported_model !== pinned) {
-      record('model_identity_rejected', response);
+      record('model_identity_rejected');
       throw new SemanticModelIdentityError(pinned, response.reported_model);
     }
 
     if (response.text === null) {
       // Provider-native structured output produced no completion. `null` is the
       // honest record of that; inventing a raw string would falsify the audit.
-      record('no_output_text', response);
+      record('no_output_text');
       throw new SemanticCompilerOutputError(
         'provider returned no structured output text',
         'model_draft',
@@ -480,7 +508,7 @@ export class ModelSemanticCompiler implements SemanticCompilerPort {
     try {
       output = parseModelDraft(input, response.text);
     } catch (error) {
-      record('malformed_output', response);
+      record('malformed_output');
       throw error;
     }
     if (this.#resolved.retain_raw_output) {
@@ -492,14 +520,14 @@ export class ModelSemanticCompiler implements SemanticCompilerPort {
     // runtime's own identical check is not weakened by it existing.
     const shapeIssues = validateCompilerOutputShape(output);
     if (shapeIssues.length > 0) {
-      record('malformed_output', response);
+      record('malformed_output');
       throw new SemanticCompilerOutputError(
         'assembled output failed its own shape check: ' + (shapeIssues[0]?.message ?? 'unknown'),
         shapeIssues[0]?.path ?? 'compiler_output',
       );
     }
 
-    record('compiled', response);
+    record('compiled');
 
     return output;
   }

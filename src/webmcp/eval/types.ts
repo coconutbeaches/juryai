@@ -89,6 +89,13 @@ export interface AllowedAssertion {
 export interface ExpectedClarification {
   requirement_id: string;
   reason: AmbiguityReason;
+  /**
+   * Semantic topics the prompt must actually ask about. Every outer entry is
+   * required; the prompt satisfies one entry by mentioning any of its terms.
+   * This stays property-based while preventing correct metadata from masking
+   * a question about an unrelated subject.
+   */
+  prompt_must_mention: string[][];
 }
 
 export interface SemanticExpectation {

@@ -524,7 +524,11 @@ const EPISTEMIC: SemanticEvalCase[] = [
       verdict: 'ambiguous',
       assertions: [],
       clarifications: [
-        { requirement_id: 'req_expected_date', reason: 'epistemic_strength_indeterminate' },
+        {
+          requirement_id: 'req_expected_date',
+          reason: 'epistemic_strength_indeterminate',
+          prompt_must_mention: [['25th'], ['confident', 'sure', 'certain', 'check']],
+        },
       ],
       forbid_supersession: true,
     },
@@ -568,7 +572,11 @@ const EPISTEMIC: SemanticEvalCase[] = [
       verdict: 'ambiguous',
       assertions: [],
       clarifications: [
-        { requirement_id: 'req_paid', reason: 'answer_does_not_address_requirement' },
+        {
+          requirement_id: 'req_paid',
+          reason: 'answer_does_not_address_requirement',
+          prompt_must_mention: [['pay', 'paid', 'payment']],
+        },
       ],
       forbid_supersession: true,
     },
@@ -842,9 +850,12 @@ const NON_ANSWERS: SemanticEvalCase[] = [
       verdict: 'ambiguous',
       assertions: [],
       clarifications: [
-        { requirement_id: 'req_invoiced', reason: 'answer_does_not_address_requirement' },
+        {
+          requirement_id: 'req_invoiced',
+          reason: 'answer_does_not_address_requirement',
+          prompt_must_mention: [['invoice', 'invoiced', 'bill', 'billed']],
+        },
       ],
-      statements_must_not_mention: ['invoice'],
     },
     offline_completion: completion({
       verdict: 'ambiguous',
@@ -892,7 +903,15 @@ const NON_ANSWERS: SemanticEvalCase[] = [
       verdict: 'ambiguous',
       assertions: [],
       clarifications: [
-        { requirement_id: 'req_invoiced', reason: 'multiple_incompatible_readings' },
+        {
+          requirement_id: 'req_invoiced',
+          reason: 'multiple_incompatible_readings',
+          prompt_must_mention: [
+            ['15th'],
+            ['invoice', 'invoiced', 'bill', 'billed'],
+            ['pay', 'paid', 'payment'],
+          ],
+        },
       ],
       forbid_supersession: true,
     },
@@ -940,7 +959,15 @@ const NON_ANSWERS: SemanticEvalCase[] = [
       verdict: 'ambiguous',
       assertions: [],
       clarifications: [
-        { requirement_id: 'req_invoiced', reason: 'type_classification_indeterminate' },
+        {
+          requirement_id: 'req_invoiced',
+          reason: 'type_classification_indeterminate',
+          prompt_must_mention: [
+            ['2,000'],
+            ['invoice', 'invoiced', 'bill', 'billed'],
+            ['pay', 'paid', 'payment'],
+          ],
+        },
       ],
       forbidden_types: ['invoice', 'payment'],
     },
@@ -1070,7 +1097,14 @@ const SUPERSESSION: SemanticEvalCase[] = [
       verdict: 'ambiguous',
       assertions: [],
       clarifications: [
-        { requirement_id: 'req_expected_date', reason: 'contradicts_existing_proposition' },
+        {
+          requirement_id: 'req_expected_date',
+          reason: 'contradicts_existing_proposition',
+          prompt_must_mention: [
+            ['25th', 'april 25'],
+            ['correct', 'unsure', 'check', 'later', 'change'],
+          ],
+        },
       ],
       forbid_supersession: true,
     },

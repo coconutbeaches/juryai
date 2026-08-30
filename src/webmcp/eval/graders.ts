@@ -281,18 +281,34 @@ function gradeClarificationSet(
   failures: string[],
 ): void {
   for (const pair of expected) {
-    const matched = output.clarifications_requested.some(
+    const metadataMatches = output.clarifications_requested.filter(
       (clarification) =>
         clarification.requirement_id === pair.requirement_id &&
         clarification.reason === pair.reason,
     );
-    if (!matched) {
+    if (metadataMatches.length === 0) {
       failures.push(
         "clarification: expected reason '" +
           pair.reason +
           "' on requirement " +
           pair.requirement_id +
           ', and no single clarification carried both',
+      );
+      continue;
+    }
+
+    const promptMatches = metadataMatches.some((clarification) =>
+      pair.prompt_must_mention.every((alternatives) =>
+        alternatives.some((term) => fold(clarification.prompt).includes(fold(term))),
+      ),
+    );
+    if (!promptMatches) {
+      failures.push(
+        'clarification: prompt for ' +
+          pair.requirement_id +
+          " carried the expected reason '" +
+          pair.reason +
+          "' but did not ask about every required topic",
       );
     }
   }

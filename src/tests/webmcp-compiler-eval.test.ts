@@ -170,6 +170,14 @@ describe('every corpus case takes an explicit stance on extra output', () => {
       for (const pair of evalCase.expect.clarifications) {
         expect(pair.requirement_id, evalCase.id).toMatch(/^req_/u);
         expect(pair.reason, evalCase.id).toBeTypeOf('string');
+        expect(pair.prompt_must_mention.length, evalCase.id).toBeGreaterThan(0);
+        for (const alternatives of pair.prompt_must_mention) {
+          expect(alternatives.length, evalCase.id).toBeGreaterThan(0);
+          expect(
+            alternatives.every((term) => term.trim().length > 0),
+            evalCase.id,
+          ).toBe(true);
+        }
       }
       if (evalCase.expect.verdict === 'ambiguous') {
         // The contract requires an ambiguous verdict to ask for something.
@@ -184,6 +192,7 @@ describe('the graders themselves have teeth', () => {
   const ambiguous = SEMANTIC_EVAL_CORPUS.find(
     (entry) => entry.id === 'ambiguous.multiple_readings',
   )!;
+  const unrelated = SEMANTIC_EVAL_CORPUS.find((entry) => entry.id === 'unrelated.answer')!;
 
   async function compileCompletion(evalCase: typeof anchor, completion: string) {
     const compiler = new ModelSemanticCompiler({
@@ -296,6 +305,58 @@ describe('the graders themselves have teeth', () => {
     const grade = gradeCompilerOutput(ambiguous, scenario.input, output);
     expect(grade.ok).toBe(false);
     expect(grade.failures.join(' ')).toMatch(/no single clarification carried both/u);
+  });
+
+  it('refuses a clarification with the right metadata but an unrelated prompt', async () => {
+    const { scenario, output } = await compileCompletion(
+      ambiguous,
+      JSON.stringify({
+        verdict: 'ambiguous',
+        assertions: [],
+        rejected_candidates: [],
+        clarifications_requested: [
+          {
+            requirement_id: 'req_invoiced',
+            reason: 'multiple_incompatible_readings',
+            prompt: 'How much sleep did you get last night?',
+          },
+        ],
+      }),
+    );
+
+    // Prompt meaning is outside the runtime's structural boundary, so only the
+    // semantic grader can catch a question that would send the human elsewhere.
+    expect(validateCompilerOutput(scenario.input, output)).toEqual([]);
+    expect(
+      runBoundary(scenario.state, scenario.input, output, ambiguous, scenario.next_case_version)
+        .disposition,
+    ).toBe('committed');
+
+    const grade = gradeCompilerOutput(ambiguous, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/clarification.*prompt.*topic/u);
+  });
+
+  it('allows an invoice clarification to name the subject it asks about', async () => {
+    const { scenario, output } = await compileCompletion(
+      unrelated,
+      JSON.stringify({
+        verdict: 'ambiguous',
+        assertions: [],
+        rejected_candidates: [],
+        clarifications_requested: [
+          {
+            requirement_id: 'req_invoiced',
+            reason: 'answer_does_not_address_requirement',
+            prompt: 'What date did you receive the invoice?',
+          },
+        ],
+      }),
+    );
+
+    const grade = gradeCompilerOutput(unrelated, scenario.input, output);
+    expect(grade.failures).toEqual([]);
+    expect(grade.ok).toBe(true);
   });
 
   it('refuses an extra clarification on a requirement the case did not expect', async () => {
