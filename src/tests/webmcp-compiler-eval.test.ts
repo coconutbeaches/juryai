@@ -215,6 +215,10 @@ describe('the graders themselves have teeth', () => {
   const expectedDate = SEMANTIC_EVAL_CORPUS.find(
     (entry) => entry.id === 'deadline.expectation_only',
   )!;
+  const narrative = SEMANTIC_EVAL_CORPUS.find((entry) => entry.id === 'accept.narrative_fact')!;
+  const adverseNarrative = SEMANTIC_EVAL_CORPUS.find(
+    (entry) => entry.id === 'adverse.own_performance',
+  )!;
 
   async function compileCompletion(evalCase: typeof anchor, completion: string) {
     const compiler = new ModelSemanticCompiler({
@@ -651,6 +655,81 @@ describe('the graders themselves have teeth', () => {
     );
 
     const grade = gradeCompilerOutput(anchor, scenario.input, output);
+    expect(grade.failures).toEqual([]);
+    expect(grade.ok).toBe(true);
+  });
+
+  it('allows a supported descriptor after a payment determiner', async () => {
+    const { scenario, output } = await paymentWithStatement(
+      'The user paid the outstanding balance of 2,000 pounds by bank transfer on 25 April.',
+    );
+
+    const grade = gradeCompilerOutput(anchor, scenario.input, output);
+    expect(grade.failures).toEqual([]);
+    expect(grade.ok).toBe(true);
+  });
+
+  it('refuses a narrative assertion that reverses a cited reporting predicate', async () => {
+    const { scenario, output } = await compileCompletion(
+      narrative,
+      JSON.stringify({
+        verdict: 'accepted_candidates',
+        assertions: [
+          {
+            requirement_id: 'req_other_party_position',
+            proposed_type: 'narrative_fact',
+            epistemic_strength: 'asserted_confident',
+            statement:
+              'The user understands that the other party did not say the additional 1,400 pounds was chargeable.',
+            supersedes_candidate: null,
+            citations: [
+              {
+                region: 'answer',
+                message_index: null,
+                quote:
+                  'Their position is that the extra sockets were a variation I asked for verbally, so they say the extra 1,400 pounds is chargeable.',
+              },
+            ],
+          },
+        ],
+        rejected_candidates: [],
+        clarifications_requested: [],
+      }),
+    );
+
+    const grade = gradeCompilerOutput(narrative, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/polarity/u);
+  });
+
+  it('allows a cited adverse narrative even when its content is negative', async () => {
+    const { scenario, output } = await compileCompletion(
+      adverseNarrative,
+      JSON.stringify({
+        verdict: 'accepted_candidates',
+        assertions: [
+          {
+            requirement_id: 'req_own_performance',
+            proposed_type: 'narrative_fact',
+            epistemic_strength: 'asserted_confident',
+            statement:
+              'The user admitted they failed to send the drawings first and sent them two weeks late.',
+            supersedes_candidate: null,
+            citations: [
+              {
+                region: 'answer',
+                message_index: null,
+                quote: 'I was supposed to send the drawings first, and I sent them two weeks late.',
+              },
+            ],
+          },
+        ],
+        rejected_candidates: [],
+        clarifications_requested: [],
+      }),
+    );
+
+    const grade = gradeCompilerOutput(adverseNarrative, scenario.input, output);
     expect(grade.failures).toEqual([]);
     expect(grade.ok).toBe(true);
   });

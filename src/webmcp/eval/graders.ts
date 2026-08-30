@@ -92,7 +92,19 @@ const ENTITY_NEUTRAL_WORDS = new Set([
   'were',
 ]);
 
-const ENTITY_BRIDGE_WORDS = new Set(['a', 'an', 'other', 'parties', 'party', 'the', 'user']);
+const ENTITY_ROLE_LABELS = new Set([
+  'builder',
+  'buyer',
+  'client',
+  'company',
+  'contractor',
+  'customer',
+  'installer',
+  'recipient',
+  'seller',
+  'supplier',
+  'vendor',
+]);
 
 const ENTITY_INTRODUCERS: Partial<Record<PropositionType, ReadonlySet<string>>> = {
   payment: new Set(['paid', 'pay', 'to']),
@@ -128,12 +140,9 @@ function addsUnsupportedEntityToken(
     if (cited.has(token.folded) || ENTITY_NEUTRAL_WORDS.has(token.folded)) continue;
     if (POLARITY_PREDICATES[type]?.has(token.folded) ?? false) continue;
     if (/^\p{Lu}/u.test(token.raw) && !isSentenceInitial(statement, tokens, index)) return true;
-    let previousIndex = index - 1;
-    while (previousIndex >= 0 && ENTITY_BRIDGE_WORDS.has(tokens[previousIndex]?.folded ?? '')) {
-      previousIndex -= 1;
-    }
-    const previous = tokens[previousIndex]?.folded;
+    const previous = tokens[index - 1]?.folded;
     if (previous !== undefined && introducers.has(previous)) return true;
+    if (previous !== undefined && ENTITY_ROLE_LABELS.has(previous)) return true;
     if (previous === 'named' || previous === 'called' || previous === 'met') return true;
   }
   return false;
@@ -203,14 +212,50 @@ const POLARITY_PREDICATES: Partial<Record<PropositionType, ReadonlySet<string>>>
   contractual_deadline: new Set(['agree', 'agreed']),
 };
 
-function reversesAssertionPolarity(type: PropositionType, statement: string): boolean {
+const NARRATIVE_POLARITY_FAMILIES: readonly ReadonlySet<string>[] = [
+  new Set(['claim', 'claimed', 'claims']),
+  new Set(['say', 'said', 'says']),
+  new Set(['state', 'stated', 'states']),
+  new Set(['chargeable']),
+];
+
+function tokenIsNegated(tokens: readonly WordToken[], index: number): boolean {
+  return tokens
+    .slice(Math.max(0, index - 3), index)
+    .some((candidate) => NEGATION_WORDS.has(candidate.folded));
+}
+
+function predicatePolarities(text: string, predicates: ReadonlySet<string>): ReadonlySet<boolean> {
+  const tokens = wordTokens(text);
+  const polarities = new Set<boolean>();
+  for (const [index, token] of tokens.entries()) {
+    if (predicates.has(token.folded)) polarities.add(tokenIsNegated(tokens, index));
+  }
+  return polarities;
+}
+
+function reversesAssertionPolarity(
+  type: PropositionType,
+  statement: string,
+  answerCitations: string,
+): boolean {
+  if (type === 'narrative_fact') {
+    for (const family of NARRATIVE_POLARITY_FAMILIES) {
+      const statementPolarities = predicatePolarities(statement, family);
+      const citationPolarities = predicatePolarities(answerCitations, family);
+      if (statementPolarities.size === 0 || citationPolarities.size === 0) continue;
+      if ([...statementPolarities].some((polarity) => !citationPolarities.has(polarity))) {
+        return true;
+      }
+    }
+    return false;
+  }
   const predicates = POLARITY_PREDICATES[type];
   if (predicates === undefined) return false;
   const tokens = wordTokens(statement);
   for (const [index, token] of tokens.entries()) {
     if (!predicates.has(token.folded)) continue;
-    const before = tokens.slice(Math.max(0, index - 3), index);
-    if (before.some((candidate) => NEGATION_WORDS.has(candidate.folded))) return true;
+    if (tokenIsNegated(tokens, index)) return true;
   }
   return false;
 }
@@ -447,7 +492,7 @@ function gradeAssertionSet(
     if (addsUnsupportedEntityToken(assertion.proposed_type, assertion.statement, answerCitations)) {
       problems.push('statement adds an unsupported entity-shaped token');
     }
-    if (reversesAssertionPolarity(assertion.proposed_type, assertion.statement)) {
+    if (reversesAssertionPolarity(assertion.proposed_type, assertion.statement, answerCitations)) {
       problems.push('statement reverses the expected assertion polarity');
     }
     if (problems.length === 0) {
