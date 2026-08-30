@@ -803,6 +803,38 @@ describe('the graders themselves have teeth', () => {
     expect(grade.failures.join(' ')).toMatch(/polarity/u);
   });
 
+  it('tracks accepted-scope negation across intervening modifiers', async () => {
+    const { scenario, output } = await compileCompletion(
+      acceptedScope,
+      JSON.stringify({
+        verdict: 'accepted_candidates',
+        assertions: [
+          {
+            requirement_id: 'req_scope_accepted',
+            proposed_type: 'accepted_scope',
+            epistemic_strength: 'asserted_confident',
+            statement: 'The user did not in any way ever consent to the written quote on 3 March.',
+            supersedes_candidate: null,
+            citations: [
+              {
+                region: 'answer',
+                message_index: null,
+                quote:
+                  'They came back with a written quote on 3 March covering the rewire and the consumer unit move, and I signed it the same day.',
+              },
+            ],
+          },
+        ],
+        rejected_candidates: [],
+        clarifications_requested: [],
+      }),
+    );
+
+    const grade = gradeCompilerOutput(acceptedScope, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/polarity/u);
+  });
+
   it('allows a semantically supported ordinary paraphrase', async () => {
     const { scenario, output } = await paymentWithStatement(
       'The user completed payment of 2,000 pounds by bank transfer on 25 April.',
@@ -990,6 +1022,17 @@ describe('the graders themselves have teeth', () => {
   it('refuses a fabricated single-token entity at the start of a sentence', async () => {
     const { scenario, output } = await paymentWithStatement(
       'Alice received 2,000 pounds by bank transfer on 25 April.',
+    );
+
+    const grade = gradeCompilerOutput(anchor, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/unsupported entity/u);
+    expect(grade.failures.join(' ')).not.toContain('Alice');
+  });
+
+  it('traces a sentence-initial entity across predicate modifiers', async () => {
+    const { scenario, output } = await paymentWithStatement(
+      'Alice has now received 2,000 pounds by bank transfer on 25 April.',
     );
 
     const grade = gradeCompilerOutput(anchor, scenario.input, output);

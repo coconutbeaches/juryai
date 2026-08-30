@@ -155,17 +155,6 @@ const ENTITY_SUBJECT_PREDICATES: Partial<Record<PropositionType, ReadonlySet<str
   narrative_fact: new Set(['admitted', 'claimed', 'contended', 'said', 'stated']),
 };
 
-const ENTITY_SUBJECT_AUXILIARIES = new Set([
-  'did',
-  'does',
-  'had',
-  'has',
-  'is',
-  'was',
-  'were',
-  'will',
-]);
-
 function isSentenceInitial(text: string, tokens: readonly WordToken[], index: number): boolean {
   if (index === 0) return true;
   return /[.!?]\s*$/u.test(text.slice(tokens[index - 1]!.end, tokens[index]!.start));
@@ -193,16 +182,16 @@ function addsUnsupportedEntityToken(
     if (/^\p{Lu}/u.test(token.raw)) {
       if (!isSentenceInitial(statement, tokens, index)) return true;
       if (!SENTENCE_INITIAL_NON_ENTITY_WORDS.has(token.folded)) {
-        let predicateIndex = index + 1;
-        while (
-          predicateIndex < tokens.length &&
-          ENTITY_SUBJECT_AUXILIARIES.has(tokens[predicateIndex]?.folded ?? '')
-        ) {
-          predicateIndex += 1;
-        }
-        const predicate = tokens[predicateIndex]?.folded;
-        if (predicate !== undefined && (ENTITY_SUBJECT_PREDICATES[type]?.has(predicate) ?? false)) {
-          return true;
+        const subjectPredicates = ENTITY_SUBJECT_PREDICATES[type] ?? new Set<string>();
+        for (let predicateIndex = index + 1; predicateIndex < tokens.length; predicateIndex += 1) {
+          if (
+            /[.!?]/u.test(
+              statement.slice(tokens[predicateIndex - 1]!.end, tokens[predicateIndex]!.start),
+            )
+          ) {
+            break;
+          }
+          if (subjectPredicates.has(tokens[predicateIndex]!.folded)) return true;
         }
       }
     }
@@ -453,17 +442,30 @@ const NARRATIVE_POLARITY_FAMILIES: readonly ReadonlySet<string>[] = [
   new Set(['chargeable']),
 ];
 
-function tokenIsNegated(tokens: readonly WordToken[], index: number): boolean {
-  return tokens
-    .slice(Math.max(0, index - 3), index)
-    .some((candidate) => NEGATION_WORDS.has(candidate.folded));
+const NEGATION_CLAUSE_BOUNDARIES = new Set(['although', 'but', 'however', 'though', 'yet']);
+
+function tokenIsNegated(text: string, tokens: readonly WordToken[], index: number): boolean {
+  let rightStart = tokens[index]!.start;
+  for (let candidateIndex = index - 1; candidateIndex >= 0; candidateIndex -= 1) {
+    const candidate = tokens[candidateIndex]!;
+    if (/[.!?;:,]/u.test(text.slice(candidate.end, rightStart))) return false;
+    if (NEGATION_CLAUSE_BOUNDARIES.has(candidate.folded)) return false;
+    if (
+      NEGATION_WORDS.has(candidate.folded) &&
+      !(candidate.folded === 'not' && tokens[candidateIndex + 1]?.folded === 'only')
+    ) {
+      return true;
+    }
+    rightStart = candidate.start;
+  }
+  return false;
 }
 
 function predicatePolarities(text: string, predicates: ReadonlySet<string>): ReadonlySet<boolean> {
   const tokens = wordTokens(text);
   const polarities = new Set<boolean>();
   for (const [index, token] of tokens.entries()) {
-    if (predicates.has(token.folded)) polarities.add(tokenIsNegated(tokens, index));
+    if (predicates.has(token.folded)) polarities.add(tokenIsNegated(text, tokens, index));
   }
   return polarities;
 }
@@ -500,7 +502,7 @@ function reversesAssertionPolarity(
   const tokens = wordTokens(statement);
   for (const [index, token] of tokens.entries()) {
     if (!predicates.has(token.folded)) continue;
-    if (tokenIsNegated(tokens, index)) return true;
+    if (tokenIsNegated(statement, tokens, index)) return true;
   }
   return false;
 }
