@@ -55,6 +55,7 @@ jobs:
           - src/tests/gate-zero-acceptance-policy.test.ts
           - src/tests/webmcp-core.test.ts
           - src/tests/webmcp-tools.test.ts
+          - src/tests/webmcp-runtime.test.ts
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
