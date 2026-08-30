@@ -57,6 +57,7 @@ const ENTITY_NEUTRAL_WORDS = new Set([
   'a',
   'an',
   'and',
+  'anything',
   'are',
   'as',
   'at',
@@ -69,6 +70,7 @@ const ENTITY_NEUTRAL_WORDS = new Set([
   'did',
   'do',
   'does',
+  'everything',
   'for',
   'from',
   'gbp',
@@ -85,6 +87,7 @@ const ENTITY_NEUTRAL_WORDS = new Set([
   'may',
   'might',
   'must',
+  'nothing',
   'of',
   'on',
   'or',
@@ -94,6 +97,7 @@ const ENTITY_NEUTRAL_WORDS = new Set([
   'she',
   'shall',
   'should',
+  'something',
   'that',
   'the',
   'their',
@@ -225,6 +229,8 @@ function addsUnsupportedEntityToken(
     if (cited.has(token.folded) || ENTITY_NEUTRAL_WORDS.has(token.folded)) continue;
     if (POLARITY_PREDICATES[type]?.has(token.folded) ?? false) continue;
     const sentenceInitial = isSentenceInitial(statement, tokens, index);
+    const followingGap = statement.slice(token.end, tokens[index + 1]?.start ?? statement.length);
+    if (sentenceInitial && /ly$/u.test(token.folded) && /,/u.test(followingGap)) continue;
     if (/^\p{Lu}/u.test(token.raw) && !sentenceInitial) return true;
     if (
       isSubjectPosition(statement, tokens, index) &&
@@ -233,6 +239,14 @@ function addsUnsupportedEntityToken(
       return true;
     }
     const previous = tokens[index - 1]?.folded;
+    if (
+      previous !== undefined &&
+      !ENTITY_NEUTRAL_WORDS.has(previous) &&
+      /(?:ed|ing)$/u.test(previous) &&
+      !SENTENCE_INITIAL_NON_ENTITY_WORDS.has(token.folded)
+    ) {
+      return true;
+    }
     if (previous !== undefined && introducers.has(previous)) return true;
     if (previous !== undefined && ENTITY_ROLE_LABELS.has(previous)) {
       let beforeRoleIndex = index - 2;

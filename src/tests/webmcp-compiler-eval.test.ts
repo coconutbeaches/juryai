@@ -1087,6 +1087,26 @@ describe('the graders themselves have teeth', () => {
     expect(grade.failures.join(' ')).toMatch(/unsupported entity/u);
   });
 
+  it('allows a comma-delimited sentence-initial adverbial modifier', async () => {
+    const { scenario, output } = await paymentWithStatement(
+      'Eventually, the 2,000-pound bank transfer cleared on 25 April.',
+    );
+
+    const grade = gradeCompilerOutput(anchor, scenario.input, output);
+    expect(grade.failures).toEqual([]);
+    expect(grade.ok).toBe(true);
+  });
+
+  it('rejects an unsupported lowercase entity in a predicate object position', async () => {
+    const { scenario, output } = await paymentWithStatement(
+      'The user paid the other party 2,000 pounds by bank transfer on 25 April after thanking alice.',
+    );
+
+    const grade = gradeCompilerOutput(anchor, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/unsupported entity/u);
+  });
+
   it('refuses an unsupported spelled-out amount', async () => {
     const { scenario, output } = await paymentWithStatement(
       'The user paid the other party 2,000 pounds by bank transfer on 25 April and included a fee of fifty.',
