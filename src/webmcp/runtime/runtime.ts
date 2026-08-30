@@ -29,6 +29,7 @@ import {
   type CompilerOutput,
 } from '../core/compiler-contract.js';
 import {
+  computeRequestFingerprint,
   precheckSubmit,
   validateSubmitRequest,
   type IdempotencyRecord,
@@ -163,6 +164,19 @@ export interface CaseRuntimeDependencies {
 }
 
 const DEFAULT_MAX_COMMIT_ATTEMPTS = 3;
+
+/**
+ * A stale-case restart re-reads the case, after which the turn in question is
+ * visible and the decision is determinate. One restart therefore suffices; the
+ * bound only exists so a pathologically lagging replica cannot spin.
+ */
+const MAX_STALE_CASE_RESTARTS = 2;
+
+/**
+ * Why `#attemptSubmit` wants to be re-entered. Neither is an outcome: they say
+ * the attempt could not decide yet, for two different reasons.
+ */
+type AttemptSignal = 'contended' | 'stale_case_restart';
 
 export class CaseRuntime {
   readonly #deps: CaseRuntimeDependencies;
@@ -399,29 +413,50 @@ export class CaseRuntime {
     }
 
     const attempts = this.#deps.maxCommitAttempts ?? DEFAULT_MAX_COMMIT_ATTEMPTS;
-    for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const relayClaims: RelayClaims = {
+      // Self-reported by the relay and recorded as such. A translated answer
+      // has no span fidelity to anything the human actually typed, so the
+      // claim is stored rather than quietly dropped.
+      source_language: command.source_language ?? null,
+      translation_indicated: command.translation_indicated === true,
+    };
+
+    // Two distinct reasons to re-enter, budgeted separately. Contention means
+    // somebody else committed first; a stale-case restart means this attempt
+    // read the case before a turn it needed to see, and the re-read resolves
+    // that for good.
+    let contended = 0;
+    let restarts = 0;
+    for (;;) {
       const outcome = await this.#attemptSubmit(
         context,
         principalId,
         request,
-        {
-          // Self-reported by the relay and recorded as such. A translated
-          // answer has no span fidelity to anything the human actually typed,
-          // so the claim is stored rather than quietly dropped.
-          source_language: command.source_language ?? null,
-          translation_indicated: command.translation_indicated === true,
-        },
+        relayClaims,
         options,
       );
-      if (outcome !== 'contended') return outcome;
+      if (outcome === 'contended') {
+        contended += 1;
+        if (contended >= attempts) break;
+        continue;
+      }
+      if (outcome === 'stale_case_restart') {
+        restarts += 1;
+        if (restarts > MAX_STALE_CASE_RESTARTS) break;
+        continue;
+      }
+      return outcome;
     }
 
     this.#diagnostics.record({
-      kind: 'commit_contention_exhausted',
+      kind: contended > 0 ? 'commit_contention_exhausted' : 'stale_case_restarts_exhausted',
       case_id: request.case_id,
       turn_id: null,
       compile_run_id: null,
-      message: 'Exhausted compare-and-swap attempts under write contention.',
+      message:
+        contended > 0
+          ? 'Exhausted compare-and-swap attempts under write contention.'
+          : 'Repeated stale case reads prevented a decision about this submission.',
       issues: [],
     });
     return {
@@ -442,7 +477,7 @@ export class CaseRuntime {
     request: SubmitRequest,
     relayClaims: RelayClaims,
     options: RuntimeCallOptions,
-  ): Promise<SubmitTurnOutcome | 'contended'> {
+  ): Promise<SubmitTurnOutcome | AttemptSignal> {
     const read = await this.#guardedRead('case_read', request.case_id, () =>
       this.#deps.store.cases.findById(request.case_id),
     );
@@ -476,8 +511,14 @@ export class CaseRuntime {
     // match must agree on content AND provenance. Implemented by narrowing the
     // store handed to `precheckSubmit`, so core still owns the ordering, the
     // replay window, the CAS and the conflict shape.
+    const requestProvenance = provenanceKey({
+      source_channel: context.source_channel ?? 'webmcp_agent_relay',
+      relaying_agent: context.relaying_agent ?? null,
+      source_language: relayClaims.source_language,
+      translation_indicated: relayClaims.translation_indicated,
+    });
     const eligible = idempotencyRead.value.filter((record) =>
-      this.#sharesSourceIdentity(record, request, relayClaims, context, state),
+      sharesSourceIdentity(record, request, requestProvenance, state),
     );
 
     const precheck = precheckSubmit(request, {
@@ -535,13 +576,33 @@ export class CaseRuntime {
       }
 
       const replayState = refreshed.value.state;
+
+      // The initial filter had to leave this record eligible when its turn was
+      // not visible in the stale read: excluding on uncertainty would turn a
+      // lost-response retry into a duplicate write. Now the turn IS visible,
+      // so the uncertainty is gone — and a different provenance key means this
+      // was never the same source event. Only the heuristic path is rechecked;
+      // an exact client_turn_id is operation identity and outranks content.
+      const replayedTurn = replayState.turn_log.find((turn) => turn.turn_id === previous.turn_id);
+      if (
+        precheck.match === 'fingerprint' &&
+        replayedTurn !== undefined &&
+        provenanceKey(replayedTurn) !== requestProvenance
+      ) {
+        // Not a replay, and not an error either. Re-run the decision against
+        // the refreshed case, where the turn is visible and the filter will
+        // correctly exclude it, so this submission gets whatever outcome it
+        // actually deserves: proceed, version conflict, locked, or invalid.
+        return 'stale_case_restart';
+      }
+
       const recorded = resolveRecorded(replayState.propositions, previous.accepted_proposition_ids);
 
       // The refreshed case must also be able to support the result the record
       // claims. A partial replay would describe an outcome that does not
       // exist, and inventing the missing entries would describe one that
       // never did.
-      const turnPresent = replayState.turn_log.some((turn) => turn.turn_id === previous.turn_id);
+      const turnPresent = replayedTurn !== undefined;
       if (turnPresent === false || recorded.length !== previous.accepted_proposition_ids.length) {
         return inconsistent(
           'turn present=' +
@@ -582,11 +643,35 @@ export class CaseRuntime {
     }
 
     if (precheck.kind === 'version_conflict') {
+      // `recent_turns` stays exactly as core built it — the complete recent
+      // same-principal history, unfiltered. That list is what lets a caller
+      // compare its own payload rather than infer, and hiding turns from it
+      // would make a lost write harder to recognise, not easier.
+      //
+      // `likely_already_recorded` is a different claim: "your write probably
+      // landed". Core computes it from the content-only fingerprint, so a
+      // distinct source event with the same words would be told it had already
+      // been recorded — and a caller that believes it may suppress the retry,
+      // losing the event from the immutable log. Recomputed here with the same
+      // provenance conjunct that governs heuristic replay.
+      const contentFingerprint = computeRequestFingerprint({
+        principal_id: request.principal_id,
+        case_id: request.case_id,
+        in_reply_to: request.in_reply_to,
+        payload: request.payload,
+      });
+      const likelyAlreadyRecorded = state.turn_log.some(
+        (turn) =>
+          turn.case_id === request.case_id &&
+          turn.principal_id === request.principal_id &&
+          turn.request_fingerprint === contentFingerprint &&
+          provenanceKey(turn) === requestProvenance,
+      );
       return {
         kind: 'version_conflict',
         current_case_version: precheck.current_case_version,
         recent_turns: precheck.recent_turns,
-        likely_already_recorded: precheck.likely_already_recorded,
+        likely_already_recorded: likelyAlreadyRecorded,
         case: this.#project(state),
       };
     }
@@ -930,42 +1015,6 @@ export class CaseRuntime {
   }
 
   /**
-   * May a stored replay record stand in for THIS request?
-   *
-   * An exact `client_turn_id` is network-operation identity and outranks every
-   * content heuristic: a caller retrying the same id replays even if transport
-   * metadata drifted between attempts. Only the heuristic fingerprint path is
-   * narrowed by provenance.
-   */
-  #sharesSourceIdentity(
-    record: IdempotencyRecord,
-    request: SubmitRequest,
-    relayClaims: RelayClaims,
-    context: RuntimeRequestContext,
-    state: CaseState,
-  ): boolean {
-    if (request.client_turn_id !== null && record.client_turn_id === request.client_turn_id) {
-      return true;
-    }
-    const turn = state.turn_log.find((entry) => entry.turn_id === record.turn_id);
-    // The record's turn is not in the case we loaded — the stale-read race the
-    // replay refresh exists for. We cannot show the provenance differs, and
-    // excluding on uncertainty would turn a lost-response retry into a
-    // duplicate write, so the record stays eligible. The refresh then
-    // re-reads and rejects any replay the case cannot actually support.
-    if (!turn) return true;
-    return (
-      provenanceKey(turn) ===
-      provenanceKey({
-        source_channel: context.source_channel ?? 'webmcp_agent_relay',
-        relaying_agent: context.relaying_agent ?? null,
-        source_language: relayClaims.source_language,
-        translation_indicated: relayClaims.translation_indicated,
-      })
-    );
-  }
-
-  /**
    * Repository reads reject in production. Cancellation is the one intentional
    * rejection this runtime propagates; a database blinking is not that, and
    * must become a `RuntimeFailure` the transport can act on.
@@ -1006,6 +1055,33 @@ export class CaseRuntime {
 /* ------------------------------------------------------------------------ */
 /* Helpers                                                                   */
 /* ------------------------------------------------------------------------ */
+
+/**
+ * May a stored replay record stand in for THIS request?
+ *
+ * An exact `client_turn_id` is network-operation identity and outranks every
+ * content heuristic: a caller retrying the same id replays even if transport
+ * metadata drifted between attempts. Only the heuristic fingerprint path is
+ * narrowed by provenance.
+ */
+function sharesSourceIdentity(
+  record: IdempotencyRecord,
+  request: SubmitRequest,
+  requestProvenance: string,
+  state: CaseState,
+): boolean {
+  if (request.client_turn_id !== null && record.client_turn_id === request.client_turn_id) {
+    return true;
+  }
+  const turn = state.turn_log.find((entry) => entry.turn_id === record.turn_id);
+  // The record's turn is not in the case we loaded — the stale-read race the
+  // replay refresh exists for. We cannot show the provenance differs, and
+  // excluding on uncertainty would turn a lost-response retry into a duplicate
+  // write, so the record stays eligible. The refresh re-checks provenance once
+  // the turn becomes visible, and restarts the attempt if it does not match.
+  if (!turn) return true;
+  return provenanceKey(turn) === requestProvenance;
+}
 
 /** Relay self-reports carried alongside a submission. Recorded, never trusted. */
 interface RelayClaims {

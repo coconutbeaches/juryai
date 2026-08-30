@@ -2068,6 +2068,210 @@ describe('replay refreshes the case before describing the committed result', () 
 });
 
 /* ------------------------------------------------------------------------ */
+/* Provenance survives the stale-read replay refresh                         */
+/* ------------------------------------------------------------------------ */
+
+describe('a stale case read cannot smuggle a different source event into a replay', () => {
+  /**
+   * Stages the exact interleaving: the duplicate reads a case in which turn T
+   * is absent, the idempotency read already sees T's committed record, and the
+   * content fingerprint matches. T is therefore provisionally eligible — its
+   * provenance cannot be checked yet — and only becomes checkable when the
+   * replay refresh returns the case containing it.
+   */
+  async function staleReadRacingCommittedTurn() {
+    const inner = new InMemoryCaseRuntimeStore();
+    const staged = stagedReadStore(inner);
+    const compiler = new ScriptedSemanticCompiler(expectedDateScript);
+    const h = runtimeOver(staged.store, compiler);
+
+    const started = await h.runtime.startCase(RELAY_ALICE, startCommand('request_1'));
+    if (started.kind !== 'created') throw new Error('expected creation');
+    const caseId = started.case.case_id;
+
+    const preCommit = (await inner.cases.findById(caseId))!;
+    expect(preCommit.state.turn_log).toHaveLength(0);
+
+    const original = committed(
+      await h.runtime.submitTurn(RELAY_ALICE, submitCommand({ case_id: caseId })),
+    );
+    const afterCommit = (await inner.cases.findById(caseId))!;
+    staged.resetReads();
+    return { inner, staged, compiler, h, caseId, preCommit, original, afterCommit };
+  }
+
+  /** Same words and requirements, new client id, refreshed version. */
+  function sameContentCommand(caseId: string): SubmitTurnCommand {
+    return submitCommand({
+      case_id: caseId,
+      client_turn_id: 'client_2',
+      expected_case_version: 1,
+      payload: payload('I expected it finished by April 25 — and nobody ever said otherwise!'),
+    });
+  }
+
+  it('still replays when the refreshed turn turns out to share provenance', async () => {
+    const { inner, staged, h, caseId, preCommit, original, afterCommit } =
+      await staleReadRacingCommittedTurn();
+
+    // Read 1 is stale; read 2 (the refresh) sees the committed turn.
+    staged.stageRead(1, preCommit);
+    const replay = await h.runtime.submitTurn(RELAY_ALICE, sameContentCommand(caseId));
+
+    expect(replay.kind).toBe('replayed');
+    if (replay.kind !== 'replayed') return;
+    expect(replay.match).toBe('fingerprint');
+    expect(replay.turn_id).toBe(original.turn_id);
+    expect(replay.case.case_version).toBe(1);
+
+    const after = (await inner.cases.findById(caseId))!;
+    expect(after.revision).toBe(afterCommit.revision);
+    expect(after.state.turn_log).toHaveLength(1);
+    expect(await inner.idempotency.listByCase(caseId)).toHaveLength(1);
+  });
+
+  it('re-evaluates as a fresh source event when the refreshed provenance differs', async () => {
+    const { inner, staged, compiler, h, caseId, preCommit, afterCommit } =
+      await staleReadRacingCommittedTurn();
+    const compileCallsBefore = compiler.calls.length;
+
+    // Read 1 stale, so the record is admitted without a provenance check; the
+    // refresh then reveals a turn relayed by a different agent. The retry's
+    // reads start again from 1, and by then the case is genuinely current.
+    staged.stageRead(1, preCommit);
+    const outcome = await h.runtime.submitTurn(
+      { ...RELAY_ALICE, relaying_agent: 'Claude' },
+      // Stale expected version, so the correct fresh-state answer is easy to
+      // name: this submission is not a replay and is not up to date either.
+      { ...sameContentCommand(caseId), expected_case_version: 0 },
+    );
+
+    // Emphatically not a replay of somebody else's source event.
+    expect(outcome.kind).toBe('version_conflict');
+    if (outcome.kind !== 'version_conflict') return;
+    expect(outcome.current_case_version).toBe(1);
+    // A distinct source event has NOT already been recorded.
+    expect(outcome.likely_already_recorded).toBe(false);
+    // The recent-turn summaries stay complete, so the caller can compare.
+    expect(outcome.recent_turns).toHaveLength(1);
+    expect(outcome.recent_turns[0]!.answer_excerpt).toContain('April 25');
+
+    // Nothing was committed and no compilation happened on the way here.
+    expect(compiler.calls).toHaveLength(compileCallsBefore);
+    const after = (await inner.cases.findById(caseId))!;
+    expect(after.revision).toBe(afterCommit.revision);
+    expect(after.state.turn_log).toHaveLength(1);
+    expect(await inner.idempotency.listByCase(caseId)).toHaveLength(1);
+  });
+
+  it('keeps exact client_turn_id replay unaffected by the refreshed provenance', async () => {
+    const { inner, staged, h, caseId, preCommit, original, afterCommit } =
+      await staleReadRacingCommittedTurn();
+
+    // Same operation id, drifted provenance, stale first read: exact identity
+    // outranks the heuristic and is never provenance-rechecked.
+    staged.stageRead(1, preCommit);
+    const replay = await h.runtime.submitTurn(
+      { ...RELAY_ALICE, source_channel: 'first_party_input', relaying_agent: null },
+      submitCommand({ case_id: caseId, expected_case_version: 1, source_language: 'de' }),
+    );
+
+    expect(replay.kind).toBe('replayed');
+    if (replay.kind !== 'replayed') return;
+    expect(replay.match).toBe('client_turn_id');
+    expect(replay.turn_id).toBe(original.turn_id);
+
+    const after = (await inner.cases.findById(caseId))!;
+    expect(after.revision).toBe(afterCommit.revision);
+    expect(after.state.turn_log).toHaveLength(1);
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Conflict likelihood is provenance-qualified                               */
+/* ------------------------------------------------------------------------ */
+
+describe('version conflicts do not claim a distinct source event already landed', () => {
+  async function committedRelayedTurn() {
+    const h = harness();
+    h.scripted.setScript(expectedDateScript);
+    const caseId = await startedCase(h, RELAY_ALICE);
+    await h.runtime.submitTurn(RELAY_ALICE, submitCommand({ case_id: caseId }));
+    return { h, caseId };
+  }
+
+  /** Same words, same requirements, new client id, deliberately stale version. */
+  function staleSameContent(caseId: string): SubmitTurnCommand {
+    return submitCommand({
+      case_id: caseId,
+      client_turn_id: 'client_2',
+      expected_case_version: 0,
+      payload: payload('I expected it finished by April 25 — and nobody ever said otherwise!'),
+    });
+  }
+
+  async function conflictFor(
+    context: RuntimeRequestContext,
+    overrides: Partial<SubmitTurnCommand> = {},
+  ) {
+    const { h, caseId } = await committedRelayedTurn();
+    // Outside the replay window, so the heuristic cannot answer and the
+    // request reaches the version check as a genuinely new write.
+    const outcome = await h.runtime.submitTurn(context, {
+      ...staleSameContent(caseId),
+      ...overrides,
+    });
+    return { h, caseId, outcome };
+  }
+
+  it('reports likely_already_recorded for the same content and same provenance', async () => {
+    const { h, caseId } = await committedRelayedTurn();
+    // A same-provenance duplicate is caught by replay inside the window, so
+    // the conflict path is reached with the window closed.
+    const narrow = new CaseRuntime({
+      store: h.store,
+      compiler: new ScriptedSemanticCompiler(expectedDateScript),
+      clock: steppingClock(START_MS + 3_600_000 * 5, 1000),
+      ids: sequentialIdFactory('w_'),
+      salts: sequentialSaltFactory('wsalt'),
+      reviewUrl: (id) => 'https://juryai.test/cases/' + id,
+      disclosure: { version: DISCLOSURE },
+    });
+    const outcome = await narrow.submitTurn(RELAY_ALICE, staleSameContent(caseId));
+
+    expect(outcome.kind).toBe('version_conflict');
+    if (outcome.kind !== 'version_conflict') return;
+    expect(outcome.likely_already_recorded).toBe(true);
+    expect(outcome.recent_turns).toHaveLength(1);
+  });
+
+  for (const [label, context, overrides] of [
+    [
+      'a different source channel',
+      { ...RELAY_ALICE, source_channel: 'first_party_input' as const, relaying_agent: null },
+      {},
+    ],
+    ['a different relaying agent', { ...RELAY_ALICE, relaying_agent: 'Claude' }, {}],
+    ['a different source language', RELAY_ALICE, { source_language: 'de' }],
+    ['a translated answer', RELAY_ALICE, { translation_indicated: true }],
+  ] as const) {
+    it('reports likely_already_recorded=false for ' + label, async () => {
+      const { outcome } = await conflictFor(context, overrides);
+
+      expect(outcome.kind, label).toBe('version_conflict');
+      if (outcome.kind !== 'version_conflict') return;
+      expect(outcome.current_case_version, label).toBe(1);
+      // This source event has not been recorded; telling the caller otherwise
+      // invites it to drop the event.
+      expect(outcome.likely_already_recorded, label).toBe(false);
+      // Recent turns remain the complete same-principal history, unfiltered.
+      expect(outcome.recent_turns, label).toHaveLength(1);
+      expect(outcome.recent_turns[0]!.answer_excerpt, label).toContain('April 25');
+    });
+  }
+});
+
+/* ------------------------------------------------------------------------ */
 /* Repository failure containment                                            */
 /* ------------------------------------------------------------------------ */
 
