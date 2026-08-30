@@ -56,6 +56,8 @@ jobs:
           - src/tests/webmcp-core.test.ts
           - src/tests/webmcp-tools.test.ts
           - src/tests/webmcp-runtime.test.ts
+          - src/tests/webmcp-model-compiler.test.ts
+          - src/tests/webmcp-compiler-eval.test.ts
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -96,6 +98,8 @@ jobs:
         run: npm run validate:gate-zero-policy
       - name: Gate Person A extraction acceptance corpus
         run: npm run gate:person-a-acceptance
+      - name: Run the offline semantic compiler eval
+        run: npm run eval:compiler
       - name: Check formatting
         run: npm run format:check
       - name: Audit dependencies
