@@ -193,7 +193,7 @@ function isSubjectPosition(text: string, tokens: readonly WordToken[], index: nu
   for (let previousIndex = index - 1; previousIndex >= 0; previousIndex -= 1) {
     const previous = tokens[previousIndex]!;
     const followingGap = text.slice(previous.end, tokens[previousIndex + 1]!.start);
-    if (/[.!?]/u.test(followingGap)) return true;
+    if (/[.!?;:]/u.test(followingGap)) return true;
     if (['and', 'but', 'or', 'then', 'while', 'whereas', 'yet'].includes(previous.folded)) {
       return true;
     }

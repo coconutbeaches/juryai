@@ -1067,6 +1067,16 @@ describe('the graders themselves have teeth', () => {
     expect(grade.failures.join(' ')).toMatch(/unsupported entity/u);
   });
 
+  it('treats a semicolon-delimited subject as an entity position', async () => {
+    const { scenario, output } = await paymentWithStatement(
+      'The user paid the other party 2,000 pounds by bank transfer on 25 April; alice received it.',
+    );
+
+    const grade = gradeCompilerOutput(anchor, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/unsupported entity/u);
+  });
+
   it('refuses an unsupported spelled-out amount', async () => {
     const { scenario, output } = await paymentWithStatement(
       'The user paid the other party 2,000 pounds by bank transfer on 25 April and included a fee of fifty.',
@@ -1085,6 +1095,42 @@ describe('the graders themselves have teeth', () => {
     const grade = gradeCompilerOutput(anchor, scenario.input, output);
     expect(grade.ok).toBe(false);
     expect(grade.failures.join(' ')).toMatch(/unsupported fact/u);
+  });
+
+  it('allows a numeric ordinal paraphrase of a cited ordinal word', async () => {
+    const ordinalPayment = structuredClone(anchor);
+    ordinalPayment.answer =
+      'I paid them 2,000 pounds by bank transfer on 25 April; it was the second payment.';
+    const { scenario, output } = await compileCompletion(
+      ordinalPayment,
+      JSON.stringify({
+        verdict: 'accepted_candidates',
+        assertions: [
+          {
+            requirement_id: 'req_paid',
+            proposed_type: 'payment',
+            epistemic_strength: 'asserted_confident',
+            statement:
+              'The user paid the other party 2,000 pounds by bank transfer on 25 April; it was the 2nd payment.',
+            supersedes_candidate: null,
+            citations: [
+              {
+                region: 'answer',
+                message_index: null,
+                quote:
+                  'I paid them 2,000 pounds by bank transfer on 25 April; it was the second payment.',
+              },
+            ],
+          },
+        ],
+        rejected_candidates: [],
+        clarifications_requested: [],
+      }),
+    );
+
+    const grade = gradeCompilerOutput(ordinalPayment, scenario.input, output);
+    expect(grade.failures).toEqual([]);
+    expect(grade.ok).toBe(true);
   });
 
   it('allows a supported descriptor after a payment determiner', async () => {
