@@ -230,6 +230,15 @@ function gradeAssertionSet(
         problems.push("statement omits '" + mention + "'");
       }
     }
+    const answerCitations = assertion.spans
+      .filter((span) => span.region === 'answer')
+      .map((span) => span.quote)
+      .join(' ');
+    for (const alternatives of slot.citation_must_mention) {
+      if (!alternatives.some((term) => fold(answerCitations).includes(fold(term)))) {
+        problems.push("citation does not support topic '" + alternatives.join('|') + "'");
+      }
+    }
     if (problems.length === 0) {
       conforming.add(key);
     } else {

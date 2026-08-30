@@ -231,6 +231,13 @@ export function parseModelDraft(input: CompilerInput, rawText: string): Compiler
     },
   );
 
+  if (verdict === 'accepted_candidates' && assertions.length === 0) {
+    throw new SemanticCompilerOutputError(
+      'accepted_candidates must contain at least one candidate assertion',
+      'model_draft.assertions',
+    );
+  }
+
   const rejected: RejectedCandidate[] = array(
     draft.rejected_candidates,
     'model_draft.rejected_candidates',

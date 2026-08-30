@@ -67,6 +67,12 @@ export interface AllowedAssertion {
    * stylistic phrasing.
    */
   statement_mentions?: string[];
+  /**
+   * Semantic topics the assertion's answer-region citations must support.
+   * Every outer entry is required; the combined cited text satisfies one entry
+   * by mentioning any of its terms.
+   */
+  citation_must_mention: string[][];
   /** Exact proposition id this assertion must claim to supersede, or null. */
   supersedes?: string | null;
   /**

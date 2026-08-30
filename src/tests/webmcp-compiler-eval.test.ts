@@ -151,6 +151,14 @@ describe('every corpus case takes an explicit stance on extra output', () => {
       expect(Array.isArray(evalCase.expect.assertions), evalCase.id).toBe(true);
       for (const slot of evalCase.expect.assertions) {
         expect(slot.max ?? 1, evalCase.id).toBeLessThanOrEqual(2);
+        expect(slot.citation_must_mention.length, evalCase.id).toBeGreaterThan(0);
+        for (const alternatives of slot.citation_must_mention) {
+          expect(alternatives.length, evalCase.id).toBeGreaterThan(0);
+          expect(
+            alternatives.every((term) => term.trim().length > 0),
+            evalCase.id,
+          ).toBe(true);
+        }
       }
     }
   });
@@ -193,6 +201,9 @@ describe('the graders themselves have teeth', () => {
     (entry) => entry.id === 'ambiguous.multiple_readings',
   )!;
   const unrelated = SEMANTIC_EVAL_CORPUS.find((entry) => entry.id === 'unrelated.answer')!;
+  const expectedDate = SEMANTIC_EVAL_CORPUS.find(
+    (entry) => entry.id === 'deadline.expectation_only',
+  )!;
 
   async function compileCompletion(evalCase: typeof anchor, completion: string) {
     const compiler = new ModelSemanticCompiler({
@@ -456,5 +467,45 @@ describe('the graders themselves have teeth', () => {
     // place; the grader names both rather than just saying "did not match".
     expect(grade.failures.join(' ')).toMatch(/9,999/u);
     expect(grade.failures.join(' ')).toMatch(/req_paid/u);
+  });
+
+  it('refuses an assertion whose exact citation does not support its meaning', async () => {
+    const { scenario, output } = await compileCompletion(
+      expectedDate,
+      JSON.stringify({
+        verdict: 'accepted_candidates',
+        assertions: [
+          {
+            requirement_id: 'req_expected_date',
+            proposed_type: 'target_date',
+            epistemic_strength: 'asserted_confident',
+            statement: 'The user expected the work to be finished by Friday 12 June.',
+            supersedes_candidate: null,
+            citations: [
+              {
+                region: 'answer',
+                message_index: null,
+                quote: 'nobody promised me one',
+              },
+            ],
+          },
+        ],
+        rejected_candidates: [],
+        clarifications_requested: [],
+      }),
+    );
+
+    // The quotation is exact and the runtime therefore commits it, but it is
+    // evidence against a binding promise rather than support for the expected
+    // completion date asserted here.
+    expect(validateCompilerOutput(scenario.input, output)).toEqual([]);
+    expect(
+      runBoundary(scenario.state, scenario.input, output, expectedDate, scenario.next_case_version)
+        .disposition,
+    ).toBe('committed');
+
+    const grade = gradeCompilerOutput(expectedDate, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/citation.*support/u);
   });
 });

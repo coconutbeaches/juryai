@@ -906,6 +906,13 @@ describe('provider telemetry', () => {
     expect(compiler.telemetry[0]!.attempts).toBe(1);
   });
 
+  it('rejects an accepted verdict that contains no candidate assertions', async () => {
+    const compiler = compilerOver(fixedModelClient(draft({ assertions: [] })));
+
+    await expect(compiler.compile(inputOf())).rejects.toThrow(SemanticCompilerOutputError);
+    expect(compiler.telemetry[0]!.outcome).toBe('malformed_output');
+  });
+
   it('records a run whose completion quoted text the user never wrote', async () => {
     const compiler = compilerOver(
       fixedModelClient(
