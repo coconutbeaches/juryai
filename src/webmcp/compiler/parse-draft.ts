@@ -65,6 +65,37 @@ function object(value: unknown, path: string): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
+function closedObject(
+  value: unknown,
+  path: string,
+  permittedKeys: readonly string[],
+): Record<string, unknown> {
+  const result = object(value, path);
+  const permitted = new Set(permittedKeys);
+  if (Object.keys(result).some((key) => !permitted.has(key))) {
+    throw new SemanticCompilerOutputError('object contains an unknown property', path);
+  }
+  return result;
+}
+
+const DRAFT_KEYS = [
+  'verdict',
+  'assertions',
+  'rejected_candidates',
+  'clarifications_requested',
+] as const;
+const ASSERTION_KEYS = [
+  'requirement_id',
+  'proposed_type',
+  'epistemic_strength',
+  'statement',
+  'supersedes_candidate',
+  'citations',
+] as const;
+const CITATION_KEYS = ['region', 'message_index', 'quote'] as const;
+const REJECTED_CANDIDATE_KEYS = ['reason', 'proposed_type', 'citations'] as const;
+const CLARIFICATION_KEYS = ['requirement_id', 'reason', 'prompt'] as const;
+
 function array(value: unknown, path: string): unknown[] {
   if (!Array.isArray(value)) throw new SemanticCompilerOutputError('expected an array', path);
   return value;
@@ -94,7 +125,7 @@ function resolveCitation(
   turnId: string,
   payload: SourceTurnPayload,
 ): TurnSpan {
-  const citation = object(value, path);
+  const citation = closedObject(value, path, CITATION_KEYS);
   const region = text(citation.region, path + '.region');
   if (region !== 'answer' && region !== 'context') {
     throw new SemanticCompilerOutputError("region must be 'answer' or 'context'", path + '.region');
@@ -191,7 +222,7 @@ export function parseModelDraft(input: CompilerInput, rawText: string): Compiler
     throw new SemanticCompilerOutputError('provider output was not valid JSON', 'model_draft');
   }
 
-  const draft = object(parsed, 'model_draft');
+  const draft = closedObject(parsed, 'model_draft', DRAFT_KEYS);
 
   const verdictValue = text(draft.verdict, 'model_draft.verdict');
   if (!VERDICTS.has(verdictValue)) {
@@ -205,7 +236,7 @@ export function parseModelDraft(input: CompilerInput, rawText: string): Compiler
   const assertions: CompiledAssertion[] = array(draft.assertions, 'model_draft.assertions').map(
     (entry, index) => {
       const at = 'model_draft.assertions[' + String(index) + ']';
-      const item = object(entry, at);
+      const item = closedObject(entry, at, ASSERTION_KEYS);
       const proposedType = item.proposed_type;
       if (!isPropositionType(proposedType)) {
         throw new SemanticCompilerOutputError(
@@ -245,7 +276,7 @@ export function parseModelDraft(input: CompilerInput, rawText: string): Compiler
     'model_draft.rejected_candidates',
   ).map((entry, index) => {
     const at = 'model_draft.rejected_candidates[' + String(index) + ']';
-    const item = object(entry, at);
+    const item = closedObject(entry, at, REJECTED_CANDIDATE_KEYS);
     const proposedType = item.proposed_type;
     if (proposedType !== null && !isPropositionType(proposedType)) {
       throw new SemanticCompilerOutputError(
@@ -266,7 +297,7 @@ export function parseModelDraft(input: CompilerInput, rawText: string): Compiler
     'model_draft.clarifications_requested',
   ).map((entry, index) => {
     const at = 'model_draft.clarifications_requested[' + String(index) + ']';
-    const item = object(entry, at);
+    const item = closedObject(entry, at, CLARIFICATION_KEYS);
     const reason = text(item.reason, at + '.reason');
     if (!AMBIGUITY_REASONS.has(reason)) {
       throw new SemanticCompilerOutputError('not a canonical ambiguity reason', at + '.reason');

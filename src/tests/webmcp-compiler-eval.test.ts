@@ -683,6 +683,16 @@ describe('the graders themselves have teeth', () => {
     expect(grade.failures.join(' ')).toMatch(/polarity/u);
   });
 
+  it('refuses an unsuccessful attempted payment', async () => {
+    const { scenario, output } = await paymentWithStatement(
+      'The attempted payment of 2,000 pounds by bank transfer on 25 April was unsuccessful.',
+    );
+
+    const grade = gradeCompilerOutput(anchor, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/polarity/u);
+  });
+
   it('keeps negation on the coordinated predicate it modifies', async () => {
     const { scenario, output } = await compileCompletion(
       anchor,

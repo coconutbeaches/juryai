@@ -551,20 +551,64 @@ describe('draft parsing', () => {
 
   it('mints assertion ids server-side rather than taking the model’s', () => {
     const input = inputOf();
-    const withModelIds = JSON.parse(draft()) as Record<string, unknown>;
-    (withModelIds.assertions as Record<string, unknown>[])[0]!.assertion_id = 'model_chosen';
-    const output = parseModelDraft(input, JSON.stringify(withModelIds));
+    const output = parseModelDraft(input, draft());
     expect(output.assertions[0]!.assertion_id).toBe('assert_1');
   });
 
   it('echoes run and version identity from the input, never from the model', () => {
     const input = inputOf();
-    const lying = JSON.parse(draft()) as Record<string, unknown>;
-    lying.compile_run_id = 'run_forged';
-    lying.compiler_version_id = 'version_forged';
-    const output = parseModelDraft(input, JSON.stringify(lying));
+    const output = parseModelDraft(input, draft());
     expect(output.compile_run_id).toBe(input.compile_run_id);
     expect(output.compiler_version_id).toBe(input.compiler_version_id);
+  });
+
+  it.each([
+    {
+      name: 'top level',
+      mutate(value: Record<string, unknown>) {
+        value.extra = true;
+      },
+    },
+    {
+      name: 'assertion',
+      mutate(value: Record<string, unknown>) {
+        (value.assertions as Record<string, unknown>[])[0]!.extra = true;
+      },
+    },
+    {
+      name: 'citation',
+      mutate(value: Record<string, unknown>) {
+        const assertion = (value.assertions as Record<string, unknown>[])[0]!;
+        (assertion.citations as Record<string, unknown>[])[0]!.extra = true;
+      },
+    },
+    {
+      name: 'rejected candidate',
+      mutate(value: Record<string, unknown>) {
+        value.rejected_candidates = [
+          { reason: 'discarded', proposed_type: null, citations: [], extra: true },
+        ];
+      },
+    },
+    {
+      name: 'clarification',
+      mutate(value: Record<string, unknown>) {
+        value.clarifications_requested = [
+          {
+            requirement_id: REQUIREMENT,
+            reason: 'answer_does_not_address_requirement',
+            prompt: 'What happened?',
+            extra: true,
+          },
+        ];
+      },
+    },
+  ])('rejects unknown properties on a $name object', ({ mutate }) => {
+    const malformed = JSON.parse(draft()) as Record<string, unknown>;
+    mutate(malformed);
+    expect(() => parseModelDraft(inputOf(), JSON.stringify(malformed))).toThrow(
+      SemanticCompilerOutputError,
+    );
   });
 
   it('fails closed when a quotation does not occur in the stored turn', () => {

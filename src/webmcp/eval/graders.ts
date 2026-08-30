@@ -415,6 +415,9 @@ const LEXICAL_POLARITY_REVERSERS: Partial<Record<PropositionType, ReadonlySet<st
     'withdrawn',
   ]),
   payment: new Set([
+    'attempt',
+    'attempted',
+    'attempting',
     'cancelled',
     'canceled',
     'defaulted',
@@ -423,6 +426,7 @@ const LEXICAL_POLARITY_REVERSERS: Partial<Record<PropositionType, ReadonlySet<st
     'reversed',
     'unmade',
     'unpaid',
+    'unsuccessful',
     'withheld',
     'withhold',
     'withholding',
