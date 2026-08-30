@@ -66,6 +66,7 @@ const ENTITY_NEUTRAL_WORDS = new Set([
   'by',
   'for',
   'from',
+  'gbp',
   'he',
   'her',
   'him',
@@ -88,8 +89,10 @@ const ENTITY_NEUTRAL_WORDS = new Set([
   'this',
   'to',
   'user',
+  'usd',
   'was',
   'were',
+  'eur',
 ]);
 
 const ENTITY_ROLE_LABELS = new Set([
@@ -241,6 +244,37 @@ const POLARITY_PREDICATES: Partial<Record<PropositionType, ReadonlySet<string>>>
 };
 
 const LEXICAL_POLARITY_REVERSERS: Partial<Record<PropositionType, ReadonlySet<string>>> = {
+  requested_scope: new Set([
+    'canceled',
+    'cancelled',
+    'declined',
+    'refused',
+    'rejected',
+    'withdrawn',
+    'withdrew',
+  ]),
+  accepted_scope: new Set([
+    'canceled',
+    'cancelled',
+    'declined',
+    'refused',
+    'rejected',
+    'repudiated',
+    'rescinded',
+    'unsigned',
+    'withdrawn',
+    'withdrew',
+  ]),
+  invoice: new Set([
+    'canceled',
+    'cancelled',
+    'retracted',
+    'unbilled',
+    'uninvoiced',
+    'voided',
+    'waived',
+    'withdrawn',
+  ]),
   payment: new Set([
     'cancelled',
     'canceled',
@@ -253,6 +287,34 @@ const LEXICAL_POLARITY_REVERSERS: Partial<Record<PropositionType, ReadonlySet<st
     'withheld',
     'withhold',
     'withholding',
+  ]),
+  disputed_balance: new Set([
+    'accepted',
+    'acknowledged',
+    'admitted',
+    'agreed',
+    'conceded',
+    'settled',
+    'undisputed',
+  ]),
+  requested_remedy: new Set([
+    'abandoned',
+    'declined',
+    'rejected',
+    'renounced',
+    'waived',
+    'withdrawn',
+    'withdrew',
+  ]),
+  target_date: new Set(['abandoned', 'canceled', 'cancelled', 'excluded', 'rejected']),
+  contractual_deadline: new Set([
+    'canceled',
+    'cancelled',
+    'declined',
+    'refused',
+    'rejected',
+    'rescinded',
+    'waived',
   ]),
 };
 
@@ -325,7 +387,9 @@ function reversesAssertionPolarity(
 function normalizeFactMarker(marker: string): string {
   const normalized = fold(marker);
   if (/^\d/iu.test(normalized)) return normalized.replaceAll(',', '');
-  if (/^(?:pounds?|dollars?|euros?)$/u.test(normalized)) return normalized.replace(/s$/u, '');
+  if (['£', 'gbp', 'pound', 'pounds'].includes(normalized)) return 'currency:gbp';
+  if (['$', 'usd', 'dollar', 'dollars'].includes(normalized)) return 'currency:usd';
+  if (['€', 'eur', 'euro', 'euros'].includes(normalized)) return 'currency:eur';
   return normalized;
 }
 
@@ -550,10 +614,12 @@ function gradeAssertionSet(
         problems.push("statement omits '" + mention + "'");
       }
     }
-    const answerCitations = assertion.spans
-      .filter((span) => span.region === 'answer')
-      .map((span) => span.quote)
-      .join(' ');
+    const uniqueAnswerSpans = new Map(
+      assertion.spans
+        .filter((span) => span.region === 'answer')
+        .map((span) => [span.turn_id + ':' + String(span.start) + ':' + String(span.end), span]),
+    );
+    const answerCitations = [...uniqueAnswerSpans.values()].map((span) => span.quote).join(' ');
     for (const alternatives of slot.citation_must_mention) {
       if (!alternatives.some((term) => fold(answerCitations).includes(fold(term)))) {
         problems.push("citation does not support topic '" + alternatives.join('|') + "'");

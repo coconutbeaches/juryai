@@ -208,6 +208,7 @@ describe('every corpus case takes an explicit stance on extra output', () => {
 
 describe('the graders themselves have teeth', () => {
   const anchor = SEMANTIC_EVAL_CORPUS.find((entry) => entry.id === 'accept.payment')!;
+  const acceptedScope = SEMANTIC_EVAL_CORPUS.find((entry) => entry.id === 'accept.accepted_scope')!;
   const invoice = SEMANTIC_EVAL_CORPUS.find((entry) => entry.id === 'accept.invoice')!;
   const ambiguous = SEMANTIC_EVAL_CORPUS.find(
     (entry) => entry.id === 'ambiguous.multiple_readings',
@@ -670,6 +671,69 @@ describe('the graders themselves have teeth', () => {
     expect(grade.failures.join(' ')).toMatch(/unsupported fact/u);
   });
 
+  it('does not let duplicate citation spans inflate fact evidence', async () => {
+    const citation = {
+      region: 'answer' as const,
+      message_index: null,
+      quote: 'I paid them 2,000 pounds by bank transfer on 25 April',
+    };
+    const { scenario, output } = await compileCompletion(
+      anchor,
+      JSON.stringify({
+        verdict: 'accepted_candidates',
+        assertions: [
+          {
+            requirement_id: 'req_paid',
+            proposed_type: 'payment',
+            epistemic_strength: 'asserted_confident',
+            statement:
+              'The user paid the other party 2,000 pounds plus a 25 pound fee by bank transfer on 25 April.',
+            supersedes_candidate: null,
+            citations: [citation, citation],
+          },
+        ],
+        rejected_candidates: [],
+        clarifications_requested: [],
+      }),
+    );
+
+    const grade = gradeCompilerOutput(anchor, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/unsupported fact/u);
+  });
+
+  it('refuses a lexical reversal of accepted scope', async () => {
+    const { scenario, output } = await compileCompletion(
+      acceptedScope,
+      JSON.stringify({
+        verdict: 'accepted_candidates',
+        assertions: [
+          {
+            requirement_id: 'req_scope_accepted',
+            proposed_type: 'accepted_scope',
+            epistemic_strength: 'asserted_confident',
+            statement: 'The user rejected the written quote on 3 March instead of signing it.',
+            supersedes_candidate: null,
+            citations: [
+              {
+                region: 'answer',
+                message_index: null,
+                quote:
+                  'They came back with a written quote on 3 March covering the rewire and the consumer unit move, and I signed it the same day.',
+              },
+            ],
+          },
+        ],
+        rejected_candidates: [],
+        clarifications_requested: [],
+      }),
+    );
+
+    const grade = gradeCompilerOutput(acceptedScope, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/polarity/u);
+  });
+
   it('allows a semantically supported ordinary paraphrase', async () => {
     const { scenario, output } = await paymentWithStatement(
       'The user completed payment of 2,000 pounds by bank transfer on 25 April.',
@@ -823,7 +887,7 @@ describe('the graders themselves have teeth', () => {
     expect(grade.ok).toBe(true);
   });
 
-  it.each(['$', '£', '€'])('refuses an unsupported %s currency symbol', async (symbol) => {
+  it.each(['$', '€'])('refuses an unsupported %s currency symbol', async (symbol) => {
     const { scenario, output } = await paymentWithStatement(
       `Payment of ${symbol}2,000 by bank transfer was made on 25 April.`,
     );
@@ -832,6 +896,16 @@ describe('the graders themselves have teeth', () => {
     expect(grade.ok).toBe(false);
     expect(grade.failures.join(' ')).toMatch(/unsupported fact/u);
     expect(grade.failures.join(' ')).not.toContain(symbol);
+  });
+
+  it.each(['£', 'GBP '])('normalizes the supported GBP representation %s', async (currency) => {
+    const { scenario, output } = await paymentWithStatement(
+      `Payment of ${currency}2,000 by bank transfer was made on 25 April.`,
+    );
+
+    const grade = gradeCompilerOutput(anchor, scenario.input, output);
+    expect(grade.failures).toEqual([]);
+    expect(grade.ok).toBe(true);
   });
 
   it('does not print a fabricated name in grader failures', async () => {
