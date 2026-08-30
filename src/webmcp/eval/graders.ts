@@ -67,9 +67,12 @@ const ENTITY_NEUTRAL_WORDS = new Set([
   'for',
   'from',
   'gbp',
+  'had',
+  'has',
   'he',
   'her',
   'him',
+  'have',
   'in',
   'is',
   'it',
@@ -92,6 +95,8 @@ const ENTITY_NEUTRAL_WORDS = new Set([
   'usd',
   'was',
   'were',
+  'will',
+  'would',
   'eur',
 ]);
 
@@ -189,6 +194,9 @@ function isSubjectPosition(text: string, tokens: readonly WordToken[], index: nu
     const previous = tokens[previousIndex]!;
     const followingGap = text.slice(previous.end, tokens[previousIndex + 1]!.start);
     if (/[.!?]/u.test(followingGap)) return true;
+    if (['and', 'but', 'or', 'then', 'while', 'whereas', 'yet'].includes(previous.folded)) {
+      return true;
+    }
     if (
       !SENTENCE_INITIAL_NON_ENTITY_WORDS.has(previous.folded) &&
       !['a', 'an', 'the'].includes(previous.folded)
@@ -582,7 +590,7 @@ const NEGATION_CLAUSE_BOUNDARIES = new Set([
 function semanticClauses(text: string): string[] {
   return text
     .split(
-      /[!?;:]+|\.(?=\s|$)|,\s*(?:although|and|but|despite|however|notwithstanding|or|then|though|while|whereas|yet)\b|\b(?:although|and|but|despite|however|notwithstanding|or|then|though|while|whereas|yet)\b|\bin\s+spite\s+of\b/iu,
+      /[!?;:]+|\.(?=\s|$)|,\s*(?:although|and|because|but|despite|however|notwithstanding|or|since|then|though|while|whereas|yet)\b|\b(?:although|and|because|but|despite|however|notwithstanding|or|since|then|though|while|whereas|yet)\b|\bin\s+spite\s+of\b/iu,
     )
     .map((clause) => clause.trim())
     .filter((clause) => clause.length > 0);
@@ -782,6 +790,31 @@ const LARGE_NUMBER_WORDS = new Map<string, number>([
   ['billion', 1_000_000_000],
 ]);
 
+const ORDINAL_NUMBER_WORDS = new Map<string, number>([
+  ['first', 1],
+  ['second', 2],
+  ['third', 3],
+  ['fourth', 4],
+  ['fifth', 5],
+  ['sixth', 6],
+  ['seventh', 7],
+  ['eighth', 8],
+  ['ninth', 9],
+  ['tenth', 10],
+  ['eleventh', 11],
+  ['twelfth', 12],
+  ['thirteenth', 13],
+  ['fourteenth', 14],
+  ['fifteenth', 15],
+  ['sixteenth', 16],
+  ['seventeenth', 17],
+  ['eighteenth', 18],
+  ['nineteenth', 19],
+  ['twentieth', 20],
+  ['hundredth', 100],
+  ['thousandth', 1_000],
+]);
+
 function numberWordMarkers(text: string): string[] {
   const tokens = words(text);
   const markers: string[] = [];
@@ -824,6 +857,13 @@ function numberWordMarkers(text: string): string[] {
 
 function factMarkers(text: string): string[] {
   const markers: string[] = [...numberWordMarkers(text)];
+  for (const word of words(text)) {
+    const ordinal = ORDINAL_NUMBER_WORDS.get(word);
+    if (ordinal !== undefined) markers.push(`ordinal:${ordinal}`);
+  }
+  for (const match of text.matchAll(/\b(\d+)(?:st|nd|rd|th)\b/giu)) {
+    markers.push(`ordinal:${Number(match[1])}`);
+  }
   for (const match of text.matchAll(/\p{Sc}/gu)) markers.push(normalizeFactMarker(match[0]));
   for (const match of text.matchAll(/\b\d[\d,.]*\b/gu)) {
     markers.push(normalizeFactMarker(match[0]));
