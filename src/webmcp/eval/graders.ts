@@ -142,7 +142,17 @@ function addsUnsupportedEntityToken(
     if (/^\p{Lu}/u.test(token.raw) && !isSentenceInitial(statement, tokens, index)) return true;
     const previous = tokens[index - 1]?.folded;
     if (previous !== undefined && introducers.has(previous)) return true;
-    if (previous !== undefined && ENTITY_ROLE_LABELS.has(previous)) return true;
+    if (previous !== undefined && ENTITY_ROLE_LABELS.has(previous)) {
+      let beforeRoleIndex = index - 2;
+      while (
+        beforeRoleIndex >= 0 &&
+        ['a', 'an', 'the'].includes(tokens[beforeRoleIndex]?.folded ?? '')
+      ) {
+        beforeRoleIndex -= 1;
+      }
+      const beforeRole = tokens[beforeRoleIndex]?.folded;
+      if (beforeRole !== undefined && introducers.has(beforeRole)) return true;
+    }
     if (previous === 'named' || previous === 'called' || previous === 'met') return true;
   }
   return false;
@@ -171,6 +181,24 @@ const NEGATION_WORDS = new Set([
   "weren't",
   "won't",
   'without',
+]);
+
+const EXPLICIT_NEGATION_WORDS = new Set([
+  "aren't",
+  "can't",
+  'cannot',
+  "didn't",
+  "doesn't",
+  "hadn't",
+  "hasn't",
+  "haven't",
+  "isn't",
+  'never',
+  'no',
+  'not',
+  "wasn't",
+  "weren't",
+  "won't",
 ]);
 
 const POLARITY_PREDICATES: Partial<Record<PropositionType, ReadonlySet<string>>> = {
@@ -240,6 +268,14 @@ function reversesAssertionPolarity(
   answerCitations: string,
 ): boolean {
   if (type === 'narrative_fact') {
+    const statementWords = words(statement);
+    const citationWords = words(answerCitations);
+    if (
+      statementWords.some((word) => EXPLICIT_NEGATION_WORDS.has(word)) &&
+      !citationWords.some((word) => NEGATION_WORDS.has(word) || word === 'nothing')
+    ) {
+      return true;
+    }
     for (const family of NARRATIVE_POLARITY_FAMILIES) {
       const statementPolarities = predicatePolarities(statement, family);
       const citationPolarities = predicatePolarities(answerCitations, family);

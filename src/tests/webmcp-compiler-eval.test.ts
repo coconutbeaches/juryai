@@ -208,6 +208,7 @@ describe('every corpus case takes an explicit stance on extra output', () => {
 
 describe('the graders themselves have teeth', () => {
   const anchor = SEMANTIC_EVAL_CORPUS.find((entry) => entry.id === 'accept.payment')!;
+  const invoice = SEMANTIC_EVAL_CORPUS.find((entry) => entry.id === 'accept.invoice')!;
   const ambiguous = SEMANTIC_EVAL_CORPUS.find(
     (entry) => entry.id === 'ambiguous.multiple_readings',
   )!;
@@ -702,6 +703,39 @@ describe('the graders themselves have teeth', () => {
     expect(grade.failures.join(' ')).toMatch(/polarity/u);
   });
 
+  it('refuses an explicit narrative negation expressed with different predicates', async () => {
+    const { scenario, output } = await compileCompletion(
+      narrative,
+      JSON.stringify({
+        verdict: 'accepted_candidates',
+        assertions: [
+          {
+            requirement_id: 'req_other_party_position',
+            proposed_type: 'narrative_fact',
+            epistemic_strength: 'asserted_confident',
+            statement:
+              'The other party contended that the additional 1,400 pounds was not payable.',
+            supersedes_candidate: null,
+            citations: [
+              {
+                region: 'answer',
+                message_index: null,
+                quote:
+                  'Their position is that the extra sockets were a variation I asked for verbally, so they say the extra 1,400 pounds is chargeable.',
+              },
+            ],
+          },
+        ],
+        rejected_candidates: [],
+        clarifications_requested: [],
+      }),
+    );
+
+    const grade = gradeCompilerOutput(narrative, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/polarity/u);
+  });
+
   it('allows a cited adverse narrative even when its content is negative', async () => {
     const { scenario, output } = await compileCompletion(
       adverseNarrative,
@@ -730,6 +764,41 @@ describe('the graders themselves have teeth', () => {
     );
 
     const grade = gradeCompilerOutput(adverseNarrative, scenario.input, output);
+    expect(grade.failures).toEqual([]);
+    expect(grade.ok).toBe(true);
+  });
+
+  it('allows an uncited predicate after a cited subject role', async () => {
+    const contractorInvoice = structuredClone(invoice);
+    contractorInvoice.answer =
+      'The contractor sent me an invoice for 4,200 pounds on 18 April for the first phase.';
+    const { scenario, output } = await compileCompletion(
+      contractorInvoice,
+      JSON.stringify({
+        verdict: 'accepted_candidates',
+        assertions: [
+          {
+            requirement_id: 'req_invoiced',
+            proposed_type: 'invoice',
+            epistemic_strength: 'asserted_confident',
+            statement: 'The contractor forwarded an invoice for 4,200 pounds on 18 April.',
+            supersedes_candidate: null,
+            citations: [
+              {
+                region: 'answer',
+                message_index: null,
+                quote:
+                  'The contractor sent me an invoice for 4,200 pounds on 18 April for the first phase.',
+              },
+            ],
+          },
+        ],
+        rejected_candidates: [],
+        clarifications_requested: [],
+      }),
+    );
+
+    const grade = gradeCompilerOutput(contractorInvoice, scenario.input, output);
     expect(grade.failures).toEqual([]);
     expect(grade.ok).toBe(true);
   });
