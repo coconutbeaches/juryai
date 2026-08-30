@@ -34,7 +34,11 @@ import {
   WEBMCP_PROTOCOL_VERSION,
 } from '../webmcp/core/types.js';
 import { deriveReadiness } from '../webmcp/core/requirements.js';
-import { computeRequestFingerprint } from '../webmcp/core/idempotency.js';
+import {
+  computeRequestFingerprint,
+  precheckSubmit,
+  type IdempotencyRecord,
+} from '../webmcp/core/idempotency.js';
 import {
   computePayloadCommitment,
   computeSourceTurnMetadataCommitment,
@@ -3143,6 +3147,220 @@ describe('a lagging replay store is resolved before a locked case is refused', (
     expect(outcome.failure.retryable).toBe(false);
     expect(reader.diagnostics.events).toEqual([]);
     await expectNothingHappened(inner, caseId, before, compiler);
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Cancellation is re-checked after the compiler returns                     */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * A well-behaved-looking adapter that nonetheless ignores the advisory signal
+ * and resolves valid output after the caller has already aborted. Real
+ * adapters do this: they may not wire the signal through, may fail to abort a
+ * provider request, or may simply win the race.
+ */
+class IgnoresAbortCompiler implements SemanticCompilerPort {
+  readonly registryEntry = scriptedRegistryEntry();
+  readonly #inner = new ScriptedSemanticCompiler(expectedDateScript);
+  readonly started: Promise<void>;
+  readonly #gate: Promise<void>;
+  #markStarted: () => void = () => {};
+  #open: () => void = () => {};
+  calls = 0;
+
+  constructor() {
+    this.started = new Promise<void>((resolve) => {
+      this.#markStarted = resolve;
+    });
+    this.#gate = new Promise<void>((resolve) => {
+      this.#open = resolve;
+    });
+  }
+
+  release(): void {
+    this.#open();
+  }
+
+  async compile(input: CompilerInput): Promise<CompilerOutput> {
+    this.calls += 1;
+    this.#markStarted();
+    await this.#gate;
+    return this.#inner.compile(input);
+  }
+}
+
+describe('a compiler that ignores the abort cannot commit the cancelled turn', () => {
+  it('rejects with the caller reason and persists nothing', async () => {
+    const compiler = new IgnoresAbortCompiler();
+    const h = harness({ compiler });
+    const caseId = await startedCase(h);
+    const before = (await h.store.cases.findById(caseId))!;
+    const controller = new AbortController();
+    const reason = new Error('the user closed the tab');
+
+    const pending = h.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId }), {
+      signal: controller.signal,
+    });
+    await compiler.started;
+    controller.abort(reason);
+    // The adapter resolves valid output anyway, a moment too late.
+    compiler.release();
+
+    await expect(pending).rejects.toBe(reason);
+    expect(compiler.calls).toBe(1);
+
+    const after = (await h.store.cases.findById(caseId))!;
+    expect(after.revision).toBe(before.revision);
+    expect(after.state).toEqual(before.state);
+    expect(after.state.turn_log).toHaveLength(0);
+    expect(after.state.propositions).toHaveLength(0);
+    expect(after.state.case_version).toBe(0);
+    expect(await h.store.compileRuns.listByCase(caseId)).toEqual([]);
+    expect(await h.store.idempotency.listByCase(caseId)).toEqual([]);
+    expect(h.diagnostics.events).toEqual([]);
+  });
+
+  it('leaves an uncancelled compile completely unchanged', async () => {
+    const compiler = new IgnoresAbortCompiler();
+    const h = harness({ compiler });
+    const caseId = await startedCase(h);
+    const controller = new AbortController();
+
+    const pending = h.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId }), {
+      signal: controller.signal,
+    });
+    await compiler.started;
+    compiler.release();
+
+    const outcome = committed(await pending);
+    expect(outcome.case.case_version).toBe(1);
+    expect((await loadState(h, caseId)).turn_log).toHaveLength(1);
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* An empty operation id is not an identity                                  */
+/* ------------------------------------------------------------------------ */
+
+describe('client_turn_id must be null or a real id', () => {
+  it('demonstrates why an empty key must never be stored as exact identity', () => {
+    // The hazard, at the layer where it bites. If a blank key were ever
+    // committed, core's exact-id match would replay it for ANY later
+    // submission carrying the same blank key.
+    const stored: IdempotencyRecord = {
+      case_id: 'case_1',
+      request_fingerprint: 'a'.repeat(64),
+      client_turn_id: '',
+      turn_id: 'turn_1',
+      recorded_at_ms: START_MS,
+      response: {
+        case_version: 1,
+        turn_id: 'turn_1',
+        accepted_proposition_ids: ['prop_1'],
+        superseded_proposition_ids: [],
+        opened_clarification_ids: [],
+        warnings: [],
+      },
+    };
+    const unrelated = precheckSubmit(
+      {
+        case_id: 'case_1',
+        principal_id: 'user_alice',
+        expected_case_version: 1,
+        // Entirely different answer, different requirement.
+        in_reply_to: ['req_paid'],
+        payload: payload('I paid the deposit on 1 March.'),
+        client_turn_id: '',
+      },
+      { store: [stored], log: [], current_case_version: 1, now_ms: START_MS },
+    );
+    expect(unrelated.kind).toBe('replay');
+    if (unrelated.kind !== 'replay') return;
+    expect(unrelated.match).toBe('client_turn_id');
+    // A real user answer would have been silently dropped and the earlier
+    // result returned in its place. The runtime must never create this state.
+  });
+
+  it('refuses an empty id before touching storage, the registry or the compiler', async () => {
+    const inner = new InMemoryCaseRuntimeStore();
+    const lagging = laggingReplayStore(inner);
+    const compiler = new ScriptedSemanticCompiler(expectedDateScript);
+    const h = runtimeOver(lagging.store, compiler);
+    const started = await h.runtime.startCase(ALICE, startCommand('request_1'));
+    if (started.kind !== 'created') throw new Error('expected creation');
+    const caseId = started.case.case_id;
+    const before = (await inner.cases.findById(caseId))!;
+    const registrationsBefore = lagging.registerCalls();
+
+    for (const blank of ['', '   ']) {
+      const outcome = await h.runtime.submitTurn(
+        ALICE,
+        submitCommand({ case_id: caseId, client_turn_id: blank }),
+      );
+      expect(outcome.kind).toBe('failed');
+      if (outcome.kind !== 'failed') continue;
+      expect(outcome.failure.code).toBe('INVALID_INPUT');
+      expect(outcome.failure.retryable).toBe(false);
+    }
+
+    expect(compiler.calls).toHaveLength(0);
+    expect(lagging.registerCalls()).toBe(registrationsBefore);
+    const after = (await inner.cases.findById(caseId))!;
+    expect(after.revision).toBe(before.revision);
+    expect(after.state).toEqual(before.state);
+    expect(after.state.turn_log).toHaveLength(0);
+    expect(await inner.compileRuns.listByCase(caseId)).toEqual([]);
+    expect(await inner.idempotency.listByCase(caseId)).toEqual([]);
+  });
+
+  it('keeps null meaning "no exact identity", with the heuristic path intact', async () => {
+    const h = harness();
+    h.scripted.setScript(expectedDateScript);
+    const caseId = await startedCase(h);
+
+    const first = committed(
+      await h.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId, client_turn_id: null })),
+    );
+    // No exact identity, so a regenerated retry falls back to content +
+    // provenance rather than matching on a key.
+    const retry = await h.runtime.submitTurn(
+      ALICE,
+      submitCommand({
+        case_id: caseId,
+        client_turn_id: null,
+        expected_case_version: 1,
+        payload: payload('I expected it finished by April 25 — and nobody ever said otherwise!'),
+      }),
+    );
+    expect(retry.kind).toBe('replayed');
+    if (retry.kind !== 'replayed') return;
+    expect(retry.match).toBe('fingerprint');
+    expect(retry.turn_id).toBe(first.turn_id);
+  });
+
+  it('keeps exact lifetime replay for a valid id', async () => {
+    const h = harness();
+    h.scripted.setScript(expectedDateScript);
+    const caseId = await startedCase(h);
+    const first = committed(await h.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId })));
+
+    const retry = await h.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId }));
+    expect(retry.kind).toBe('replayed');
+    if (retry.kind !== 'replayed') return;
+    expect(retry.match).toBe('client_turn_id');
+    expect(retry.turn_id).toBe(first.turn_id);
+  });
+
+  it('applies the same rule to the start-case request id', async () => {
+    const h = harness();
+    for (const blank of ['', '   ']) {
+      const outcome = await h.runtime.startCase(ALICE, { client_request_id: blank });
+      expect(outcome.kind).toBe('failed');
+      if (outcome.kind !== 'failed') continue;
+      expect(outcome.failure.code).toBe('INVALID_INPUT');
+    }
+    expect(await h.store.cases.findActiveDraftByPrincipal('user_alice')).toBeNull();
   });
 });
 

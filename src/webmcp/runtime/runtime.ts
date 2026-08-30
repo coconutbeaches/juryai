@@ -203,7 +203,7 @@ export class CaseRuntime {
     if (principalId === null) {
       return { kind: 'failed', failure: failure('AUTH_REQUIRED', 'No authenticated principal.') };
     }
-    if (typeof command?.client_request_id !== 'string' || command.client_request_id.length === 0) {
+    if (!isClientIssuedId(command?.client_request_id)) {
       return {
         kind: 'failed',
         failure: failure('INVALID_INPUT', 'A start request must carry a request id.'),
@@ -867,6 +867,14 @@ export class CaseRuntime {
     }
     const finishedAt = isoFrom(this.#deps.clock.now());
 
+    // Cancellation is re-checked HERE, before anything is persisted. Passing
+    // the signal to the adapter is advisory: an adapter may ignore it, may
+    // fail to abort its provider request, or may simply win the race and
+    // resolve a moment after the caller walked away. Without this check the
+    // runtime would hand the caller an abort while still committing the very
+    // submission it says was cancelled. Everything after this line writes.
+    options.signal?.throwIfAborted();
+
     /* --- fix the compiler's output at the runtime boundary ---------------- */
     // Everything above this line is ours; `output` is the first object in the
     // pipeline produced outside the runtime. A provider adapter that returns a
@@ -1175,6 +1183,17 @@ function sharesSourceIdentity(
   return provenanceKey(turn) === requestProvenance;
 }
 
+/**
+ * An adapter-issued operation id. One rule for `client_request_id` and
+ * `client_turn_id` so the two cannot drift: a non-empty string with at least
+ * one non-whitespace character. The value is validated, never normalised — the
+ * id is stored exactly as the adapter sent it, because exact identity is the
+ * whole point of it.
+ */
+function isClientIssuedId(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
 /** Relay self-reports carried alongside a submission. Recorded, never trusted. */
 interface RelayClaims {
   source_language: string | null;
@@ -1229,7 +1248,14 @@ function wellFormedCommand(command: SubmitTurnCommand): boolean {
   if (command.in_reply_to.some((value) => typeof value !== 'string' || value.length === 0)) {
     return false;
   }
-  if (command.client_turn_id !== null && typeof command.client_turn_id !== 'string') return false;
+  // `null` means "no exact transport retry identity, heuristic fallback may
+  // apply" and stays valid. An empty or blank string is not an identity at
+  // all: committed as one, every later submission carrying the same blank key
+  // exact-matches the first operation and replays its result regardless of
+  // text, requirements, provenance or version — silently dropping a real
+  // answer. It is refused rather than repaired into `null`, because an adapter
+  // that sends one is broken and should be told so.
+  if (command.client_turn_id !== null && !isClientIssuedId(command.client_turn_id)) return false;
   const payload: unknown = command.payload;
   if (typeof payload !== 'object' || payload === null) return false;
   const { context, answer } = payload as Partial<SourceTurnPayload>;
