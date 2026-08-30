@@ -1127,6 +1127,50 @@ describe('the graders themselves have teeth', () => {
     expect(grade.failures.join(' ')).toMatch(/unsupported entity/u);
   });
 
+  it('rejects an unsupported predicate object through a neutral preposition', async () => {
+    const { scenario, output } = await paymentWithStatement(
+      'The user paid the other party 2,000 pounds by bank transfer on 25 April after hearing of alice.',
+    );
+
+    const grade = gradeCompilerOutput(anchor, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/unsupported entity/u);
+  });
+
+  it('treats an objection as an accepted-scope polarity reversal', async () => {
+    const acceptedScope = SEMANTIC_EVAL_CORPUS.find(
+      (entry) => entry.id === 'accept.accepted_scope',
+    )!;
+    const { scenario, output } = await compileCompletion(
+      acceptedScope,
+      JSON.stringify({
+        verdict: 'accepted_candidates',
+        assertions: [
+          {
+            requirement_id: 'req_scope_accepted',
+            proposed_type: 'accepted_scope',
+            epistemic_strength: 'asserted_confident',
+            statement: 'The user objected to the written quote on 3 March.',
+            supersedes_candidate: null,
+            citations: [
+              {
+                region: 'answer',
+                message_index: null,
+                quote: acceptedScope.answer,
+              },
+            ],
+          },
+        ],
+        rejected_candidates: [],
+        clarifications_requested: [],
+      }),
+    );
+
+    const grade = gradeCompilerOutput(acceptedScope, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/polarity/u);
+  });
+
   it('refuses an unsupported spelled-out amount', async () => {
     const { scenario, output } = await paymentWithStatement(
       'The user paid the other party 2,000 pounds by bank transfer on 25 April and included a fee of fifty.',

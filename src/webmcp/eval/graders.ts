@@ -259,6 +259,24 @@ function addsUnsupportedEntityToken(
     ) {
       return true;
     }
+    let governorIndex = index - 1;
+    while (
+      governorIndex >= 0 &&
+      ['about', 'at', 'by', 'for', 'from', 'in', 'of', 'on', 'to', 'with'].includes(
+        tokens[governorIndex]?.folded ?? '',
+      )
+    ) {
+      governorIndex -= 1;
+    }
+    const governor = tokens[governorIndex]?.folded;
+    if (
+      governor !== undefined &&
+      !ENTITY_NEUTRAL_WORDS.has(governor) &&
+      /(?:ed|ing)$/u.test(governor) &&
+      !SENTENCE_INITIAL_NON_ENTITY_WORDS.has(token.folded)
+    ) {
+      return true;
+    }
     const beforePrevious = tokens[index - 2]?.folded;
     if (
       previous !== undefined &&
@@ -484,6 +502,16 @@ const LEXICAL_POLARITY_REVERSERS: Partial<Record<PropositionType, ReadonlySet<st
     'canceled',
     'cancelled',
     'declined',
+    'object',
+    'objected',
+    'objecting',
+    'objects',
+    'oppose',
+    'opposed',
+    'opposes',
+    'protest',
+    'protested',
+    'protests',
     'refused',
     'rejected',
     'repudiated',
