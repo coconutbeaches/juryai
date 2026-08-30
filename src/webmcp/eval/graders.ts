@@ -183,6 +183,17 @@ function isSentenceInitial(text: string, tokens: readonly WordToken[], index: nu
   return /[.!?]\s*$/u.test(text.slice(tokens[index - 1]!.end, tokens[index]!.start));
 }
 
+function isSubjectPosition(text: string, tokens: readonly WordToken[], index: number): boolean {
+  if (isSentenceInitial(text, tokens, index)) return true;
+  for (let previousIndex = index - 1; previousIndex >= 0; previousIndex -= 1) {
+    const previous = tokens[previousIndex]!;
+    const followingGap = text.slice(previous.end, tokens[previousIndex + 1]!.start);
+    if (/[.!?]/u.test(followingGap)) return true;
+    if (!SENTENCE_INITIAL_NON_ENTITY_WORDS.has(previous.folded)) return false;
+  }
+  return true;
+}
+
 /**
  * Detects name-shaped additions without treating every paraphrase as an
  * entity. Uncited title-case words away from a sentence boundary are
@@ -204,7 +215,10 @@ function addsUnsupportedEntityToken(
     if (POLARITY_PREDICATES[type]?.has(token.folded) ?? false) continue;
     const sentenceInitial = isSentenceInitial(statement, tokens, index);
     if (/^\p{Lu}/u.test(token.raw) && !sentenceInitial) return true;
-    if (sentenceInitial && !SENTENCE_INITIAL_NON_ENTITY_WORDS.has(token.folded)) {
+    if (
+      isSubjectPosition(statement, tokens, index) &&
+      !SENTENCE_INITIAL_NON_ENTITY_WORDS.has(token.folded)
+    ) {
       const subjectPredicates = ENTITY_SUBJECT_PREDICATES[type] ?? new Set<string>();
       for (let predicateIndex = index + 1; predicateIndex < tokens.length; predicateIndex += 1) {
         if (
@@ -276,6 +290,21 @@ const EXPLICIT_NEGATION_WORDS = new Set([
   "wasn't",
   "weren't",
   "won't",
+]);
+
+const NARRATIVE_NEGATING_REPORTING_VERBS = new Set([
+  'contradict',
+  'contradicted',
+  'contradicts',
+  'deny',
+  'denied',
+  'denies',
+  'disavow',
+  'disavowed',
+  'disavows',
+  'refute',
+  'refuted',
+  'refutes',
 ]);
 
 const POLARITY_PREDICATES: Partial<Record<PropositionType, ReadonlySet<string>>> = {
@@ -545,6 +574,13 @@ function hasExplicitNegation(text: string): boolean {
   );
 }
 
+function hasNarrativeNegation(text: string): boolean {
+  return (
+    hasExplicitNegation(text) ||
+    words(text).some((word) => NARRATIVE_NEGATING_REPORTING_VERBS.has(word))
+  );
+}
+
 function discriminativeFactMarkers(text: string): ReadonlySet<string> {
   return new Set(factMarkers(text).filter((marker) => /^\d/u.test(marker)));
 }
@@ -552,7 +588,7 @@ function discriminativeFactMarkers(text: string): ReadonlySet<string> {
 function narrativeNegationLacksCitedSupport(statement: string, answerCitations: string): boolean {
   const citedClauses = semanticClauses(answerCitations);
   for (const statementClause of semanticClauses(statement)) {
-    if (!hasExplicitNegation(statementClause)) continue;
+    if (!hasNarrativeNegation(statementClause)) continue;
     const statementMarkers = discriminativeFactMarkers(statementClause);
     const statementFamilies = NARRATIVE_POLARITY_FAMILIES.filter((family) =>
       words(statementClause).some((word) => family.has(word)),
@@ -570,7 +606,7 @@ function narrativeNegationLacksCitedSupport(statement: string, answerCitations: 
     });
     if (
       relevantCitations.length === 0 ||
-      !relevantCitations.some((citationClause) => hasExplicitNegation(citationClause))
+      !relevantCitations.some((citationClause) => hasNarrativeNegation(citationClause))
     ) {
       return true;
     }
@@ -686,8 +722,85 @@ function normalizeFactMarker(marker: string): string {
   return normalized;
 }
 
-function factMarkers(text: string): string[] {
+const SMALL_NUMBER_WORDS = new Map<string, number>([
+  ['zero', 0],
+  ['one', 1],
+  ['two', 2],
+  ['three', 3],
+  ['four', 4],
+  ['five', 5],
+  ['six', 6],
+  ['seven', 7],
+  ['eight', 8],
+  ['nine', 9],
+  ['ten', 10],
+  ['eleven', 11],
+  ['twelve', 12],
+  ['thirteen', 13],
+  ['fourteen', 14],
+  ['fifteen', 15],
+  ['sixteen', 16],
+  ['seventeen', 17],
+  ['eighteen', 18],
+  ['nineteen', 19],
+  ['twenty', 20],
+  ['thirty', 30],
+  ['forty', 40],
+  ['fifty', 50],
+  ['sixty', 60],
+  ['seventy', 70],
+  ['eighty', 80],
+  ['ninety', 90],
+]);
+
+const LARGE_NUMBER_WORDS = new Map<string, number>([
+  ['thousand', 1_000],
+  ['million', 1_000_000],
+  ['billion', 1_000_000_000],
+]);
+
+function numberWordMarkers(text: string): string[] {
+  const tokens = words(text);
   const markers: string[] = [];
+  let current = 0;
+  let total = 0;
+  let active = false;
+  const flush = (): void => {
+    if (!active) return;
+    markers.push(String(total + current));
+    current = 0;
+    total = 0;
+    active = false;
+  };
+
+  for (const [index, token] of tokens.entries()) {
+    const small = SMALL_NUMBER_WORDS.get(token);
+    if (small !== undefined) {
+      current += small;
+      active = true;
+      continue;
+    }
+    if (token === 'hundred') {
+      current = Math.max(current, 1) * 100;
+      active = true;
+      continue;
+    }
+    const scale = LARGE_NUMBER_WORDS.get(token);
+    if (scale !== undefined) {
+      total += Math.max(current, 1) * scale;
+      current = 0;
+      active = true;
+      continue;
+    }
+    if (token === 'and' && active && SMALL_NUMBER_WORDS.has(tokens[index + 1] ?? '')) continue;
+    flush();
+  }
+  flush();
+  return markers;
+}
+
+function factMarkers(text: string): string[] {
+  const markers: string[] = [...numberWordMarkers(text)];
   for (const match of text.matchAll(/\p{Sc}/gu)) markers.push(normalizeFactMarker(match[0]));
   for (const match of text.matchAll(/\b\d[\d,.]*\b/gu)) {
     markers.push(normalizeFactMarker(match[0]));

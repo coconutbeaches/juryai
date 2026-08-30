@@ -1017,6 +1017,26 @@ describe('the graders themselves have teeth', () => {
     expect(grade.ok).toBe(true);
   });
 
+  it('traces a lowercase subject after a sentence-initial discourse modifier', async () => {
+    const { scenario, output } = await paymentWithStatement(
+      'Indeed, alice received 2,000 pounds by bank transfer on 25 April.',
+    );
+
+    const grade = gradeCompilerOutput(anchor, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/unsupported entity/u);
+  });
+
+  it('refuses an unsupported spelled-out amount', async () => {
+    const { scenario, output } = await paymentWithStatement(
+      'The user paid the other party 2,000 pounds by bank transfer on 25 April and included a fee of fifty.',
+    );
+
+    const grade = gradeCompilerOutput(anchor, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/unsupported fact/u);
+  });
+
   it('allows a supported descriptor after a payment determiner', async () => {
     const { scenario, output } = await paymentWithStatement(
       'The user paid the outstanding balance of 2,000 pounds by bank transfer on 25 April.',
@@ -1161,6 +1181,38 @@ describe('the graders themselves have teeth', () => {
     );
 
     const grade = gradeCompilerOutput(unrelatedInvoiceAmount, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/polarity/u);
+  });
+
+  it('refuses a narrative reversal expressed by a negative reporting verb', async () => {
+    const { scenario, output } = await compileCompletion(
+      narrative,
+      JSON.stringify({
+        verdict: 'accepted_candidates',
+        assertions: [
+          {
+            requirement_id: 'req_other_party_position',
+            proposed_type: 'narrative_fact',
+            epistemic_strength: 'asserted_confident',
+            statement: 'The other party denied that the additional 1,400 pounds was chargeable.',
+            supersedes_candidate: null,
+            citations: [
+              {
+                region: 'answer',
+                message_index: null,
+                quote:
+                  'Their position is that the extra sockets were a variation I asked for verbally, so they say the extra 1,400 pounds is chargeable.',
+              },
+            ],
+          },
+        ],
+        rejected_candidates: [],
+        clarifications_requested: [],
+      }),
+    );
+
+    const grade = gradeCompilerOutput(narrative, scenario.input, output);
     expect(grade.ok).toBe(false);
     expect(grade.failures.join(' ')).toMatch(/polarity/u);
   });
