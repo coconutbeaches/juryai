@@ -420,8 +420,10 @@ export class CaseRuntime {
       // Self-reported by the relay and recorded as such. A translated answer
       // has no span fidelity to anything the human actually typed, so the
       // claim is stored rather than quietly dropped.
+      // Both already validated as `string | null | undefined` and
+      // `boolean | undefined`, so these are reads, not coercions.
       source_language: command.source_language ?? null,
-      translation_indicated: command.translation_indicated === true,
+      translation_indicated: command.translation_indicated ?? false,
     };
 
     // Two distinct reasons to re-enter, budgeted separately. Contention means
@@ -481,11 +483,14 @@ export class CaseRuntime {
     relayClaims: RelayClaims,
     options: RuntimeCallOptions,
   ): Promise<SubmitTurnOutcome | AttemptSignal> {
-    const read = await this.#guardedRead(
-      'case_read',
-      request.case_id,
-      () => this.#deps.store.cases.findById(request.case_id),
+    const read = this.#consumeRead(
       options.signal,
+      await this.#startRead(
+        'case_read',
+        request.case_id,
+        () => this.#deps.store.cases.findById(request.case_id),
+        options.signal,
+      ),
     );
     if (!read.ok) {
       return { kind: 'failed', failure: unavailable('That answer could not be processed.') };
@@ -497,11 +502,14 @@ export class CaseRuntime {
     const state = stored.state;
 
     /* --- idempotency first, then the lock, then CAS. --------------------- */
-    const idempotencyRead = await this.#guardedRead(
-      'idempotency_read',
-      request.case_id,
-      () => this.#deps.store.idempotency.listByCase(request.case_id),
+    const idempotencyRead = this.#consumeRead(
       options.signal,
+      await this.#startRead(
+        'idempotency_read',
+        request.case_id,
+        () => this.#deps.store.idempotency.listByCase(request.case_id),
+        options.signal,
+      ),
     );
     // Proceeding without the replay store would turn a lost-response retry
     // into a duplicate write, which is the one failure this store prevents.
@@ -560,11 +568,14 @@ export class CaseRuntime {
       // predate it: accepted ids from the record, `case_version` and
       // `recorded` from before those propositions existed. Re-read, so the
       // replay is built from state at least as fresh as the record it matched.
-      const refreshed = await this.#guardedRead(
-        'replay_case_refresh',
-        request.case_id,
-        () => this.#deps.store.cases.findById(request.case_id),
+      const refreshed = this.#consumeRead(
         options.signal,
+        await this.#startRead(
+          'replay_case_refresh',
+          request.case_id,
+          () => this.#deps.store.cases.findById(request.case_id),
+          options.signal,
+        ),
       );
       if (!refreshed.ok) {
         return { kind: 'failed', failure: unavailable('That answer could not be processed.') };
@@ -764,8 +775,9 @@ export class CaseRuntime {
     // caller's signal: one caller giving up must neither discard an artefact
     // that registered successfully for everybody else, nor stop a failed one
     // from being retried. What is arbitrated is THIS caller's wait for it.
-    const registration = await awaitPreCommit(options.signal, () =>
-      this.#ensureCompilerRegistered(),
+    const registration = consumePreCommit(
+      options.signal,
+      await settlePreCommit(options.signal, () => this.#ensureCompilerRegistered()),
     );
     if (!registration.ok) {
       this.#diagnostics.record({
@@ -858,8 +870,11 @@ export class CaseRuntime {
     // but forwarding is advisory: an adapter may ignore it, may fail to abort
     // its provider request, or may simply win the race. The guarantee comes
     // from arbitrating the wait, not from the adapter honouring it.
-    const compiled = await awaitPreCommit(options.signal, () =>
-      this.#deps.compiler.compile(structuredClone(compilerInput), { signal: options.signal }),
+    const compiled = consumePreCommit(
+      options.signal,
+      await settlePreCommit(options.signal, () =>
+        this.#deps.compiler.compile(structuredClone(compilerInput), { signal: options.signal }),
+      ),
     );
     if (!compiled.ok) {
       this.#diagnostics.record({
@@ -920,8 +935,12 @@ export class CaseRuntime {
     // make a cancellation look tidier would falsify the audit trail. What
     // cancellation must prevent is the CANONICAL commit below, not the history
     // of what already ran.
-    const appended = await awaitPreCommit(options.signal, () =>
-      this.#deps.store.compileRuns.append(runRecord),
+    // The LAST pre-commit await. `consumePreCommit` runs synchronously in this
+    // continuation, and everything from here to `commitTurn` is synchronous
+    // too, so no abort can be delivered in between.
+    const appended = consumePreCommit(
+      options.signal,
+      await settlePreCommit(options.signal, () => this.#deps.store.compileRuns.append(runRecord)),
     );
     if (!appended.ok) {
       this.#diagnostics.record({
@@ -1034,9 +1053,10 @@ export class CaseRuntime {
     };
 
     /* --- ATOMIC BOUNDARY: cancellation stops here ------------------------ */
-    // Every await above this line runs through `awaitPreCommit`, so the caller's
-    // abort has already had first refusal on all of them. `commitTurn` does NOT,
-    // and the signal is deliberately not passed into it.
+    // Every await above this line is arbitrated by `consumePreCommit` in this
+    // very continuation, so the caller's abort has already had first refusal on
+    // all of them, and nothing can be scheduled between that check and here.
+    // `commitTurn` does NOT, and the signal is deliberately not passed into it.
     //
     // Arbitrating cancellation around the commit would allow: commit begins →
     // caller aborts → commit succeeds → runtime throws cancellation. The caller
@@ -1101,26 +1121,35 @@ export class CaseRuntime {
    * rejection this runtime propagates; a database blinking is not that, and
    * must become a `RuntimeFailure` the transport can act on.
    */
-  async #guardedRead<T>(
+  /**
+   * Starts a repository read as a pre-commit await. The result is opaque until
+   * `#consumeRead` arbitrates cancellation in the caller's continuation.
+   */
+  async #startRead<T>(
     operation: string,
     caseId: string | null,
     read: () => Promise<T>,
     signal?: AbortSignal,
-  ): Promise<{ ok: true; value: T } | { ok: false }> {
-    // Reads on the submit path pass a signal and therefore inherit
-    // cancellation arbitration; `startCase` and `getCaseState` pass none and
-    // behave exactly as before.
-    const settled = await awaitPreCommit(signal, read);
+  ): Promise<PendingRead<T>> {
+    return { operation, case_id: caseId, result: await settlePreCommit(signal, read) };
+  }
+
+  /** Synchronous, and therefore runs in the caller's own continuation. */
+  #consumeRead<T>(
+    signal: AbortSignal | undefined,
+    pending: PendingRead<T>,
+  ): { ok: true; value: T } | { ok: false } {
+    const settled = consumePreCommit(signal, pending.result);
     if (settled.ok) return { ok: true, value: settled.value };
     // Only reached when the signal did NOT abort: a cancelled request never
     // gets a storage diagnostic for a failure it did not cause.
     this.#diagnostics.record({
       kind: 'repository_unavailable',
-      case_id: caseId,
+      case_id: pending.case_id,
       turn_id: null,
       compile_run_id: null,
       message:
-        operation +
+        pending.operation +
         ': ' +
         (settled.error instanceof Error ? settled.error.message : 'unknown error'),
       issues: [],
@@ -1129,12 +1158,17 @@ export class CaseRuntime {
   }
 
   /**
-   * Registers the compiler artefact once and returns the snapshot that was
-   * registered. Everything downstream cites THAT, not `compiler.registryEntry`:
-   * the adapter owns its entry object and may mutate it afterwards, and a
-   * compile run naming a version id the registry never received cannot be
-   * reproduced — which is the entire point of storing the artefact.
+   * Convenience for the signal-less callers (`startCase`, `getCaseState`).
+   * With no signal, arbitration is a no-op and behaviour is unchanged.
    */
+  async #guardedRead<T>(
+    operation: string,
+    caseId: string | null,
+    read: () => Promise<T>,
+  ): Promise<{ ok: true; value: T } | { ok: false }> {
+    return this.#consumeRead(undefined, await this.#startRead(operation, caseId, read));
+  }
+
   #ensureCompilerRegistered(): Promise<CompilerRegistryEntry> {
     // A failed registration is not cached: caching the rejected promise would
     // make one transient storage error permanent for the process.
@@ -1263,28 +1297,32 @@ function provenanceKey(source: {
 type Settled<T> = { ok: true; value: T } | { ok: false; error: unknown };
 
 /**
- * The single cancellation-arbitration point for every await before the
- * canonical commit.
- *
- * Cancellation gets FIRST REFUSAL on the result. The operation is awaited into
- * a settled value — success or failure, neither interpreted yet — and only then
- * is the signal consulted. If the caller aborted at any point, its own
- * `signal.reason` is thrown exactly, whether the operation went on to resolve
- * or to reject.
- *
- * That ordering is the whole point. Checking the signal only on the success
- * path lets a failure be reported as a storage error the caller never caused;
- * checking it only in a catch lets a late success be committed for a caller
- * that walked away. Both were shipped as separate bugs before this existed,
- * which is why the rule is now expressed once rather than at each call site.
- *
- * `throwIfAborted()` throws `signal.reason` verbatim, so an explicit
- * `abort(null)` propagates as exactly `null` with no `??` fallback anywhere.
+ * Module-private, so the payload below cannot be read from anywhere except
+ * `consumePreCommit`. That is the point: the type system, not a convention,
+ * is what stops a settled pre-commit result being interpreted unarbitrated.
  */
-async function awaitPreCommit<T>(
+const SETTLED = Symbol('juryai.runtime.preCommitSettled');
+
+/**
+ * A pre-commit await that has settled but whose result is not yet readable.
+ * It has no accessible members; `consumePreCommit` is the only way in.
+ */
+interface PreCommitResult<T> {
+  readonly [SETTLED]: Settled<T>;
+}
+
+/**
+ * Half one of pre-commit cancellation arbitration: run the operation and
+ * capture how it settled, without interpreting it.
+ *
+ * The signal is checked before starting, so an already-cancelled call does no
+ * work, and again once the operation settles, so an obviously-cancelled call
+ * stops early. Neither check is sufficient on its own — see below.
+ */
+async function settlePreCommit<T>(
   signal: AbortSignal | undefined,
   operation: () => Promise<T>,
-): Promise<Settled<T>> {
+): Promise<PreCommitResult<T>> {
   signal?.throwIfAborted();
   let settled: Settled<T>;
   try {
@@ -1293,7 +1331,37 @@ async function awaitPreCommit<T>(
     settled = { ok: false, error };
   }
   signal?.throwIfAborted();
-  return settled;
+  return { [SETTLED]: settled };
+}
+
+/**
+ * Half two, and the load-bearing half: arbitrate cancellation in the CONSUMING
+ * continuation, synchronously, immediately before the result is read.
+ *
+ * The check inside `settlePreCommit` runs in the helper's own continuation. A
+ * different reaction to the same underlying promise can abort the signal after
+ * that check and before the caller resumes — the caller then interprets a
+ * result belonging to a cancelled request, and at the last pre-commit await
+ * runs straight on into `commitTurn`, because everything between them is
+ * synchronous. Only a check in the caller's continuation closes that window,
+ * since nothing else can be scheduled between this call and the synchronous
+ * code that follows it.
+ *
+ * `throwIfAborted()` rethrows `signal.reason` verbatim, so `abort(null)`
+ * propagates as exactly `null`.
+ */
+function consumePreCommit<T>(
+  signal: AbortSignal | undefined,
+  result: PreCommitResult<T>,
+): Settled<T> {
+  signal?.throwIfAborted();
+  return result[SETTLED];
+}
+
+interface PendingRead<T> {
+  operation: string;
+  case_id: string | null;
+  result: PreCommitResult<T>;
 }
 
 /**
@@ -1333,6 +1401,22 @@ function wellFormedCommand(command: SubmitTurnCommand): boolean {
   // answer. It is refused rather than repaired into `null`, because an adapter
   // that sends one is broken and should be told so.
   if (command.client_turn_id !== null && !isClientIssuedId(command.client_turn_id)) return false;
+  // Provenance claims are typed `string | null` and `boolean`. At the untyped
+  // transport boundary they are refused, never coerced: `123` becoming
+  // `'123'` puts a non-language into immutable source-turn provenance, and
+  // `'false'` or `0` becoming a boolean decides span fidelity, the translation
+  // warning, the provenance key, heuristic replay identity and
+  // `likely_already_recorded` on a value nobody actually sent. `undefined`
+  // means "not claimed"; a blank string is not a language tag, and admitting
+  // it would create a provenance identity distinct from "unknown" for what is
+  // really a broken value.
+  const language: unknown = command.source_language;
+  if (language !== undefined && language !== null && !isClientIssuedId(language)) return false;
+  // Deliberately not `=== true`: that maps every malformed value silently to
+  // `false` instead of rejecting it.
+  const translated: unknown = command.translation_indicated;
+  if (translated !== undefined && typeof translated !== 'boolean') return false;
+
   const payload: unknown = command.payload;
   if (typeof payload !== 'object' || payload === null) return false;
   const { context, answer } = payload as Partial<SourceTurnPayload>;

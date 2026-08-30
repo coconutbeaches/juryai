@@ -3895,6 +3895,253 @@ describe('cancellation wins over every pre-commit await', () => {
 });
 
 /* ------------------------------------------------------------------------ */
+/* The consuming-continuation cancellation race                              */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * Hands the runtime a promise the test also holds, so a second reaction to the
+ * SAME settlement can be scheduled between the helper's continuation and the
+ * runtime's consuming continuation. That is the precise window: a check inside
+ * the await helper has already passed, and the caller has not yet resumed.
+ */
+function racedStore(inner: InMemoryCaseRuntimeStore, target: 'append' | 'caseRead') {
+  let release: () => void = () => {};
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let markEntered: () => void = () => {};
+  const entered = new Promise<void>((resolve) => {
+    markEntered = resolve;
+  });
+  /** The exact promise the runtime awaits, so the test can queue behind it. */
+  let awaited: Promise<unknown> = Promise.resolve();
+  let commitCalls = 0;
+
+  const raced = <T>(run: () => Promise<T>): Promise<T> => {
+    const pending = (async () => {
+      const value = await run();
+      await gate;
+      return value;
+    })();
+    awaited = pending;
+    // The runtime attaches its own `await` reaction to `pending` synchronously
+    // as soon as this returns, so it is reaction #1 and the test's is #2.
+    markEntered();
+    return pending;
+  };
+
+  const store: CaseRuntimeStore = {
+    cases: {
+      findById: (caseId) =>
+        target === 'caseRead'
+          ? raced(() => inner.cases.findById(caseId))
+          : inner.cases.findById(caseId),
+      findActiveDraftByPrincipal: (p) => inner.cases.findActiveDraftByPrincipal(p),
+    },
+    idempotency: inner.idempotency,
+    startRequests: inner.startRequests,
+    compilerRegistry: inner.compilerRegistry,
+    compileRuns: {
+      append: (record) =>
+        target === 'append'
+          ? raced(() => inner.compileRuns.append(record))
+          : inner.compileRuns.append(record),
+      findById: (id) => inner.compileRuns.findById(id),
+      listByCase: (caseId) => inner.compileRuns.listByCase(caseId),
+    },
+    createCase: (commit) => inner.createCase(commit),
+    commitTurn: (commit) => {
+      commitCalls += 1;
+      return inner.commitTurn(commit);
+    },
+  };
+
+  return {
+    store,
+    entered,
+    /**
+     * Queues `onSettled` as a LATER reaction to the very promise the runtime
+     * awaited, then lets it settle. On settlement the runtime's helper
+     * continuation runs first — its post-settlement check passes — and only
+     * then does `onSettled` abort, leaving the runtime's consuming
+     * continuation to resume against an already-cancelled signal.
+     */
+    settleAfter: (onSettled: () => void) => {
+      void awaited.then(onSettled, onSettled);
+      release();
+    },
+    commitCalls: () => commitCalls,
+  };
+}
+
+describe('a settled pre-commit result is never interpreted unarbitrated', () => {
+  it('fails closed when the abort lands between the append settling and its use', async () => {
+    const inner = new InMemoryCaseRuntimeStore();
+    const raced = racedStore(inner, 'append');
+    const compiler = new ScriptedSemanticCompiler(expectedDateScript);
+    const h = runtimeOver(raced.store, compiler);
+
+    const started = await h.runtime.startCase(ALICE, startCommand('request_1'));
+    if (started.kind !== 'created') throw new Error('expected creation');
+    const caseId = started.case.case_id;
+    const before = (await inner.cases.findById(caseId))!;
+
+    const controller = new AbortController();
+    const reason = new Error('aborted between settlement and use');
+    const pending = h.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId }), {
+      signal: controller.signal,
+    });
+
+    // The runtime is now suspended on the append. Scheduling the abort as a
+    // later reaction to the same promise puts it after the helper's own
+    // post-settlement check and before the runtime's consuming continuation —
+    // and everything from there to `commitTurn` is synchronous.
+    await raced.entered;
+    raced.settleAfter(() => controller.abort(reason));
+
+    await expect(pending).rejects.toBe(reason);
+    expect(raced.commitCalls()).toBe(0);
+
+    const after = (await inner.cases.findById(caseId))!;
+    expect(after.revision).toBe(before.revision);
+    expect(after.state).toEqual(before.state);
+    expect(after.state.turn_log).toHaveLength(0);
+    expect(after.state.propositions).toHaveLength(0);
+    expect(after.state.case_version).toBe(0);
+    expect(await inner.idempotency.listByCase(caseId)).toEqual([]);
+    // Audit semantics are unchanged: the compiler ran, so its record stands.
+    expect(await inner.compileRuns.listByCase(caseId)).toHaveLength(1);
+  });
+
+  it('fails closed in the same window on an earlier await, proving the abstraction', async () => {
+    const inner = new InMemoryCaseRuntimeStore();
+    const raced = racedStore(inner, 'caseRead');
+    const compiler = new ScriptedSemanticCompiler(expectedDateScript);
+    const h = runtimeOver(raced.store, compiler);
+
+    const started = await h.runtime.startCase(ALICE, startCommand('request_1'));
+    if (started.kind !== 'created') throw new Error('expected creation');
+    const caseId = started.case.case_id;
+
+    const controller = new AbortController();
+    const reason = new Error('aborted between settlement and use');
+    // Aimed at a case that does not exist, so an unarbitrated consumer would
+    // interpret the settled read and answer CASE_NOT_FOUND — resolving rather
+    // than rejecting, and observably wrong for a cancelled caller.
+    const pending = h.runtime.submitTurn(
+      ALICE,
+      submitCommand({ case_id: 'case_that_does_not_exist' }),
+      { signal: controller.signal },
+    );
+    await raced.entered;
+    raced.settleAfter(() => controller.abort(reason));
+
+    await expect(pending).rejects.toBe(reason);
+    expect(compiler.calls).toHaveLength(0);
+    expect(raced.commitCalls()).toBe(0);
+    expect(h.diagnostics.events).toEqual([]);
+    expect((await inner.cases.findById(caseId))!.state.turn_log).toHaveLength(0);
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Provenance claims are validated, never coerced                            */
+/* ------------------------------------------------------------------------ */
+
+describe('malformed provenance claims are refused before any side effect', () => {
+  const malformed: Array<[string, Partial<SubmitTurnCommand>]> = [
+    ['source_language 123', { source_language: 123 as unknown as string }],
+    ['source_language {}', { source_language: {} as unknown as string }],
+    ['source_language true', { source_language: true as unknown as string }],
+    ['source_language blank', { source_language: '   ' }],
+    ['source_language empty', { source_language: '' }],
+    ['translation_indicated "true"', { translation_indicated: 'true' as unknown as boolean }],
+    ['translation_indicated "false"', { translation_indicated: 'false' as unknown as boolean }],
+    ['translation_indicated 1', { translation_indicated: 1 as unknown as boolean }],
+    ['translation_indicated 0', { translation_indicated: 0 as unknown as boolean }],
+    ['translation_indicated null', { translation_indicated: null as unknown as boolean }],
+    ['translation_indicated {}', { translation_indicated: {} as unknown as boolean }],
+    ['translation_indicated []', { translation_indicated: [] as unknown as boolean }],
+  ];
+
+  for (const [label, overrides] of malformed) {
+    it('refuses ' + label, async () => {
+      const inner = new InMemoryCaseRuntimeStore();
+      const gated = gatedRuntimeStore(inner);
+      const compiler = new ScriptedSemanticCompiler(expectedDateScript);
+      const h = runtimeOver(gated.store, compiler);
+      const started = await h.runtime.startCase(ALICE, startCommand('request_1'));
+      if (started.kind !== 'created') throw new Error('expected creation');
+      const caseId = started.case.case_id;
+      const before = (await inner.cases.findById(caseId))!;
+      const readsBefore = gated.calls('cases.findById');
+
+      const outcome = await h.runtime.submitTurn(
+        ALICE,
+        submitCommand({ case_id: caseId, ...overrides }),
+      );
+
+      expect(outcome.kind, label).toBe('failed');
+      if (outcome.kind !== 'failed') return;
+      expect(outcome.failure.code, label).toBe('INVALID_INPUT');
+      expect(outcome.failure.retryable, label).toBe(false);
+
+      // Refused before the boundary is crossed at all.
+      expect(gated.calls('cases.findById'), label).toBe(readsBefore);
+      expect(gated.calls('idempotency.listByCase'), label).toBe(0);
+      expect(gated.calls('registry.register'), label).toBe(0);
+      expect(gated.calls('commitTurn'), label).toBe(0);
+      expect(compiler.calls, label).toHaveLength(0);
+      const after = (await inner.cases.findById(caseId))!;
+      expect(after.revision, label).toBe(before.revision);
+      expect(after.state, label).toEqual(before.state);
+      expect(await inner.compileRuns.listByCase(caseId)).toEqual([]);
+      expect(await inner.idempotency.listByCase(caseId)).toEqual([]);
+    });
+  }
+
+  for (const [label, overrides] of [
+    ['omitted', {}],
+    ['null language', { source_language: null }],
+    ['a real language tag', { source_language: 'en' }],
+    ['translation_indicated false', { translation_indicated: false }],
+  ] as Array<[string, Partial<SubmitTurnCommand>]>) {
+    it('accepts ' + label, async () => {
+      const h = harness();
+      h.scripted.setScript(expectedDateScript);
+      const caseId = await startedCase(h);
+      const outcome = committed(
+        await h.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId, ...overrides })),
+      );
+      expect(outcome.case.case_version).toBe(1);
+      const turn = (await loadState(h, caseId)).turn_log[0]!;
+      expect(turn.source_language).toBe(overrides.source_language ?? null);
+      expect(turn.translation_indicated).toBe(false);
+      expect(turnCarriesSpanFidelity(turn)).toBe(true);
+    });
+  }
+
+  it('keeps a genuine translation claim fully effective', async () => {
+    const h = harness();
+    h.scripted.setScript(expectedDateScript);
+    const caseId = await startedCase(h);
+
+    const outcome = committed(
+      await h.runtime.submitTurn(
+        ALICE,
+        submitCommand({ case_id: caseId, source_language: 'de', translation_indicated: true }),
+      ),
+    );
+    expect(outcome.warnings.join(' ')).toContain('translation');
+
+    const turn = (await loadState(h, caseId)).turn_log[0]!;
+    expect(turn.translation_indicated).toBe(true);
+    expect(turn.source_language).toBe('de');
+    expect(turnCarriesSpanFidelity(turn)).toBe(false);
+  });
+});
+
+/* ------------------------------------------------------------------------ */
 /* An empty operation id is not an identity                                  */
 /* ------------------------------------------------------------------------ */
 
