@@ -21,7 +21,7 @@ import {
 import { verifyTurnSpan } from '../core/turns.js';
 import { propositionTypeDescriptor } from '../core/types.js';
 import { validateCompilerOutputShape } from '../runtime/compiler-output-shape.js';
-import type { SemanticEvalCase } from './types.js';
+import type { AllowedAssertion, ExpectedClarification, SemanticEvalCase } from './types.js';
 
 export interface GradeResult {
   ok: boolean;
@@ -125,83 +125,12 @@ export function gradeExpectation(
     failures.push('verdict: expected ' + expect.verdict + ', got ' + output.verdict);
   }
 
-  if (expect.max_assertions !== undefined && output.assertions.length > expect.max_assertions) {
-    failures.push(
-      'assertions: expected at most ' +
-        String(expect.max_assertions) +
-        ', got ' +
-        String(output.assertions.length),
-    );
-  }
-
-  for (const required of expect.required_assertions ?? []) {
-    const candidates = output.assertions.filter(
-      (assertion) =>
-        assertion.requirement_id === required.requirement_id &&
-        assertion.proposed_type === required.type,
-    );
-    if (candidates.length === 0) {
-      failures.push(
-        "missing: no '" + required.type + "' assertion against " + required.requirement_id,
-      );
-      continue;
-    }
-    const matched = candidates.filter((assertion) => {
-      if (
-        required.epistemic_strength &&
-        !required.epistemic_strength.includes(assertion.epistemic_strength)
-      ) {
-        return false;
-      }
-      if (
-        required.supersedes !== undefined &&
-        assertion.supersedes_candidate !== required.supersedes
-      ) {
-        return false;
-      }
-      for (const mention of required.statement_mentions ?? []) {
-        if (!fold(assertion.statement).includes(fold(mention))) return false;
-      }
-      return true;
-    });
-    if (matched.length === 0) {
-      const actual = candidates[0]!;
-      failures.push(
-        "mismatch: '" +
-          required.type +
-          "' assertion against " +
-          required.requirement_id +
-          ' did not match its expected properties (strength=' +
-          actual.epistemic_strength +
-          ', supersedes=' +
-          String(actual.supersedes_candidate) +
-          ", statement='" +
-          actual.statement +
-          "')",
-      );
-    }
-  }
+  gradeAssertionSet(expect.assertions, output, failures);
+  gradeClarificationSet(expect.clarifications, output, failures);
 
   for (const type of expect.forbidden_types ?? []) {
     if (output.assertions.some((assertion) => assertion.proposed_type === type)) {
       failures.push("forbidden: asserted type '" + type + "'");
-    }
-  }
-
-  for (const pair of expect.forbidden_requirement_types ?? []) {
-    if (
-      output.assertions.some(
-        (assertion) =>
-          assertion.requirement_id === pair.requirement_id && assertion.proposed_type === pair.type,
-      )
-    ) {
-      failures.push("forbidden: asserted '" + pair.type + "' against " + pair.requirement_id);
-    }
-  }
-
-  for (const requirementId of expect.requirements_without_assertions ?? []) {
-    if (output.assertions.some((assertion) => assertion.requirement_id === requirementId)) {
-      failures.push('forbidden: asserted anything against ' + requirementId);
     }
   }
 
@@ -234,10 +163,153 @@ export function gradeExpectation(
       }
     }
   }
+}
 
-  for (const reason of expect.clarification_reasons ?? []) {
-    if (!output.clarifications_requested.some((clarification) => clarification.reason === reason)) {
-      failures.push("clarification: expected a clarification with reason '" + reason + "'");
+function slotKey(requirementId: string, type: string): string {
+  return requirementId + '|' + type;
+}
+
+function describeSlot(slot: AllowedAssertion): string {
+  return "'" + slot.type + "' against " + slot.requirement_id;
+}
+
+/**
+ * Closed-world grading of the accepted assertions.
+ *
+ * Three questions, in order, because they fail for different reasons and the
+ * message has to say which: is this reading PERMITTED at all, does it look the
+ * way the slot requires, and did the compiler produce every reading it should
+ * have?
+ *
+ * The first question is the one the runtime cannot ask. A contract-valid extra
+ * assertion — say a `non_recollection` alongside a real `payment` for the same
+ * requirement — is structurally fine, so the runtime commits it. Only a
+ * semantic expectation knows the person did in fact remember.
+ */
+function gradeAssertionSet(
+  slots: readonly AllowedAssertion[],
+  output: CompilerOutput,
+  failures: string[],
+): void {
+  const byKey = new Map<string, AllowedAssertion>();
+  for (const slot of slots) byKey.set(slotKey(slot.requirement_id, slot.type), slot);
+
+  const occupants = new Map<string, number>();
+  const conforming = new Set<string>();
+
+  for (const assertion of output.assertions) {
+    const key = slotKey(assertion.requirement_id, assertion.proposed_type);
+    const slot = byKey.get(key);
+    if (!slot) {
+      failures.push(
+        'over-extraction: assertion ' +
+          assertion.assertion_id +
+          " proposed '" +
+          assertion.proposed_type +
+          "' against " +
+          assertion.requirement_id +
+          ', which this case does not permit',
+      );
+      continue;
+    }
+
+    occupants.set(key, (occupants.get(key) ?? 0) + 1);
+
+    const problems: string[] = [];
+    if (
+      slot.epistemic_strength &&
+      !slot.epistemic_strength.includes(assertion.epistemic_strength)
+    ) {
+      problems.push('strength=' + assertion.epistemic_strength);
+    }
+    if (slot.supersedes !== undefined && assertion.supersedes_candidate !== slot.supersedes) {
+      problems.push('supersedes=' + String(assertion.supersedes_candidate));
+    }
+    for (const mention of slot.statement_mentions ?? []) {
+      if (!fold(assertion.statement).includes(fold(mention))) {
+        problems.push("statement omits '" + mention + "'");
+      }
+    }
+    if (problems.length === 0) {
+      conforming.add(key);
+    } else {
+      failures.push(
+        'mismatch: ' +
+          describeSlot(slot) +
+          ' did not match its expected properties (' +
+          problems.join(', ') +
+          "; statement='" +
+          assertion.statement +
+          "')",
+      );
+    }
+  }
+
+  for (const slot of slots) {
+    const key = slotKey(slot.requirement_id, slot.type);
+    const count = occupants.get(key) ?? 0;
+    const max = slot.max ?? 1;
+    if (count > max) {
+      failures.push(
+        'cardinality: ' +
+          describeSlot(slot) +
+          ' permits at most ' +
+          String(max) +
+          ' assertion(s), got ' +
+          String(count),
+      );
+    }
+    if (!(slot.optional ?? false) && !conforming.has(key)) {
+      // Only reported when nothing conforming filled the slot; a mismatch has
+      // already been reported above and does not need saying twice.
+      if (count === 0) failures.push('missing: no ' + describeSlot(slot));
+    }
+  }
+}
+
+/**
+ * Closed-world grading of the clarifications, matched as atomic pairs.
+ *
+ * The requirement and the reason must appear on the SAME clarification object.
+ * A compiler that asks for the right kind of clarification about the wrong
+ * requirement is asking the person the wrong question, and the runtime cannot
+ * tell — the wrong requirement is a perfectly real requirement on the case.
+ */
+function gradeClarificationSet(
+  expected: readonly ExpectedClarification[],
+  output: CompilerOutput,
+  failures: string[],
+): void {
+  for (const pair of expected) {
+    const matched = output.clarifications_requested.some(
+      (clarification) =>
+        clarification.requirement_id === pair.requirement_id &&
+        clarification.reason === pair.reason,
+    );
+    if (!matched) {
+      failures.push(
+        "clarification: expected reason '" +
+          pair.reason +
+          "' on requirement " +
+          pair.requirement_id +
+          ', and no single clarification carried both',
+      );
+    }
+  }
+
+  for (const clarification of output.clarifications_requested) {
+    const permitted = expected.some(
+      (pair) =>
+        pair.requirement_id === clarification.requirement_id &&
+        pair.reason === clarification.reason,
+    );
+    if (!permitted) {
+      failures.push(
+        "clarification: unexpected '" +
+          clarification.reason +
+          "' clarification on " +
+          clarification.requirement_id,
+      );
     }
   }
 }

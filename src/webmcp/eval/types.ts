@@ -48,8 +48,15 @@ export interface EvalSeedTurn {
   propositions: EvalSeedProposition[];
 }
 
-/** A required assertion, described by the facts it must carry, not its prose. */
-export interface RequiredAssertion {
+/**
+ * One assertion SLOT: a reading the compiler is permitted to produce for this
+ * case, described by the facts it must carry rather than by its prose.
+ *
+ * Slots are matched on `(requirement_id, type)`. That pair is the identity of
+ * a canonical reading; the remaining fields say what a reading occupying the
+ * slot must look like.
+ */
+export interface AllowedAssertion {
   requirement_id: string;
   type: PropositionType;
   /** Any one of these strengths is acceptable where the wording allows range. */
@@ -62,18 +69,54 @@ export interface RequiredAssertion {
   statement_mentions?: string[];
   /** Exact proposition id this assertion must claim to supersede, or null. */
   supersedes?: string | null;
+  /**
+   * When true the case may omit this reading. Default false: a declared slot is
+   * a reading the compiler is expected to find.
+   */
+  optional?: boolean;
+  /** How many assertions may occupy this slot. Default 1. */
+  max?: number;
+}
+
+/**
+ * One clarification the case expects, as an ATOMIC pair.
+ *
+ * Grading a reason and a requirement separately lets two unrelated
+ * clarifications satisfy both halves — a compiler asking the right question
+ * about the wrong requirement would score green. The pair must appear on one
+ * clarification object.
+ */
+export interface ExpectedClarification {
+  requirement_id: string;
+  reason: AmbiguityReason;
 }
 
 export interface SemanticExpectation {
   verdict: CompilerVerdict;
-  required_assertions?: RequiredAssertion[];
-  /** Types that must not appear on ANY assertion. The coercion guards. */
+  /**
+   * CLOSED WORLD, and required on every case so no case can be silent about
+   * it. Every accepted assertion the compiler emits must occupy one of these
+   * slots; anything else is over-extraction and fails, even when the runtime
+   * would happily commit it. An empty array means "no assertion is permitted
+   * at all".
+   *
+   * This is the difference between "the compiler found what we wanted" and
+   * "the compiler found what we wanted and nothing else". A blacklist of
+   * forbidden types cannot express the second, and a live model that adds a
+   * contract-valid but false extra reading would pass under one.
+   */
+  assertions: AllowedAssertion[];
+  /**
+   * CLOSED WORLD, required for the same reason. Every clarification the
+   * compiler opens must match one of these pairs.
+   */
+  clarifications: ExpectedClarification[];
+  /**
+   * Types that must not appear on ANY assertion. Redundant against the closed
+   * world above and kept deliberately: it documents the specific coercion each
+   * case exists to guard against, and names it in the failure message.
+   */
   forbidden_types?: PropositionType[];
-  /** Types that must not be asserted against one specific requirement. */
-  forbidden_requirement_types?: Array<{ requirement_id: string; type: PropositionType }>;
-  max_assertions?: number;
-  /** At least one clarification carrying each listed reason. */
-  clarification_reasons?: AmbiguityReason[];
   /**
    * Values that must NOT appear in any canonical statement: dates, amounts and
    * names the human did not give. This is the fabrication assertion, and it is
@@ -82,8 +125,6 @@ export interface SemanticExpectation {
   statements_must_not_mention?: string[];
   /** No assertion may claim to supersede anything. Default false. */
   forbid_supersession?: boolean;
-  /** Requirement ids that must carry no accepted assertion at all. */
-  requirements_without_assertions?: string[];
 }
 
 export interface EvalTrap {

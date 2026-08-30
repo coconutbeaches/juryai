@@ -23,6 +23,7 @@ import {
 import { validateCaseState } from '../webmcp/core/structural-validator.js';
 import { validateCompilerOutput } from '../webmcp/core/compiler-contract.js';
 import { fixedModelClient, ModelSemanticCompiler } from '../webmcp/compiler/index.js';
+import { runBoundary } from '../webmcp/eval/runner.js';
 
 const REQUIRED_CATEGORIES: EvalCategory[] = [
   'accepted_extraction',
@@ -142,8 +143,187 @@ describe('malformed provider output', () => {
   });
 });
 
+describe('every corpus case takes an explicit stance on extra output', () => {
+  it('declares a closed assertion world', () => {
+    // The field is required by the type, so this is really an assertion that no
+    // case has quietly declared a wide-open world to make itself easy to pass.
+    for (const evalCase of SEMANTIC_EVAL_CORPUS) {
+      expect(Array.isArray(evalCase.expect.assertions), evalCase.id).toBe(true);
+      for (const slot of evalCase.expect.assertions) {
+        expect(slot.max ?? 1, evalCase.id).toBeLessThanOrEqual(2);
+      }
+    }
+  });
+
+  it('permits no assertion at all where the case expects none', () => {
+    for (const evalCase of SEMANTIC_EVAL_CORPUS) {
+      if (evalCase.expect.verdict === 'accepted_candidates') continue;
+      // `ambiguous` and `no_assertions` may never carry an accepted reading, so
+      // their allowed set has to be empty rather than merely small.
+      expect(evalCase.expect.assertions, evalCase.id).toEqual([]);
+    }
+  });
+
+  it('declares a closed clarification world, as requirement/reason pairs', () => {
+    for (const evalCase of SEMANTIC_EVAL_CORPUS) {
+      expect(Array.isArray(evalCase.expect.clarifications), evalCase.id).toBe(true);
+      for (const pair of evalCase.expect.clarifications) {
+        expect(pair.requirement_id, evalCase.id).toMatch(/^req_/u);
+        expect(pair.reason, evalCase.id).toBeTypeOf('string');
+      }
+      if (evalCase.expect.verdict === 'ambiguous') {
+        // The contract requires an ambiguous verdict to ask for something.
+        expect(evalCase.expect.clarifications.length, evalCase.id).toBeGreaterThan(0);
+      }
+    }
+  });
+});
+
 describe('the graders themselves have teeth', () => {
   const anchor = SEMANTIC_EVAL_CORPUS.find((entry) => entry.id === 'accept.payment')!;
+  const ambiguous = SEMANTIC_EVAL_CORPUS.find(
+    (entry) => entry.id === 'ambiguous.multiple_readings',
+  )!;
+
+  async function compileCompletion(evalCase: typeof anchor, completion: string) {
+    const compiler = new ModelSemanticCompiler({
+      client: fixedModelClient(completion),
+      model_id: 'juryai-offline-replay',
+      model_snapshot: null,
+    });
+    const scenario = buildEvalScenario(evalCase, compiler.registryEntry);
+    const output = await compiler.compile(structuredClone(scenario.input));
+    return { scenario, output };
+  }
+
+  it('refuses a correct reading carrying an extra false assertion', async () => {
+    // The exact trap from the review: a true `payment` plus a contract-valid
+    // but semantically false `non_recollection` for the same requirement.
+    const { scenario, output } = await compileCompletion(
+      anchor,
+      JSON.stringify({
+        verdict: 'accepted_candidates',
+        assertions: [
+          {
+            requirement_id: 'req_paid',
+            proposed_type: 'payment',
+            epistemic_strength: 'asserted_confident',
+            statement: 'The user paid the other party 2,000 pounds by bank transfer on 25 April.',
+            supersedes_candidate: null,
+            citations: [
+              {
+                region: 'answer',
+                message_index: null,
+                quote: 'I paid them 2,000 pounds by bank transfer on 25 April',
+              },
+            ],
+          },
+          {
+            requirement_id: 'req_paid',
+            proposed_type: 'non_recollection',
+            epistemic_strength: 'non_recollection',
+            statement: 'The user does not remember whether any further payments were made.',
+            supersedes_candidate: null,
+            citations: [{ region: 'answer', message_index: null, quote: 'and nothing since' }],
+          },
+        ],
+        rejected_candidates: [],
+        clarifications_requested: [],
+      }),
+    );
+
+    // The runtime takes it, and is right to: both readings satisfy req_paid,
+    // they are different types so nothing collides, and both quote exactly.
+    expect(validateCompilerOutput(scenario.input, output)).toEqual([]);
+    const boundary = runBoundary(
+      scenario.state,
+      scenario.input,
+      output,
+      anchor,
+      scenario.next_case_version,
+    );
+    expect(boundary.disposition).toBe('committed');
+
+    // Everything the OLD reason-blind grading checked is still satisfied here,
+    // which is exactly why a blacklist could not catch it.
+    expect(output.assertions.some((a) => a.proposed_type === 'payment')).toBe(true);
+    expect(output.assertions.some((a) => a.proposed_type === 'invoice')).toBe(false);
+
+    // The closed world is the layer that refuses it.
+    const grade = gradeCompilerOutput(anchor, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/over-extraction/u);
+    expect(grade.failures.join(' ')).toMatch(/non_recollection/u);
+  });
+
+  it('refuses a clarification whose reason is attached to the wrong requirement', async () => {
+    const { scenario, output } = await compileCompletion(
+      ambiguous,
+      JSON.stringify({
+        verdict: 'ambiguous',
+        assertions: [],
+        rejected_candidates: [],
+        clarifications_requested: [
+          {
+            requirement_id: 'req_own_performance',
+            reason: 'multiple_incompatible_readings',
+            prompt: 'Which of several things did you mean?',
+          },
+        ],
+      }),
+    );
+
+    // req_own_performance is a real requirement on this case, so the runtime
+    // opens the clarification without complaint. It cannot know the ambiguity
+    // was about a date.
+    expect(validateCompilerOutput(scenario.input, output)).toEqual([]);
+    const boundary = runBoundary(
+      scenario.state,
+      scenario.input,
+      output,
+      ambiguous,
+      scenario.next_case_version,
+    );
+    expect(boundary.disposition).toBe('committed');
+
+    // Reason-only grading would have passed this: the expected reason IS
+    // present somewhere in the output.
+    expect(
+      output.clarifications_requested.some((c) => c.reason === 'multiple_incompatible_readings'),
+    ).toBe(true);
+
+    // Atomic pairing is what refuses it.
+    const grade = gradeCompilerOutput(ambiguous, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/no single clarification carried both/u);
+  });
+
+  it('refuses an extra clarification on a requirement the case did not expect', async () => {
+    const { scenario, output } = await compileCompletion(
+      ambiguous,
+      JSON.stringify({
+        verdict: 'ambiguous',
+        assertions: [],
+        rejected_candidates: [],
+        clarifications_requested: [
+          {
+            requirement_id: 'req_invoiced',
+            reason: 'multiple_incompatible_readings',
+            prompt: 'Is the 15th the date you were invoiced or the date you paid?',
+          },
+          {
+            requirement_id: 'req_own_performance',
+            reason: 'answer_does_not_address_requirement',
+            prompt: 'Did you do everything you were meant to?',
+          },
+        ],
+      }),
+    );
+    expect(validateCompilerOutput(scenario.input, output)).toEqual([]);
+    const grade = gradeCompilerOutput(ambiguous, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/unexpected .* clarification on req_own_performance/u);
+  });
 
   it('fails a contract-valid reading that fabricates a value', async () => {
     const completion = JSON.stringify({

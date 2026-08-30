@@ -15,6 +15,7 @@ import {
   ScriptedSemanticModelClient,
   SemanticCompilerOutputError,
   SemanticModelError,
+  SemanticModelIdentityError,
   SemanticModelRefusalError,
   SEMANTIC_COMPILER_SYSTEM_PROMPT,
   buildSemanticCompilerJsonSchema,
@@ -207,6 +208,244 @@ describe('compiler versioning', () => {
   it('binds the exact prompt text, so a whitespace edit is a new compiler', () => {
     const entry = buildModelCompilerRegistryEntry({ ...base });
     expect(entry.version.prompt_hash).not.toBe(sha256(SEMANTIC_COMPILER_SYSTEM_PROMPT + ' '));
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Caller-owned options must not reach execution                             */
+/* ------------------------------------------------------------------------ */
+
+describe('constructor options are snapshotted', () => {
+  /**
+   * The forbidden state this guards against: `registryEntry` says artefact A,
+   * the caller mutates its own options object, `compile()` executes artefact B,
+   * and every resulting proposition is attributed to A. The audit trail is then
+   * internally consistent and wrong, which is unrecoverable after the fact.
+   */
+  function mutableOptions() {
+    return {
+      client: fixedModelClient(draft()),
+      model_id: 'original-model',
+      model_snapshot: null as string | null,
+      // The nested object is the whole point: a top-level spread would keep
+      // this pointing at the caller's own value.
+      decoding: {
+        temperature: 0,
+        top_p: null as number | null,
+        max_output_tokens: 4096 as number | null,
+        seed: null as number | null,
+      },
+      omit_sampling_params: false,
+      retain_raw_output: false,
+      taxonomy_version: 'juryai-p2-v0.2.0',
+      max_transient_retries: 1,
+    };
+  }
+
+  it('executes the snapshot after the caller mutates top-level values', async () => {
+    const options = mutableOptions();
+    const compiler = new ModelSemanticCompiler(options);
+
+    options.model_id = 'swapped-model';
+    options.omit_sampling_params = true;
+    options.retain_raw_output = true;
+
+    const output = await compiler.compile(inputOf());
+    const request = options.client.requests[0]!;
+    expect(request.model).toBe('original-model');
+    expect(request.omit_sampling_params).toBe(false);
+    // The retention policy is material too: flipping it after construction must
+    // not start duplicating raw case text into the compile run.
+    expect(output.raw_model_output).toBeNull();
+  });
+
+  it('executes the snapshot after the caller mutates the nested decoding object', async () => {
+    const options = mutableOptions();
+    const compiler = new ModelSemanticCompiler(options);
+
+    options.decoding.temperature = 0.9;
+    options.decoding.max_output_tokens = 16;
+
+    await compiler.compile(inputOf());
+    const request = options.client.requests[0]!;
+    expect(request.decoding.temperature).toBe(0);
+    expect(request.decoding.max_output_tokens).toBe(4096);
+  });
+
+  it('replaces a wholesale reassignment of the nested object too', async () => {
+    const options = mutableOptions();
+    const compiler = new ModelSemanticCompiler(options);
+
+    options.decoding = { temperature: 1, top_p: 0.5, max_output_tokens: 1, seed: 7 };
+
+    await compiler.compile(inputOf());
+    expect(options.client.requests[0]!.decoding).toEqual({
+      temperature: 0,
+      top_p: null,
+      max_output_tokens: 4096,
+      seed: null,
+    });
+  });
+
+  it('keeps registryEntry and compiler_version_id truthful across those mutations', async () => {
+    const options = mutableOptions();
+    const compiler = new ModelSemanticCompiler(options);
+    const before = structuredClone(compiler.registryEntry);
+
+    options.model_id = 'swapped-model';
+    options.model_snapshot = 'invented-snapshot';
+    options.taxonomy_version = 'juryai-p2-v9.9.9';
+    options.omit_sampling_params = true;
+    options.retain_raw_output = true;
+    options.decoding.temperature = 0.9;
+    options.decoding = { temperature: 1, top_p: 0.5, max_output_tokens: 1, seed: 7 };
+
+    await compiler.compile(inputOf());
+
+    expect(compiler.registryEntry).toEqual(before);
+    expect(compiler.registryEntry.compiler_version_id).toBe(before.compiler_version_id);
+    expect(compiler.registryEntry.version.decoding.temperature).toBe(0);
+    expect(compiler.registryEntry.version.model_snapshot).toBeNull();
+    // Identity must still be re-derivable from the artefact it publishes.
+    expect(() => registerCompilerVersion([], compiler.registryEntry)).not.toThrow();
+  });
+
+  it('snapshots the provider identity the client reported at construction', () => {
+    const client = fixedModelClient(draft());
+    const compiler = new ModelSemanticCompiler({
+      client,
+      model_id: 'original-model',
+      model_snapshot: null,
+    });
+    const before = compiler.registryEntry.compiler_version_id;
+
+    (client as { provider_id: string }).provider_id = 'renamed.provider';
+
+    expect(compiler.registryEntry.compiler_version_id).toBe(before);
+    expect((compiler.registryEntry.config as Record<string, unknown>).provider_id).toBe(
+      'juryai.replay',
+    );
+  });
+
+  it('snapshots operational settings that execution reads', async () => {
+    const client = new ScriptedSemanticModelClient(() => ({
+      kind: 'error',
+      error: new SemanticModelError('503', { transient: true }),
+    }));
+    const options = { client, model_id: 'm', model_snapshot: null, max_transient_retries: 1 };
+    const compiler = new ModelSemanticCompiler(options);
+
+    options.max_transient_retries = 9;
+
+    await expect(compiler.compile(inputOf())).rejects.toThrow(/503/u);
+    // Two attempts, not ten: retry policy is outside compiler IDENTITY but is
+    // still snapshotted, because execution reads it.
+    expect(client.attempts).toBe(2);
+  });
+
+  it('hands the transport a decoding value that cannot reach the snapshot', async () => {
+    const client = fixedModelClient(draft());
+    const compiler = new ModelSemanticCompiler({
+      client,
+      model_id: 'm',
+      model_snapshot: null,
+      decoding: { temperature: 0, top_p: null, max_output_tokens: 4096, seed: null },
+    });
+    await compiler.compile(inputOf());
+    const request = client.requests[0]!;
+    // A transport that writes through its request must not corrupt the artefact.
+    request.decoding.temperature = 0.8;
+    expect(compiler.registryEntry.version.decoding.temperature).toBe(0);
+    expect(compiler.resolvedOptions.decoding.temperature).toBe(0);
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Pinned-model response provenance                                          */
+/* ------------------------------------------------------------------------ */
+
+describe('pinned model provenance', () => {
+  const PINNED = 'test-model-2026-08-01';
+
+  function clientReporting(reported: string | null | 'none') {
+    return new ScriptedSemanticModelClient(() =>
+      reported === 'none'
+        ? { kind: 'empty' }
+        : { kind: 'text', text: draft(), reported_model: reported },
+    );
+  }
+
+  it('accepts an unpinned run whatever the provider reports', async () => {
+    const compiler = compilerOver(clientReporting('something-else-entirely'), {
+      model_snapshot: null,
+    });
+    const output = await compiler.compile(inputOf());
+    expect(output.verdict).toBe('accepted_candidates');
+  });
+
+  it('accepts an unpinned run when the provider reports no model at all', async () => {
+    const compiler = compilerOver(clientReporting(null), { model_snapshot: null });
+    const output = await compiler.compile(inputOf());
+    expect(output.verdict).toBe('accepted_candidates');
+  });
+
+  it('accepts a pinned run the provider positively identifies', async () => {
+    const compiler = compilerOver(clientReporting(PINNED), { model_snapshot: PINNED });
+    const output = await compiler.compile(inputOf());
+    expect(output.verdict).toBe('accepted_candidates');
+  });
+
+  it('refuses a pinned run the provider attributes to a different model', async () => {
+    const compiler = compilerOver(clientReporting('test-model-2026-01-01'), {
+      model_snapshot: PINNED,
+    });
+    await compiler.compile(inputOf()).then(
+      () => expect.unreachable('a routed-elsewhere response must not compile'),
+      (error: unknown) => {
+        expect(error).toBeInstanceOf(SemanticModelIdentityError);
+        expect((error as SemanticModelIdentityError).configured_snapshot).toBe(PINNED);
+        expect((error as SemanticModelIdentityError).reported_model).toBe('test-model-2026-01-01');
+        // Never transient: a gateway routing elsewhere will keep doing so.
+        expect((error as SemanticModelError).transient).toBe(false);
+      },
+    );
+  });
+
+  it('refuses a pinned run the provider does not identify at all', async () => {
+    const compiler = compilerOver(clientReporting('none'), { model_snapshot: PINNED });
+    await expect(compiler.compile(inputOf())).rejects.toBeInstanceOf(SemanticModelIdentityError);
+  });
+
+  it('never returns a parsed output for a refused pinned run', async () => {
+    const client = clientReporting('other-model');
+    const compiler = compilerOver(client, { model_snapshot: PINNED });
+    const result = await compiler.compile(inputOf()).catch((error: unknown) => error);
+    expect(result).toBeInstanceOf(SemanticModelIdentityError);
+    // No grounding result leaked out as a valid compiler output, and nothing
+    // was recorded as a completed run.
+    expect(compiler.telemetry).toHaveLength(0);
+  });
+
+  it('does not resample onto an attempt that happens to report the pinned model', async () => {
+    const client = new ScriptedSemanticModelClient((_request, attempt) => ({
+      kind: 'text',
+      text: draft(),
+      reported_model: attempt === 1 ? 'wrong-model' : PINNED,
+    }));
+    const compiler = compilerOver(client, {
+      model_snapshot: PINNED,
+      max_transient_retries: 3,
+    });
+    await expect(compiler.compile(inputOf())).rejects.toBeInstanceOf(SemanticModelIdentityError);
+    expect(client.attempts).toBe(1);
+  });
+
+  it('does not rewrite the configured snapshot from the response', async () => {
+    const compiler = compilerOver(clientReporting(PINNED), { model_snapshot: PINNED });
+    const before = compiler.registryEntry.compiler_version_id;
+    await compiler.compile(inputOf());
+    expect(compiler.registryEntry.version.model_snapshot).toBe(PINNED);
+    expect(compiler.registryEntry.compiler_version_id).toBe(before);
   });
 });
 

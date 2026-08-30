@@ -64,6 +64,26 @@ successful run.
 `registered_at` is a fixed constant, not wall clock, because it is part of the
 registry entry's equality check.
 
+**Options are snapshotted at construction.** `ModelSemanticCompilerOptions` is
+caller-owned. Hashing it once and then reading it again at compile time would
+let a caller mutate `decoding`, `model_id` or the sampling policy after
+registration and silently execute a different artefact than every resulting
+proposition is attributed to. `resolveModelCompilerOptions` applies defaults,
+`structuredClone`s (severing nested aliases such as `decoding`) and deep-freezes
+the result; that one snapshot drives both the registry artefact and every later
+compile. Operational settings — retry count, backoff — stay outside compiler
+identity but are snapshotted too, because execution reads them.
+
+**A pinned run must be provable.** When `model_snapshot` is `null` the artefact
+claims no specific model, so a provider-reported model is informational only.
+When `model_snapshot` is set, the artefact claims that snapshot executed, and
+the provider must positively identify it: a different reported model, or none
+at all, raises `SemanticModelIdentityError` and no output is produced. The check
+sits outside the retry loop and is non-transient, so a mismatch can never be
+resampled until an attempt happens to report the right model. The configured
+snapshot is never rewritten from the response, and no compiler version is
+derived after execution.
+
 A moving alias is never recorded as a snapshot. `model_snapshot` stays `null`
 unless an operator explicitly pins one.
 
@@ -134,11 +154,25 @@ Each case runs two phases:
 
 A case passes only if both accept it.
 
-Grading is property-based: required assertion types against requirements,
-forbidden types, expected epistemic strength, answer-region grounding, quoted
-text actually present, expected ambiguity and clarification reason, expected or
-prohibited supersession, and values that must **not** appear anywhere in the
-output. Exact prose is never graded.
+Grading is property-based and **closed-world**. Every case declares the complete
+set of assertion slots it permits, keyed by `(requirement_id, proposed_type)`
+with optional strength, statement-value and supersession expectations plus a
+cardinality bound; anything outside that set is over-extraction and fails, even
+when the runtime would commit it happily. A blacklist of forbidden types cannot
+express this: a live model that adds a contract-valid but false extra reading
+would pass under one.
+
+Clarifications are graded the same way, as **atomic `(requirement_id, reason)`
+pairs**. Checking that the reason appears somewhere and the requirement appears
+somewhere lets two unrelated clarifications satisfy both halves, so a compiler
+asking the right kind of question about the wrong requirement would score green.
+The runtime cannot catch that — the wrong requirement is a perfectly real
+requirement on the case.
+
+Beyond the closed world: answer-region grounding, quotations re-verified against
+the stored turn, no inspected-evidence types, expected or prohibited
+supersession, and values that must **not** appear anywhere in the output. Exact
+prose is never graded.
 
 ### Traps
 
