@@ -1247,7 +1247,7 @@ function attestationFor(state: CaseState): AttestationRecord {
  * inventing an idempotency record for a turn that never happened, which is the
  * very state these tests are about.
  */
-function lockingStore(inner: InMemoryCaseRuntimeStore) {
+function lockingStore(inner: CaseRuntimeStore) {
   const locked = new Set<string>();
   const withLock = (stored: StoredCase | null): StoredCase | null => {
     if (!stored || !locked.has(stored.state.case_id)) return stored;
@@ -1709,7 +1709,7 @@ describe('start_case never classifies a draft from a non-atomic read', () => {
 /* ------------------------------------------------------------------------ */
 
 /** Omits chosen turns' records from `listByCase`, and counts registry work. */
-function laggingReplayStore(inner: InMemoryCaseRuntimeStore) {
+function laggingReplayStore(inner: CaseRuntimeStore) {
   const hidden = new Set<string>();
   let registerCalls = 0;
   const store: CaseRuntimeStore = {
@@ -2992,6 +2992,157 @@ describe('cancellation', () => {
     expect(after.state.turn_log).toHaveLength(0);
     expect(await h.store.idempotency.listByCase(caseId)).toEqual([]);
     expect(h.diagnostics.events).toEqual([]);
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Inconsistency outranks the lock                                           */
+/* ------------------------------------------------------------------------ */
+
+describe('a lagging replay store is resolved before a locked case is refused', () => {
+  /**
+   * Commits one turn, then presents the case as attested while the replay
+   * store lags behind it. `CASE_LOCKED` is non-retryable, so answering it to a
+   * caller whose operation already committed would tell it to stop retrying
+   * something that in fact succeeded.
+   */
+  async function lockedCaseWithLaggingStore() {
+    const inner = new InMemoryCaseRuntimeStore();
+    const locking = lockingStore(inner);
+    const lagging = laggingReplayStore(locking.store);
+    const writer = runtimeOver(
+      lagging.store,
+      new ScriptedSemanticCompiler(expectedDateScript),
+      'w_',
+    );
+
+    const started = await writer.runtime.startCase(RELAY_ALICE, startCommand('request_1'));
+    if (started.kind !== 'created') throw new Error('expected creation');
+    const caseId = started.case.case_id;
+    const original = committed(
+      await writer.runtime.submitTurn(RELAY_ALICE, submitCommand({ case_id: caseId })),
+    );
+
+    const before = (await inner.cases.findById(caseId))!;
+    locking.lock(caseId);
+    lagging.hide(original.turn_id);
+    const writerRegistrations = lagging.registerCalls();
+    return { inner, lagging, caseId, original, before, writerRegistrations };
+  }
+
+  async function expectNothingHappened(
+    inner: InMemoryCaseRuntimeStore,
+    caseId: string,
+    before: StoredCase,
+    compiler: ScriptedSemanticCompiler,
+  ) {
+    expect(compiler.calls).toHaveLength(0);
+    const after = (await inner.cases.findById(caseId))!;
+    expect(after.revision).toBe(before.revision);
+    expect(after.state).toEqual(before.state);
+    expect(after.state.turn_log).toHaveLength(1);
+    expect(after.state.propositions).toHaveLength(1);
+    expect(after.state.case_version).toBe(1);
+    expect(await inner.compileRuns.listByCase(caseId)).toHaveLength(1);
+    expect(await inner.idempotency.listByCase(caseId)).toHaveLength(1);
+  }
+
+  it('answers a locked exact-id retry with retryable inconsistency, not CASE_LOCKED', async () => {
+    const { inner, lagging, caseId, original, before, writerRegistrations } =
+      await lockedCaseWithLaggingStore();
+
+    const compiler = new ScriptedSemanticCompiler(expectedDateScript);
+    const reader = runtimeOver(lagging.store, compiler, 'r_');
+    const outcome = await reader.runtime.submitTurn(
+      RELAY_ALICE,
+      submitCommand({ case_id: caseId, expected_case_version: 1 }),
+    );
+
+    expect(outcome.kind).toBe('failed');
+    if (outcome.kind !== 'failed') return;
+    // The caller's operation committed; telling it to stop is the one answer
+    // that loses the result permanently.
+    expect(outcome.failure.code).not.toBe('CASE_LOCKED');
+    expect(outcome.failure.code).toBe('INTERNAL_ERROR');
+    expect(outcome.failure.retryable).toBe(true);
+    expect(reader.diagnostics.events.map((event) => event.kind)).toEqual([
+      'replay_store_inconsistent',
+    ]);
+    expect(lagging.registerCalls()).toBe(writerRegistrations);
+    await expectNothingHappened(inner, caseId, before, compiler);
+
+    // Once the replicas converge the caller recovers its original result,
+    // even though the case is still locked.
+    lagging.reveal(original.turn_id);
+    const recovered = await reader.runtime.submitTurn(
+      RELAY_ALICE,
+      submitCommand({ case_id: caseId, expected_case_version: 1 }),
+    );
+    expect(recovered.kind).toBe('replayed');
+    if (recovered.kind !== 'replayed') return;
+    expect(recovered.match).toBe('client_turn_id');
+    expect(recovered.turn_id).toBe(original.turn_id);
+    expect(recovered.case.status).toBe('locked');
+  });
+
+  it('answers a locked regenerated retry the same way, then fingerprint-replays', async () => {
+    const { inner, lagging, caseId, original, before, writerRegistrations } =
+      await lockedCaseWithLaggingStore();
+
+    const regenerated = submitCommand({
+      case_id: caseId,
+      client_turn_id: 'client_2',
+      expected_case_version: 1,
+      payload: payload('I expected it finished by April 25 — and nobody ever said otherwise!'),
+    });
+
+    const compiler = new ScriptedSemanticCompiler(expectedDateScript);
+    const reader = runtimeOver(lagging.store, compiler, 'r_');
+    const outcome = await reader.runtime.submitTurn(RELAY_ALICE, regenerated);
+
+    expect(outcome.kind).toBe('failed');
+    if (outcome.kind !== 'failed') return;
+    expect(outcome.failure.code).not.toBe('CASE_LOCKED');
+    expect(outcome.failure.code).toBe('INTERNAL_ERROR');
+    expect(outcome.failure.retryable).toBe(true);
+    expect(reader.diagnostics.events.map((event) => event.kind)).toEqual([
+      'replay_store_inconsistent',
+    ]);
+    expect(lagging.registerCalls()).toBe(writerRegistrations);
+    await expectNothingHappened(inner, caseId, before, compiler);
+
+    lagging.reveal(original.turn_id);
+    const recovered = await reader.runtime.submitTurn(RELAY_ALICE, regenerated);
+    expect(recovered.kind).toBe('replayed');
+    if (recovered.kind !== 'replayed') return;
+    expect(recovered.match).toBe('fingerprint');
+    expect(recovered.turn_id).toBe(original.turn_id);
+  });
+
+  it('still refuses a genuinely fresh write to a locked case', async () => {
+    const { inner, lagging, caseId, before } = await lockedCaseWithLaggingStore();
+
+    // No exact id in the log and no same-content/same-provenance turn, so
+    // there is no replay identity to resolve and the lock stands.
+    const compiler = new ScriptedSemanticCompiler(expectedDateScript);
+    const reader = runtimeOver(lagging.store, compiler, 'r_');
+    const outcome = await reader.runtime.submitTurn(
+      RELAY_ALICE,
+      submitCommand({
+        case_id: caseId,
+        client_turn_id: 'client_fresh',
+        expected_case_version: 1,
+        in_reply_to: ['req_paid'],
+        payload: payload('I paid the deposit on 1 March.'),
+      }),
+    );
+
+    expect(outcome.kind).toBe('failed');
+    if (outcome.kind !== 'failed') return;
+    expect(outcome.failure.code).toBe('CASE_LOCKED');
+    expect(outcome.failure.retryable).toBe(false);
+    expect(reader.diagnostics.events).toEqual([]);
+    await expectNothingHappened(inner, caseId, before, compiler);
   });
 });
 

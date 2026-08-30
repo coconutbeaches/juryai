@@ -642,6 +642,49 @@ export class CaseRuntime {
       };
     }
 
+    // The mirror of the stale-case race. There the case read lagged the
+    // idempotency read, and the replay refresh fixed it. Here the case read is
+    // AHEAD: it already contains the turn whose replay record the idempotency
+    // read has not caught up to. Nothing downstream would notice — a previous
+    // turn that recorded nothing canonical leaves `case_version` untouched, so
+    // the CAS passes and this regenerated retry would commit a second source
+    // turn and compile run for one source event.
+    //
+    // Two independently read repositories are not one snapshot, in either
+    // direction, and the runtime must never make a duplicate-write decision by
+    // assuming they are. If the case can show a turn that already carries this
+    // request's replay identity but the replay store cannot show its record,
+    // the stores disagree: stop, and let the caller retry once they converge.
+    //
+    // This is idempotency resolution, not fresh-write validation, so it runs
+    // ahead of CASE_LOCKED, VERSION_CONFLICT and requirement validation. All
+    // three answer "this new write is not allowed"; none of them is true of a
+    // request that may already have committed. CASE_LOCKED in particular is
+    // non-retryable, so answering it here would tell a caller to stop retrying
+    // an operation that had in fact succeeded.
+    const inconsistentTurn = replayIdentityTurnMissingRecord({
+      state,
+      records: idempotencyRead.value,
+      request,
+      requestProvenance,
+      contentFingerprint,
+      now_ms: decidedAtMs,
+      window_ms: this.#deps.fingerprintReplayWindowMs ?? DEFAULT_FINGERPRINT_REPLAY_WINDOW_MS,
+    });
+    if (inconsistentTurn) {
+      this.#diagnostics.record({
+        kind: 'replay_store_inconsistent',
+        case_id: state.case_id,
+        turn_id: inconsistentTurn.turn_id,
+        compile_run_id: null,
+        message:
+          "The case already contains a turn carrying this request's replay identity, but the " +
+          'replay store read does not contain its record; the two reads disagree in freshness.',
+        issues: [],
+      });
+      return { kind: 'failed', failure: unavailable('That answer could not be processed.') };
+    }
+
     // Only a genuinely NEW write is refused by the lock. An operation that
     // already happened stays replayable for the lifetime of the case: the
     // caller that lost a response is asking what its earlier write did, and
@@ -700,42 +743,6 @@ export class CaseRuntime {
           'The turn answers a requirement this case does not have.',
         ),
       };
-    }
-
-    // The mirror of the stale-case race. There the case read lagged the
-    // idempotency read, and the replay refresh fixed it. Here the case read is
-    // AHEAD: it already contains the turn whose replay record the idempotency
-    // read has not caught up to. Nothing downstream would notice — a previous
-    // turn that recorded nothing canonical leaves `case_version` untouched, so
-    // the CAS passes and this regenerated retry would commit a second source
-    // turn and compile run for one source event.
-    //
-    // Two independently read repositories are not one snapshot, in either
-    // direction, and the runtime must never make a duplicate-write decision by
-    // assuming they are. If the case can show a turn that already carries this
-    // request's replay identity but the replay store cannot show its record,
-    // the stores disagree: stop, and let the caller retry once they converge.
-    const inconsistentTurn = replayIdentityTurnMissingRecord({
-      state,
-      records: idempotencyRead.value,
-      request,
-      requestProvenance,
-      contentFingerprint,
-      now_ms: decidedAtMs,
-      window_ms: this.#deps.fingerprintReplayWindowMs ?? DEFAULT_FINGERPRINT_REPLAY_WINDOW_MS,
-    });
-    if (inconsistentTurn) {
-      this.#diagnostics.record({
-        kind: 'replay_store_inconsistent',
-        case_id: state.case_id,
-        turn_id: inconsistentTurn.turn_id,
-        compile_run_id: null,
-        message:
-          "The case already contains a turn carrying this request's replay identity, but the " +
-          'replay store read does not contain its record; the two reads disagree in freshness.',
-        issues: [],
-      });
-      return { kind: 'failed', failure: unavailable('That answer could not be processed.') };
     }
 
     // Only a fresh write needs a compiler, so registration happens here rather
