@@ -528,6 +528,39 @@ function predicatePolarities(text: string, predicates: ReadonlySet<string>): Rea
   return polarities;
 }
 
+function paymentClauseReversesAssertion(statement: string): boolean {
+  const clauses = statement
+    .split(/[!?;:]+|\.(?=\s|$)|,\s*(?:and|but|then)\b|\b(?:and|but|then)\b/iu)
+    .map((clause) => clause.trim())
+    .filter((clause) => clause.length > 0)
+    .map((clause) => {
+      const clauseWords = words(clause);
+      let lastReversal = -1;
+      let lastSuccess = -1;
+      for (const [index, word] of clauseWords.entries()) {
+        if (PAYMENT_LEXICAL_REVERSERS.has(word)) lastReversal = index;
+        if (PAYMENT_COMPLETION_MARKERS.has(word)) lastSuccess = index;
+      }
+      return {
+        markers: new Set(factMarkers(clause)),
+        reversed: lastReversal >= 0 && lastReversal > lastSuccess,
+        successful: lastSuccess >= 0 && lastSuccess > lastReversal,
+      };
+    });
+
+  for (const [index, clause] of clauses.entries()) {
+    if (!clause.reversed || clause.markers.size === 0) continue;
+    const laterMatchingSuccess = clauses
+      .slice(index + 1)
+      .some(
+        (later) =>
+          later.successful && [...clause.markers].some((marker) => later.markers.has(marker)),
+      );
+    if (!laterMatchingSuccess) return true;
+  }
+  return false;
+}
+
 function reversesAssertionPolarity(
   type: PropositionType,
   statement: string,
@@ -536,13 +569,7 @@ function reversesAssertionPolarity(
   const statementWords = words(statement);
   const citationWords = words(answerCitations);
   if (type === 'payment') {
-    let lastReversal = -1;
-    let lastSuccess = -1;
-    for (const [index, word] of statementWords.entries()) {
-      if (PAYMENT_LEXICAL_REVERSERS.has(word)) lastReversal = index;
-      if (PAYMENT_COMPLETION_MARKERS.has(word)) lastSuccess = index;
-    }
-    if (lastReversal > lastSuccess) return true;
+    if (paymentClauseReversesAssertion(statement)) return true;
   } else if (statementWords.some((word) => LEXICAL_POLARITY_REVERSERS[type]?.has(word) ?? false)) {
     return true;
   }
