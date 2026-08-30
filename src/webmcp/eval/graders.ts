@@ -110,7 +110,7 @@ const ENTITY_ROLE_LABELS = new Set([
 ]);
 
 const ENTITY_INTRODUCERS: Partial<Record<PropositionType, ReadonlySet<string>>> = {
-  payment: new Set(['paid', 'pay', 'to']),
+  payment: new Set(['for', 'paid', 'pay', 'to']),
   invoice: new Set(['by', 'from']),
   requested_scope: new Set(['asked', 'hired', 'told']),
   accepted_scope: new Set(['by', 'with']),
@@ -443,7 +443,15 @@ const NARRATIVE_POLARITY_FAMILIES: readonly ReadonlySet<string>[] = [
   new Set(['chargeable']),
 ];
 
-const NEGATION_CLAUSE_BOUNDARIES = new Set(['although', 'but', 'however', 'though', 'yet']);
+const NEGATION_CLAUSE_BOUNDARIES = new Set([
+  'although',
+  'and',
+  'but',
+  'however',
+  'or',
+  'though',
+  'yet',
+]);
 
 function tokenIsNegated(text: string, tokens: readonly WordToken[], index: number): boolean {
   let rightStart = tokens[index]!.start;

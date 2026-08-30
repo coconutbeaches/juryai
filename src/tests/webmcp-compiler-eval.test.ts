@@ -631,6 +631,17 @@ describe('the graders themselves have teeth', () => {
     expect(grade.failures.join(' ')).not.toContain('contractor alice');
   });
 
+  it('refuses an uncited payment beneficiary after intervening details', async () => {
+    const { scenario, output } = await paymentWithStatement(
+      'The user paid 2,000 pounds by bank transfer for alice on 25 April.',
+    );
+
+    const grade = gradeCompilerOutput(anchor, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/unsupported entity/u);
+    expect(grade.failures.join(' ')).not.toContain('alice');
+  });
+
   it('refuses a statement that reverses the expected assertion polarity', async () => {
     const { scenario, output } = await paymentWithStatement(
       'The user has not paid the other party 2,000 pounds by bank transfer on 25 April.',
@@ -659,6 +670,38 @@ describe('the graders themselves have teeth', () => {
     const grade = gradeCompilerOutput(anchor, scenario.input, output);
     expect(grade.ok).toBe(false);
     expect(grade.failures.join(' ')).toMatch(/polarity/u);
+  });
+
+  it('keeps negation on the coordinated predicate it modifies', async () => {
+    const { scenario, output } = await compileCompletion(
+      anchor,
+      JSON.stringify({
+        verdict: 'accepted_candidates',
+        assertions: [
+          {
+            requirement_id: 'req_paid',
+            proposed_type: 'payment',
+            epistemic_strength: 'asserted_confident',
+            statement:
+              'The user made no further payments and paid the other party 2,000 pounds by bank transfer on 25 April.',
+            supersedes_candidate: null,
+            citations: [
+              {
+                region: 'answer',
+                message_index: null,
+                quote: 'I paid them 2,000 pounds by bank transfer on 25 April and nothing since.',
+              },
+            ],
+          },
+        ],
+        rejected_candidates: [],
+        clarifications_requested: [],
+      }),
+    );
+
+    const grade = gradeCompilerOutput(anchor, scenario.input, output);
+    expect(grade.failures).toEqual([]);
+    expect(grade.ok).toBe(true);
   });
 
   it('does not ground an extra amount from the same digits in a cited date', async () => {
