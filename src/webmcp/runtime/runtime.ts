@@ -757,6 +757,8 @@ export class CaseRuntime {
       return { kind: 'failed', failure: unavailable('That answer could not be processed.') };
     }
 
+    // From here on `runRecord.output` is the authoritative compiler output.
+    // The adapter-owned `output` object is not read again.
     if (runRecord.contract_issues.length > 0) {
       this.#diagnostics.record({
         kind: 'compiler_contract_violation',
@@ -777,7 +779,12 @@ export class CaseRuntime {
     const mutation = applyCompilerOutput({
       state,
       turn,
-      output,
+      // The AUDITED snapshot, never the adapter's object. `output` is still
+      // owned by the adapter, which may hold a reference and mutate it while
+      // the append above is awaited — leaving a compile-run record that does
+      // not describe the output canonical state was actually built from. One
+      // immutable value drives contract validation, persistence and mutation.
+      output: runRecord.output,
       next_case_version: nextVersion,
       ids: this.#deps.ids,
     });

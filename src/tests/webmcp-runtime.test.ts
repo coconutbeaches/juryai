@@ -1911,6 +1911,147 @@ describe('repository failures resolve as safe runtime failures', () => {
 });
 
 /* ------------------------------------------------------------------------ */
+/* The audited snapshot is what gets applied                                 */
+/* ------------------------------------------------------------------------ */
+
+/** Returns a valid output and keeps the reference, as a real adapter may. */
+class RetainingCompiler implements SemanticCompilerPort {
+  readonly registryEntry = scriptedRegistryEntry();
+  readonly #inner = new ScriptedSemanticCompiler(expectedDateScript);
+  lastOutput: CompilerOutput | null = null;
+
+  async compile(input: CompilerInput, options?: CompileOptions): Promise<CompilerOutput> {
+    const output = await this.#inner.compile(input, options);
+    this.lastOutput = output;
+    return output;
+  }
+}
+
+/** Lets a test act while the runtime is suspended inside `compileRuns.append`. */
+function gatedAppendStore(inner: InMemoryCaseRuntimeStore) {
+  let armed = false;
+  let signalEntered: () => void = () => {};
+  let releaseGate: () => void = () => {};
+  let gate: Promise<void> = Promise.resolve();
+
+  const store: CaseRuntimeStore = {
+    cases: inner.cases,
+    idempotency: inner.idempotency,
+    startRequests: inner.startRequests,
+    compilerRegistry: inner.compilerRegistry,
+    compileRuns: {
+      append: async (record) => {
+        if (armed) {
+          armed = false;
+          signalEntered();
+          await gate;
+        }
+        return inner.compileRuns.append(record);
+      },
+      findById: (compileRunId) => inner.compileRuns.findById(compileRunId),
+      listByCase: (caseId) => inner.compileRuns.listByCase(caseId),
+    },
+    createCase: (commit) => inner.createCase(commit),
+    commitTurn: (commit) => inner.commitTurn(commit),
+  };
+
+  const arm = () => {
+    armed = true;
+    const entered = new Promise<void>((resolve) => {
+      signalEntered = resolve;
+    });
+    gate = new Promise<void>((resolve) => {
+      releaseGate = resolve;
+    });
+    return { entered, release: () => releaseGate() };
+  };
+  return { store, arm };
+}
+
+describe('canonical mutation uses the audited compiler-output snapshot', () => {
+  async function pausedInsideAppend() {
+    const compiler = new RetainingCompiler();
+    let arm!: () => { entered: Promise<void>; release: () => void };
+    const h = harness({
+      compiler,
+      wrapStore: (inner) => {
+        const gated = gatedAppendStore(inner);
+        arm = gated.arm;
+        return gated.store;
+      },
+    });
+    const caseId = await startedCase(h);
+
+    const gate = arm();
+    const pending = h.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId }));
+    // The run record is built and validated by now; persistence is in flight.
+    await gate.entered;
+    return { h, caseId, compiler, pending, release: gate.release };
+  }
+
+  it('ignores an adapter that rewrites its output while the append is in flight', async () => {
+    const { h, caseId, compiler, pending, release } = await pausedInsideAppend();
+
+    const retained = compiler.lastOutput!;
+    const auditedStatement = retained.assertions[0]!.statement;
+    // Deliberately a mutation the validator would still accept, so the old
+    // behaviour committed silently rather than erroring: the audit record and
+    // canonical state would simply disagree about what the compiler said.
+    retained.assertions[0]!.statement = 'MUTATED AFTER VALIDATION';
+    retained.assertions[0]!.epistemic_strength = 'asserted_confident';
+    release();
+
+    const outcome = committed(await pending);
+    expect(outcome.case.case_version).toBe(1);
+
+    // The adapter really did change its own object.
+    expect(retained.assertions[0]!.statement).toBe('MUTATED AFTER VALIDATION');
+
+    const state = await loadState(h, caseId);
+    const proposition = state.propositions[0]!;
+    const runs = await h.store.compileRuns.listByCase(caseId);
+    const audited = runs[0]!.output.assertions[0]!;
+
+    // Canonical state is exactly what the compile-run record says it is.
+    expect(proposition.statement).toBe(audited.statement);
+    expect(proposition.type).toBe(audited.proposed_type);
+    expect(proposition.epistemic_strength).toBe(audited.epistemic_strength);
+    expect(proposition.in_reply_to).toBe(audited.requirement_id);
+
+    // ... and that is the pre-mutation output, not the adapter's later edit.
+    expect(audited.statement).toBe(auditedStatement);
+    expect(proposition.statement).toBe(auditedStatement);
+    expect(proposition.type).toBe('target_date');
+    expect(proposition.epistemic_strength).toBe('recalled_uncertain');
+
+    // The stored input snapshot is unaffected too.
+    expect(runs[0]!.input_hash).toBe(compilerInputHash(runs[0]!.input));
+    expect(runs[0]!.contract_issues).toEqual([]);
+  });
+
+  it('survives a structural late mutation that would otherwise throw', async () => {
+    const { h, caseId, compiler, pending, release } = await pausedInsideAppend();
+
+    // Removing the array the mutation layer iterates would previously escape
+    // `submitTurn` as a rejected promise, outside the compiler boundary.
+    const retained = compiler.lastOutput!;
+    (retained as { assertions?: unknown }).assertions = undefined;
+    (retained as { clarifications_requested?: unknown }).clarifications_requested = undefined;
+    release();
+
+    const outcome = committed(await pending);
+    expect(outcome.accepted_proposition_ids).toHaveLength(1);
+
+    const state = await loadState(h, caseId);
+    expect(state.propositions).toHaveLength(1);
+    expect(state.case_version).toBe(1);
+    const runs = await h.store.compileRuns.listByCase(caseId);
+    expect(runs[0]!.output.assertions).toHaveLength(1);
+    expect(state.propositions[0]!.statement).toBe(runs[0]!.output.assertions[0]!.statement);
+  });
+});
+
+/* ------------------------------------------------------------------------ */
 /* Malformed compiler output                                                 */
 /* ------------------------------------------------------------------------ */
 
