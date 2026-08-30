@@ -405,6 +405,7 @@ export class PostgresCaseRuntimeStore implements CaseRuntimeStore {
   async #transaction<T>(operation: (client: PoolClient) => Promise<T>): Promise<T> {
     const client = await this.#pool.connect();
     let began = false;
+    let releaseError: Error | undefined;
     try {
       await client.query('begin');
       began = true;
@@ -415,14 +416,20 @@ export class PostgresCaseRuntimeStore implements CaseRuntimeStore {
       if (began) {
         try {
           await client.query('rollback');
-        } catch {
+        } catch (rollbackError) {
           // Preserve the original database error. The pool discards a broken
           // connection; a rollback failure must not replace the causal error.
+          releaseError =
+            rollbackError instanceof Error
+              ? rollbackError
+              : new Error('PostgreSQL rollback failed with a non-Error value.');
         }
       }
       throw error;
     } finally {
-      client.release();
+      // A failed rollback leaves transaction/session state uncertain. Passing
+      // the error makes pg destroy this client instead of pooling it again.
+      client.release(releaseError);
     }
   }
 }

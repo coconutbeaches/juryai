@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "vitest run",
+    "test": "vitest run --exclude src/tests/webmcp-persistence.test.ts",
     "test:persistence": "vitest run src/tests/webmcp-persistence.test.ts",
     "test:person-a": "vitest run src/tests/person-a-validation.test.ts src/tests/person-a-evaluation.test.ts src/tests/openai-responses.test.ts",
     "typecheck": "tsc --noEmit",
