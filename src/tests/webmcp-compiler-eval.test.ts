@@ -642,6 +642,17 @@ describe('the graders themselves have teeth', () => {
     expect(grade.failures.join(' ')).not.toContain('alice');
   });
 
+  it('refuses an uncited passive payment recipient', async () => {
+    const { scenario, output } = await paymentWithStatement(
+      'Payment of 2,000 pounds was received by alice on 25 April.',
+    );
+
+    const grade = gradeCompilerOutput(anchor, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/unsupported entity/u);
+    expect(grade.failures.join(' ')).not.toContain('alice');
+  });
+
   it('refuses a statement that reverses the expected assertion polarity', async () => {
     const { scenario, output } = await paymentWithStatement(
       'The user has not paid the other party 2,000 pounds by bank transfer on 25 April.',
@@ -913,6 +924,16 @@ describe('the graders themselves have teeth', () => {
   it('allows a semantically supported ordinary paraphrase', async () => {
     const { scenario, output } = await paymentWithStatement(
       'The user completed payment of 2,000 pounds by bank transfer on 25 April.',
+    );
+
+    const grade = gradeCompilerOutput(anchor, scenario.input, output);
+    expect(grade.failures).toEqual([]);
+    expect(grade.ok).toBe(true);
+  });
+
+  it('allows a sentence-initial discourse modifier', async () => {
+    const { scenario, output } = await paymentWithStatement(
+      'Indeed, the user paid the other party 2,000 pounds by bank transfer on 25 April.',
     );
 
     const grade = gradeCompilerOutput(anchor, scenario.input, output);
