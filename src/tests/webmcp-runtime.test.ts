@@ -1601,6 +1601,298 @@ describe('start_case idempotency', () => {
 });
 
 /* ------------------------------------------------------------------------ */
+/* Mixed-freshness reads must never decide identity                          */
+/* ------------------------------------------------------------------------ */
+
+/** Suspends the FIRST start-request lookup so a second call can overtake it. */
+function gatedStartRequestStore(inner: InMemoryCaseRuntimeStore) {
+  let armed = false;
+  let signalEntered: () => void = () => {};
+  let releaseGate: () => void = () => {};
+  let gate: Promise<void> = Promise.resolve();
+
+  const store: CaseRuntimeStore = {
+    cases: inner.cases,
+    compileRuns: inner.compileRuns,
+    idempotency: inner.idempotency,
+    compilerRegistry: inner.compilerRegistry,
+    startRequests: {
+      findByRequest: async (principalId, clientRequestId) => {
+        const result = await inner.startRequests.findByRequest(principalId, clientRequestId);
+        if (armed) {
+          armed = false;
+          signalEntered();
+          await gate;
+        }
+        return result;
+      },
+    },
+    createCase: (commit) => inner.createCase(commit),
+    commitTurn: (commit) => inner.commitTurn(commit),
+  };
+
+  const arm = () => {
+    armed = true;
+    const entered = new Promise<void>((resolve) => {
+      signalEntered = resolve;
+    });
+    gate = new Promise<void>((resolve) => {
+      releaseGate = resolve;
+    });
+    return { entered, release: () => releaseGate() };
+  };
+  return { store, arm };
+}
+
+describe('start_case never classifies a draft from a non-atomic read', () => {
+  it('replays created for a retry that observes the draft its own request made', async () => {
+    const inner = new InMemoryCaseRuntimeStore();
+    const gated = gatedStartRequestStore(inner);
+    const h = runtimeOver(gated.store, new ScriptedSemanticCompiler());
+
+    // Retry A looks up its request id and sees nothing, then stalls.
+    const gate = gated.arm();
+    const pendingA = h.runtime.startCase(ALICE, startCommand('request_1'));
+    await gate.entered;
+
+    // Original B completes the whole create atomically in the meantime.
+    const resultB = await h.runtime.startCase(ALICE, startCommand('request_1'));
+    expect(resultB.kind).toBe('created');
+    if (resultB.kind !== 'created') return;
+    expect(resultB.replayed).toBe(false);
+
+    // A resumes and would previously have seen B's draft and answered
+    // OPEN_DRAFT_EXISTS — a non-retryable error for its own successful create.
+    gate.release();
+    const resultA = await pendingA;
+
+    expect(resultA.kind).toBe('created');
+    if (resultA.kind !== 'created') return;
+    expect(resultA.replayed).toBe(true);
+    expect(resultA.case.case_id).toBe(resultB.case.case_id);
+    expect(resultA.case.case_version).toBe(0);
+
+    // Exactly one case, one start-request record, one revision.
+    const stored = (await inner.cases.findById(resultB.case.case_id))!;
+    expect(stored.revision).toBe(1);
+    expect(await inner.cases.findById('p2_case_2')).toBeNull();
+    const record = await inner.startRequests.findByRequest('user_alice', 'request_1');
+    expect(record?.case_id).toBe(resultB.case.case_id);
+    expect(await inner.startRequests.findByRequest('user_alice', 'request_2')).toBeNull();
+  });
+
+  it('still reports an open draft when it belongs to a different request', async () => {
+    const inner = new InMemoryCaseRuntimeStore();
+    const gated = gatedStartRequestStore(inner);
+    const h = runtimeOver(gated.store, new ScriptedSemanticCompiler());
+
+    const first = await h.runtime.startCase(ALICE, startCommand('request_1'));
+    if (first.kind !== 'created') throw new Error('expected creation');
+
+    // Same interleaving, different request id: the draft really is somebody
+    // else's operation, so the answer is unchanged.
+    const gate = gated.arm();
+    const pending = h.runtime.startCase(ALICE, startCommand('request_2'));
+    await gate.entered;
+    gate.release();
+    const second = await pending;
+
+    expect(second.kind).toBe('open_draft_exists');
+    if (second.kind !== 'open_draft_exists') return;
+    expect(second.case.case_id).toBe(first.case.case_id);
+    expect((await inner.cases.findById(first.case.case_id))!.revision).toBe(1);
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Case fresher than the replay store                                        */
+/* ------------------------------------------------------------------------ */
+
+/** Omits chosen turns' records from `listByCase`, and counts registry work. */
+function laggingReplayStore(inner: InMemoryCaseRuntimeStore) {
+  const hidden = new Set<string>();
+  let registerCalls = 0;
+  const store: CaseRuntimeStore = {
+    cases: inner.cases,
+    compileRuns: inner.compileRuns,
+    startRequests: inner.startRequests,
+    idempotency: {
+      listByCase: async (caseId) => {
+        const records = await inner.idempotency.listByCase(caseId);
+        return records.filter((record) => !hidden.has(record.turn_id));
+      },
+    },
+    compilerRegistry: {
+      register: async (entry) => {
+        registerCalls += 1;
+        return inner.compilerRegistry.register(entry);
+      },
+      findById: (id) => inner.compilerRegistry.findById(id),
+    },
+    createCase: (commit) => inner.createCase(commit),
+    commitTurn: (commit) => inner.commitTurn(commit),
+  };
+  return {
+    store,
+    hide: (turnId: string) => hidden.add(turnId),
+    reveal: (turnId: string) => hidden.delete(turnId),
+    registerCalls: () => registerCalls,
+  };
+}
+
+describe('a replay store lagging the case state fails closed', () => {
+  /** Commits a turn that records nothing canonical, so case_version stays 0. */
+  async function quietCommittedTurn() {
+    const inner = new InMemoryCaseRuntimeStore();
+    const lagging = laggingReplayStore(inner);
+    const writer = runtimeOver(lagging.store, new ScriptedSemanticCompiler(), 'w_');
+    const started = await writer.runtime.startCase(RELAY_ALICE, startCommand('request_1'));
+    if (started.kind !== 'created') throw new Error('expected creation');
+    const caseId = started.case.case_id;
+
+    const original = committed(
+      await writer.runtime.submitTurn(RELAY_ALICE, submitCommand({ case_id: caseId })),
+    );
+    const before = (await inner.cases.findById(caseId))!;
+    // No canonical mutation, so the CAS cannot catch a duplicate on its own.
+    expect(before.state.case_version).toBe(0);
+    expect(before.state.turn_log).toHaveLength(1);
+    return { inner, lagging, caseId, original, before };
+  }
+
+  /** Same content, same provenance, regenerated client id. */
+  function regenerated(caseId: string): SubmitTurnCommand {
+    return submitCommand({
+      case_id: caseId,
+      client_turn_id: 'client_2',
+      expected_case_version: 0,
+      payload: payload('I expected it finished by April 25 — and nobody ever said otherwise!'),
+    });
+  }
+
+  it('refuses a regenerated retry whose replay record the store has not caught up to', async () => {
+    const { inner, lagging, caseId, original, before } = await quietCommittedTurn();
+    lagging.hide(original.turn_id);
+
+    // A fresh runtime instance, so registry work is observable.
+    const compiler = new ScriptedSemanticCompiler(expectedDateScript);
+    const reader = runtimeOver(lagging.store, compiler, 'r_');
+    const outcome = await reader.runtime.submitTurn(RELAY_ALICE, regenerated(caseId));
+
+    expect(outcome.kind).toBe('failed');
+    if (outcome.kind !== 'failed') return;
+    expect(outcome.failure.code).toBe('INTERNAL_ERROR');
+    expect(outcome.failure.retryable).toBe(true);
+    expect(JSON.stringify(outcome.failure)).not.toContain('replay');
+
+    const event = reader.diagnostics.events.find(
+      (entry) => entry.kind === 'replay_store_inconsistent',
+    );
+    expect(event?.turn_id).toBe(original.turn_id);
+
+    // No fresh work of any kind happened.
+    expect(compiler.calls).toHaveLength(0);
+    expect(lagging.registerCalls()).toBe(1); // the writer's registration only
+    const after = (await inner.cases.findById(caseId))!;
+    expect(after.revision).toBe(before.revision);
+    expect(after.state).toEqual(before.state);
+    expect(after.state.turn_log).toHaveLength(1);
+    expect(after.state.propositions).toHaveLength(0);
+    expect(after.state.case_version).toBe(0);
+    expect(await inner.compileRuns.listByCase(caseId)).toHaveLength(1);
+    expect(await inner.idempotency.listByCase(caseId)).toHaveLength(1);
+
+    // Once storage converges the same retry resolves normally as a replay.
+    lagging.reveal(original.turn_id);
+    const converged = await reader.runtime.submitTurn(RELAY_ALICE, regenerated(caseId));
+    expect(converged.kind).toBe('replayed');
+  });
+
+  it('refuses an exact client_turn_id retry whose record is missing, whatever the window', async () => {
+    const { inner, lagging, caseId, original, before } = await quietCommittedTurn();
+    lagging.hide(original.turn_id);
+
+    const compiler = new ScriptedSemanticCompiler(expectedDateScript);
+    // A clock far outside the heuristic window: exact operation identity is
+    // not window-bounded, so this must still fail closed.
+    const diagnostics = recordingDiagnosticsSink();
+    const reader = new CaseRuntime({
+      store: lagging.store,
+      compiler,
+      clock: steppingClock(START_MS + 3_600_000 * 24, 1000),
+      ids: sequentialIdFactory('x_'),
+      salts: sequentialSaltFactory('xsalt'),
+      reviewUrl: (id) => 'https://juryai.test/cases/' + id,
+      disclosure: { version: DISCLOSURE },
+      diagnostics,
+    });
+    const outcome = await reader.submitTurn(RELAY_ALICE, submitCommand({ case_id: caseId }));
+
+    expect(outcome.kind).toBe('failed');
+    if (outcome.kind !== 'failed') return;
+    expect(outcome.failure.code).toBe('INTERNAL_ERROR');
+    expect(outcome.failure.retryable).toBe(true);
+    // Refused HERE, by operation identity, rather than surviving to the
+    // append-time client_turn_id uniqueness check: nothing is built first.
+    expect(diagnostics.events.map((event) => event.kind)).toEqual(['replay_store_inconsistent']);
+    expect(compiler.calls).toHaveLength(0);
+    expect((await inner.cases.findById(caseId))!.revision).toBe(before.revision);
+  });
+
+  it('leaves a normal replay untouched when the record is present', async () => {
+    const { inner, lagging, caseId, original } = await quietCommittedTurn();
+
+    const reader = runtimeOver(lagging.store, new ScriptedSemanticCompiler(), 'r_');
+    const outcome = await reader.runtime.submitTurn(RELAY_ALICE, regenerated(caseId));
+
+    expect(outcome.kind).toBe('replayed');
+    if (outcome.kind !== 'replayed') return;
+    expect(outcome.turn_id).toBe(original.turn_id);
+    expect((await inner.cases.findById(caseId))!.state.turn_log).toHaveLength(1);
+  });
+
+  it('does not flag a same-content turn submitted through a different channel', async () => {
+    const { inner, lagging, caseId, original } = await quietCommittedTurn();
+    lagging.hide(original.turn_id);
+
+    // Different provenance is a distinct source event, so the missing record
+    // is not this request's and the ordinary fresh path applies.
+    const reader = runtimeOver(lagging.store, new ScriptedSemanticCompiler(), 'r_');
+    const outcome = await reader.runtime.submitTurn(
+      { ...RELAY_ALICE, source_channel: 'first_party_input', relaying_agent: null },
+      regenerated(caseId),
+    );
+
+    expect(outcome.kind).toBe('committed');
+    const state = (await inner.cases.findById(caseId))!.state;
+    expect(state.turn_log).toHaveLength(2);
+    expect(state.turn_log[1]!.source_channel).toBe('first_party_input');
+  });
+
+  it('does not block a same-content submission from outside the replay window', async () => {
+    const { inner, lagging, caseId, original } = await quietCommittedTurn();
+    lagging.hide(original.turn_id);
+
+    // Old matching text is ordinary history. Treating it as inconsistency
+    // would block a legitimate later submission forever.
+    const reader = new CaseRuntime({
+      store: lagging.store,
+      compiler: new ScriptedSemanticCompiler(),
+      clock: steppingClock(START_MS + 3_600_000 * 24, 1000),
+      ids: sequentialIdFactory('y_'),
+      salts: sequentialSaltFactory('ysalt'),
+      reviewUrl: (id) => 'https://juryai.test/cases/' + id,
+      disclosure: { version: DISCLOSURE },
+    });
+    const outcome = await reader.submitTurn(RELAY_ALICE, regenerated(caseId));
+
+    expect(outcome.kind).toBe('committed');
+    expect((await inner.cases.findById(caseId))!.state.turn_log).toHaveLength(2);
+    expect(original.turn_id).toBeDefined();
+  });
+});
+
+/* ------------------------------------------------------------------------ */
 /* Replay does not depend on the compiler registry                           */
 /* ------------------------------------------------------------------------ */
 

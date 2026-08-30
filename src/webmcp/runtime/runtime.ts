@@ -30,6 +30,7 @@ import {
 } from '../core/compiler-contract.js';
 import {
   computeRequestFingerprint,
+  DEFAULT_FINGERPRINT_REPLAY_WINDOW_MS,
   precheckSubmit,
   validateSubmitRequest,
   type IdempotencyRecord,
@@ -240,17 +241,14 @@ export class CaseRuntime {
       return { kind: 'failed', failure: unavailable('The case could not be created.') };
     }
 
-    const existing = await this.#guardedRead('active_draft_lookup', null, () =>
-      this.#deps.store.cases.findActiveDraftByPrincipal(principalId),
-    );
-    if (!existing.ok) {
-      return { kind: 'failed', failure: unavailable('The case could not be created.') };
-    }
-    if (existing.value) {
-      // Never a silent resume: an agent that "starts a case" while one is open
-      // must be told, or a second conversation quietly overwrites the first.
-      return { kind: 'open_draft_exists', case: this.#project(existing.value.state) };
-    }
+    // There is deliberately NO active-draft read here. An observed draft cannot
+    // be classified from this side: it may be the case this very request just
+    // created, committed between the lookup above and the read below, in which
+    // case answering OPEN_DRAFT_EXISTS would hand a caller a non-retryable
+    // error for its own successful operation. Two ordinary reads are not one
+    // snapshot, so `createCase` — which decides request identity and draft
+    // uniqueness in the same atomic step — is the only authority allowed to
+    // tell "my own case" from "somebody else's draft".
 
     const nowMs = this.#deps.clock.now();
     const state: CaseState = {
@@ -315,8 +313,12 @@ export class CaseRuntime {
     if (result.stored === null) {
       return { kind: 'failed', failure: unavailable('The case could not be created.') };
     }
-    // Lost a create race. The same request id means the winner IS this
-    // operation; a different one means the principal already has a draft.
+    // The atomic decision. The same request id means the winner IS this
+    // operation, so it replays as created; a different one means the principal
+    // already has a draft, which is the only route to OPEN_DRAFT_EXISTS. Never
+    // a silent resume: an agent that starts a case while another request's
+    // draft is open must be told, or a second conversation quietly overwrites
+    // the first.
     return result.reason === 'start_request_replayed'
       ? { kind: 'created', replayed: true, case: this.#project(result.stored.state) }
       : { kind: 'open_draft_exists', case: this.#project(result.stored.state) };
@@ -511,6 +513,14 @@ export class CaseRuntime {
     // match must agree on content AND provenance. Implemented by narrowing the
     // store handed to `precheckSubmit`, so core still owns the ordering, the
     // replay window, the CAS and the conflict shape.
+    // Core's content fingerprint, computed once. Both the conflict hint and the
+    // read-consistency guard below need it; neither reimplements its rules.
+    const contentFingerprint = computeRequestFingerprint({
+      principal_id: request.principal_id,
+      case_id: request.case_id,
+      in_reply_to: request.in_reply_to,
+      payload: request.payload,
+    });
     const requestProvenance = provenanceKey({
       source_channel: context.source_channel ?? 'webmcp_agent_relay',
       relaying_agent: context.relaying_agent ?? null,
@@ -521,11 +531,14 @@ export class CaseRuntime {
       sharesSourceIdentity(record, request, requestProvenance, state),
     );
 
+    // One timestamp for the whole attempt: replay-window arithmetic in the
+    // precheck and in the read-consistency guard below must agree about "now".
+    const decidedAtMs = this.#deps.clock.now();
     const precheck = precheckSubmit(request, {
       store: eligible,
       log: state.turn_log,
       current_case_version: state.case_version,
-      now_ms: this.#deps.clock.now(),
+      now_ms: decidedAtMs,
       window_ms: this.#deps.fingerprintReplayWindowMs,
     });
 
@@ -654,12 +667,6 @@ export class CaseRuntime {
       // been recorded — and a caller that believes it may suppress the retry,
       // losing the event from the immutable log. Recomputed here with the same
       // provenance conjunct that governs heuristic replay.
-      const contentFingerprint = computeRequestFingerprint({
-        principal_id: request.principal_id,
-        case_id: request.case_id,
-        in_reply_to: request.in_reply_to,
-        payload: request.payload,
-      });
       const likelyAlreadyRecorded = state.turn_log.some(
         (turn) =>
           turn.case_id === request.case_id &&
@@ -693,6 +700,42 @@ export class CaseRuntime {
           'The turn answers a requirement this case does not have.',
         ),
       };
+    }
+
+    // The mirror of the stale-case race. There the case read lagged the
+    // idempotency read, and the replay refresh fixed it. Here the case read is
+    // AHEAD: it already contains the turn whose replay record the idempotency
+    // read has not caught up to. Nothing downstream would notice — a previous
+    // turn that recorded nothing canonical leaves `case_version` untouched, so
+    // the CAS passes and this regenerated retry would commit a second source
+    // turn and compile run for one source event.
+    //
+    // Two independently read repositories are not one snapshot, in either
+    // direction, and the runtime must never make a duplicate-write decision by
+    // assuming they are. If the case can show a turn that already carries this
+    // request's replay identity but the replay store cannot show its record,
+    // the stores disagree: stop, and let the caller retry once they converge.
+    const inconsistentTurn = replayIdentityTurnMissingRecord({
+      state,
+      records: idempotencyRead.value,
+      request,
+      requestProvenance,
+      contentFingerprint,
+      now_ms: decidedAtMs,
+      window_ms: this.#deps.fingerprintReplayWindowMs ?? DEFAULT_FINGERPRINT_REPLAY_WINDOW_MS,
+    });
+    if (inconsistentTurn) {
+      this.#diagnostics.record({
+        kind: 'replay_store_inconsistent',
+        case_id: state.case_id,
+        turn_id: inconsistentTurn.turn_id,
+        compile_run_id: null,
+        message:
+          "The case already contains a turn carrying this request's replay identity, but the " +
+          'replay store read does not contain its record; the two reads disagree in freshness.',
+        issues: [],
+      });
+      return { kind: 'failed', failure: unavailable('That answer could not be processed.') };
     }
 
     // Only a fresh write needs a compiler, so registration happens here rather
@@ -1055,6 +1098,48 @@ export class CaseRuntime {
 /* ------------------------------------------------------------------------ */
 /* Helpers                                                                   */
 /* ------------------------------------------------------------------------ */
+
+/**
+ * A turn already in the case that carries this request's replay identity, but
+ * whose idempotency record is absent from the replay-store read.
+ *
+ * Identity follows the same hierarchy used everywhere else:
+ *  - an exact, non-null `client_turn_id` is operation identity and qualifies
+ *    regardless of the heuristic window;
+ *  - otherwise content fingerprint AND provenance must agree, and the turn must
+ *    fall inside the heuristic replay window. The window is measured from the
+ *    turn's server receipt time, since the record that would normally carry
+ *    `recorded_at_ms` is exactly what is missing.
+ *
+ * Old same-content statements outside the window are therefore NOT flagged:
+ * they are ordinary history, and treating them as inconsistency would block a
+ * legitimate later submission forever.
+ */
+function replayIdentityTurnMissingRecord(args: {
+  state: CaseState;
+  records: readonly IdempotencyRecord[];
+  request: SubmitRequest;
+  requestProvenance: string;
+  contentFingerprint: string;
+  now_ms: number;
+  window_ms: number;
+}): SourceTurnRecord | undefined {
+  const recorded = new Set(args.records.map((record) => record.turn_id));
+  return args.state.turn_log.find((turn) => {
+    if (turn.principal_id !== args.request.principal_id) return false;
+    if (recorded.has(turn.turn_id)) return false;
+    if (
+      args.request.client_turn_id !== null &&
+      turn.client_turn_id === args.request.client_turn_id
+    ) {
+      return true;
+    }
+    if (turn.request_fingerprint !== args.contentFingerprint) return false;
+    if (provenanceKey(turn) !== args.requestProvenance) return false;
+    const receivedMs = Date.parse(turn.received_at);
+    return Number.isFinite(receivedMs) && args.now_ms - receivedMs <= args.window_ms;
+  });
+}
 
 /**
  * May a stored replay record stand in for THIS request?

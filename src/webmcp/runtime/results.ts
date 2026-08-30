@@ -58,6 +58,7 @@ export type RuntimeDiagnosticKind =
   | 'case_creation_failed'
   | 'repository_unavailable'
   | 'replay_state_inconsistent'
+  | 'replay_store_inconsistent'
   | 'stale_case_restarts_exhausted'
   | 'commit_contention_exhausted';
 
