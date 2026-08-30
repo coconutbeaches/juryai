@@ -215,26 +215,37 @@ export class CaseRuntime {
     // A retry of the same logical create replays its original result. Without
     // this, a lost create response comes back as OPEN_DRAFT_EXISTS — an error
     // describing the very draft the caller's own first attempt produced.
-    const prior = await this.#guardedRead('start_request_lookup', null, () =>
-      this.#deps.store.startRequests.findByRequest(principalId, command.client_request_id),
-    );
+    const prior = await this.#guardedRead('start_request_snapshot', null, async () => {
+      if (this.#deps.store.readStartSnapshot) {
+        return this.#deps.store.readStartSnapshot(principalId, command.client_request_id);
+      }
+      // Compatibility path for legacy/fault-injection adapters. Production
+      // and the in-memory reference store implement the combined primitive.
+      const request = await this.#deps.store.startRequests.findByRequest(
+        principalId,
+        command.client_request_id,
+      );
+      if (request === null) return null;
+      return {
+        request,
+        stored: await this.#deps.store.cases.findById(request.case_id),
+      };
+    });
     if (!prior.ok) {
       return { kind: 'failed', failure: unavailable('The case could not be created.') };
     }
-    const priorRecord = prior.value;
-    if (priorRecord !== null) {
-      const replayed = await this.#guardedRead('case_by_start_request', priorRecord.case_id, () =>
-        this.#deps.store.cases.findById(priorRecord.case_id),
-      );
-      if (!replayed.ok) {
-        return { kind: 'failed', failure: unavailable('The case could not be created.') };
-      }
-      if (replayed.value && replayed.value.state.principal_id === principalId) {
-        return { kind: 'created', replayed: true, case: this.#project(replayed.value.state) };
+    const priorSnapshot = prior.value;
+    if (priorSnapshot !== null) {
+      if (priorSnapshot.stored && priorSnapshot.stored.state.principal_id === principalId) {
+        return {
+          kind: 'created',
+          replayed: true,
+          case: this.#project(priorSnapshot.stored.state),
+        };
       }
       this.#diagnostics.record({
         kind: 'repository_unavailable',
-        case_id: priorRecord.case_id,
+        case_id: priorSnapshot.request.case_id,
         turn_id: null,
         compile_run_id: null,
         message: 'A start-request record names a case that cannot be read for this principal.',
@@ -484,39 +495,64 @@ export class CaseRuntime {
     relayClaims: RelayClaims,
     options: RuntimeCallOptions,
   ): Promise<SubmitTurnOutcome | AttemptSignal> {
-    const read = this.#consumeRead(
-      options.signal,
-      await this.#startRead(
-        'case_read',
-        request.case_id,
-        () => this.#deps.store.cases.findById(request.case_id),
+    let stored: StoredCase | null;
+    let idempotencyRecords: IdempotencyRecord[];
+    if (this.#deps.store.readSubmitSnapshot) {
+      const read = this.#consumeRead(
         options.signal,
-      ),
-    );
-    if (!read.ok) {
-      return { kind: 'failed', failure: unavailable('That answer could not be processed.') };
+        await this.#startRead(
+          'case_read_submit_snapshot',
+          request.case_id,
+          () => this.#deps.store.readSubmitSnapshot!(request.case_id),
+          options.signal,
+        ),
+      );
+      if (!read.ok) {
+        return { kind: 'failed', failure: unavailable('That answer could not be processed.') };
+      }
+      stored = read.value.stored;
+      idempotencyRecords = read.value.idempotency;
+    } else {
+      // Compatibility path for legacy/fault-injection adapters. Each await
+      // retains the Phase-1 cancellation arbitration and the mixed-freshness
+      // guards below remain reachable, while production uses the structural
+      // single-statement primitive above.
+      const caseRead = this.#consumeRead(
+        options.signal,
+        await this.#startRead(
+          'case_read',
+          request.case_id,
+          () => this.#deps.store.cases.findById(request.case_id),
+          options.signal,
+        ),
+      );
+      if (!caseRead.ok) {
+        return { kind: 'failed', failure: unavailable('That answer could not be processed.') };
+      }
+      stored = caseRead.value;
+      if (!stored || stored.state.principal_id !== principalId) {
+        return { kind: 'failed', failure: failure('CASE_NOT_FOUND', 'No such case.') };
+      }
+      const idempotencyRead = this.#consumeRead(
+        options.signal,
+        await this.#startRead(
+          'idempotency_read',
+          request.case_id,
+          () => this.#deps.store.idempotency.listByCase(request.case_id),
+          options.signal,
+        ),
+      );
+      if (!idempotencyRead.ok) {
+        return { kind: 'failed', failure: unavailable('That answer could not be processed.') };
+      }
+      idempotencyRecords = idempotencyRead.value;
     }
-    const stored = read.value;
     if (!stored || stored.state.principal_id !== principalId) {
       return { kind: 'failed', failure: failure('CASE_NOT_FOUND', 'No such case.') };
     }
     const state = stored.state;
 
     /* --- idempotency first, then the lock, then CAS. --------------------- */
-    const idempotencyRead = this.#consumeRead(
-      options.signal,
-      await this.#startRead(
-        'idempotency_read',
-        request.case_id,
-        () => this.#deps.store.idempotency.listByCase(request.case_id),
-        options.signal,
-      ),
-    );
-    // Proceeding without the replay store would turn a lost-response retry
-    // into a duplicate write, which is the one failure this store prevents.
-    if (!idempotencyRead.ok) {
-      return { kind: 'failed', failure: unavailable('That answer could not be processed.') };
-    }
     // Provenance is part of source-event identity, not decoration. Two
     // submissions carrying the same words for the same requirements through
     // different channels — relayed vs first-party, a different relaying agent,
@@ -543,7 +579,7 @@ export class CaseRuntime {
       source_language: relayClaims.source_language,
       translation_indicated: relayClaims.translation_indicated,
     });
-    const eligible = idempotencyRead.value.filter((record) =>
+    const eligible = idempotencyRecords.filter((record) =>
       sharesSourceIdentity(record, request, requestProvenance, state),
     );
 
@@ -686,7 +722,7 @@ export class CaseRuntime {
     // an operation that had in fact succeeded.
     const inconsistentTurn = replayIdentityTurnMissingRecord({
       state,
-      records: idempotencyRead.value,
+      records: idempotencyRecords,
       request,
       requestProvenance,
       contentFingerprint,

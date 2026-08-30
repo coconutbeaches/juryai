@@ -28,7 +28,9 @@ import {
   type StartCaseCommit,
   type StartCaseIdempotencyRecord,
   type StartCaseIdempotencyRepository,
+  type StartCaseReplaySnapshot,
   type StoredCase,
+  type SubmitSnapshot,
   type TurnCommit,
   type TurnCommitResult,
 } from './repositories.js';
@@ -100,6 +102,32 @@ export class InMemoryCaseRuntimeStore implements CaseRuntimeStore {
       return found ? structuredClone(found) : null;
     },
   };
+
+  async readStartSnapshot(
+    principalId: string,
+    clientRequestId: string,
+  ): Promise<StartCaseReplaySnapshot | null> {
+    // No await occurs between these reads, so JavaScript cannot interleave a
+    // write. This is the in-memory equivalent of the PostgreSQL single-query
+    // snapshot used in production.
+    const request = this.#findStartRequest(principalId, clientRequestId);
+    if (!request) return null;
+    return {
+      request: structuredClone(request),
+      stored: this.#read(request.case_id),
+    };
+  }
+
+  async readSubmitSnapshot(caseId: string): Promise<SubmitSnapshot> {
+    // Clone the case and replay records in one synchronous turn. Neither view
+    // can move independently while this snapshot is assembled.
+    return {
+      stored: this.#read(caseId),
+      idempotency: this.#idempotency
+        .filter((record) => record.case_id === caseId)
+        .map((record) => structuredClone(record)),
+    };
+  }
 
   /**
    * The case and its start-request record land together. Both uniqueness rules
