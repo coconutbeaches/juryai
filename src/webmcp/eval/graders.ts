@@ -118,6 +118,54 @@ const ENTITY_INTRODUCERS: Partial<Record<PropositionType, ReadonlySet<string>>> 
   disputed_balance: new Set(['against', 'by', 'from', 'to']),
 };
 
+const SENTENCE_INITIAL_NON_ENTITY_WORDS = new Set([
+  'account',
+  'agreement',
+  'amount',
+  'balance',
+  'bill',
+  'charge',
+  'completion',
+  'date',
+  'deadline',
+  'fact',
+  'invoice',
+  'payment',
+  'position',
+  'quote',
+  'relief',
+  'remedy',
+  'remittance',
+  'request',
+  'scope',
+  'sum',
+  'transfer',
+  'work',
+]);
+
+const ENTITY_SUBJECT_PREDICATES: Partial<Record<PropositionType, ReadonlySet<string>>> = {
+  requested_scope: new Set(['asked', 'hired', 'requested', 'told', 'wanted']),
+  accepted_scope: new Set(['accepted', 'agreed', 'approved', 'consented', 'signed']),
+  invoice: new Set(['billed', 'invoiced', 'issued', 'sent']),
+  payment: new Set(['paid', 'received', 'remitted', 'transferred']),
+  disputed_balance: new Set(['contested', 'disputed']),
+  requested_remedy: new Set(['asked', 'requested', 'sought', 'wanted']),
+  target_date: new Set(['expected']),
+  contractual_deadline: new Set(['agreed']),
+  narrative_fact: new Set(['admitted', 'claimed', 'contended', 'said', 'stated']),
+};
+
+const ENTITY_SUBJECT_AUXILIARIES = new Set([
+  'did',
+  'does',
+  'had',
+  'has',
+  'is',
+  'was',
+  'were',
+  'will',
+]);
+
 function isSentenceInitial(text: string, tokens: readonly WordToken[], index: number): boolean {
   if (index === 0) return true;
   return /[.!?]\s*$/u.test(text.slice(tokens[index - 1]!.end, tokens[index]!.start));
@@ -142,7 +190,22 @@ function addsUnsupportedEntityToken(
   for (const [index, token] of tokens.entries()) {
     if (cited.has(token.folded) || ENTITY_NEUTRAL_WORDS.has(token.folded)) continue;
     if (POLARITY_PREDICATES[type]?.has(token.folded) ?? false) continue;
-    if (/^\p{Lu}/u.test(token.raw) && !isSentenceInitial(statement, tokens, index)) return true;
+    if (/^\p{Lu}/u.test(token.raw)) {
+      if (!isSentenceInitial(statement, tokens, index)) return true;
+      if (!SENTENCE_INITIAL_NON_ENTITY_WORDS.has(token.folded)) {
+        let predicateIndex = index + 1;
+        while (
+          predicateIndex < tokens.length &&
+          ENTITY_SUBJECT_AUXILIARIES.has(tokens[predicateIndex]?.folded ?? '')
+        ) {
+          predicateIndex += 1;
+        }
+        const predicate = tokens[predicateIndex]?.folded;
+        if (predicate !== undefined && (ENTITY_SUBJECT_PREDICATES[type]?.has(predicate) ?? false)) {
+          return true;
+        }
+      }
+    }
     const previous = tokens[index - 1]?.folded;
     if (previous !== undefined && introducers.has(previous)) return true;
     if (previous !== undefined && ENTITY_ROLE_LABELS.has(previous)) {
@@ -205,42 +268,107 @@ const EXPLICIT_NEGATION_WORDS = new Set([
 ]);
 
 const POLARITY_PREDICATES: Partial<Record<PropositionType, ReadonlySet<string>>> = {
-  requested_scope: new Set(['ask', 'asked', 'request', 'requested', 'want', 'wanted']),
+  requested_scope: new Set([
+    'ask',
+    'asked',
+    'commission',
+    'commissioned',
+    'engage',
+    'engaged',
+    'instruct',
+    'instructed',
+    'request',
+    'requested',
+    'solicit',
+    'solicited',
+    'want',
+    'wanted',
+  ]),
   accepted_scope: new Set([
     'accept',
     'accepted',
     'agree',
     'agreed',
+    'assent',
+    'assented',
     'approve',
     'approved',
+    'authorize',
+    'authorized',
+    'consent',
+    'consented',
+    'endorse',
+    'endorsed',
+    'execute',
+    'executed',
     'sign',
     'signed',
   ]),
-  invoice: new Set(['bill', 'billed', 'invoice', 'invoiced', 'issue', 'issued']),
+  invoice: new Set([
+    'bill',
+    'billed',
+    'charge',
+    'charged',
+    'invoice',
+    'invoiced',
+    'issue',
+    'issued',
+  ]),
   payment: new Set([
     'complete',
     'completed',
     'made',
     'pay',
     'paid',
+    'remit',
+    'remitted',
+    'settle',
+    'settled',
+    'tender',
+    'tendered',
     'transfer',
     'transferred',
     'transferring',
   ]),
-  disputed_balance: new Set(['contest', 'contested', 'dispute', 'disputed', 'disputes']),
+  disputed_balance: new Set([
+    'challenge',
+    'challenged',
+    'contest',
+    'contested',
+    'deny',
+    'denied',
+    'dispute',
+    'disputed',
+    'disputes',
+    'object',
+    'objected',
+  ]),
   requested_remedy: new Set([
     'ask',
     'asked',
     'asks',
     'request',
     'requested',
+    'demand',
+    'demanded',
+    'pursue',
+    'pursued',
     'seek',
     'seeks',
     'want',
     'wants',
   ]),
-  target_date: new Set(['expect', 'expected']),
-  contractual_deadline: new Set(['agree', 'agreed']),
+  target_date: new Set([
+    'anticipate',
+    'anticipated',
+    'expect',
+    'expected',
+    'hope',
+    'hoped',
+    'plan',
+    'planned',
+  ]),
+  contractual_deadline: new Set(['agree', 'agreed', 'commit', 'committed', 'promise', 'promised']),
 };
 
 const LEXICAL_POLARITY_REVERSERS: Partial<Record<PropositionType, ReadonlySet<string>>> = {
@@ -345,12 +473,12 @@ function reversesAssertionPolarity(
   statement: string,
   answerCitations: string,
 ): boolean {
-  if (words(statement).some((word) => LEXICAL_POLARITY_REVERSERS[type]?.has(word) ?? false)) {
+  const statementWords = words(statement);
+  const citationWords = words(answerCitations);
+  if (statementWords.some((word) => LEXICAL_POLARITY_REVERSERS[type]?.has(word) ?? false)) {
     return true;
   }
   if (type === 'narrative_fact') {
-    const statementWords = words(statement);
-    const citationWords = words(answerCitations);
     if (
       statementWords.some((word) => EXPLICIT_NEGATION_WORDS.has(word)) &&
       !citationWords.some((word) => NEGATION_WORDS.has(word) || word === 'nothing')
@@ -418,6 +546,36 @@ function addsUnsupportedFactMarker(statement: string, answerCitations: string): 
     available.set(marker, remaining - 1);
   }
   return false;
+}
+
+function answerCitationUnionText(
+  spans: readonly {
+    turn_id: string;
+    start: number;
+    end: number;
+    quote: string;
+  }[],
+): string {
+  const sorted = [...spans].sort(
+    (left, right) =>
+      left.turn_id.localeCompare(right.turn_id) || left.start - right.start || right.end - left.end,
+  );
+  const parts: string[] = [];
+  let activeTurn = '';
+  let coveredEnd = -1;
+  for (const span of sorted) {
+    if (span.turn_id !== activeTurn || span.start > coveredEnd) {
+      parts.push(span.quote);
+      activeTurn = span.turn_id;
+      coveredEnd = span.end;
+      continue;
+    }
+    if (span.end > coveredEnd) {
+      parts[parts.length - 1] += span.quote.slice(coveredEnd - span.start);
+      coveredEnd = span.end;
+    }
+  }
+  return parts.join(' ');
 }
 
 /**
@@ -614,12 +772,9 @@ function gradeAssertionSet(
         problems.push("statement omits '" + mention + "'");
       }
     }
-    const uniqueAnswerSpans = new Map(
-      assertion.spans
-        .filter((span) => span.region === 'answer')
-        .map((span) => [span.turn_id + ':' + String(span.start) + ':' + String(span.end), span]),
+    const answerCitations = answerCitationUnionText(
+      assertion.spans.filter((span) => span.region === 'answer'),
     );
-    const answerCitations = [...uniqueAnswerSpans.values()].map((span) => span.quote).join(' ');
     for (const alternatives of slot.citation_must_mention) {
       if (!alternatives.some((term) => fold(answerCitations).includes(fold(term)))) {
         problems.push("citation does not support topic '" + alternatives.join('|') + "'");

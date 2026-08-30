@@ -702,6 +702,43 @@ describe('the graders themselves have teeth', () => {
     expect(grade.failures.join(' ')).toMatch(/unsupported fact/u);
   });
 
+  it('does not let overlapping citation spans inflate fact evidence', async () => {
+    const { scenario, output } = await compileCompletion(
+      anchor,
+      JSON.stringify({
+        verdict: 'accepted_candidates',
+        assertions: [
+          {
+            requirement_id: 'req_paid',
+            proposed_type: 'payment',
+            epistemic_strength: 'asserted_confident',
+            statement:
+              'The user paid the other party 2,000 pounds plus a fee of 25 by bank transfer on 25 April.',
+            supersedes_candidate: null,
+            citations: [
+              {
+                region: 'answer',
+                message_index: null,
+                quote: 'I paid them 2,000 pounds by bank transfer on 25 April',
+              },
+              {
+                region: 'answer',
+                message_index: null,
+                quote: '25 April',
+              },
+            ],
+          },
+        ],
+        rejected_candidates: [],
+        clarifications_requested: [],
+      }),
+    );
+
+    const grade = gradeCompilerOutput(anchor, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/unsupported fact/u);
+  });
+
   it('refuses a lexical reversal of accepted scope', async () => {
     const { scenario, output } = await compileCompletion(
       acceptedScope,
@@ -713,6 +750,38 @@ describe('the graders themselves have teeth', () => {
             proposed_type: 'accepted_scope',
             epistemic_strength: 'asserted_confident',
             statement: 'The user rejected the written quote on 3 March instead of signing it.',
+            supersedes_candidate: null,
+            citations: [
+              {
+                region: 'answer',
+                message_index: null,
+                quote:
+                  'They came back with a written quote on 3 March covering the rewire and the consumer unit move, and I signed it the same day.',
+              },
+            ],
+          },
+        ],
+        rejected_candidates: [],
+        clarifications_requested: [],
+      }),
+    );
+
+    const grade = gradeCompilerOutput(acceptedScope, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/polarity/u);
+  });
+
+  it('refuses explicit negation around an accepted-scope synonym', async () => {
+    const { scenario, output } = await compileCompletion(
+      acceptedScope,
+      JSON.stringify({
+        verdict: 'accepted_candidates',
+        assertions: [
+          {
+            requirement_id: 'req_scope_accepted',
+            proposed_type: 'accepted_scope',
+            epistemic_strength: 'asserted_confident',
+            statement: 'The user never consented to the written quote on 3 March.',
             supersedes_candidate: null,
             citations: [
               {
@@ -916,6 +985,17 @@ describe('the graders themselves have teeth', () => {
     expect(grade.ok).toBe(false);
     expect(grade.failures.join(' ')).not.toContain('John Smith');
     expect(grade.failures.join(' ')).not.toContain(statement);
+  });
+
+  it('refuses a fabricated single-token entity at the start of a sentence', async () => {
+    const { scenario, output } = await paymentWithStatement(
+      'Alice received 2,000 pounds by bank transfer on 25 April.',
+    );
+
+    const grade = gradeCompilerOutput(anchor, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/unsupported entity/u);
+    expect(grade.failures.join(' ')).not.toContain('Alice');
   });
 
   it('allows a valid sentence-initial Payment paraphrase', async () => {
