@@ -5,6 +5,8 @@ import {
   CompilerConfigurationError,
   DEFAULT_COMPILER_DECODING,
   fixedModelClient,
+  MAX_RETRY_BACKOFF_MS_CEILING,
+  MAX_TRANSIENT_RETRIES_CEILING,
   ModelSemanticCompiler,
   OpenAiResponsesSemanticModelClient,
   openAiResponsesEndpoint,
@@ -421,9 +423,9 @@ describe('pinned model provenance', () => {
     const compiler = compilerOver(client, { model_snapshot: PINNED });
     const result = await compiler.compile(inputOf()).catch((error: unknown) => error);
     expect(result).toBeInstanceOf(SemanticModelIdentityError);
-    // No grounding result leaked out as a valid compiler output, and nothing
-    // was recorded as a completed run.
-    expect(compiler.telemetry).toHaveLength(0);
+    // No grounding result leaked out as a valid compiler output, and the run is
+    // recorded as rejected rather than as a completed compile.
+    expect(compiler.telemetry.map((entry) => entry.outcome)).toEqual(['model_identity_rejected']);
   });
 
   it('does not resample onto an attempt that happens to report the pinned model', async () => {
@@ -803,6 +805,153 @@ describe('retry policy', () => {
       compilerOver(client, { max_transient_retries: 2 }).compile(inputOf()),
     ).rejects.toThrow(/503/u);
     expect(client.attempts).toBe(3);
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Retry settings must actually be bounded                                   */
+/* ------------------------------------------------------------------------ */
+
+describe('retry settings are validated, not normalised', () => {
+  // `Math.trunc(Infinity)` is `Infinity` and `Math.max(0, Infinity)` is
+  // `Infinity`, so an unvalidated bound would let one compile issue unlimited
+  // paid requests against a provider stuck on transient errors. `NaN` fails the
+  // other way and skips the provider entirely. Both are refused loudly.
+  it.each([
+    ['Infinity', Number.POSITIVE_INFINITY],
+    ['NaN', Number.NaN],
+    ['a negative count', -1],
+    ['a fraction', 1.5],
+    ['a value beyond the ceiling', MAX_TRANSIENT_RETRIES_CEILING + 1],
+  ])('refuses max_transient_retries of %s', (_label, value) => {
+    expect(
+      () =>
+        new ModelSemanticCompiler({
+          client: fixedModelClient(draft()),
+          model_id: 'm',
+          model_snapshot: null,
+          max_transient_retries: value,
+        }),
+    ).toThrow(/max_transient_retries must be an integer/u);
+  });
+
+  it.each([
+    ['Infinity', Number.POSITIVE_INFINITY],
+    ['NaN', Number.NaN],
+    ['a value beyond the ceiling', MAX_RETRY_BACKOFF_MS_CEILING + 1],
+  ])('refuses retry_backoff_ms of %s', (_label, value) => {
+    expect(
+      () =>
+        new ModelSemanticCompiler({
+          client: fixedModelClient(draft()),
+          model_id: 'm',
+          model_snapshot: null,
+          retry_backoff_ms: value,
+        }),
+    ).toThrow(/retry_backoff_ms must be an integer/u);
+  });
+
+  it('still accepts the documented bound and exhausts it', async () => {
+    const client = new ScriptedSemanticModelClient(() => ({
+      kind: 'error',
+      error: new SemanticModelError('503', { transient: true }),
+    }));
+    const compiler = compilerOver(client, {
+      max_transient_retries: MAX_TRANSIENT_RETRIES_CEILING,
+    });
+    await expect(compiler.compile(inputOf())).rejects.toThrow(/503/u);
+    expect(client.attempts).toBe(MAX_TRANSIENT_RETRIES_CEILING + 1);
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Telemetry covers billed-but-rejected runs                                 */
+/* ------------------------------------------------------------------------ */
+
+describe('provider telemetry', () => {
+  // A response that is billed and then rejected still cost a request. Recording
+  // only successes would make live-eval usage and call counts underreport
+  // exactly when a model is misbehaving.
+  it('records a completed compile', async () => {
+    const compiler = compilerOver(fixedModelClient(draft()));
+    await compiler.compile(inputOf());
+    expect(compiler.telemetry.map((entry) => entry.outcome)).toEqual(['compiled']);
+    expect(compiler.telemetry[0]!.attempts).toBe(1);
+  });
+
+  it('records a run whose response failed pinned-model validation', async () => {
+    const compiler = compilerOver(
+      new ScriptedSemanticModelClient(() => ({
+        kind: 'text',
+        text: draft(),
+        reported_model: 'somewhere-else',
+      })),
+      { model_snapshot: 'pinned-1' },
+    );
+    await expect(compiler.compile(inputOf())).rejects.toBeInstanceOf(SemanticModelIdentityError);
+    expect(compiler.telemetry[0]!.outcome).toBe('model_identity_rejected');
+    expect(compiler.telemetry[0]!.reported_model).toBe('somewhere-else');
+  });
+
+  it('records a run that returned no completion text', async () => {
+    const compiler = compilerOver(new ScriptedSemanticModelClient(() => ({ kind: 'empty' })));
+    await expect(compiler.compile(inputOf())).rejects.toThrow(SemanticCompilerOutputError);
+    expect(compiler.telemetry[0]!.outcome).toBe('no_output_text');
+  });
+
+  it('records a run whose completion was malformed, with its usage', async () => {
+    const compiler = compilerOver(fixedModelClient('not json at all'));
+    await expect(compiler.compile(inputOf())).rejects.toThrow(SemanticCompilerOutputError);
+    expect(compiler.telemetry[0]!.outcome).toBe('malformed_output');
+    expect(compiler.telemetry[0]!.attempts).toBe(1);
+  });
+
+  it('records a run whose completion quoted text the user never wrote', async () => {
+    const compiler = compilerOver(
+      fixedModelClient(
+        draft({
+          assertions: [
+            {
+              requirement_id: REQUIREMENT,
+              proposed_type: 'requested_scope',
+              epistemic_strength: 'asserted_confident',
+              statement: 'x',
+              supersedes_candidate: null,
+              citations: [
+                { region: 'answer', message_index: null, quote: 'rewire the entire building' },
+              ],
+            },
+          ],
+        }),
+      ),
+    );
+    await expect(compiler.compile(inputOf())).rejects.toThrow(SemanticCompilerOutputError);
+    expect(compiler.telemetry[0]!.outcome).toBe('malformed_output');
+  });
+
+  it('records every attempt of a run the provider never completed', async () => {
+    const client = new ScriptedSemanticModelClient(() => ({
+      kind: 'error',
+      error: new SemanticModelError('503', { transient: true }),
+    }));
+    const compiler = compilerOver(client, { max_transient_retries: 2 });
+    await expect(compiler.compile(inputOf())).rejects.toThrow(/503/u);
+    expect(compiler.telemetry[0]!.outcome).toBe('provider_failed');
+    // The call count is what a live eval bills against, so it must be the real
+    // number of attempts, not one.
+    expect(compiler.telemetry[0]!.attempts).toBe(3);
+  });
+
+  it('records the attempts a cancelled run had already billed', async () => {
+    const controller = new AbortController();
+    const client = new ScriptedSemanticModelClient(() => {
+      controller.abort();
+      return { kind: 'text', text: draft() };
+    });
+    const compiler = compilerOver(client);
+    await expect(compiler.compile(inputOf(), { signal: controller.signal })).rejects.toThrow();
+    expect(compiler.telemetry[0]!.outcome).toBe('cancelled');
+    expect(compiler.telemetry[0]!.attempts).toBe(1);
   });
 });
 

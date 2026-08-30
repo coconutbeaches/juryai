@@ -80,12 +80,21 @@ async function runLive(): Promise<boolean> {
 
   // Provider usage is diagnostics, printed as such. It never reaches canonical
   // state and it is not part of the pass criterion.
+  //
+  // Telemetry covers every run that reached the provider, including ones whose
+  // response was billed and then rejected. Summing only successful runs would
+  // underreport usage exactly when a model is misbehaving, so the outcome
+  // breakdown is printed alongside the totals rather than left implicit.
   const inputTokens = compiler.telemetry.reduce((sum, entry) => sum + (entry.input_tokens ?? 0), 0);
   const outputTokens = compiler.telemetry.reduce(
     (sum, entry) => sum + (entry.output_tokens ?? 0),
     0,
   );
   const reported = [...new Set(compiler.telemetry.map((entry) => entry.reported_model ?? '?'))];
+  const outcomes = new Map<string, number>();
+  for (const entry of compiler.telemetry) {
+    outcomes.set(entry.outcome, (outcomes.get(entry.outcome) ?? 0) + 1);
+  }
   process.stdout.write(
     '\nProvider diagnostics (non-authoritative)\n' +
       '  provider-reported model  ' +
@@ -96,6 +105,11 @@ async function runLive(): Promise<boolean> {
       String(outputTokens) +
       '\n  provider calls           ' +
       String(compiler.telemetry.reduce((sum, entry) => sum + entry.attempts, 0)) +
+      '\n  runs reaching provider   ' +
+      String(compiler.telemetry.length) +
+      '\n  outcomes                 ' +
+      ([...outcomes.entries()].map(([name, count]) => name + '=' + String(count)).join(', ') ||
+        'none') +
       '\n',
   );
   return report.failed === 0;

@@ -130,7 +130,17 @@ outlive the cancellation.
 
 Retries are bounded (default 1), transient-transport-only, byte-identical, and
 never triggered by a refusal or by malformed structured output. There is no
-resample-until-it-parses policy.
+resample-until-it-parses policy. `max_transient_retries` and `retry_backoff_ms`
+are validated at construction as finite integers within a hard ceiling and
+refused otherwise: `Math.trunc`/`Math.max` preserve `Infinity`, so normalising
+instead of validating would leave a documented bound that a single compile could
+exceed without limit.
+
+Provider telemetry records **every** run that reached the provider, tagged with
+its outcome (`compiled`, `provider_failed`, `model_identity_rejected`,
+`no_output_text`, `malformed_output`, `cancelled`). A response that is billed and
+then rejected still cost a request; counting only successes would make live-eval
+usage and call totals underreport exactly when a model is misbehaving.
 
 ## Eval harness
 

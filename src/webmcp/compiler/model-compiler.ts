@@ -58,6 +58,20 @@ export const DEFAULT_COMPILER_TAXONOMY_VERSION = 'juryai-p2-v0.2.0';
  */
 export const MODEL_COMPILER_REGISTERED_AT = '2026-01-01T00:00:00.000Z';
 
+/**
+ * Hard ceilings on the operational retry settings.
+ *
+ * `Math.trunc`/`Math.max` preserve `Infinity`, so an unvalidated
+ * `max_transient_retries` could make the retry loop unable to exhaust while a
+ * provider kept returning transient errors — unbounded paid requests from a
+ * single compile, and a documented bound that is not one. `NaN` fails the
+ * other way and silently skips the provider entirely. Both are refused at
+ * construction rather than clamped, because either is a misconfiguration the
+ * operator needs to see.
+ */
+export const MAX_TRANSIENT_RETRIES_CEILING = 5;
+export const MAX_RETRY_BACKOFF_MS_CEILING = 60_000;
+
 export const DEFAULT_COMPILER_DECODING: CompilerDecodingConfig = {
   temperature: 0,
   top_p: null,
@@ -151,6 +165,27 @@ export interface ResolvedModelCompilerOptions {
   readonly endpoint_sha256: string | null;
 }
 
+/**
+ * A retry setting must be a finite, non-negative integer within its ceiling.
+ * Anything else — `Infinity`, `NaN`, a negative, a fraction, an absurd finite
+ * value — is refused loudly here rather than normalised into behaviour the
+ * caller did not ask for.
+ */
+function boundedSetting(
+  value: number | undefined,
+  fallback: number,
+  ceiling: number,
+  name: string,
+): number {
+  if (value === undefined) return fallback;
+  if (!Number.isInteger(value) || value < 0 || value > ceiling) {
+    throw new TypeError(
+      name + ' must be an integer between 0 and ' + String(ceiling) + '; received ' + String(value),
+    );
+  }
+  return value;
+}
+
 function deepFreeze<T>(value: T): T {
   if (typeof value === 'object' && value !== null) {
     for (const inner of Object.values(value as Record<string, unknown>)) deepFreeze(inner);
@@ -180,8 +215,18 @@ export function resolveModelCompilerOptions(
       omit_sampling_params: options.omit_sampling_params ?? false,
       retain_raw_output: options.retain_raw_output ?? false,
       registered_at: options.registered_at ?? MODEL_COMPILER_REGISTERED_AT,
-      max_transient_retries: Math.max(0, Math.trunc(options.max_transient_retries ?? 1)),
-      retry_backoff_ms: Math.max(0, Math.trunc(options.retry_backoff_ms ?? 0)),
+      max_transient_retries: boundedSetting(
+        options.max_transient_retries,
+        1,
+        MAX_TRANSIENT_RETRIES_CEILING,
+        'max_transient_retries',
+      ),
+      retry_backoff_ms: boundedSetting(
+        options.retry_backoff_ms,
+        0,
+        MAX_RETRY_BACKOFF_MS_CEILING,
+        'retry_backoff_ms',
+      ),
       provider_id: options.client.provider_id,
       endpoint_sha256: options.client.endpoint_sha256,
     }),
@@ -251,6 +296,23 @@ export function buildModelCompilerRegistryEntry(
   return modelCompilerRegistryEntryOf(resolveModelCompilerOptions(options));
 }
 
+/**
+ * What happened to a compile run after the provider was called.
+ *
+ * Recorded for every run that reached the provider, not only successful ones:
+ * a response that is billed and then rejected — wrong pinned model, no
+ * completion text, malformed JSON — still cost a request, and diagnostics that
+ * drop those underreport usage precisely when a model is misbehaving, which is
+ * when the numbers matter most.
+ */
+export type ModelCompileOutcome =
+  | 'compiled'
+  | 'provider_failed'
+  | 'model_identity_rejected'
+  | 'no_output_text'
+  | 'malformed_output'
+  | 'cancelled';
+
 /** Non-authoritative per-run diagnostics for eval reporting. Never canonical. */
 export interface ModelCompileTelemetry {
   compile_run_id: string;
@@ -259,6 +321,7 @@ export interface ModelCompileTelemetry {
   reported_model: string | null;
   input_tokens: number | null;
   output_tokens: number | null;
+  outcome: ModelCompileOutcome;
 }
 
 export class ModelSemanticCompiler implements SemanticCompilerPort {
@@ -311,6 +374,23 @@ export class ModelSemanticCompiler implements SemanticCompilerPort {
     let response: SemanticModelResponse | null = null;
     let lastError: unknown = null;
 
+    // Every terminal path below records exactly once, so provider-call counts
+    // and token totals describe the whole run rather than only its successes.
+    const record = (
+      outcome: ModelCompileOutcome,
+      seen: SemanticModelResponse | null = null,
+    ): void => {
+      this.#recordTelemetry({
+        compile_run_id: input.compile_run_id,
+        attempts,
+        elapsed_ms: Date.now() - startedAt,
+        reported_model: seen?.reported_model ?? null,
+        input_tokens: seen?.usage?.input_tokens ?? null,
+        output_tokens: seen?.usage?.output_tokens ?? null,
+        outcome,
+      });
+    };
+
     // The retry loop is deliberately dumb: the SAME request, under the SAME
     // caller signal, for TRANSIENT transport failures only. It never changes
     // model, prompt, schema or decoding between attempts, and it never resamples
@@ -325,8 +405,15 @@ export class ModelSemanticCompiler implements SemanticCompilerPort {
       } catch (error) {
         // Cancellation is never a retry condition, and is never flattened into
         // a provider error: the caller's abort leaves as the caller's abort.
-        if (signal?.aborted) throw error;
-        if (error instanceof Error && error.name === 'AbortError') throw error;
+        // The attempts it already billed are still recorded.
+        if (signal?.aborted) {
+          record('cancelled');
+          throw error;
+        }
+        if (error instanceof Error && error.name === 'AbortError') {
+          record('cancelled');
+          throw error;
+        }
         lastError = error;
         const transient = error instanceof SemanticModelError && error.transient;
         if (!transient || attempts > this.#resolved.max_transient_retries) break;
@@ -336,6 +423,7 @@ export class ModelSemanticCompiler implements SemanticCompilerPort {
     }
 
     if (response === null) {
+      record('provider_failed');
       throw lastError instanceof Error
         ? lastError
         : new SemanticModelError('Provider call failed with no diagnosable error.');
@@ -358,19 +446,27 @@ export class ModelSemanticCompiler implements SemanticCompilerPort {
     // telemetry.
     const pinned = this.#resolved.model_snapshot;
     if (pinned !== null && response.reported_model !== pinned) {
+      record('model_identity_rejected', response);
       throw new SemanticModelIdentityError(pinned, response.reported_model);
     }
 
     if (response.text === null) {
       // Provider-native structured output produced no completion. `null` is the
       // honest record of that; inventing a raw string would falsify the audit.
+      record('no_output_text', response);
       throw new SemanticCompilerOutputError(
         'provider returned no structured output text',
         'model_draft',
       );
     }
 
-    const output = parseModelDraft(input, response.text);
+    let output: CompilerOutput;
+    try {
+      output = parseModelDraft(input, response.text);
+    } catch (error) {
+      record('malformed_output', response);
+      throw error;
+    }
     if (this.#resolved.retain_raw_output) {
       output.raw_model_output = response.text;
     }
@@ -380,20 +476,14 @@ export class ModelSemanticCompiler implements SemanticCompilerPort {
     // runtime's own identical check is not weakened by it existing.
     const shapeIssues = validateCompilerOutputShape(output);
     if (shapeIssues.length > 0) {
+      record('malformed_output', response);
       throw new SemanticCompilerOutputError(
         'assembled output failed its own shape check: ' + (shapeIssues[0]?.message ?? 'unknown'),
         shapeIssues[0]?.path ?? 'compiler_output',
       );
     }
 
-    this.#recordTelemetry({
-      compile_run_id: input.compile_run_id,
-      attempts,
-      elapsed_ms: Date.now() - startedAt,
-      reported_model: response.reported_model,
-      input_tokens: response.usage?.input_tokens ?? null,
-      output_tokens: response.usage?.output_tokens ?? null,
-    });
+    record('compiled', response);
 
     return output;
   }
