@@ -18,6 +18,14 @@ function line(label: string, value: string): string {
   return label.padEnd(22) + value;
 }
 
+const PROVIDER_MODEL_IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,159}$/u;
+
+/** Provider identity is diagnostics, but only identifier-shaped text is printable. */
+export function formatProviderModelIdentifier(value: string | null): string {
+  if (value === null) return '?';
+  return PROVIDER_MODEL_IDENTIFIER.test(value) ? value : '(invalid provider identifier)';
+}
+
 export function formatEvalReport(report: EvalRunReport): string {
   const out: string[] = [
     'JuryAI semantic compiler eval',

@@ -12,6 +12,7 @@
 import {
   formatEvalReport,
   formatMalformedReport,
+  formatProviderModelIdentifier,
   formatTrapReport,
   runMalformedSuite,
   runOfflineCorpus,
@@ -90,7 +91,11 @@ async function runLive(): Promise<boolean> {
     (sum, entry) => sum + (entry.output_tokens ?? 0),
     0,
   );
-  const reported = [...new Set(compiler.telemetry.map((entry) => entry.reported_model ?? '?'))];
+  const reported = [
+    ...new Set(
+      compiler.telemetry.map((entry) => formatProviderModelIdentifier(entry.reported_model)),
+    ),
+  ];
   const outcomes = new Map<string, number>();
   for (const entry of compiler.telemetry) {
     outcomes.set(entry.outcome, (outcomes.get(entry.outcome) ?? 0) + 1);

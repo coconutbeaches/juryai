@@ -12,6 +12,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildEvalScenario,
   formatEvalReport,
+  formatProviderModelIdentifier,
   gradeCompilerOutput,
   offlineCorpusCompiler,
   runMalformedSuite,
@@ -88,6 +89,14 @@ describe('offline semantic eval', () => {
       );
     expect(failures).toEqual([]);
     expect(report.passed).toBe(SEMANTIC_EVAL_CORPUS.length);
+  });
+
+  it('prints only bounded identifier-shaped provider model diagnostics', () => {
+    expect(formatProviderModelIdentifier('gpt-5.6-2026-08-01')).toBe('gpt-5.6-2026-08-01');
+    const injected = 'John Smith paid 2,000 pounds\nfor another matter';
+    const rendered = formatProviderModelIdentifier(injected);
+    expect(rendered).toBe('(invalid provider identifier)');
+    expect(rendered).not.toContain('John Smith');
   });
 
   it('takes every accepted reading through the full runtime guard chain', async () => {
@@ -603,6 +612,26 @@ describe('the graders themselves have teeth', () => {
     expect(grade.ok).toBe(false);
     expect(grade.failures.join(' ')).toMatch(/unsupported (?:fact|entity)/u);
     expect(grade.failures.join(' ')).not.toContain('Alice');
+  });
+
+  it('refuses a statement that reverses the expected assertion polarity', async () => {
+    const { scenario, output } = await paymentWithStatement(
+      'The user has not paid the other party 2,000 pounds by bank transfer on 25 April.',
+    );
+
+    const grade = gradeCompilerOutput(anchor, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/polarity/u);
+  });
+
+  it('allows a semantically supported ordinary paraphrase', async () => {
+    const { scenario, output } = await paymentWithStatement(
+      'The user completed payment of 2,000 pounds by bank transfer on 25 April.',
+    );
+
+    const grade = gradeCompilerOutput(anchor, scenario.input, output);
+    expect(grade.failures).toEqual([]);
+    expect(grade.ok).toBe(true);
   });
 
   it.each(['$', '£', '€'])('refuses an unsupported %s currency symbol', async (symbol) => {

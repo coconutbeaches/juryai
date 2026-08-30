@@ -83,10 +83,10 @@ function nullableText(value: unknown, path: string): string | null {
 /**
  * Resolves one model citation into a verified span.
  *
- * The FIRST exact occurrence is used. Multiple occurrences of the same
- * quotation are all equally true quotations of the stored text, so the choice
- * changes nothing a span asserts; picking deterministically keeps replay
- * stable.
+ * The quotation must identify exactly one occurrence. Repeated wording can sit
+ * inside passages with different polarity or attribution, so selecting an
+ * arbitrary occurrence would create a mechanically exact but semantically
+ * misleading audit span.
  */
 function resolveCitation(
   value: unknown,
@@ -145,6 +145,12 @@ function resolveCitation(
     // safe repair for this: it is the fabrication case.
     throw new SemanticCompilerOutputError(
       'quoted text does not occur in the stored ' + region + ' text',
+      path + '.quote',
+    );
+  }
+  if (source.indexOf(quote, start + 1) >= 0) {
+    throw new SemanticCompilerOutputError(
+      'quoted text occurs more than once in the stored source region',
       path + '.quote',
     );
   }

@@ -20,7 +20,7 @@ import {
   type CompilerOutput,
 } from '../core/compiler-contract.js';
 import { verifyTurnSpan } from '../core/turns.js';
-import { propositionTypeDescriptor } from '../core/types.js';
+import { propositionTypeDescriptor, type PropositionType } from '../core/types.js';
 import { validateCompilerOutputShape } from '../runtime/compiler-output-shape.js';
 import type { AllowedAssertion, ExpectedClarification, SemanticEvalCase } from './types.js';
 
@@ -33,88 +33,183 @@ function fold(text: string): string {
   return text.toLowerCase();
 }
 
-const CANONICAL_PROSE_WORDS = new Set([
+interface WordToken {
+  raw: string;
+  folded: string;
+  start: number;
+  end: number;
+}
+
+function wordTokens(text: string): WordToken[] {
+  return [...text.matchAll(/\p{L}+(?:['’]\p{L}+)*/gu)].map((match) => ({
+    raw: match[0],
+    folded: fold(match[0]),
+    start: match.index,
+    end: match.index + match[0].length,
+  }));
+}
+
+function words(text: string): string[] {
+  return wordTokens(text).map((token) => token.folded);
+}
+
+const ENTITY_NEUTRAL_WORDS = new Set([
   'a',
-  'account',
-  'additional',
-  'amount',
   'an',
   'and',
   'are',
   'as',
   'at',
-  'anything',
-  'asks',
   'be',
+  'been',
+  'being',
   'by',
-  'date',
-  'declined',
-  'disputes',
-  'does',
-  'exact',
-  'expected',
-  'failed',
-  'finished',
   'for',
-  'gave',
-  'has',
+  'from',
+  'he',
+  'her',
+  'him',
   'in',
-  'invoice',
   'is',
-  'issued',
-  'left',
-  'made',
-  'not',
+  'it',
+  'its',
   'of',
   'on',
+  'or',
   'other',
-  'owing',
   'parties',
   'party',
-  'payment',
-  'payments',
-  'recall',
-  'recalls',
-  'remains',
-  'requested',
-  'required',
-  'says',
-  'state',
-  'stated',
-  'states',
+  'she',
+  'that',
   'the',
+  'their',
+  'them',
   'they',
+  'this',
   'to',
-  'transferring',
-  'understands',
   'user',
   'was',
   'were',
-  'what',
-  'whether',
-  'which',
-  'whole',
-  'work',
 ]);
 
-function words(text: string): string[] {
-  return [...text.matchAll(/\p{L}+/gu)].map((match) => fold(match[0]));
+const ENTITY_INTRODUCERS: Partial<Record<PropositionType, ReadonlySet<string>>> = {
+  payment: new Set(['paid', 'pay', 'to']),
+  invoice: new Set(['by', 'from']),
+  requested_scope: new Set(['asked', 'hired', 'told']),
+  accepted_scope: new Set(['by', 'with']),
+  requested_remedy: new Set(['asked', 'from', 'to']),
+  disputed_balance: new Set(['against', 'by', 'from', 'to']),
+};
+
+function isSentenceInitial(text: string, tokens: readonly WordToken[], index: number): boolean {
+  if (index === 0) return true;
+  return /[.!?]\s*$/u.test(text.slice(tokens[index - 1]!.end, tokens[index]!.start));
 }
 
 /**
- * Detects name-shaped additions without relying on capitalization. A proper
- * name can arrive lowercased, while an ordinary sentence-initial word is
- * capitalized. Any word that is neither quoted from the answer nor part of the
- * compiler's deliberately small canonical prose vocabulary is therefore
- * treated as an unsupported entity-shaped token. The conservative vocabulary
- * is intentional: an eval must not approve an uncited one-word name.
+ * Detects name-shaped additions without treating every paraphrase as an
+ * entity. Uncited title-case words away from a sentence boundary are
+ * name-shaped; lowercased names are caught when they occupy a proposition's
+ * party/recipient position (for example, after "paid" or payment "to").
+ * Ordinary uncited verbs such as "completed" remain legitimate canonical
+ * paraphrase rather than becoming a global vocabulary maintenance problem.
  */
-function addsUnsupportedEntityToken(statement: string, answerCitations: string): boolean {
+function addsUnsupportedEntityToken(
+  type: PropositionType,
+  statement: string,
+  answerCitations: string,
+): boolean {
   const cited = new Set(words(answerCitations));
-  for (const word of words(statement)) {
-    if (!cited.has(word) && !CANONICAL_PROSE_WORDS.has(word)) {
-      return true;
-    }
+  const tokens = wordTokens(statement);
+  const introducers = ENTITY_INTRODUCERS[type] ?? new Set<string>();
+  for (const [index, token] of tokens.entries()) {
+    if (cited.has(token.folded) || ENTITY_NEUTRAL_WORDS.has(token.folded)) continue;
+    if (/^\p{Lu}/u.test(token.raw) && !isSentenceInitial(statement, tokens, index)) return true;
+    const previous = tokens[index - 1]?.folded;
+    if (previous !== undefined && introducers.has(previous)) return true;
+    if (previous === 'named' || previous === 'called' || previous === 'met') return true;
+  }
+  return false;
+}
+
+const NEGATION_WORDS = new Set([
+  "aren't",
+  "can't",
+  'cannot',
+  "didn't",
+  "doesn't",
+  "hadn't",
+  "hasn't",
+  "haven't",
+  "isn't",
+  'never',
+  'no',
+  'not',
+  "wasn't",
+  "weren't",
+  "won't",
+  'without',
+]);
+
+const POLARITY_PREDICATES: Partial<Record<PropositionType, ReadonlySet<string>>> = {
+  requested_scope: new Set(['ask', 'asked', 'request', 'requested', 'want', 'wanted']),
+  accepted_scope: new Set([
+    'accept',
+    'accepted',
+    'agree',
+    'agreed',
+    'approve',
+    'approved',
+    'sign',
+    'signed',
+  ]),
+  invoice: new Set(['bill', 'billed', 'invoice', 'invoiced', 'issue', 'issued']),
+  payment: new Set([
+    'complete',
+    'completed',
+    'made',
+    'pay',
+    'paid',
+    'transfer',
+    'transferred',
+    'transferring',
+  ]),
+  disputed_balance: new Set(['contest', 'contested', 'dispute', 'disputed', 'disputes']),
+  requested_remedy: new Set([
+    'ask',
+    'asked',
+    'asks',
+    'request',
+    'requested',
+    'seek',
+    'seeks',
+    'want',
+    'wants',
+  ]),
+  narrative_fact: new Set([
+    'find',
+    'found',
+    'require',
+    'required',
+    'say',
+    'says',
+    'send',
+    'sent',
+    'state',
+    'states',
+  ]),
+  target_date: new Set(['expect', 'expected']),
+  contractual_deadline: new Set(['agree', 'agreed']),
+};
+
+function reversesAssertionPolarity(type: PropositionType, statement: string): boolean {
+  const predicates = POLARITY_PREDICATES[type];
+  if (predicates === undefined) return false;
+  const tokens = wordTokens(statement);
+  for (const [index, token] of tokens.entries()) {
+    if (!predicates.has(token.folded)) continue;
+    const before = tokens.slice(Math.max(0, index - 3), index);
+    if (before.some((candidate) => NEGATION_WORDS.has(candidate.folded))) return true;
   }
   return false;
 }
@@ -348,8 +443,11 @@ function gradeAssertionSet(
     ) {
       problems.push('statement adds an unsupported fact-shaped token');
     }
-    if (addsUnsupportedEntityToken(assertion.statement, answerCitations)) {
+    if (addsUnsupportedEntityToken(assertion.proposed_type, assertion.statement, answerCitations)) {
       problems.push('statement adds an unsupported entity-shaped token');
+    }
+    if (reversesAssertionPolarity(assertion.proposed_type, assertion.statement)) {
+      problems.push('statement reverses the expected assertion polarity');
     }
     if (problems.length === 0) {
       conforming.add(key);

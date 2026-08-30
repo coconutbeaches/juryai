@@ -157,14 +157,12 @@ export class SemanticModelIdentityError extends SemanticModelError {
   readonly reported_model: string | null;
 
   constructor(configuredSnapshot: string, reportedModel: string | null) {
-    super(
-      'Provider response could not be attributed to pinned model snapshot ' +
-        configuredSnapshot +
-        '; provider reported ' +
-        (reportedModel === null ? 'no model' : reportedModel) +
-        '.',
-      { transient: false },
-    );
+    // Both identifiers remain available as structured diagnostics below. The
+    // message is deliberately value-free because provider-reported identity is
+    // untrusted text and exception messages legitimately reach eval output.
+    super('Provider response could not be attributed to the configured pinned model snapshot.', {
+      transient: false,
+    });
     this.name = 'SemanticModelIdentityError';
     this.configured_snapshot = configuredSnapshot;
     this.reported_model = reportedModel;

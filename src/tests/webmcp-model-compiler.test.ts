@@ -413,6 +413,20 @@ describe('pinned model provenance', () => {
     );
   });
 
+  it('does not print a provider-controlled model identifier in identity errors', async () => {
+    const reported = 'John Smith paid 2,000 pounds\nfor another matter';
+    const compiler = compilerOver(clientReporting(reported), { model_snapshot: PINNED });
+
+    await compiler.compile(inputOf()).then(
+      () => expect.unreachable('a routed-elsewhere response must not compile'),
+      (error: unknown) => {
+        expect(error).toBeInstanceOf(SemanticModelIdentityError);
+        expect((error as Error).message).not.toContain(reported);
+        expect((error as Error).message).not.toContain('John Smith');
+      },
+    );
+  });
+
   it('refuses a pinned run the provider does not identify at all', async () => {
     const compiler = compilerOver(clientReporting('none'), { model_snapshot: PINNED });
     await expect(compiler.compile(inputOf())).rejects.toBeInstanceOf(SemanticModelIdentityError);
@@ -568,6 +582,27 @@ describe('draft parsing', () => {
               citations: [
                 { region: 'answer', message_index: null, quote: 'rewire the entire building' },
               ],
+            },
+          ],
+        }),
+      ),
+    ).toThrow(SemanticCompilerOutputError);
+  });
+
+  it('fails closed when a quotation occurs more than once in its source region', () => {
+    const repeated = 'rewire the ground floor';
+    expect(() =>
+      parseModelDraft(
+        inputOf(`Please ${repeated}; to be clear, ${repeated}.`),
+        draft({
+          assertions: [
+            {
+              requirement_id: REQUIREMENT,
+              proposed_type: 'requested_scope',
+              epistemic_strength: 'asserted_confident',
+              statement: 'The user asked for the ground floor to be rewired.',
+              supersedes_candidate: null,
+              citations: [{ region: 'answer', message_index: null, quote: repeated }],
             },
           ],
         }),
