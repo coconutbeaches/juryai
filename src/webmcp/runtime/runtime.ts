@@ -61,6 +61,7 @@ import {
   defaultRequirementSetProvider,
   type RequirementSetProvider,
 } from './initial-requirements.js';
+import { validateCompilerOutputShape } from './compiler-output-shape.js';
 import { applyCompilerOutput } from './mutation-application.js';
 import type { CaseCreateResult, CaseRuntimeStore, StoredCase } from './repositories.js';
 import {
@@ -892,8 +893,58 @@ export class CaseRuntime {
         failure: failure('INTERNAL_ERROR', 'That answer could not be processed. Try again.', true),
       };
     }
-    const output: CompilerOutput = compiled.value;
     const finishedAt = isoFrom(this.#deps.clock.now());
+
+    /* --- the untrusted-value boundary ------------------------------------- */
+    // ONE runtime-owned snapshot from here on. It is detached first, then
+    // structurally validated, then persisted, then applied — so the value that
+    // was checked is the value that becomes audit and the value that drives
+    // mutation. `structuredClone` itself can throw on a value that is not
+    // cloneable at all, which is simply the first shape check.
+    let output: CompilerOutput;
+    try {
+      output = structuredClone(compiled.value);
+    } catch (error) {
+      this.#diagnostics.record({
+        kind: 'compiler_contract_violation',
+        case_id: state.case_id,
+        turn_id: turnId,
+        compile_run_id: compileRunId,
+        message:
+          'Compiler output could not be detached: ' +
+          (error instanceof Error ? error.message : 'unknown error'),
+        issues: [],
+      });
+      return {
+        kind: 'failed',
+        failure: failure('INTERNAL_ERROR', 'That answer could not be processed.', false),
+      };
+    }
+
+    // The core contract check assumes it was handed a `CompilerOutput`. At this
+    // boundary nothing guarantees that: an adapter can return a value that
+    // clones fine and is shaped enough not to throw while carrying fields
+    // outside the declared schema. Those would reach the append-only compile
+    // run and permanently seat values that later replay, evaluation and
+    // persistence code is entitled to read at their advertised types. So the
+    // whole shape is checked BEFORE anything is written.
+    const shapeIssues = validateCompilerOutputShape(output);
+    if (shapeIssues.length > 0) {
+      this.#diagnostics.record({
+        kind: 'compiler_contract_violation',
+        case_id: state.case_id,
+        turn_id: turnId,
+        compile_run_id: compileRunId,
+        message: 'Compiler output does not match the declared CompilerOutput shape.',
+        issues: shapeIssues,
+      });
+      // Nothing is appended, so the audit log never records the malformed run
+      // and the retry key stays fresh.
+      return {
+        kind: 'failed',
+        failure: failure('INTERNAL_ERROR', 'That answer could not be processed.', false),
+      };
+    }
 
     /* --- fix the compiler's output at the runtime boundary ---------------- */
     // Everything above this line is ours; `output` is the first object in the

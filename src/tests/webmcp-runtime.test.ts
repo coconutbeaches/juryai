@@ -2080,9 +2080,11 @@ describe('malformed clarification prompts never reach canonical state', () => {
       },
     });
 
+  // `undefined` and `123` are refused earlier, at the compiler-output shape
+  // boundary, before anything is persisted — see the structural-boundary
+  // suite. What reaches mutation application is a structurally valid string
+  // that is nonetheless unusable as a question.
   for (const [label, prompt] of [
-    ['undefined', undefined],
-    ['a number', 123],
     ['whitespace only', '   '],
     ['empty', ''],
   ] as const) {
@@ -3891,6 +3893,335 @@ describe('cancellation wins over every pre-commit await', () => {
     expect(state.state.propositions).toHaveLength(1);
     expect(state.state.turn_log[0]!.turn_id).toBe(outcome.turn_id);
     expect(await inner.idempotency.listByCase(caseId)).toHaveLength(1);
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Untrusted compiler output is fully shape-checked before it is persisted    */
+/* ------------------------------------------------------------------------ */
+
+/** A structurally complete, valid output — the base every case perturbs. */
+function validRawOutput(input: CompilerInput): CompilerOutput {
+  const answer = input.turn.payload.answer.text;
+  const start = answer.indexOf('April 25');
+  return {
+    compile_run_id: input.compile_run_id,
+    compiler_version_id: input.compiler_version_id,
+    verdict: 'accepted_candidates',
+    assertions: [
+      {
+        assertion_id: 'assert_1',
+        spans: [
+          {
+            turn_id: input.turn.turn_id,
+            region: 'answer',
+            message_index: null,
+            encoding: 'utf16',
+            start,
+            end: start + 'April 25'.length,
+            quote: 'April 25',
+          },
+        ],
+        proposed_type: 'target_date',
+        epistemic_strength: 'recalled_uncertain',
+        requirement_id: 'req_expected_date',
+        statement: 'The user expected the work to be finished by 25 April.',
+        supersedes_candidate: null,
+      },
+    ],
+    rejected_candidates: [],
+    clarifications_requested: [],
+    raw_model_output: null,
+  };
+}
+
+/** Returns whatever the case supplies, however malformed. */
+class RawOutputCompiler implements SemanticCompilerPort {
+  readonly registryEntry = scriptedRegistryEntry();
+  calls = 0;
+  #make: (input: CompilerInput) => unknown;
+
+  constructor(make: (input: CompilerInput) => unknown) {
+    this.#make = make;
+  }
+
+  async compile(input: CompilerInput): Promise<CompilerOutput> {
+    this.calls += 1;
+    return this.#make(input) as CompilerOutput;
+  }
+}
+
+type Mutable = Record<string, unknown>;
+type Perturb = (output: Mutable, input: CompilerInput) => unknown;
+
+/** Replaces fields on the single assertion, leaving the rest well formed. */
+function withAssertion(output: Mutable, patch: Mutable): Mutable {
+  const assertion = (output.assertions as Mutable[])[0]!;
+  return { ...output, assertions: [{ ...assertion, ...patch }] };
+}
+
+/** Replaces fields on that assertion's single span. */
+function withSpan(output: Mutable, patch: Mutable): Mutable {
+  const assertion = (output.assertions as Mutable[])[0]!;
+  const span = (assertion.spans as Mutable[])[0]!;
+  return { ...output, assertions: [{ ...assertion, spans: [{ ...span, ...patch }] }] };
+}
+
+const MALFORMED_OUTPUTS: Array<[string, Perturb]> = [
+  /* --- top-level shape ------------------------------------------------- */
+  ['output null', () => null],
+  ['output an array', () => []],
+  ['output a string', () => 'compiled'],
+  ['output a number', () => 42],
+  ['missing assertions', (o) => ({ ...o, assertions: undefined })],
+  ['missing rejected_candidates', (o) => ({ ...o, rejected_candidates: undefined })],
+  ['missing clarifications_requested', (o) => ({ ...o, clarifications_requested: undefined })],
+  ['missing compile_run_id', (o) => ({ ...o, compile_run_id: undefined })],
+  ['verdict wrong type', (o) => ({ ...o, verdict: 7 })],
+  ['verdict unknown member', (o) => ({ ...o, verdict: 'probably_fine' })],
+  ['compile_run_id wrong type', (o) => ({ ...o, compile_run_id: 7 })],
+  ['compiler_version_id wrong type', (o) => ({ ...o, compiler_version_id: {} })],
+
+  /* --- assertions ------------------------------------------------------- */
+  ['assertions null', (o) => ({ ...o, assertions: null })],
+  ['assertions an object', (o) => ({ ...o, assertions: {} })],
+  ['assertion entry not an object', (o) => ({ ...o, assertions: ['nope'] })],
+  ['assertion_id wrong type', (o) => withAssertion(o, { assertion_id: 1 })],
+  ['requirement_id wrong type', (o) => withAssertion(o, { requirement_id: 1 })],
+  ['statement wrong type', (o) => withAssertion(o, { statement: {} })],
+  ['proposed_type not canonical', (o) => withAssertion(o, { proposed_type: 'vibes' })],
+  [
+    'epistemic_strength not canonical',
+    (o) => withAssertion(o, { epistemic_strength: 'quite_sure' }),
+  ],
+  ['supersedes_candidate wrong type', (o) => withAssertion(o, { supersedes_candidate: 5 })],
+  ['spans not an array', (o) => withAssertion(o, { spans: null })],
+  ['span entry not an object', (o) => withAssertion(o, { spans: [7] })],
+  ['span region unknown', (o) => withSpan(o, { region: 'x' })],
+  ['span encoding unknown', (o) => withSpan(o, { encoding: 'utf8' })],
+  ['span offsets not integers', (o) => withSpan(o, { start: 1.5 })],
+  ['span message_index not an integer', (o) => withSpan(o, { message_index: 'first' })],
+  ['span quote wrong type', (o) => withSpan(o, { quote: 9 })],
+
+  /* --- rejected candidates ---------------------------------------------- */
+  ['rejected_candidates null', (o) => ({ ...o, rejected_candidates: null })],
+  ['rejected_candidates an object', (o) => ({ ...o, rejected_candidates: {} })],
+  ['rejected entry not an object', (o) => ({ ...o, rejected_candidates: [null] })],
+  [
+    'rejected reason wrong type',
+    (o) => ({
+      ...o,
+      rejected_candidates: [{ assertion_id: 'a', reason: 123, proposed_type: null, spans: [] }],
+    }),
+  ],
+  [
+    'rejected proposed_type not canonical',
+    (o) => ({
+      ...o,
+      rejected_candidates: [{ assertion_id: 'a', reason: 'r', proposed_type: 'nope', spans: [] }],
+    }),
+  ],
+  [
+    'rejected spans not an array',
+    (o) => ({
+      ...o,
+      rejected_candidates: [{ assertion_id: 'a', reason: 'r', proposed_type: null, spans: 'x' }],
+    }),
+  ],
+
+  /* --- clarifications ---------------------------------------------------- */
+  ['clarifications null', (o) => ({ ...o, clarifications_requested: null })],
+  ['clarification entry not an object', (o) => ({ ...o, clarifications_requested: [1] })],
+  [
+    'clarification requirement_id wrong type',
+    (o) => ({
+      ...o,
+      clarifications_requested: [
+        { requirement_id: 5, reason: 'multiple_incompatible_readings', prompt: 'p' },
+      ],
+    }),
+  ],
+  [
+    'clarification prompt wrong type',
+    (o) => ({
+      ...o,
+      clarifications_requested: [
+        {
+          requirement_id: 'req_expected_date',
+          reason: 'multiple_incompatible_readings',
+          prompt: 1,
+        },
+      ],
+    }),
+  ],
+  [
+    'clarification prompt undefined',
+    (o) => ({
+      ...o,
+      clarifications_requested: [
+        {
+          requirement_id: 'req_expected_date',
+          reason: 'multiple_incompatible_readings',
+          prompt: undefined,
+        },
+      ],
+    }),
+  ],
+  [
+    'clarification reason wrong type',
+    (o) => ({
+      ...o,
+      clarifications_requested: [{ requirement_id: 'req_expected_date', reason: 123, prompt: 'p' }],
+    }),
+  ],
+  [
+    'clarification reason unknown member',
+    (o) => ({
+      ...o,
+      clarifications_requested: [
+        { requirement_id: 'req_expected_date', reason: 'because', prompt: 'p' },
+      ],
+    }),
+  ],
+
+  /* --- raw model output --------------------------------------------------- */
+  ['raw_model_output a number', (o) => ({ ...o, raw_model_output: 123 })],
+  ['raw_model_output an object', (o) => ({ ...o, raw_model_output: {} })],
+  ['raw_model_output undefined', (o) => ({ ...o, raw_model_output: undefined })],
+];
+
+describe('malformed compiler output never reaches the audit log', () => {
+  for (const [label, perturb] of MALFORMED_OUTPUTS) {
+    it('refuses ' + label, async () => {
+      const inner = new InMemoryCaseRuntimeStore();
+      const gated = gatedRuntimeStore(inner);
+      const compiler = new RawOutputCompiler((input) =>
+        perturb(validRawOutput(input) as unknown as Record<string, unknown>, input),
+      );
+      const h = runtimeOver(gated.store, compiler);
+      const started = await h.runtime.startCase(ALICE, startCommand('request_1'));
+      if (started.kind !== 'created') throw new Error('expected creation');
+      const caseId = started.case.case_id;
+      const before = (await inner.cases.findById(caseId))!;
+
+      const outcome = await h.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId }));
+
+      expect(outcome.kind, label).toBe('failed');
+      if (outcome.kind !== 'failed') return;
+      expect(outcome.failure.code, label).toBe('INTERNAL_ERROR');
+      // Nothing about the provider value is echoed back.
+      const surfaced = JSON.stringify(outcome.failure);
+      expect(surfaced, label).not.toContain('compiler_shape');
+      expect(surfaced, label).not.toContain('assertions');
+
+      const event = h.diagnostics.events.find(
+        (entry) => entry.kind === 'compiler_contract_violation',
+      );
+      expect(event, label).toBeDefined();
+
+      // The load-bearing assertion: nothing was appended to the append-only
+      // audit log, so no record outside the declared schema exists.
+      expect(await inner.compileRuns.listByCase(caseId), label).toEqual([]);
+      expect(gated.calls('commitTurn'), label).toBe(0);
+      const after = (await inner.cases.findById(caseId))!;
+      expect(after.revision, label).toBe(before.revision);
+      expect(after.state, label).toEqual(before.state);
+      expect(after.state.turn_log, label).toHaveLength(0);
+      expect(after.state.propositions, label).toHaveLength(0);
+      expect(after.state.clarifications, label).toHaveLength(0);
+      expect(after.state.case_version, label).toBe(0);
+      expect(await inner.idempotency.listByCase(caseId), label).toEqual([]);
+    });
+  }
+
+  it('leaves the retry key fresh after a malformed run', async () => {
+    const inner = new InMemoryCaseRuntimeStore();
+    const gated = gatedRuntimeStore(inner);
+    const broken = new RawOutputCompiler((input) => ({
+      ...(validRawOutput(input) as unknown as Record<string, unknown>),
+      rejected_candidates: null,
+    }));
+    const h = runtimeOver(gated.store, broken);
+    const started = await h.runtime.startCase(ALICE, startCommand('request_1'));
+    if (started.kind !== 'created') throw new Error('expected creation');
+    const caseId = started.case.case_id;
+
+    await h.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId }));
+    expect(await inner.idempotency.listByCase(caseId)).toEqual([]);
+
+    // The same client_turn_id still commits once the adapter behaves.
+    const working = runtimeOver(
+      gated.store,
+      new ScriptedSemanticCompiler(expectedDateScript),
+      'w_',
+    );
+    const retry = committed(
+      await working.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId })),
+    );
+    expect(retry.case.case_version).toBe(1);
+  });
+
+  it('appends a structurally valid output exactly once and commits from it', async () => {
+    const inner = new InMemoryCaseRuntimeStore();
+    const gated = gatedRuntimeStore(inner);
+    const compiler = new RawOutputCompiler((input) => validRawOutput(input));
+    const h = runtimeOver(gated.store, compiler);
+    const started = await h.runtime.startCase(ALICE, startCommand('request_1'));
+    if (started.kind !== 'created') throw new Error('expected creation');
+    const caseId = started.case.case_id;
+
+    const outcome = committed(
+      await h.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId })),
+    );
+    expect(outcome.case.case_version).toBe(1);
+
+    const runs = await inner.compileRuns.listByCase(caseId);
+    expect(runs).toHaveLength(1);
+    expect(runs[0]!.contract_issues).toEqual([]);
+    // Canonical state is driven by the audited snapshot, field for field.
+    const state = (await inner.cases.findById(caseId))!.state;
+    const audited = runs[0]!.output.assertions[0]!;
+    expect(state.propositions[0]!.statement).toBe(audited.statement);
+    expect(state.propositions[0]!.type).toBe(audited.proposed_type);
+    expect(state.propositions[0]!.epistemic_strength).toBe(audited.epistemic_strength);
+    expect(gated.calls('commitTurn')).toBe(1);
+  });
+
+  it('still appends a validly structured ambiguous run', async () => {
+    const inner = new InMemoryCaseRuntimeStore();
+    const gated = gatedRuntimeStore(inner);
+    const compiler = new RawOutputCompiler((input) => ({
+      compile_run_id: input.compile_run_id,
+      compiler_version_id: input.compiler_version_id,
+      verdict: 'ambiguous',
+      assertions: [],
+      rejected_candidates: [
+        { assertion_id: 'a1', reason: 'discarded', proposed_type: null, spans: [] },
+      ],
+      clarifications_requested: [
+        {
+          requirement_id: 'req_expected_date',
+          reason: 'multiple_incompatible_readings',
+          prompt: 'Hoped-for date, or agreed one?',
+        },
+      ],
+      raw_model_output: 'verbatim provider text',
+    }));
+    const h = runtimeOver(gated.store, compiler);
+    const started = await h.runtime.startCase(ALICE, startCommand('request_1'));
+    if (started.kind !== 'created') throw new Error('expected creation');
+    const caseId = started.case.case_id;
+
+    const outcome = committed(
+      await h.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId })),
+    );
+    expect(outcome.opened_clarification_ids).toHaveLength(1);
+
+    // Append-only history is unchanged for well-formed non-accepting runs.
+    const runs = await inner.compileRuns.listByCase(caseId);
+    expect(runs).toHaveLength(1);
+    expect(runs[0]!.output.rejected_candidates).toHaveLength(1);
+    expect(runs[0]!.output.raw_model_output).toBe('verbatim provider text');
   });
 });
 

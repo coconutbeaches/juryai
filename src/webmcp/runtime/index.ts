@@ -10,6 +10,7 @@
  * and renames outcomes; it adds no rules of its own.
  */
 
+export * from './compiler-output-shape.js';
 export * from './compiler-port.js';
 export * from './ids.js';
 export * from './in-memory-repositories.js';
