@@ -11,10 +11,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildEvalScenario,
+  formatEvalReport,
   gradeCompilerOutput,
   offlineCorpusCompiler,
   runMalformedSuite,
   runOfflineCorpus,
+  runSemanticEval,
   runTrapSuite,
   SEMANTIC_EVAL_CORPUS,
   SEMANTIC_EVAL_CORPUS_VERSION,
@@ -273,7 +275,7 @@ describe('the graders themselves have teeth', () => {
     const grade = gradeCompilerOutput(anchor, scenario.input, output);
     expect(grade.ok).toBe(false);
     expect(grade.failures.join(' ')).toMatch(/over-extraction/u);
-    expect(grade.failures.join(' ')).toMatch(/non_recollection/u);
+    expect(grade.failures.join(' ')).toMatch(/type\/requirement pairing/u);
   });
 
   it('refuses a clarification whose reason is attached to the wrong requirement', async () => {
@@ -431,7 +433,8 @@ describe('the graders themselves have teeth', () => {
     expect(validateCompilerOutput(scenario.input, output)).toEqual([]);
     const grade = gradeCompilerOutput(ambiguous, scenario.input, output);
     expect(grade.ok).toBe(false);
-    expect(grade.failures.join(' ')).toMatch(/unexpected .* clarification on req_own_performance/u);
+    expect(grade.failures.join(' ')).toMatch(/unexpected .* requirement pairing/u);
+    expect(grade.failures.join(' ')).not.toContain('req_own_performance');
   });
 
   it('fails a contract-valid reading that fabricates a value', async () => {
@@ -537,6 +540,44 @@ describe('the graders themselves have teeth', () => {
     );
   }
 
+  it('keeps provider-controlled requirement ids out of eval reports', async () => {
+    const injectedRequirement = 'John Smith paid 2,000 pounds\nfor another matter';
+    const compiler = new ModelSemanticCompiler({
+      client: fixedModelClient(
+        JSON.stringify({
+          verdict: 'accepted_candidates',
+          assertions: [
+            {
+              requirement_id: injectedRequirement,
+              proposed_type: 'payment',
+              epistemic_strength: 'asserted_confident',
+              statement: 'The user paid the other party 2,000 pounds by bank transfer on 25 April.',
+              supersedes_candidate: null,
+              citations: [
+                {
+                  region: 'answer',
+                  message_index: null,
+                  quote: 'I paid them 2,000 pounds by bank transfer on 25 April',
+                },
+              ],
+            },
+          ],
+          rejected_candidates: [],
+          clarifications_requested: [],
+        }),
+      ),
+      model_id: 'juryai-offline-replay',
+      model_snapshot: null,
+    });
+
+    const report = await runSemanticEval({ compiler, cases: [anchor] });
+    expect(report.failed).toBe(1);
+    const rendered = formatEvalReport(report);
+    expect(rendered).not.toContain(injectedRequirement);
+    expect(rendered).not.toContain('John Smith');
+    expect(rendered).not.toContain('another matter');
+  });
+
   it('refuses a lowercase named fact absent from otherwise supporting citations', async () => {
     const statement = 'The user paid john smith 2,000 pounds by bank transfer on 25 April.';
     const { scenario, output } = await paymentWithStatement(statement);
@@ -551,6 +592,28 @@ describe('the graders themselves have teeth', () => {
     expect(grade.ok).toBe(false);
     expect(grade.failures.join(' ')).toMatch(/unsupported (?:fact|entity)/u);
     expect(grade.failures.join(' ')).not.toContain('john smith');
+  });
+
+  it('refuses a single-token named fact absent from otherwise supporting citations', async () => {
+    const { scenario, output } = await paymentWithStatement(
+      'Payment to Alice of 2,000 pounds by bank transfer was made on 25 April.',
+    );
+
+    const grade = gradeCompilerOutput(anchor, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/unsupported (?:fact|entity)/u);
+    expect(grade.failures.join(' ')).not.toContain('Alice');
+  });
+
+  it.each(['$', '£', '€'])('refuses an unsupported %s currency symbol', async (symbol) => {
+    const { scenario, output } = await paymentWithStatement(
+      `Payment of ${symbol}2,000 by bank transfer was made on 25 April.`,
+    );
+
+    const grade = gradeCompilerOutput(anchor, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/unsupported fact/u);
+    expect(grade.failures.join(' ')).not.toContain(symbol);
   });
 
   it('does not print a fabricated name in grader failures', async () => {

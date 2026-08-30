@@ -104,19 +104,16 @@ function words(text: string): string[] {
 /**
  * Detects name-shaped additions without relying on capitalization. A proper
  * name can arrive lowercased, while an ordinary sentence-initial word is
- * capitalized. Two consecutive words that are neither quoted from the answer
- * nor part of the compiler's deliberately small canonical prose vocabulary
- * are therefore treated as an unsupported entity phrase.
+ * capitalized. Any word that is neither quoted from the answer nor part of the
+ * compiler's deliberately small canonical prose vocabulary is therefore
+ * treated as an unsupported entity-shaped token. The conservative vocabulary
+ * is intentional: an eval must not approve an uncited one-word name.
  */
-function addsUnsupportedEntityPhrase(statement: string, answerCitations: string): boolean {
+function addsUnsupportedEntityToken(statement: string, answerCitations: string): boolean {
   const cited = new Set(words(answerCitations));
-  let consecutiveUnsupported = 0;
   for (const word of words(statement)) {
     if (!cited.has(word) && !CANONICAL_PROSE_WORDS.has(word)) {
-      consecutiveUnsupported += 1;
-      if (consecutiveUnsupported >= 2) return true;
-    } else {
-      consecutiveUnsupported = 0;
+      return true;
     }
   }
   return false;
@@ -126,11 +123,12 @@ function addsUnsupportedEntityPhrase(statement: string, answerCitations: string)
  * Fact-shaped tokens that canonical prose may not add unless its exact answer
  * citations contain them. This is intentionally narrower than general lexical
  * overlap: prose may paraphrase, but numeric values, currencies and calendar
- * terms are audit facts rather than style. Entity phrases are handled
+ * terms are audit facts rather than style. Entity-shaped words are handled
  * separately so casing is never mistaken for evidence that a word is a name.
  */
 function factMarkers(text: string): string[] {
   const markers = new Set<string>();
+  for (const match of text.matchAll(/\p{Sc}/gu)) markers.add(match[0]);
   for (const match of text.matchAll(/\b\d[\d,.]*\b/gu)) markers.add(match[0]);
   for (const match of text.matchAll(
     /\b(?:pounds?|dollars?|euros?|gbp|usd|eur|january|february|march|april|may|june|july|august|september|october|november|december|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/giu,
@@ -153,10 +151,10 @@ export function gradeUniversal(
   //    eval that skipped them could report a semantic pass for output the
   //    runtime would have thrown away.
   for (const issue of validateCompilerOutputShape(output)) {
-    failures.push('shape: ' + issue.path + ' ' + issue.message);
+    failures.push('shape: ' + issue.code + ' at ' + issue.path);
   }
   for (const issue of validateCompilerOutput(input, output)) {
-    failures.push('contract: ' + issue.path + ' ' + issue.message);
+    failures.push('contract: ' + issue.code + ' at ' + issue.path);
   }
 
   // 2. Every quotation must be exact in the supplied turn, re-verified here
@@ -216,7 +214,7 @@ export function gradeUniversal(
   //    put to a human.
   for (const clarification of output.clarifications_requested) {
     if (clarification.prompt.trim().length === 0) {
-      failures.push('clarification: empty prompt for ' + clarification.requirement_id);
+      failures.push('clarification: empty prompt');
     }
   }
 }
@@ -312,11 +310,7 @@ function gradeAssertionSet(
       failures.push(
         'over-extraction: assertion ' +
           assertion.assertion_id +
-          " proposed '" +
-          assertion.proposed_type +
-          "' against " +
-          assertion.requirement_id +
-          ', which this case does not permit',
+          ' proposed a type/requirement pairing this case does not permit',
       );
       continue;
     }
@@ -331,7 +325,7 @@ function gradeAssertionSet(
       problems.push('strength=' + assertion.epistemic_strength);
     }
     if (slot.supersedes !== undefined && assertion.supersedes_candidate !== slot.supersedes) {
-      problems.push('supersedes=' + String(assertion.supersedes_candidate));
+      problems.push('unexpected supersession target');
     }
     for (const mention of slot.statement_mentions ?? []) {
       if (!fold(assertion.statement).includes(fold(mention))) {
@@ -354,8 +348,8 @@ function gradeAssertionSet(
     ) {
       problems.push('statement adds an unsupported fact-shaped token');
     }
-    if (addsUnsupportedEntityPhrase(assertion.statement, answerCitations)) {
-      problems.push('statement adds an unsupported entity phrase');
+    if (addsUnsupportedEntityToken(assertion.statement, answerCitations)) {
+      problems.push('statement adds an unsupported entity-shaped token');
     }
     if (problems.length === 0) {
       conforming.add(key);
@@ -455,12 +449,7 @@ function gradeClarificationSet(
         pair.reason === clarification.reason,
     );
     if (!permitted) {
-      failures.push(
-        "clarification: unexpected '" +
-          clarification.reason +
-          "' clarification on " +
-          clarification.requirement_id,
-      );
+      failures.push("clarification: unexpected '" + clarification.reason + "' requirement pairing");
     }
   }
 }
