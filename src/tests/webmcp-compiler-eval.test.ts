@@ -739,6 +739,16 @@ describe('the graders themselves have teeth', () => {
     expect(grade.failures.join(' ')).toMatch(/polarity/u);
   });
 
+  it('treats contrastive payment wording as a separate outcome clause', async () => {
+    const { scenario, output } = await paymentWithStatement(
+      'The attempted payment of 2,000 pounds by bank transfer on 25 April was unsuccessful, while a refund was made.',
+    );
+
+    const grade = gradeCompilerOutput(anchor, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/polarity/u);
+  });
+
   it('keeps negation on the coordinated predicate it modifies', async () => {
     const { scenario, output } = await compileCompletion(
       anchor,
@@ -1069,6 +1079,42 @@ describe('the graders themselves have teeth', () => {
     );
 
     const grade = gradeCompilerOutput(narrative, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/polarity/u);
+  });
+
+  it('does not use an unrelated cited negation to support a reversed narrative', async () => {
+    const unrelatedNegation = structuredClone(narrative);
+    unrelatedNegation.answer =
+      'Their position is that they say the additional 1,400 pounds is chargeable, but they did not send an invoice.';
+    const { scenario, output } = await compileCompletion(
+      unrelatedNegation,
+      JSON.stringify({
+        verdict: 'accepted_candidates',
+        assertions: [
+          {
+            requirement_id: 'req_other_party_position',
+            proposed_type: 'narrative_fact',
+            epistemic_strength: 'asserted_confident',
+            statement:
+              'The other party contended that the additional 1,400 pounds was not payable.',
+            supersedes_candidate: null,
+            citations: [
+              {
+                region: 'answer',
+                message_index: null,
+                quote:
+                  'Their position is that they say the additional 1,400 pounds is chargeable, but they did not send an invoice.',
+              },
+            ],
+          },
+        ],
+        rejected_candidates: [],
+        clarifications_requested: [],
+      }),
+    );
+
+    const grade = gradeCompilerOutput(unrelatedNegation, scenario.input, output);
     expect(grade.ok).toBe(false);
     expect(grade.failures.join(' ')).toMatch(/polarity/u);
   });

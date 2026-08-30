@@ -486,10 +486,24 @@ const PAYMENT_COMPLETION_MARKERS = new Set([
 ]);
 
 const NARRATIVE_POLARITY_FAMILIES: readonly ReadonlySet<string>[] = [
-  new Set(['claim', 'claimed', 'claims']),
-  new Set(['say', 'said', 'says']),
-  new Set(['state', 'stated', 'states']),
-  new Set(['chargeable']),
+  new Set([
+    'claim',
+    'claimed',
+    'claims',
+    'contend',
+    'contended',
+    'contends',
+    'maintain',
+    'maintained',
+    'maintains',
+    'say',
+    'said',
+    'says',
+    'state',
+    'stated',
+    'states',
+  ]),
+  new Set(['charge', 'chargeable', 'due', 'owe', 'owed', 'owing', 'payable']),
 ];
 
 const NEGATION_CLAUSE_BOUNDARIES = new Set([
@@ -501,6 +515,48 @@ const NEGATION_CLAUSE_BOUNDARIES = new Set([
   'though',
   'yet',
 ]);
+
+function semanticClauses(text: string): string[] {
+  return text
+    .split(
+      /[!?;:]+|\.(?=\s|$)|,\s*(?:although|and|but|however|or|then|though|while|whereas|yet)\b|\b(?:although|and|but|however|or|then|though|while|whereas|yet)\b/iu,
+    )
+    .map((clause) => clause.trim())
+    .filter((clause) => clause.length > 0);
+}
+
+function hasExplicitNegation(text: string): boolean {
+  const tokens = wordTokens(text);
+  return tokens.some(
+    (token, index) =>
+      EXPLICIT_NEGATION_WORDS.has(token.folded) &&
+      !(token.folded === 'not' && tokens[index + 1]?.folded === 'only'),
+  );
+}
+
+function narrativeNegationLacksCitedSupport(statement: string, answerCitations: string): boolean {
+  const citedClauses = semanticClauses(answerCitations);
+  for (const statementClause of semanticClauses(statement)) {
+    if (!hasExplicitNegation(statementClause)) continue;
+    const statementMarkers = new Set(factMarkers(statementClause));
+    const statementFamilies = NARRATIVE_POLARITY_FAMILIES.filter((family) =>
+      words(statementClause).some((word) => family.has(word)),
+    );
+    const relevantCitations = citedClauses.filter((citationClause) => {
+      const citationMarkers = new Set(factMarkers(citationClause));
+      if ([...statementMarkers].some((marker) => citationMarkers.has(marker))) return true;
+      const citationWords = words(citationClause);
+      return statementFamilies.some((family) => citationWords.some((word) => family.has(word)));
+    });
+    if (
+      relevantCitations.length === 0 ||
+      !relevantCitations.some((citationClause) => hasExplicitNegation(citationClause))
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
 
 function tokenIsNegated(text: string, tokens: readonly WordToken[], index: number): boolean {
   let rightStart = tokens[index]!.start;
@@ -529,24 +585,20 @@ function predicatePolarities(text: string, predicates: ReadonlySet<string>): Rea
 }
 
 function paymentClauseReversesAssertion(statement: string): boolean {
-  const clauses = statement
-    .split(/[!?;:]+|\.(?=\s|$)|,\s*(?:and|but|then)\b|\b(?:and|but|then)\b/iu)
-    .map((clause) => clause.trim())
-    .filter((clause) => clause.length > 0)
-    .map((clause) => {
-      const clauseWords = words(clause);
-      let lastReversal = -1;
-      let lastSuccess = -1;
-      for (const [index, word] of clauseWords.entries()) {
-        if (PAYMENT_LEXICAL_REVERSERS.has(word)) lastReversal = index;
-        if (PAYMENT_COMPLETION_MARKERS.has(word)) lastSuccess = index;
-      }
-      return {
-        markers: new Set(factMarkers(clause)),
-        reversed: lastReversal >= 0 && lastReversal > lastSuccess,
-        successful: lastSuccess >= 0 && lastSuccess > lastReversal,
-      };
-    });
+  const clauses = semanticClauses(statement).map((clause) => {
+    const clauseWords = words(clause);
+    let lastReversal = -1;
+    let lastSuccess = -1;
+    for (const [index, word] of clauseWords.entries()) {
+      if (PAYMENT_LEXICAL_REVERSERS.has(word)) lastReversal = index;
+      if (PAYMENT_COMPLETION_MARKERS.has(word)) lastSuccess = index;
+    }
+    return {
+      markers: new Set(factMarkers(clause)),
+      reversed: lastReversal >= 0 && lastReversal > lastSuccess,
+      successful: lastSuccess >= 0 && lastSuccess > lastReversal,
+    };
+  });
 
   for (const [index, clause] of clauses.entries()) {
     if (!clause.reversed || clause.markers.size === 0) continue;
@@ -567,17 +619,13 @@ function reversesAssertionPolarity(
   answerCitations: string,
 ): boolean {
   const statementWords = words(statement);
-  const citationWords = words(answerCitations);
   if (type === 'payment') {
     if (paymentClauseReversesAssertion(statement)) return true;
   } else if (statementWords.some((word) => LEXICAL_POLARITY_REVERSERS[type]?.has(word) ?? false)) {
     return true;
   }
   if (type === 'narrative_fact') {
-    if (
-      statementWords.some((word) => EXPLICIT_NEGATION_WORDS.has(word)) &&
-      !citationWords.some((word) => NEGATION_WORDS.has(word) || word === 'nothing')
-    ) {
+    if (narrativeNegationLacksCitedSupport(statement, answerCitations)) {
       return true;
     }
     for (const family of NARRATIVE_POLARITY_FAMILIES) {
