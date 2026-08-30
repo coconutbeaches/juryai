@@ -900,8 +900,16 @@ describe('provider telemetry', () => {
   });
 
   it('records a run whose completion was malformed, with its usage', async () => {
-    const compiler = compilerOver(fixedModelClient('not json at all'));
-    await expect(compiler.compile(inputOf())).rejects.toThrow(SemanticCompilerOutputError);
+    const echoedCaseText = 'John Smith paid 2,000 pounds on 25 April';
+    const compiler = compilerOver(fixedModelClient(echoedCaseText));
+    await compiler.compile(inputOf()).then(
+      () => expect.unreachable('expected malformed output'),
+      (error: unknown) => {
+        expect(error).toBeInstanceOf(SemanticCompilerOutputError);
+        expect((error as Error).message).not.toContain('John Smith');
+        expect((error as Error).message).not.toContain(echoedCaseText);
+      },
+    );
     expect(compiler.telemetry[0]!.outcome).toBe('malformed_output');
     expect(compiler.telemetry[0]!.attempts).toBe(1);
   });

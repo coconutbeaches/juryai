@@ -464,8 +464,9 @@ describe('the graders themselves have teeth', () => {
     const grade = gradeCompilerOutput(anchor, scenario.input, output);
     expect(grade.ok).toBe(false);
     // The value the user actually gave is absent and an invented one is in its
-    // place; the grader names both rather than just saying "did not match".
-    expect(grade.failures.join(' ')).toMatch(/9,999/u);
+    // place. The grader identifies the rule without echoing provider content.
+    expect(grade.failures.join(' ')).toMatch(/unsupported fact/u);
+    expect(grade.failures.join(' ')).not.toContain('9,999');
     expect(grade.failures.join(' ')).toMatch(/req_paid/u);
   });
 
@@ -509,8 +510,8 @@ describe('the graders themselves have teeth', () => {
     expect(grade.failures.join(' ')).toMatch(/citation.*support/u);
   });
 
-  it('refuses an extra named fact absent from otherwise supporting citations', async () => {
-    const { scenario, output } = await compileCompletion(
+  async function paymentWithStatement(statement: string) {
+    return compileCompletion(
       anchor,
       JSON.stringify({
         verdict: 'accepted_candidates',
@@ -519,7 +520,7 @@ describe('the graders themselves have teeth', () => {
             requirement_id: 'req_paid',
             proposed_type: 'payment',
             epistemic_strength: 'asserted_confident',
-            statement: 'The user paid John Smith 2,000 pounds by bank transfer on 25 April.',
+            statement,
             supersedes_candidate: null,
             citations: [
               {
@@ -534,6 +535,11 @@ describe('the graders themselves have teeth', () => {
         clarifications_requested: [],
       }),
     );
+  }
+
+  it('refuses a lowercase named fact absent from otherwise supporting citations', async () => {
+    const statement = 'The user paid john smith 2,000 pounds by bank transfer on 25 April.';
+    const { scenario, output } = await paymentWithStatement(statement);
 
     expect(validateCompilerOutput(scenario.input, output)).toEqual([]);
     expect(
@@ -543,6 +549,27 @@ describe('the graders themselves have teeth', () => {
 
     const grade = gradeCompilerOutput(anchor, scenario.input, output);
     expect(grade.ok).toBe(false);
-    expect(grade.failures.join(' ')).toMatch(/unsupported fact.*John/u);
+    expect(grade.failures.join(' ')).toMatch(/unsupported (?:fact|entity)/u);
+    expect(grade.failures.join(' ')).not.toContain('john smith');
+  });
+
+  it('does not print a fabricated name in grader failures', async () => {
+    const statement = 'The user paid John Smith 2,000 pounds by bank transfer on 25 April.';
+    const { scenario, output } = await paymentWithStatement(statement);
+
+    const grade = gradeCompilerOutput(anchor, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).not.toContain('John Smith');
+    expect(grade.failures.join(' ')).not.toContain(statement);
+  });
+
+  it('allows a valid sentence-initial Payment paraphrase', async () => {
+    const { scenario, output } = await paymentWithStatement(
+      'Payment of 2,000 pounds by bank transfer was made to the other party on 25 April.',
+    );
+
+    const grade = gradeCompilerOutput(anchor, scenario.input, output);
+    expect(grade.failures).toEqual([]);
+    expect(grade.ok).toBe(true);
   });
 });

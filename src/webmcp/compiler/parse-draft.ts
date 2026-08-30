@@ -181,12 +181,8 @@ export function parseModelDraft(input: CompilerInput, rawText: string): Compiler
   let parsed: unknown;
   try {
     parsed = JSON.parse(rawText) as unknown;
-  } catch (error) {
-    throw new SemanticCompilerOutputError(
-      'provider output was not valid JSON: ' +
-        (error instanceof Error ? error.message : 'unknown error'),
-      'model_draft',
-    );
+  } catch {
+    throw new SemanticCompilerOutputError('provider output was not valid JSON', 'model_draft');
   }
 
   const draft = object(parsed, 'model_draft');

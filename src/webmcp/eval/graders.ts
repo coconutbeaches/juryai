@@ -10,7 +10,8 @@
  * Grading is property-based. Canonical wording belongs to the compiler; what
  * it may and may not put in that wording does not. Where a value is
  * load-bearing (a date, an amount, an obligation) the grader asserts the value
- * is present or absent, never the sentence around it.
+ * is present or absent, never the sentence around it. Failure messages must
+ * likewise describe the rule without copying model-produced case content.
  */
 
 import {
@@ -32,11 +33,101 @@ function fold(text: string): string {
   return text.toLowerCase();
 }
 
+const CANONICAL_PROSE_WORDS = new Set([
+  'a',
+  'account',
+  'additional',
+  'amount',
+  'an',
+  'and',
+  'are',
+  'as',
+  'at',
+  'anything',
+  'asks',
+  'be',
+  'by',
+  'date',
+  'declined',
+  'disputes',
+  'does',
+  'exact',
+  'expected',
+  'failed',
+  'finished',
+  'for',
+  'gave',
+  'has',
+  'in',
+  'invoice',
+  'is',
+  'issued',
+  'left',
+  'made',
+  'not',
+  'of',
+  'on',
+  'other',
+  'owing',
+  'parties',
+  'party',
+  'payment',
+  'payments',
+  'recall',
+  'recalls',
+  'remains',
+  'requested',
+  'required',
+  'says',
+  'state',
+  'stated',
+  'states',
+  'the',
+  'they',
+  'to',
+  'transferring',
+  'understands',
+  'user',
+  'was',
+  'were',
+  'what',
+  'whether',
+  'which',
+  'whole',
+  'work',
+]);
+
+function words(text: string): string[] {
+  return [...text.matchAll(/\p{L}+/gu)].map((match) => fold(match[0]));
+}
+
+/**
+ * Detects name-shaped additions without relying on capitalization. A proper
+ * name can arrive lowercased, while an ordinary sentence-initial word is
+ * capitalized. Two consecutive words that are neither quoted from the answer
+ * nor part of the compiler's deliberately small canonical prose vocabulary
+ * are therefore treated as an unsupported entity phrase.
+ */
+function addsUnsupportedEntityPhrase(statement: string, answerCitations: string): boolean {
+  const cited = new Set(words(answerCitations));
+  let consecutiveUnsupported = 0;
+  for (const word of words(statement)) {
+    if (!cited.has(word) && !CANONICAL_PROSE_WORDS.has(word)) {
+      consecutiveUnsupported += 1;
+      if (consecutiveUnsupported >= 2) return true;
+    } else {
+      consecutiveUnsupported = 0;
+    }
+  }
+  return false;
+}
+
 /**
  * Fact-shaped tokens that canonical prose may not add unless its exact answer
  * citations contain them. This is intentionally narrower than general lexical
- * overlap: prose may paraphrase, but names, numeric values, currencies and
- * calendar terms are audit facts rather than style.
+ * overlap: prose may paraphrase, but numeric values, currencies and calendar
+ * terms are audit facts rather than style. Entity phrases are handled
+ * separately so casing is never mistaken for evidence that a word is a name.
  */
 function factMarkers(text: string): string[] {
   const markers = new Set<string>();
@@ -44,10 +135,6 @@ function factMarkers(text: string): string[] {
   for (const match of text.matchAll(
     /\b(?:pounds?|dollars?|euros?|gbp|usd|eur|january|february|march|april|may|june|july|august|september|october|november|december|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/giu,
   )) {
-    markers.add(match[0]);
-  }
-  for (const match of text.matchAll(/\b[A-Z][A-Za-z'-]*\b/gu)) {
-    if (['The', 'A', 'An', 'There', 'That', 'It', 'I', 'We'].includes(match[0])) continue;
     markers.add(match[0]);
   }
   return [...markers];
@@ -260,10 +347,15 @@ function gradeAssertionSet(
         problems.push("citation does not support topic '" + alternatives.join('|') + "'");
       }
     }
-    for (const marker of factMarkers(assertion.statement)) {
-      if (!fold(answerCitations).includes(fold(marker))) {
-        problems.push("statement adds unsupported fact '" + marker + "'");
-      }
+    if (
+      factMarkers(assertion.statement).some(
+        (marker) => !fold(answerCitations).includes(fold(marker)),
+      )
+    ) {
+      problems.push('statement adds an unsupported fact-shaped token');
+    }
+    if (addsUnsupportedEntityPhrase(assertion.statement, answerCitations)) {
+      problems.push('statement adds an unsupported entity phrase');
     }
     if (problems.length === 0) {
       conforming.add(key);
@@ -273,9 +365,7 @@ function gradeAssertionSet(
           describeSlot(slot) +
           ' did not match its expected properties (' +
           problems.join(', ') +
-          "; statement='" +
-          assertion.statement +
-          "')",
+          ')',
       );
     }
   }
