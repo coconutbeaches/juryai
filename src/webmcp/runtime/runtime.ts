@@ -46,7 +46,7 @@ import {
   type SourceTurnPayload,
   type SourceTurnRecord,
 } from '../core/turns.js';
-import type { CaseStateResponse, SourceChannel } from '../core/types.js';
+import { canonicalSerialize, type CaseStateResponse, type SourceChannel } from '../core/types.js';
 import type { SemanticCompilerPort } from './compiler-port.js';
 import {
   isoFrom,
@@ -440,7 +440,7 @@ export class CaseRuntime {
     context: RuntimeRequestContext,
     principalId: string,
     request: SubmitRequest,
-    relayClaims: { source_language: string | null; translation_indicated: boolean },
+    relayClaims: RelayClaims,
     options: RuntimeCallOptions,
   ): Promise<SubmitTurnOutcome | 'contended'> {
     const read = await this.#guardedRead('case_read', request.case_id, () =>
@@ -464,8 +464,24 @@ export class CaseRuntime {
     if (!idempotencyRead.ok) {
       return { kind: 'failed', failure: unavailable('That answer could not be processed.') };
     }
+    // Provenance is part of source-event identity, not decoration. Two
+    // submissions carrying the same words for the same requirements through
+    // different channels — relayed vs first-party, a different relaying agent,
+    // a translation vs the user's own wording — are separate source events and
+    // both belong in the immutable log; collapsing them would drop one from the
+    // audit trail and answer it with the other's provenance and warnings.
+    //
+    // The core fingerprint is frozen and hashes content only, so provenance is
+    // applied as a CONJUNCT rather than by extending that hash: a heuristic
+    // match must agree on content AND provenance. Implemented by narrowing the
+    // store handed to `precheckSubmit`, so core still owns the ordering, the
+    // replay window, the CAS and the conflict shape.
+    const eligible = idempotencyRead.value.filter((record) =>
+      this.#sharesSourceIdentity(record, request, relayClaims, context, state),
+    );
+
     const precheck = precheckSubmit(request, {
-      store: idempotencyRead.value,
+      store: eligible,
       log: state.turn_log,
       current_case_version: state.case_version,
       now_ms: this.#deps.clock.now(),
@@ -575,6 +591,25 @@ export class CaseRuntime {
       };
     }
 
+    // Whether a requirement reference is valid is already decided by the case
+    // we loaded. Answering it before touching the registry keeps a malformed
+    // request deterministic: the same input must not return INVALID_INPUT when
+    // storage is healthy and a retryable INTERNAL_ERROR when it is not. It
+    // also avoids a persistent registration side effect for a request that can
+    // never proceed. This sits AFTER replay, lock and version conflict: a
+    // committed operation stays replayable from durable history even if the
+    // same request would fail present-day validation.
+    const known = new Set(state.requirements.map((definition) => definition.requirement_id));
+    if (request.in_reply_to.some((requirementId) => !known.has(requirementId))) {
+      return {
+        kind: 'failed',
+        failure: failure(
+          'INVALID_INPUT',
+          'The turn answers a requirement this case does not have.',
+        ),
+      };
+    }
+
     // Only a fresh write needs a compiler, so registration happens here rather
     // than at entry. A replay, a locked case and a stale write are all decided
     // from durable state alone; making them depend on the registry means a
@@ -594,17 +629,6 @@ export class CaseRuntime {
         issues: [],
       });
       return { kind: 'failed', failure: unavailable('That answer could not be processed.') };
-    }
-
-    const known = new Set(state.requirements.map((definition) => definition.requirement_id));
-    if (request.in_reply_to.some((requirementId) => !known.has(requirementId))) {
-      return {
-        kind: 'failed',
-        failure: failure(
-          'INVALID_INPUT',
-          'The turn answers a requirement this case does not have.',
-        ),
-      };
     }
 
     /* --- immutable source turn ------------------------------------------- */
@@ -906,6 +930,42 @@ export class CaseRuntime {
   }
 
   /**
+   * May a stored replay record stand in for THIS request?
+   *
+   * An exact `client_turn_id` is network-operation identity and outranks every
+   * content heuristic: a caller retrying the same id replays even if transport
+   * metadata drifted between attempts. Only the heuristic fingerprint path is
+   * narrowed by provenance.
+   */
+  #sharesSourceIdentity(
+    record: IdempotencyRecord,
+    request: SubmitRequest,
+    relayClaims: RelayClaims,
+    context: RuntimeRequestContext,
+    state: CaseState,
+  ): boolean {
+    if (request.client_turn_id !== null && record.client_turn_id === request.client_turn_id) {
+      return true;
+    }
+    const turn = state.turn_log.find((entry) => entry.turn_id === record.turn_id);
+    // The record's turn is not in the case we loaded — the stale-read race the
+    // replay refresh exists for. We cannot show the provenance differs, and
+    // excluding on uncertainty would turn a lost-response retry into a
+    // duplicate write, so the record stays eligible. The refresh then
+    // re-reads and rejects any replay the case cannot actually support.
+    if (!turn) return true;
+    return (
+      provenanceKey(turn) ===
+      provenanceKey({
+        source_channel: context.source_channel ?? 'webmcp_agent_relay',
+        relaying_agent: context.relaying_agent ?? null,
+        source_language: relayClaims.source_language,
+        translation_indicated: relayClaims.translation_indicated,
+      })
+    );
+  }
+
+  /**
    * Repository reads reject in production. Cancellation is the one intentional
    * rejection this runtime propagates; a database blinking is not that, and
    * must become a `RuntimeFailure` the transport can act on.
@@ -946,6 +1006,31 @@ export class CaseRuntime {
 /* ------------------------------------------------------------------------ */
 /* Helpers                                                                   */
 /* ------------------------------------------------------------------------ */
+
+/** Relay self-reports carried alongside a submission. Recorded, never trusted. */
+interface RelayClaims {
+  source_language: string | null;
+  translation_indicated: boolean;
+}
+
+/**
+ * Canonical identity of where a submission came from. `null` and absent
+ * collapse to the same value, so an adapter that omits a field and one that
+ * sends it as null describe the same source event rather than two.
+ */
+function provenanceKey(source: {
+  source_channel: SourceChannel;
+  relaying_agent: string | null;
+  source_language: string | null;
+  translation_indicated: boolean;
+}): string {
+  return canonicalSerialize({
+    source_channel: source.source_channel,
+    relaying_agent: source.relaying_agent ?? null,
+    source_language: source.source_language ?? null,
+    translation_indicated: source.translation_indicated === true,
+  });
+}
 
 /**
  * A storage failure is opaque to the caller and retryable. Table names, driver

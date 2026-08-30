@@ -578,6 +578,263 @@ describe('submitTurn idempotency', () => {
 });
 
 /* ------------------------------------------------------------------------ */
+/* Provenance is part of heuristic replay identity                           */
+/* ------------------------------------------------------------------------ */
+
+const RELAY_ALICE: RuntimeRequestContext = {
+  principal: { principal_id: 'user_alice' },
+  relaying_agent: 'ChatGPT (gpt-x)',
+};
+
+describe('the heuristic fingerprint does not collapse separate source events', () => {
+  /** Commits one relayed turn and returns the harness around it. */
+  async function firstRelayedTurn() {
+    const h = harness();
+    h.scripted.setScript(expectedDateScript);
+    const caseId = await startedCase(h);
+    const first = committed(
+      await h.runtime.submitTurn(RELAY_ALICE, submitCommand({ case_id: caseId })),
+    );
+    return { h, caseId, first };
+  }
+
+  /**
+   * The second submission records no new canonical statement, so these tests
+   * isolate SOURCE-TURN identity from the separate collision rule that governs
+   * two live statements of one type against one requirement.
+   */
+  function quietenCompiler(h: ReturnType<typeof harness>) {
+    h.scripted.setScript(() => ({ verdict: 'no_assertions' }));
+  }
+
+  /** Same words, same requirements, new client id — the regenerated retry. */
+  function regeneratedRetry(caseId: string): SubmitTurnCommand {
+    return submitCommand({
+      case_id: caseId,
+      client_turn_id: 'client_2',
+      expected_case_version: 1,
+      payload: payload('I expected it finished by April 25 — and nobody ever said otherwise!'),
+    });
+  }
+
+  it('still replays a regenerated retry when the provenance is identical', async () => {
+    const { h, caseId, first } = await firstRelayedTurn();
+
+    const retry = await h.runtime.submitTurn(RELAY_ALICE, regeneratedRetry(caseId));
+
+    expect(retry.kind).toBe('replayed');
+    if (retry.kind !== 'replayed') return;
+    expect(retry.match).toBe('fingerprint');
+    expect(retry.turn_id).toBe(first.turn_id);
+    expect((await loadState(h, caseId)).turn_log).toHaveLength(1);
+  });
+
+  for (const [label, context] of [
+    [
+      'a different source channel',
+      { ...RELAY_ALICE, source_channel: 'first_party_input' as const, relaying_agent: null },
+    ],
+    ['a different relaying agent', { ...RELAY_ALICE, relaying_agent: 'Claude' }],
+    ['no relaying agent at all', { ...RELAY_ALICE, relaying_agent: null }],
+  ] as const) {
+    it('records a separate source turn for ' + label, async () => {
+      const { h, caseId, first } = await firstRelayedTurn();
+      quietenCompiler(h);
+
+      const second = await h.runtime.submitTurn(context, regeneratedRetry(caseId));
+
+      expect(second.kind).toBe('committed');
+      if (second.kind !== 'committed') return;
+      expect(second.turn_id).not.toBe(first.turn_id);
+
+      // Both source events are in the immutable log, each with its own provenance.
+      const state = await loadState(h, caseId);
+      expect(state.turn_log).toHaveLength(2);
+      expect(state.turn_log[0]!.source_channel).toBe('webmcp_agent_relay');
+      expect(state.turn_log[0]!.relaying_agent).toBe('ChatGPT (gpt-x)');
+      expect(state.turn_log[1]!.source_channel).toBe(
+        context.source_channel ?? 'webmcp_agent_relay',
+      );
+      expect(state.turn_log[1]!.relaying_agent).toBe(context.relaying_agent);
+      expect(await h.store.idempotency.listByCase(caseId)).toHaveLength(2);
+    });
+  }
+
+  it('records a separate source turn when the answer is reported as translated', async () => {
+    const { h, caseId, first } = await firstRelayedTurn();
+    quietenCompiler(h);
+
+    // Translated wording has no span fidelity to what the user actually said,
+    // so it can never stand in for a turn that claimed it did.
+    const translated = await h.runtime.submitTurn(RELAY_ALICE, {
+      ...regeneratedRetry(caseId),
+      translation_indicated: true,
+    });
+
+    expect(translated.kind).toBe('committed');
+    if (translated.kind !== 'committed') return;
+    expect(translated.turn_id).not.toBe(first.turn_id);
+    expect(translated.warnings.join(' ')).toContain('translation');
+
+    const state = await loadState(h, caseId);
+    expect(state.turn_log).toHaveLength(2);
+    expect(state.turn_log[0]!.translation_indicated).toBe(false);
+    expect(state.turn_log[1]!.translation_indicated).toBe(true);
+  });
+
+  it('records a separate source turn for a materially different source language', async () => {
+    const { h, caseId, first } = await firstRelayedTurn();
+    quietenCompiler(h);
+
+    const other = await h.runtime.submitTurn(RELAY_ALICE, {
+      ...regeneratedRetry(caseId),
+      source_language: 'de',
+    });
+
+    expect(other.kind).toBe('committed');
+    if (other.kind !== 'committed') return;
+    expect(other.turn_id).not.toBe(first.turn_id);
+    const state = await loadState(h, caseId);
+    expect(state.turn_log.map((turn) => turn.source_language)).toEqual([null, 'de']);
+  });
+
+  it('treats an omitted and an explicitly null relay claim as the same provenance', async () => {
+    const { h, caseId, first } = await firstRelayedTurn();
+
+    // The first turn omitted source_language entirely; this one sends null.
+    const retry = await h.runtime.submitTurn(RELAY_ALICE, {
+      ...regeneratedRetry(caseId),
+      source_language: null,
+    });
+
+    expect(retry.kind).toBe('replayed');
+    if (retry.kind !== 'replayed') return;
+    expect(retry.turn_id).toBe(first.turn_id);
+    expect((await loadState(h, caseId)).turn_log).toHaveLength(1);
+  });
+
+  it('keeps exact client_turn_id replay authoritative over any provenance drift', async () => {
+    const { h, caseId, first } = await firstRelayedTurn();
+    const before = (await h.store.cases.findById(caseId))!;
+    const compileRunsBefore = await h.store.compileRuns.listByCase(caseId);
+
+    // Same operation id, but every provenance field has drifted.
+    const retry = await h.runtime.submitTurn(
+      {
+        principal: { principal_id: 'user_alice' },
+        source_channel: 'first_party_input',
+        relaying_agent: null,
+      },
+      submitCommand({
+        case_id: caseId,
+        expected_case_version: 1,
+        source_language: 'de',
+        translation_indicated: true,
+      }),
+    );
+
+    expect(retry.kind).toBe('replayed');
+    if (retry.kind !== 'replayed') return;
+    expect(retry.match).toBe('client_turn_id');
+    expect(retry.turn_id).toBe(first.turn_id);
+    expect(retry.accepted_proposition_ids).toEqual(first.accepted_proposition_ids);
+
+    const after = (await h.store.cases.findById(caseId))!;
+    expect(after.revision).toBe(before.revision);
+    expect(after.state).toEqual(before.state);
+    expect(after.state.turn_log).toHaveLength(1);
+    expect(after.state.propositions).toHaveLength(1);
+    expect(await h.store.compileRuns.listByCase(caseId)).toEqual(compileRunsBefore);
+    expect(await h.store.idempotency.listByCase(caseId)).toHaveLength(1);
+    expect(h.scripted.calls).toHaveLength(1);
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Deterministic input validation precedes registry access                   */
+/* ------------------------------------------------------------------------ */
+
+describe('unknown requirements are rejected without touching the registry', () => {
+  async function caseWithFailPoints() {
+    const inner = new InMemoryCaseRuntimeStore();
+    const fail: FailPoints = {};
+    const store = storeFailingAt(inner, fail);
+    const compiler = new ScriptedSemanticCompiler(expectedDateScript);
+    const h = runtimeOver(store, compiler);
+    const started = await h.runtime.startCase(ALICE, startCommand('request_1'));
+    if (started.kind !== 'created') throw new Error('expected creation');
+    return { inner, fail, compiler, h, caseId: started.case.case_id };
+  }
+
+  async function expectDeterministicRejection(
+    label: 'healthy' | 'unavailable',
+    registryUnavailable: boolean,
+  ) {
+    const { inner, fail, compiler, h, caseId } = await caseWithFailPoints();
+    const before = (await inner.cases.findById(caseId))!;
+    let registerCalls = 0;
+    fail.registryRegister = () => {
+      registerCalls += 1;
+      return registryUnavailable ? new Error(DB_ERROR) : undefined;
+    };
+
+    const outcome = await h.runtime.submitTurn(
+      ALICE,
+      submitCommand({ case_id: caseId, in_reply_to: ['req_does_not_exist'] }),
+    );
+
+    expect(outcome.kind, label).toBe('failed');
+    if (outcome.kind !== 'failed') return;
+    // The same malformed request gets the same answer either way.
+    expect(outcome.failure.code, label).toBe('INVALID_INPUT');
+    expect(outcome.failure.retryable, label).toBe(false);
+
+    // No registry work, no compiler, no writes of any kind.
+    expect(registerCalls, label).toBe(0);
+    expect(compiler.calls, label).toHaveLength(0);
+    const after = (await inner.cases.findById(caseId))!;
+    expect(after.revision, label).toBe(before.revision);
+    expect(after.state, label).toEqual(before.state);
+    expect(after.state.turn_log, label).toHaveLength(0);
+    expect(await inner.compileRuns.listByCase(caseId)).toEqual([]);
+    expect(await inner.idempotency.listByCase(caseId)).toEqual([]);
+  }
+
+  it('rejects an unknown requirement while the registry is healthy', async () => {
+    await expectDeterministicRejection('healthy', false);
+  });
+
+  it('gives the identical rejection while the registry is unavailable', async () => {
+    await expectDeterministicRejection('unavailable', true);
+  });
+
+  it('still replays a committed turn ahead of present-day requirement validation', async () => {
+    const inner = new InMemoryCaseRuntimeStore();
+    const fail: FailPoints = {};
+    const store = storeFailingAt(inner, fail);
+    const first = runtimeOver(store, new ScriptedSemanticCompiler(expectedDateScript), 'p1_');
+    const started = await first.runtime.startCase(ALICE, startCommand('request_1'));
+    if (started.kind !== 'created') throw new Error('expected creation');
+    const caseId = started.case.case_id;
+    const commit = committed(
+      await first.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId })),
+    );
+
+    // Fresh process, registry down, a compiler that must never run.
+    fail.registryRegister = () => new Error(DB_ERROR);
+    const second = runtimeOver(store, new NeverCallCompiler(), 'p2_');
+    const retry = await second.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId }));
+
+    // Replay resolves from durable history, not reinterpreted as a fresh write.
+    expect(retry.kind).toBe('replayed');
+    if (retry.kind !== 'replayed') return;
+    expect(retry.turn_id).toBe(commit.turn_id);
+    expect(second.diagnostics.events).toEqual([]);
+    expect((await inner.cases.findById(caseId))!.state.turn_log).toHaveLength(1);
+  });
+});
+
+/* ------------------------------------------------------------------------ */
 /* submit_turn — compiler verdicts                                           */
 /* ------------------------------------------------------------------------ */
 
