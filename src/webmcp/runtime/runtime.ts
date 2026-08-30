@@ -848,7 +848,11 @@ export class CaseRuntime {
       // INTERNAL_ERROR would tell the transport to consider retrying work the
       // caller has already walked away from.
       if (options.signal?.aborted === true) {
-        throw options.signal.reason ?? error;
+        // `signal.reason` and nothing else. A caller that called `abort(null)`
+        // chose null as its reason, and `?? error` would silently hand back the
+        // adapter's rejection instead — reporting a compiler failure for an
+        // operation the caller cancelled.
+        throw options.signal.reason;
       }
       this.#diagnostics.record({
         kind: 'compiler_threw',
@@ -932,6 +936,23 @@ export class CaseRuntime {
 
     // From here on `runRecord.output` is the authoritative compiler output.
     // The adapter-owned `output` object is not read again.
+    // Last safe boundary, placed immediately after the append and BEFORE the
+    // recorded output is inspected. The append is the final await before the
+    // commit, and everything between here and `commitTurn` is synchronous, so
+    // one check covers the whole window — but only from here. Below this line
+    // sit the contract, mutation and structural-validation early returns, and
+    // reaching one of those first would answer a cancelled caller with
+    // INTERNAL_ERROR instead of its own cancellation. A caller that has walked
+    // away is not owed a verdict on the compiler's output.
+    //
+    // The signal deliberately stops HERE and is not handed to `commitTurn`.
+    // Once an atomic canonical commit has started, interrupting it would trade
+    // a clean cancellation for an indeterminate half-written case, which is
+    // strictly worse than honouring a commit the caller no longer wants. Any
+    // asynchronous step added between this point and the commit needs the same
+    // arbitration after it.
+    options.signal?.throwIfAborted();
+
     if (runRecord.contract_issues.length > 0) {
       this.#diagnostics.record({
         kind: 'compiler_contract_violation',
@@ -1025,18 +1046,6 @@ export class CaseRuntime {
       recorded_at_ms: receivedAtMs,
       response,
     };
-
-    // Last safe boundary. The audit append above is awaited, so the caller can
-    // abort while it is in flight; without this the runtime would resolve
-    // `committed` for a submission it had already been told to abandon. Any
-    // asynchronous step added between the post-compile check and here needs the
-    // same arbitration after it.
-    //
-    // The signal deliberately stops HERE and is not handed to `commitTurn`.
-    // Once an atomic canonical commit has started, interrupting it would trade
-    // a clean cancellation for an indeterminate half-written case, which is
-    // strictly worse than honouring a commit the caller no longer wants.
-    options.signal?.throwIfAborted();
 
     let commit;
     try {

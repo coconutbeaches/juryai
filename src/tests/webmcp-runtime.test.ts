@@ -3334,6 +3334,91 @@ describe('cancellation is arbitrated again before the canonical commit starts', 
     expect(after.state.turn_log.map((turn) => turn.turn_id)).not.toContain(runs[0]!.turn_id);
   });
 
+  /** Aborts mid-append with a compiler whose output would fail after it. */
+  async function abortDuringAppendWith(script: CompilerScript) {
+    const inner = new InMemoryCaseRuntimeStore();
+    const gated = gatedAuditAppendStore(inner);
+    const h = runtimeOver(gated.store, new ScriptedSemanticCompiler(script));
+
+    const started = await h.runtime.startCase(ALICE, startCommand('request_1'));
+    if (started.kind !== 'created') throw new Error('expected creation');
+    const caseId = started.case.case_id;
+    const before = (await inner.cases.findById(caseId))!;
+
+    const controller = new AbortController();
+    const reason = new Error('the caller disconnected');
+    const gate = gated.arm();
+    const pending = h.runtime.submitTurn(
+      ALICE,
+      submitCommand({
+        case_id: caseId,
+        payload: payload('That sounds about right.', ['Was April 25 the date?']),
+      }),
+      { signal: controller.signal },
+    );
+    await gate.entered;
+    controller.abort(reason);
+    gate.release();
+    return { inner, gated, h, caseId, before, pending, reason };
+  }
+
+  it('answers cancellation, not INTERNAL_ERROR, when the output has contract issues', async () => {
+    // Contract-invalid output: the assertion cites only a context span.
+    const { inner, gated, h, caseId, before, pending, reason } = await abortDuringAppendWith(
+      () => ({
+        verdict: 'accepted_candidates',
+        assertions: [
+          {
+            quote: 'April 25',
+            region: 'context',
+            message_index: 0,
+            requirement_id: 'req_expected_date',
+            type: 'target_date',
+            epistemic_strength: 'asserted_confident',
+            statement: 'The user expected completion by 25 April.',
+          },
+        ],
+      }),
+    );
+
+    // Reaching the contract branch first would answer a caller who has walked
+    // away with a verdict on the compiler's output instead of its own abort.
+    await expect(pending).rejects.toBe(reason);
+    expect(h.diagnostics.events).toEqual([]);
+    expect(gated.commitCalls()).toBe(0);
+    const after = (await inner.cases.findById(caseId))!;
+    expect(after.revision).toBe(before.revision);
+    expect(after.state.turn_log).toHaveLength(0);
+    expect(await inner.idempotency.listByCase(caseId)).toEqual([]);
+  });
+
+  it('answers cancellation, not INTERNAL_ERROR, when the state would fail validation', async () => {
+    // Contract-valid but structurally invalid: an invoice cannot satisfy the
+    // expected-date requirement.
+    const { inner, gated, h, caseId, before, pending, reason } = await abortDuringAppendWith(
+      () => ({
+        verdict: 'accepted_candidates',
+        assertions: [
+          {
+            quote: 'about right',
+            requirement_id: 'req_expected_date',
+            type: 'invoice',
+            epistemic_strength: 'asserted_confident',
+            statement: 'An invoice dated 25 April.',
+          },
+        ],
+      }),
+    );
+
+    await expect(pending).rejects.toBe(reason);
+    expect(h.diagnostics.events).toEqual([]);
+    expect(gated.commitCalls()).toBe(0);
+    const after = (await inner.cases.findById(caseId))!;
+    expect(after.revision).toBe(before.revision);
+    expect(after.state.turn_log).toHaveLength(0);
+    expect(after.state.propositions).toHaveLength(0);
+  });
+
   it('commits normally when the same append gate is released without an abort', async () => {
     const inner = new InMemoryCaseRuntimeStore();
     const gated = gatedAuditAppendStore(inner);
@@ -3355,6 +3440,56 @@ describe('cancellation is arbitrated again before the canonical commit starts', 
     expect(outcome.case.case_version).toBe(1);
     expect(gated.commitCalls()).toBe(1);
     expect((await inner.cases.findById(caseId))!.state.turn_log).toHaveLength(1);
+  });
+});
+
+describe('an explicit null abort reason is still the caller reason', () => {
+  it('throws null rather than substituting the compiler error', async () => {
+    const compiler = new AbortAwareCompiler();
+    const h = harness({ compiler });
+    const caseId = await startedCase(h);
+    const before = (await h.store.cases.findById(caseId))!;
+    const controller = new AbortController();
+
+    const pending = h.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId }), {
+      signal: controller.signal,
+    });
+    await compiler.started;
+    // The adapter will reject with its own unrelated error; the caller's
+    // chosen reason is null, and null is what must come back.
+    controller.abort(null);
+
+    let thrown: unknown = 'nothing was thrown';
+    try {
+      await pending;
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeNull();
+
+    const after = (await h.store.cases.findById(caseId))!;
+    expect(after.revision).toBe(before.revision);
+    expect(after.state.turn_log).toHaveLength(0);
+    expect(await h.store.idempotency.listByCase(caseId)).toEqual([]);
+  });
+
+  it('throws null from an already-aborted call too', async () => {
+    const compiler = new AbortAwareCompiler();
+    const h = harness({ compiler });
+    const caseId = await startedCase(h);
+    const controller = new AbortController();
+    controller.abort(null);
+
+    let thrown: unknown = 'nothing was thrown';
+    try {
+      await h.runtime.submitTurn(ALICE, submitCommand({ case_id: caseId }), {
+        signal: controller.signal,
+      });
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeNull();
+    expect(compiler.calls).toBe(0);
   });
 });
 
