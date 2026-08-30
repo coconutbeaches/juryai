@@ -508,4 +508,41 @@ describe('the graders themselves have teeth', () => {
     expect(grade.ok).toBe(false);
     expect(grade.failures.join(' ')).toMatch(/citation.*support/u);
   });
+
+  it('refuses an extra named fact absent from otherwise supporting citations', async () => {
+    const { scenario, output } = await compileCompletion(
+      anchor,
+      JSON.stringify({
+        verdict: 'accepted_candidates',
+        assertions: [
+          {
+            requirement_id: 'req_paid',
+            proposed_type: 'payment',
+            epistemic_strength: 'asserted_confident',
+            statement: 'The user paid John Smith 2,000 pounds by bank transfer on 25 April.',
+            supersedes_candidate: null,
+            citations: [
+              {
+                region: 'answer',
+                message_index: null,
+                quote: 'I paid them 2,000 pounds by bank transfer on 25 April',
+              },
+            ],
+          },
+        ],
+        rejected_candidates: [],
+        clarifications_requested: [],
+      }),
+    );
+
+    expect(validateCompilerOutput(scenario.input, output)).toEqual([]);
+    expect(
+      runBoundary(scenario.state, scenario.input, output, anchor, scenario.next_case_version)
+        .disposition,
+    ).toBe('committed');
+
+    const grade = gradeCompilerOutput(anchor, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/unsupported fact.*John/u);
+  });
 });

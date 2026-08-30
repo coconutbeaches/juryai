@@ -33,6 +33,27 @@ function fold(text: string): string {
 }
 
 /**
+ * Fact-shaped tokens that canonical prose may not add unless its exact answer
+ * citations contain them. This is intentionally narrower than general lexical
+ * overlap: prose may paraphrase, but names, numeric values, currencies and
+ * calendar terms are audit facts rather than style.
+ */
+function factMarkers(text: string): string[] {
+  const markers = new Set<string>();
+  for (const match of text.matchAll(/\b\d[\d,.]*\b/gu)) markers.add(match[0]);
+  for (const match of text.matchAll(
+    /\b(?:pounds?|dollars?|euros?|gbp|usd|eur|january|february|march|april|may|june|july|august|september|october|november|december|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/giu,
+  )) {
+    markers.add(match[0]);
+  }
+  for (const match of text.matchAll(/\b[A-Z][A-Za-z'-]*\b/gu)) {
+    if (['The', 'A', 'An', 'There', 'That', 'It', 'I', 'We'].includes(match[0])) continue;
+    markers.add(match[0]);
+  }
+  return [...markers];
+}
+
+/**
  * Graders that apply to EVERY case. These encode the compiler's standing
  * obligations rather than any one scenario's expectations.
  */
@@ -237,6 +258,11 @@ function gradeAssertionSet(
     for (const alternatives of slot.citation_must_mention) {
       if (!alternatives.some((term) => fold(answerCitations).includes(fold(term)))) {
         problems.push("citation does not support topic '" + alternatives.join('|') + "'");
+      }
+    }
+    for (const marker of factMarkers(assertion.statement)) {
+      if (!fold(answerCitations).includes(fold(marker))) {
+        problems.push("statement adds unsupported fact '" + marker + "'");
       }
     }
     if (problems.length === 0) {

@@ -1148,17 +1148,30 @@ describe('OpenAI Responses transport', () => {
   });
 
   it('surfaces a model refusal as its own non-transient error', async () => {
+    const echoedCaseText = 'I paid John Smith 2,000 pounds on 25 April';
     const { client } = clientWith(
       () =>
         new Response(
           JSON.stringify({
             status: 'completed',
-            output: [{ type: 'message', content: [{ type: 'refusal', refusal: 'no' }] }],
+            output: [
+              {
+                type: 'message',
+                content: [{ type: 'refusal', refusal: 'I cannot process: ' + echoedCaseText }],
+              },
+            ],
           }),
           { status: 200 },
         ),
     );
-    await expect(client.generate(request)).rejects.toThrow(SemanticModelRefusalError);
+    await client.generate(request).then(
+      () => expect.unreachable('expected a refusal'),
+      (error: unknown) => {
+        expect(error).toBeInstanceOf(SemanticModelRefusalError);
+        expect((error as Error).message).toBe('Model refused the compile request.');
+        expect((error as Error).message).not.toContain(echoedCaseText);
+      },
+    );
   });
 
   it('refuses a truncated response rather than parsing half an answer', async () => {
@@ -1172,7 +1185,34 @@ describe('OpenAI Responses transport', () => {
           { status: 200 },
         ),
     );
-    await expect(client.generate(request)).rejects.toThrow(/incomplete: max_output_tokens/u);
+    await expect(client.generate(request)).rejects.toThrow(/response was incomplete/u);
+  });
+
+  it('rejects non-completed response statuses even when output text is present', async () => {
+    const { client } = clientWith(
+      () =>
+        new Response(
+          JSON.stringify({
+            status: 'failed',
+            model: 'test-model-2026-01-01',
+            output_text: draft(),
+            usage: { input_tokens: 10, output_tokens: 20 },
+          }),
+          { status: 200 },
+        ),
+    );
+
+    await client.generate(request).then(
+      () => expect.unreachable('expected a provider error'),
+      (error: unknown) => {
+        expect(error).toBeInstanceOf(SemanticModelError);
+        expect((error as Error).message).toMatch(/not completed/u);
+        expect((error as SemanticModelError).diagnostics?.usage).toEqual({
+          input_tokens: 10,
+          output_tokens: 20,
+        });
+      },
+    );
   });
 
   it('preserves the usage a truncated response reported', async () => {

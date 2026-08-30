@@ -111,11 +111,10 @@ export function readResponsesOutputText(
       if (typeof part !== 'object' || part === null) continue;
       const entry = part as Record<string, unknown>;
       if (entry.type === 'refusal') {
-        throw new SemanticModelRefusalError(
-          'Model refused the compile request: ' +
-            (typeof entry.refusal === 'string' ? entry.refusal : 'no reason given'),
-          diagnostics,
-        );
+        // Provider refusal text is untrusted and may echo the submitted legal
+        // case. It must not enter an exception message because runtime and eval
+        // diagnostics legitimately record those messages.
+        throw new SemanticModelRefusalError('Model refused the compile request.', diagnostics);
       }
     }
   }
@@ -259,16 +258,17 @@ export class OpenAiResponsesSemanticModelClient implements SemanticModelClient {
 
     const object = payload as Record<string, unknown>;
     if (object.status === 'incomplete') {
-      const details = object.incomplete_details;
-      const reason =
-        typeof details === 'object' && details !== null
-          ? String((details as Record<string, unknown>).reason ?? 'unknown')
-          : 'unknown';
       // Truncated structured output is not a shorter valid answer; it is not
-      // an answer. Failing here keeps a half-parsed object out of the pipeline.
-      throw new SemanticModelError('Provider response was incomplete: ' + reason, {
+      // an answer. The provider-controlled detail is deliberately omitted from
+      // the logged exception for the same reason refusal text is omitted.
+      throw new SemanticModelError('Provider response was incomplete.', {
         diagnostics,
       });
+    }
+    if (object.status !== 'completed') {
+      // A gateway can return stale or partial output_text alongside a failed
+      // status. Provider success must be positive before any text is trusted.
+      throw new SemanticModelError('Provider response was not completed.', { diagnostics });
     }
 
     return {
