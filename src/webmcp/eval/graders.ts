@@ -129,7 +129,9 @@ const SENTENCE_INITIAL_NON_ENTITY_WORDS = new Set([
   'date',
   'deadline',
   'fact',
+  'funds',
   'invoice',
+  'money',
   'payment',
   'position',
   'quote',
@@ -179,20 +181,19 @@ function addsUnsupportedEntityToken(
   for (const [index, token] of tokens.entries()) {
     if (cited.has(token.folded) || ENTITY_NEUTRAL_WORDS.has(token.folded)) continue;
     if (POLARITY_PREDICATES[type]?.has(token.folded) ?? false) continue;
-    if (/^\p{Lu}/u.test(token.raw)) {
-      if (!isSentenceInitial(statement, tokens, index)) return true;
-      if (!SENTENCE_INITIAL_NON_ENTITY_WORDS.has(token.folded)) {
-        const subjectPredicates = ENTITY_SUBJECT_PREDICATES[type] ?? new Set<string>();
-        for (let predicateIndex = index + 1; predicateIndex < tokens.length; predicateIndex += 1) {
-          if (
-            /[.!?]/u.test(
-              statement.slice(tokens[predicateIndex - 1]!.end, tokens[predicateIndex]!.start),
-            )
-          ) {
-            break;
-          }
-          if (subjectPredicates.has(tokens[predicateIndex]!.folded)) return true;
+    const sentenceInitial = isSentenceInitial(statement, tokens, index);
+    if (/^\p{Lu}/u.test(token.raw) && !sentenceInitial) return true;
+    if (sentenceInitial && !SENTENCE_INITIAL_NON_ENTITY_WORDS.has(token.folded)) {
+      const subjectPredicates = ENTITY_SUBJECT_PREDICATES[type] ?? new Set<string>();
+      for (let predicateIndex = index + 1; predicateIndex < tokens.length; predicateIndex += 1) {
+        if (
+          /[.!?]/u.test(
+            statement.slice(tokens[predicateIndex - 1]!.end, tokens[predicateIndex]!.start),
+          )
+        ) {
+          break;
         }
+        if (subjectPredicates.has(tokens[predicateIndex]!.folded)) return true;
       }
     }
     const previous = tokens[index - 1]?.folded;
@@ -448,7 +449,7 @@ function tokenIsNegated(text: string, tokens: readonly WordToken[], index: numbe
   let rightStart = tokens[index]!.start;
   for (let candidateIndex = index - 1; candidateIndex >= 0; candidateIndex -= 1) {
     const candidate = tokens[candidateIndex]!;
-    if (/[.!?;:,]/u.test(text.slice(candidate.end, rightStart))) return false;
+    if (/[.!?;:]/u.test(text.slice(candidate.end, rightStart))) return false;
     if (NEGATION_CLAUSE_BOUNDARIES.has(candidate.folded)) return false;
     if (
       NEGATION_WORDS.has(candidate.folded) &&
