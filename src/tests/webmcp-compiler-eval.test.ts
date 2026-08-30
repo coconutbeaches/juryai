@@ -759,6 +759,16 @@ describe('the graders themselves have teeth', () => {
     expect(grade.failures.join(' ')).toMatch(/polarity/u);
   });
 
+  it('does not let a same-sentence refund success override a failed payment', async () => {
+    const { scenario, output } = await paymentWithStatement(
+      'The payment of 2,000 pounds by bank transfer on 25 April was unsuccessful despite a refund being successfully processed.',
+    );
+
+    const grade = gradeCompilerOutput(anchor, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/polarity/u);
+  });
+
   it('keeps negation on the coordinated predicate it modifies', async () => {
     const { scenario, output } = await compileCompletion(
       anchor,
@@ -1027,6 +1037,16 @@ describe('the graders themselves have teeth', () => {
     expect(grade.failures.join(' ')).toMatch(/unsupported entity/u);
   });
 
+  it('treats a determiner-led subject as an entity position', async () => {
+    const { scenario, output } = await paymentWithStatement(
+      'A friend received 2,000 pounds by bank transfer on 25 April.',
+    );
+
+    const grade = gradeCompilerOutput(anchor, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/unsupported entity/u);
+  });
+
   it('refuses an unsupported spelled-out amount', async () => {
     const { scenario, output } = await paymentWithStatement(
       'The user paid the other party 2,000 pounds by bank transfer on 25 April and included a fee of fifty.',
@@ -1196,6 +1216,39 @@ describe('the graders themselves have teeth', () => {
             proposed_type: 'narrative_fact',
             epistemic_strength: 'asserted_confident',
             statement: 'The other party denied that the additional 1,400 pounds was chargeable.',
+            supersedes_candidate: null,
+            citations: [
+              {
+                region: 'answer',
+                message_index: null,
+                quote:
+                  'Their position is that the extra sockets were a variation I asked for verbally, so they say the extra 1,400 pounds is chargeable.',
+              },
+            ],
+          },
+        ],
+        rejected_candidates: [],
+        clarifications_requested: [],
+      }),
+    );
+
+    const grade = gradeCompilerOutput(narrative, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/polarity/u);
+  });
+
+  it('recognizes rejection of a narrative proposition as a reversal', async () => {
+    const { scenario, output } = await compileCompletion(
+      narrative,
+      JSON.stringify({
+        verdict: 'accepted_candidates',
+        assertions: [
+          {
+            requirement_id: 'req_other_party_position',
+            proposed_type: 'narrative_fact',
+            epistemic_strength: 'asserted_confident',
+            statement:
+              'The other party rejected the proposition that the additional 1,400 pounds was chargeable.',
             supersedes_candidate: null,
             citations: [
               {

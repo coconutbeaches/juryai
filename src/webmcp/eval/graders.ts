@@ -189,7 +189,12 @@ function isSubjectPosition(text: string, tokens: readonly WordToken[], index: nu
     const previous = tokens[previousIndex]!;
     const followingGap = text.slice(previous.end, tokens[previousIndex + 1]!.start);
     if (/[.!?]/u.test(followingGap)) return true;
-    if (!SENTENCE_INITIAL_NON_ENTITY_WORDS.has(previous.folded)) return false;
+    if (
+      !SENTENCE_INITIAL_NON_ENTITY_WORDS.has(previous.folded) &&
+      !['a', 'an', 'the'].includes(previous.folded)
+    ) {
+      return false;
+    }
   }
   return true;
 }
@@ -293,6 +298,9 @@ const EXPLICIT_NEGATION_WORDS = new Set([
 ]);
 
 const NARRATIVE_NEGATING_REPORTING_VERBS = new Set([
+  'challenge',
+  'challenged',
+  'challenges',
   'contradict',
   'contradicted',
   'contradicts',
@@ -302,6 +310,21 @@ const NARRATIVE_NEGATING_REPORTING_VERBS = new Set([
   'disavow',
   'disavowed',
   'disavows',
+  'disagree',
+  'disagreed',
+  'disagrees',
+  'dismiss',
+  'dismissed',
+  'dismisses',
+  'oppose',
+  'opposed',
+  'opposes',
+  'reject',
+  'rejected',
+  'rejects',
+  'repudiate',
+  'repudiated',
+  'repudiates',
   'refute',
   'refuted',
   'refutes',
@@ -559,7 +582,7 @@ const NEGATION_CLAUSE_BOUNDARIES = new Set([
 function semanticClauses(text: string): string[] {
   return text
     .split(
-      /[!?;:]+|\.(?=\s|$)|,\s*(?:although|and|but|however|or|then|though|while|whereas|yet)\b|\b(?:although|and|but|however|or|then|though|while|whereas|yet)\b/iu,
+      /[!?;:]+|\.(?=\s|$)|,\s*(?:although|and|but|despite|however|notwithstanding|or|then|though|while|whereas|yet)\b|\b(?:although|and|but|despite|however|notwithstanding|or|then|though|while|whereas|yet)\b|\bin\s+spite\s+of\b/iu,
     )
     .map((clause) => clause.trim())
     .filter((clause) => clause.length > 0);
