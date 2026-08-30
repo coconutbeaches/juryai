@@ -749,6 +749,16 @@ describe('the graders themselves have teeth', () => {
     expect(grade.failures.join(' ')).toMatch(/polarity/u);
   });
 
+  it('does not match a failed payment to a different successful amount', async () => {
+    const { scenario, output } = await paymentWithStatement(
+      'The attempted payment of 2,000 pounds by bank transfer on 25 April was unsuccessful, but a separate 50 pound refund was later paid.',
+    );
+
+    const grade = gradeCompilerOutput(anchor, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/polarity/u);
+  });
+
   it('keeps negation on the coordinated predicate it modifies', async () => {
     const { scenario, output } = await compileCompletion(
       anchor,
@@ -1115,6 +1125,42 @@ describe('the graders themselves have teeth', () => {
     );
 
     const grade = gradeCompilerOutput(unrelatedNegation, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/polarity/u);
+  });
+
+  it('does not correlate narrative clauses through a generic currency marker', async () => {
+    const unrelatedInvoiceAmount = structuredClone(narrative);
+    unrelatedInvoiceAmount.answer =
+      'Their position is that the additional 1,400 pounds is chargeable, but they did not send a £50 invoice.';
+    const { scenario, output } = await compileCompletion(
+      unrelatedInvoiceAmount,
+      JSON.stringify({
+        verdict: 'accepted_candidates',
+        assertions: [
+          {
+            requirement_id: 'req_other_party_position',
+            proposed_type: 'narrative_fact',
+            epistemic_strength: 'asserted_confident',
+            statement:
+              'The other party contended that the additional 1,400 pounds was not recoverable.',
+            supersedes_candidate: null,
+            citations: [
+              {
+                region: 'answer',
+                message_index: null,
+                quote:
+                  'Their position is that the additional 1,400 pounds is chargeable, but they did not send a £50 invoice.',
+              },
+            ],
+          },
+        ],
+        rejected_candidates: [],
+        clarifications_requested: [],
+      }),
+    );
+
+    const grade = gradeCompilerOutput(unrelatedInvoiceAmount, scenario.input, output);
     expect(grade.ok).toBe(false);
     expect(grade.failures.join(' ')).toMatch(/polarity/u);
   });

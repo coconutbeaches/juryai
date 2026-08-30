@@ -503,7 +503,18 @@ const NARRATIVE_POLARITY_FAMILIES: readonly ReadonlySet<string>[] = [
     'stated',
     'states',
   ]),
-  new Set(['charge', 'chargeable', 'due', 'owe', 'owed', 'owing', 'payable']),
+  new Set([
+    'charge',
+    'chargeable',
+    'due',
+    'owe',
+    'owed',
+    'owing',
+    'payable',
+    'recover',
+    'recoverability',
+    'recoverable',
+  ]),
 ];
 
 const NEGATION_CLAUSE_BOUNDARIES = new Set([
@@ -534,17 +545,26 @@ function hasExplicitNegation(text: string): boolean {
   );
 }
 
+function discriminativeFactMarkers(text: string): ReadonlySet<string> {
+  return new Set(factMarkers(text).filter((marker) => /^\d/u.test(marker)));
+}
+
 function narrativeNegationLacksCitedSupport(statement: string, answerCitations: string): boolean {
   const citedClauses = semanticClauses(answerCitations);
   for (const statementClause of semanticClauses(statement)) {
     if (!hasExplicitNegation(statementClause)) continue;
-    const statementMarkers = new Set(factMarkers(statementClause));
+    const statementMarkers = discriminativeFactMarkers(statementClause);
     const statementFamilies = NARRATIVE_POLARITY_FAMILIES.filter((family) =>
       words(statementClause).some((word) => family.has(word)),
     );
     const relevantCitations = citedClauses.filter((citationClause) => {
-      const citationMarkers = new Set(factMarkers(citationClause));
-      if ([...statementMarkers].some((marker) => citationMarkers.has(marker))) return true;
+      const citationMarkers = discriminativeFactMarkers(citationClause);
+      if (
+        statementMarkers.size > 0 &&
+        [...statementMarkers].every((marker) => citationMarkers.has(marker))
+      ) {
+        return true;
+      }
       const citationWords = words(citationClause);
       return statementFamilies.some((family) => citationWords.some((word) => family.has(word)));
     });
@@ -594,19 +614,21 @@ function paymentClauseReversesAssertion(statement: string): boolean {
       if (PAYMENT_COMPLETION_MARKERS.has(word)) lastSuccess = index;
     }
     return {
-      markers: new Set(factMarkers(clause)),
+      markers: discriminativeFactMarkers(clause),
       reversed: lastReversal >= 0 && lastReversal > lastSuccess,
       successful: lastSuccess >= 0 && lastSuccess > lastReversal,
     };
   });
 
   for (const [index, clause] of clauses.entries()) {
-    if (!clause.reversed || clause.markers.size === 0) continue;
+    if (!clause.reversed) continue;
     const laterMatchingSuccess = clauses
       .slice(index + 1)
       .some(
         (later) =>
-          later.successful && [...clause.markers].some((marker) => later.markers.has(marker)),
+          later.successful &&
+          clause.markers.size > 0 &&
+          [...clause.markers].every((marker) => later.markers.has(marker)),
       );
     if (!laterMatchingSuccess) return true;
   }
