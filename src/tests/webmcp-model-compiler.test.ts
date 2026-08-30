@@ -942,6 +942,59 @@ describe('provider telemetry', () => {
     expect(compiler.telemetry[0]!.attempts).toBe(3);
   });
 
+  it('records a cancellation that lands while a retry backoff is pending', async () => {
+    // `abortableDelay` rejects from inside the catch handler, so without an
+    // explicit record here the throw leaves `compile()` past every other
+    // `record(...)` and a run the provider had already billed reports nothing.
+    const controller = new AbortController();
+    const client = new ScriptedSemanticModelClient((_request, attempt) => {
+      if (attempt === 1) {
+        setTimeout(() => controller.abort(), 0);
+        return {
+          kind: 'error',
+          error: new SemanticModelError('503', {
+            transient: true,
+            diagnostics: {
+              reported_model: 'test-model-2026-01-01',
+              usage: { input_tokens: 120, output_tokens: 0 },
+            },
+          }),
+        };
+      }
+      return { kind: 'text', text: draft() };
+    });
+    const compiler = compilerOver(client, {
+      max_transient_retries: 2,
+      retry_backoff_ms: 50,
+    });
+    await expect(compiler.compile(inputOf(), { signal: controller.signal })).rejects.toThrow();
+    expect(client.attempts).toBe(1);
+    expect(compiler.telemetry).toHaveLength(1);
+    expect(compiler.telemetry[0]!.outcome).toBe('cancelled');
+    expect(compiler.telemetry[0]!.attempts).toBe(1);
+    // The billed attempt's usage survives the cancellation.
+    expect(compiler.telemetry[0]!.input_tokens).toBe(120);
+  });
+
+  it('records usage the failed call itself reported', async () => {
+    const client = new ScriptedSemanticModelClient(() => ({
+      kind: 'error',
+      error: new SemanticModelError('Provider response was incomplete: max_output_tokens', {
+        diagnostics: {
+          reported_model: 'test-model-2026-01-01',
+          usage: { input_tokens: 900, output_tokens: 4096 },
+        },
+      }),
+    }));
+    const compiler = compilerOver(client);
+    await expect(compiler.compile(inputOf())).rejects.toThrow(/incomplete/u);
+    const entry = compiler.telemetry[0]!;
+    expect(entry.outcome).toBe('provider_failed');
+    expect(entry.reported_model).toBe('test-model-2026-01-01');
+    expect(entry.input_tokens).toBe(900);
+    expect(entry.output_tokens).toBe(4096);
+  });
+
   it('records the attempts a cancelled run had already billed', async () => {
     const controller = new AbortController();
     const client = new ScriptedSemanticModelClient(() => {
@@ -1081,6 +1134,79 @@ describe('OpenAI Responses transport', () => {
         ),
     );
     await expect(client.generate(request)).rejects.toThrow(/incomplete: max_output_tokens/u);
+  });
+
+  it('preserves the usage a truncated response reported', async () => {
+    // A truncated completion was still billed. An error that drops its usage
+    // makes the run look cheaper than it was, in the direction that hides a
+    // model burning output tokens on nothing.
+    const { client } = clientWith(
+      () =>
+        new Response(
+          JSON.stringify({
+            status: 'incomplete',
+            model: 'test-model-2026-01-01',
+            incomplete_details: { reason: 'max_output_tokens' },
+            usage: { input_tokens: 900, output_tokens: 4096 },
+          }),
+          { status: 200 },
+        ),
+    );
+    await client.generate(request).then(
+      () => expect.unreachable('expected a provider error'),
+      (error: unknown) => {
+        const diagnostics = (error as SemanticModelError).diagnostics;
+        expect(diagnostics?.reported_model).toBe('test-model-2026-01-01');
+        expect(diagnostics?.usage).toEqual({ input_tokens: 900, output_tokens: 4096 });
+      },
+    );
+  });
+
+  it('preserves the usage a refusal reported', async () => {
+    const { client } = clientWith(
+      () =>
+        new Response(
+          JSON.stringify({
+            status: 'completed',
+            model: 'test-model-2026-01-01',
+            output: [{ type: 'message', content: [{ type: 'refusal', refusal: 'no' }] }],
+            usage: { input_tokens: 800, output_tokens: 12 },
+          }),
+          { status: 200 },
+        ),
+    );
+    await client.generate(request).then(
+      () => expect.unreachable('expected a refusal'),
+      (error: unknown) => {
+        expect(error).toBeInstanceOf(SemanticModelRefusalError);
+        expect((error as SemanticModelError).diagnostics?.usage).toEqual({
+          input_tokens: 800,
+          output_tokens: 12,
+        });
+      },
+    );
+  });
+
+  it('preserves usage reported alongside an HTTP error', async () => {
+    const { client } = clientWith(
+      () =>
+        new Response(
+          JSON.stringify({ error: { message: 'rate limited' }, usage: { input_tokens: 40 } }),
+          { status: 429 },
+        ),
+    );
+    await client.generate(request).then(
+      () => expect.unreachable('expected a provider error'),
+      (error: unknown) => {
+        expect((error as SemanticModelError).transient).toBe(true);
+        expect((error as SemanticModelError).diagnostics?.usage?.input_tokens).toBe(40);
+      },
+    );
+  });
+
+  it('still reports a non-JSON body on a 200 as a plain provider error', async () => {
+    const { client } = clientWith(() => new Response('<html>gateway</html>', { status: 200 }));
+    await expect(client.generate(request)).rejects.toThrow(/not valid JSON/u);
   });
 
   it('treats a network failure as transient without swallowing an abort', async () => {

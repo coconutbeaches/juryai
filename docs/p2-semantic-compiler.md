@@ -138,9 +138,14 @@ exceed without limit.
 
 Provider telemetry records **every** run that reached the provider, tagged with
 its outcome (`compiled`, `provider_failed`, `model_identity_rejected`,
-`no_output_text`, `malformed_output`, `cancelled`). A response that is billed and
-then rejected still cost a request; counting only successes would make live-eval
+`no_output_text`, `malformed_output`, `cancelled`) — including a cancellation
+that lands while a retry backoff is pending. A response that is billed and then
+rejected still cost a request; counting only successes would make live-eval
 usage and call totals underreport exactly when a model is misbehaving.
+
+For the same reason the transport parses the response body **before** raising
+any failure and attaches whatever usage the provider reported to the error, so a
+refusal, a truncated completion or an HTTP error still reports what it cost.
 
 ## Eval harness
 

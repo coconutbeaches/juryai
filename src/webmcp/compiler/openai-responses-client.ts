@@ -19,6 +19,7 @@ import {
   SemanticModelRefusalError,
   type SemanticModelCallOptions,
   type SemanticModelClient,
+  type SemanticModelErrorDiagnostics,
   type SemanticModelRequest,
   type SemanticModelResponse,
 } from './model-client.js';
@@ -63,11 +64,38 @@ function integerOrNull(value: unknown): number | null {
 }
 
 /**
+ * Model identity and usage as the provider reported them, from any payload that
+ * parsed — successful or not. Read BEFORE any failure is raised, so a refused
+ * or truncated completion can still report what it cost.
+ */
+export function responseDiagnostics(payload: unknown): SemanticModelErrorDiagnostics | null {
+  if (typeof payload !== 'object' || payload === null) return null;
+  const object = payload as Record<string, unknown>;
+  const usage =
+    typeof object.usage === 'object' && object.usage !== null
+      ? (object.usage as Record<string, unknown>)
+      : null;
+  return {
+    reported_model: typeof object.model === 'string' ? object.model : null,
+    usage: usage
+      ? {
+          input_tokens: integerOrNull(usage.input_tokens),
+          output_tokens: integerOrNull(usage.output_tokens),
+        }
+      : null,
+  };
+}
+
+/**
  * Reads the structured-output text out of a Responses payload. A refusal is
  * surfaced as its own error rather than as absent text, because "the model
- * declined" and "the model returned nothing" are different facts.
+ * declined" and "the model returned nothing" are different facts — and it
+ * carries the payload's usage, because a refusal was still billed.
  */
-export function readResponsesOutputText(payload: unknown): string | null {
+export function readResponsesOutputText(
+  payload: unknown,
+  diagnostics: SemanticModelErrorDiagnostics | null = null,
+): string | null {
   if (typeof payload !== 'object' || payload === null) {
     throw new SemanticModelError('Provider response was not a JSON object.');
   }
@@ -86,6 +114,7 @@ export function readResponsesOutputText(payload: unknown): string | null {
         throw new SemanticModelRefusalError(
           'Model refused the compile request: ' +
             (typeof entry.refusal === 'string' ? entry.refusal : 'no reason given'),
+          diagnostics,
         );
       }
     }
@@ -196,6 +225,18 @@ export class OpenAiResponsesSemanticModelClient implements SemanticModelClient {
       );
     }
 
+    // The body is parsed BEFORE any failure is raised, so every error path can
+    // carry whatever usage the provider reported. A refused or truncated
+    // completion was still billed, and an error that drops its usage makes the
+    // run look cheaper than it was.
+    let payload: unknown = null;
+    try {
+      payload = JSON.parse(text) as unknown;
+    } catch {
+      payload = null;
+    }
+    const diagnostics = responseDiagnostics(payload);
+
     if (!response.ok) {
       // 408/409/429 and 5xx are the transport-level transient set. Everything
       // else — 400 schema rejection, 401, 403, 404 — is a configuration fault
@@ -208,13 +249,11 @@ export class OpenAiResponsesSemanticModelClient implements SemanticModelClient {
       throw new SemanticModelError('Provider returned HTTP ' + String(response.status) + '.', {
         transient,
         status: response.status,
+        diagnostics,
       });
     }
 
-    let payload: unknown;
-    try {
-      payload = JSON.parse(text) as unknown;
-    } catch {
+    if (payload === null) {
       throw new SemanticModelError('Provider response body was not valid JSON.');
     }
 
@@ -227,23 +266,15 @@ export class OpenAiResponsesSemanticModelClient implements SemanticModelClient {
           : 'unknown';
       // Truncated structured output is not a shorter valid answer; it is not
       // an answer. Failing here keeps a half-parsed object out of the pipeline.
-      throw new SemanticModelError('Provider response was incomplete: ' + reason);
+      throw new SemanticModelError('Provider response was incomplete: ' + reason, {
+        diagnostics,
+      });
     }
 
-    const usage =
-      typeof object.usage === 'object' && object.usage !== null
-        ? (object.usage as Record<string, unknown>)
-        : null;
-
     return {
-      text: readResponsesOutputText(payload),
-      reported_model: typeof object.model === 'string' ? object.model : null,
-      usage: usage
-        ? {
-            input_tokens: integerOrNull(usage.input_tokens),
-            output_tokens: integerOrNull(usage.output_tokens),
-          }
-        : null,
+      text: readResponsesOutputText(payload, diagnostics),
+      reported_model: diagnostics?.reported_model ?? null,
+      usage: diagnostics?.usage ?? null,
     };
   }
 }

@@ -91,6 +91,19 @@ export interface SemanticModelClient {
 /* ------------------------------------------------------------------------ */
 
 /**
+ * Non-authoritative diagnostics the provider reported ALONGSIDE a failure.
+ *
+ * A refused or truncated completion is still a billed one, and a failure that
+ * discards its usage makes a run look cheaper than it was — in the direction
+ * that hides a misbehaving model. So the transport attaches whatever it managed
+ * to read to the error, and the compiler records it.
+ */
+export interface SemanticModelErrorDiagnostics {
+  reported_model: string | null;
+  usage: SemanticModelUsage | null;
+}
+
+/**
  * A provider-side failure. `transient` is the ONLY thing that makes a bounded
  * retry legitimate; it is set by the transport from the actual transport
  * signal (network error, 429, 5xx), never guessed from a message string by a
@@ -99,12 +112,22 @@ export interface SemanticModelClient {
 export class SemanticModelError extends Error {
   readonly transient: boolean;
   readonly status: number | null;
+  /** Usage the provider reported for the failed call, where it reported any. */
+  readonly diagnostics: SemanticModelErrorDiagnostics | null;
 
-  constructor(message: string, options: { transient?: boolean; status?: number | null } = {}) {
+  constructor(
+    message: string,
+    options: {
+      transient?: boolean;
+      status?: number | null;
+      diagnostics?: SemanticModelErrorDiagnostics | null;
+    } = {},
+  ) {
     super(message);
     this.name = 'SemanticModelError';
     this.transient = options.transient ?? false;
     this.status = options.status ?? null;
+    this.diagnostics = options.diagnostics ?? null;
   }
 }
 
@@ -114,8 +137,8 @@ export class SemanticModelError extends Error {
  * compiler is not allowed to have.
  */
 export class SemanticModelRefusalError extends SemanticModelError {
-  constructor(message: string) {
-    super(message, { transient: false });
+  constructor(message: string, diagnostics: SemanticModelErrorDiagnostics | null = null) {
+    super(message, { transient: false, diagnostics });
     this.name = 'SemanticModelRefusalError';
   }
 }

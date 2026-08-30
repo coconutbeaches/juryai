@@ -380,13 +380,18 @@ export class ModelSemanticCompiler implements SemanticCompilerPort {
       outcome: ModelCompileOutcome,
       seen: SemanticModelResponse | null = null,
     ): void => {
+      // With no response in hand, fall back to whatever the failed call itself
+      // reported. A refusal, a truncated completion or an HTTP error can all
+      // carry real usage, and dropping it understates the run in the direction
+      // that hides a misbehaving model.
+      const failed = lastError instanceof SemanticModelError ? lastError.diagnostics : null;
       this.#recordTelemetry({
         compile_run_id: input.compile_run_id,
         attempts,
         elapsed_ms: Date.now() - startedAt,
-        reported_model: seen?.reported_model ?? null,
-        input_tokens: seen?.usage?.input_tokens ?? null,
-        output_tokens: seen?.usage?.output_tokens ?? null,
+        reported_model: seen?.reported_model ?? failed?.reported_model ?? null,
+        input_tokens: seen?.usage?.input_tokens ?? failed?.usage?.input_tokens ?? null,
+        output_tokens: seen?.usage?.output_tokens ?? failed?.usage?.output_tokens ?? null,
         outcome,
       });
     };
@@ -418,7 +423,18 @@ export class ModelSemanticCompiler implements SemanticCompilerPort {
         const transient = error instanceof SemanticModelError && error.transient;
         if (!transient || attempts > this.#resolved.max_transient_retries) break;
         const backoff = this.#resolved.retry_backoff_ms;
-        if (backoff > 0) await abortableDelay(backoff, signal);
+        if (backoff > 0) {
+          try {
+            await abortableDelay(backoff, signal);
+          } catch (aborted) {
+            // `abortableDelay` rejects with the caller's abort reason from
+            // inside this handler, which would otherwise leave `compile()`
+            // without passing any `record(...)` — losing the telemetry for
+            // attempts the provider had already billed.
+            record('cancelled');
+            throw aborted;
+          }
+        }
       }
     }
 
