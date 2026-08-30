@@ -650,6 +650,26 @@ describe('the graders themselves have teeth', () => {
     expect(grade.failures.join(' ')).toMatch(/polarity/u);
   });
 
+  it('refuses a lexical reversal that replaces the expected payment predicate', async () => {
+    const { scenario, output } = await paymentWithStatement(
+      'The user withheld payment of 2,000 pounds by bank transfer on 25 April.',
+    );
+
+    const grade = gradeCompilerOutput(anchor, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/polarity/u);
+  });
+
+  it('does not ground an extra amount from the same digits in a cited date', async () => {
+    const { scenario, output } = await paymentWithStatement(
+      'The user paid the other party 2,000 pounds plus a 25 pound fee by bank transfer on 25 April.',
+    );
+
+    const grade = gradeCompilerOutput(anchor, scenario.input, output);
+    expect(grade.ok).toBe(false);
+    expect(grade.failures.join(' ')).toMatch(/unsupported fact/u);
+  });
+
   it('allows a semantically supported ordinary paraphrase', async () => {
     const { scenario, output } = await paymentWithStatement(
       'The user completed payment of 2,000 pounds by bank transfer on 25 April.',

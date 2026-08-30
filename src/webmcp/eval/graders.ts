@@ -240,6 +240,22 @@ const POLARITY_PREDICATES: Partial<Record<PropositionType, ReadonlySet<string>>>
   contractual_deadline: new Set(['agree', 'agreed']),
 };
 
+const LEXICAL_POLARITY_REVERSERS: Partial<Record<PropositionType, ReadonlySet<string>>> = {
+  payment: new Set([
+    'cancelled',
+    'canceled',
+    'defaulted',
+    'failed',
+    'refused',
+    'reversed',
+    'unmade',
+    'unpaid',
+    'withheld',
+    'withhold',
+    'withholding',
+  ]),
+};
+
 const NARRATIVE_POLARITY_FAMILIES: readonly ReadonlySet<string>[] = [
   new Set(['claim', 'claimed', 'claims']),
   new Set(['say', 'said', 'says']),
@@ -267,6 +283,9 @@ function reversesAssertionPolarity(
   statement: string,
   answerCitations: string,
 ): boolean {
+  if (words(statement).some((word) => LEXICAL_POLARITY_REVERSERS[type]?.has(word) ?? false)) {
+    return true;
+  }
   if (type === 'narrative_fact') {
     const statementWords = words(statement);
     const citationWords = words(answerCitations);
@@ -303,16 +322,38 @@ function reversesAssertionPolarity(
  * terms are audit facts rather than style. Entity-shaped words are handled
  * separately so casing is never mistaken for evidence that a word is a name.
  */
+function normalizeFactMarker(marker: string): string {
+  const normalized = fold(marker);
+  if (/^\d/iu.test(normalized)) return normalized.replaceAll(',', '');
+  if (/^(?:pounds?|dollars?|euros?)$/u.test(normalized)) return normalized.replace(/s$/u, '');
+  return normalized;
+}
+
 function factMarkers(text: string): string[] {
-  const markers = new Set<string>();
-  for (const match of text.matchAll(/\p{Sc}/gu)) markers.add(match[0]);
-  for (const match of text.matchAll(/\b\d[\d,.]*\b/gu)) markers.add(match[0]);
+  const markers: string[] = [];
+  for (const match of text.matchAll(/\p{Sc}/gu)) markers.push(normalizeFactMarker(match[0]));
+  for (const match of text.matchAll(/\b\d[\d,.]*\b/gu)) {
+    markers.push(normalizeFactMarker(match[0]));
+  }
   for (const match of text.matchAll(
     /\b(?:pounds?|dollars?|euros?|gbp|usd|eur|january|february|march|april|may|june|july|august|september|october|november|december|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/giu,
   )) {
-    markers.add(match[0]);
+    markers.push(normalizeFactMarker(match[0]));
   }
-  return [...markers];
+  return markers;
+}
+
+function addsUnsupportedFactMarker(statement: string, answerCitations: string): boolean {
+  const available = new Map<string, number>();
+  for (const marker of factMarkers(answerCitations)) {
+    available.set(marker, (available.get(marker) ?? 0) + 1);
+  }
+  for (const marker of factMarkers(statement)) {
+    const remaining = available.get(marker) ?? 0;
+    if (remaining === 0) return true;
+    available.set(marker, remaining - 1);
+  }
+  return false;
 }
 
 /**
@@ -518,11 +559,7 @@ function gradeAssertionSet(
         problems.push("citation does not support topic '" + alternatives.join('|') + "'");
       }
     }
-    if (
-      factMarkers(assertion.statement).some(
-        (marker) => !fold(answerCitations).includes(fold(marker)),
-      )
-    ) {
+    if (addsUnsupportedFactMarker(assertion.statement, answerCitations)) {
       problems.push('statement adds an unsupported fact-shaped token');
     }
     if (addsUnsupportedEntityToken(assertion.proposed_type, assertion.statement, answerCitations)) {
