@@ -35,6 +35,20 @@ export interface BrowserShellControllerOptions {
   }) => CaseServicePort;
 }
 
+export interface BrowserShellHotContext {
+  accept(): void;
+  dispose(callback: () => void): void;
+}
+
+export function wireBrowserShellHotLifecycle(
+  hot: BrowserShellHotContext | undefined,
+  controller: Pick<BrowserShellController, 'teardown'>,
+): void {
+  if (hot === undefined) return;
+  hot.accept();
+  hot.dispose(() => controller.teardown());
+}
+
 interface BootstrapSignedOut {
   authenticated: false;
 }
@@ -298,12 +312,14 @@ export class BrowserShellController {
 
   async logout(): Promise<void> {
     this.teardown();
+    const generation = this.#generation;
     try {
       await this.#post('/api/juryai/auth/logout', {});
-      await this.initialize();
     } catch {
-      await this.initialize();
+      // A genuine request failure retains the existing active-page recovery.
     }
+    if (generation !== this.#generation) return;
+    await this.initialize();
   }
 
   teardown(): void {

@@ -4,6 +4,7 @@ import {
   BrowserShellController,
   type BrowserShellState,
   type BrowserShellView,
+  wireBrowserShellHotLifecycle,
 } from './shell-controller.js';
 
 function element<T extends HTMLElement>(id: string): T {
@@ -90,9 +91,6 @@ if (/^\/cases\/[^/]+\/review$/u.test(window.location.pathname)) {
     'The canonical review URL is reserved. First-party read-back and attestation are not part of this step.';
 }
 
-if (import.meta.hot) {
-  import.meta.hot.accept(() => void controller.initialize());
-  import.meta.hot.dispose(() => controller.teardown());
-}
+wireBrowserShellHotLifecycle(import.meta.hot, controller);
 
 void controller.initialize();
