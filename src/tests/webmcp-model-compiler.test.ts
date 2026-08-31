@@ -11,6 +11,7 @@ import {
   OpenAiResponsesSemanticModelClient,
   openAiResponsesEndpoint,
   parseModelDraft,
+  responseFailureMetadata,
   renderCompilerInput,
   dataFenceOpen,
   dataFenceClose,
@@ -1217,6 +1218,8 @@ describe('OpenAI Responses transport', () => {
   });
 
   it.each([
+    [408, true],
+    [409, true],
     [429, true],
     [500, true],
     [503, true],
@@ -1232,6 +1235,131 @@ describe('OpenAI Responses transport', () => {
         expect((error as SemanticModelError).status).toBe(status);
       },
     );
+  });
+
+  it('parses only content-free provider failure metadata', () => {
+    const echoedCaseText = 'I paid John Smith 2,000 pounds on 25 April';
+    const metadata = responseFailureMetadata({
+      error: {
+        type: 'insufficient_quota',
+        code: 'credit_balance_exhausted',
+        param: 'billing',
+        message: 'Account failure while processing: ' + echoedCaseText,
+      },
+    });
+
+    expect(metadata).toEqual({
+      type: 'insufficient_quota',
+      code: 'credit_balance_exhausted',
+      param: 'billing',
+    });
+    expect(JSON.stringify(metadata)).not.toContain(echoedCaseText);
+    expect(
+      responseFailureMetadata({
+        error: { type: echoedCaseText, code: {}, param: ['temperature'] },
+      }),
+    ).toEqual({ type: null, code: null, param: null });
+  });
+
+  it.each([
+    ['credit balance exhaustion', { type: 'insufficient_quota', code: 'credit_balance_exhausted' }],
+    ['insufficient quota type', { type: 'insufficient_quota', code: null }],
+    ['insufficient quota code', { type: 'rate_limit_error', code: 'insufficient_quota' }],
+    [
+      'organization usage limit',
+      { type: 'insufficient_quota', code: 'organization_usage_limit_exceeded' },
+    ],
+    [
+      'organization spend limit',
+      { type: 'insufficient_quota', code: 'organization_spend_limit_exceeded' },
+    ],
+    ['project spend limit', { type: 'insufficient_quota', code: 'project_spend_limit_exceeded' }],
+  ])('treats a 429 %s response as non-transient', async (_label, metadata) => {
+    const { client } = clientWith(
+      () =>
+        new Response(
+          JSON.stringify({ error: { ...metadata, param: null, message: 'not retained' } }),
+          { status: 429 },
+        ),
+    );
+
+    await client.generate(request).then(
+      () => expect.unreachable('expected a provider error'),
+      (error: unknown) => {
+        expect(error).toBeInstanceOf(SemanticModelError);
+        expect((error as SemanticModelError).transient).toBe(false);
+        expect((error as Error).message).toBe('Provider returned HTTP 429.');
+      },
+    );
+  });
+
+  it('keeps an ordinary temporary 429 rate limit transient', async () => {
+    const { client } = clientWith(
+      () =>
+        new Response(
+          JSON.stringify({
+            error: {
+              type: 'rate_limit_error',
+              code: 'rate_limit_exceeded',
+              param: null,
+              message: 'temporary',
+            },
+          }),
+          { status: 429 },
+        ),
+    );
+
+    await client.generate(request).then(
+      () => expect.unreachable('expected a provider error'),
+      (error: unknown) => {
+        expect((error as SemanticModelError).transient).toBe(true);
+      },
+    );
+  });
+
+  it('lets definitive quota metadata override an otherwise transient HTTP status', async () => {
+    const { client } = clientWith(
+      () =>
+        new Response(
+          JSON.stringify({
+            error: { type: 'insufficient_quota', code: 'credit_balance_exhausted' },
+          }),
+          { status: 503 },
+        ),
+    );
+
+    await client.generate(request).then(
+      () => expect.unreachable('expected a provider error'),
+      (error: unknown) => {
+        expect((error as SemanticModelError).transient).toBe(false);
+      },
+    );
+  });
+
+  it('does not retry a credit-balance failure and records one provider attempt', async () => {
+    const { client, calls } = clientWith(
+      () =>
+        new Response(
+          JSON.stringify({
+            error: { type: 'insufficient_quota', code: 'credit_balance_exhausted' },
+          }),
+          { status: 429 },
+        ),
+    );
+    const compiler = new ModelSemanticCompiler({
+      client,
+      model_id: 'test-model',
+      model_snapshot: null,
+      max_transient_retries: 3,
+    });
+
+    await expect(compiler.compile(inputOf())).rejects.toThrow('Provider returned HTTP 429.');
+    expect(calls).toHaveLength(1);
+    expect(compiler.telemetry).toHaveLength(1);
+    expect(compiler.telemetry[0]).toMatchObject({
+      attempts: 1,
+      outcome: 'provider_failed',
+    });
   });
 
   it('surfaces a model refusal as its own non-transient error', async () => {

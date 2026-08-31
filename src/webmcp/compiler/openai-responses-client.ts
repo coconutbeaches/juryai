@@ -63,6 +63,58 @@ function integerOrNull(value: unknown): number | null {
   return typeof value === 'number' && Number.isInteger(value) ? value : null;
 }
 
+export interface ProviderFailureMetadata {
+  type: string | null;
+  code: string | null;
+  param: string | null;
+}
+
+const SAFE_PROVIDER_FAILURE_FIELD = /^[A-Za-z0-9_.-]{1,128}$/u;
+
+function safeProviderFailureField(value: unknown): string | null {
+  return typeof value === 'string' && SAFE_PROVIDER_FAILURE_FIELD.test(value) ? value : null;
+}
+
+/**
+ * Reads only content-free classification tokens from a provider error. The
+ * arbitrary `error.message` field is deliberately never read: it may echo the
+ * submitted legal case and must not enter diagnostics or retry policy.
+ */
+export function responseFailureMetadata(payload: unknown): ProviderFailureMetadata | null {
+  if (typeof payload !== 'object' || payload === null) return null;
+  const error = (payload as Record<string, unknown>).error;
+  if (typeof error !== 'object' || error === null) return null;
+  const object = error as Record<string, unknown>;
+  return {
+    type: safeProviderFailureField(object.type),
+    code: safeProviderFailureField(object.code),
+    param: safeProviderFailureField(object.param),
+  };
+}
+
+const NON_TRANSIENT_QUOTA_CODES = new Set([
+  'credit_balance_exhausted',
+  'insufficient_quota',
+  'organization_usage_limit_exceeded',
+  'organization_spend_limit_exceeded',
+  'project_spend_limit_exceeded',
+]);
+
+function isDefinitiveQuotaFailure(metadata: ProviderFailureMetadata | null): boolean {
+  return (
+    metadata?.type === 'insufficient_quota' ||
+    (metadata !== null && metadata.code !== null && NON_TRANSIENT_QUOTA_CODES.has(metadata.code))
+  );
+}
+
+function isTransientProviderFailure(
+  status: number,
+  metadata: ProviderFailureMetadata | null,
+): boolean {
+  if (isDefinitiveQuotaFailure(metadata)) return false;
+  return status === 408 || status === 409 || status === 429 || status >= 500;
+}
+
 /**
  * Model identity and usage as the provider reported them, from any payload that
  * parsed — successful or not. Read BEFORE any failure is raised, so a refused
@@ -237,14 +289,12 @@ export class OpenAiResponsesSemanticModelClient implements SemanticModelClient {
     const diagnostics = responseDiagnostics(payload);
 
     if (!response.ok) {
-      // 408/409/429 and 5xx are the transport-level transient set. Everything
-      // else — 400 schema rejection, 401, 403, 404 — is a configuration fault
-      // that another identical request cannot fix.
-      const transient =
-        response.status === 408 ||
-        response.status === 409 ||
-        response.status === 429 ||
-        response.status >= 500;
+      // 408/409/429 and 5xx are normally transport-level transient failures,
+      // but quota and spend-limit responses are permanent until an operator
+      // changes account state. Their safe structured type/code overrides the
+      // broad HTTP status; arbitrary provider message text is never consulted.
+      const failureMetadata = responseFailureMetadata(payload);
+      const transient = isTransientProviderFailure(response.status, failureMetadata);
       throw new SemanticModelError('Provider returned HTTP ' + String(response.status) + '.', {
         transient,
         status: response.status,
