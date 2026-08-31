@@ -16,6 +16,7 @@ export * from './ids.js';
 export * from './in-memory-repositories.js';
 export * from './initial-requirements.js';
 export * from './mutation-application.js';
+export * from './postgres-repositories.js';
 export * from './repositories.js';
 export * from './results.js';
 export * from './runtime.js';

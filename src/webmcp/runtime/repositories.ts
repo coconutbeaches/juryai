@@ -66,6 +66,22 @@ export interface StartCaseIdempotencyRepository {
   ): Promise<StartCaseIdempotencyRecord | null>;
 }
 
+/**
+ * One start-request identity decision, read from one storage snapshot.
+ * `stored` is allowed to be null so a faulty/custom adapter cannot smuggle an
+ * orphaned request record through the type boundary unnoticed.
+ */
+export interface StartCaseReplaySnapshot {
+  request: StartCaseIdempotencyRecord;
+  stored: StoredCase | null;
+}
+
+/** Case state and every replay record used by one submit decision. */
+export interface SubmitSnapshot {
+  stored: StoredCase | null;
+  idempotency: IdempotencyRecord[];
+}
+
 export interface StartCaseCommit {
   state: CaseState;
   idempotency: StartCaseIdempotencyRecord;
@@ -125,6 +141,23 @@ export interface CaseRuntimeStore {
   readonly idempotency: IdempotencyRepository;
   readonly startRequests: StartCaseIdempotencyRepository;
   readonly compilerRegistry: CompilerRegistryRepository;
+  /**
+   * Reads the start-request record and the case it names from one snapshot.
+   * Optional only for compatibility with fault-injection/custom Phase-1
+   * stores; production adapters and the in-memory reference implementation
+   * implement it. The runtime retains its guarded legacy path as
+   * defense-in-depth for older or deliberately faulty adapters.
+   */
+  readStartSnapshot?(
+    principalId: string,
+    clientRequestId: string,
+  ): Promise<StartCaseReplaySnapshot | null>;
+  /**
+   * Reads case state and replay data from one snapshot. A PostgreSQL adapter
+   * implements this as one SQL statement, so one MVCC snapshot—not runtime
+   * timing—guarantees that operation identity is decided coherently.
+   */
+  readSubmitSnapshot?(caseId: string): Promise<SubmitSnapshot>;
   /**
    * Atomic: writes the new case AND its start-request record together. Split
    * into two writes, a crash between them recreates exactly the lost-response
