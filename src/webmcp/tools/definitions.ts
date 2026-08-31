@@ -120,6 +120,9 @@ export function createJuryAiToolDefinitions(
               ...(parsed.answer.source_language === undefined
                 ? {}
                 : { source_language: parsed.answer.source_language }),
+              ...(parsed.answer.translation_indicated === undefined
+                ? {}
+                : { translation_indicated: parsed.answer.translation_indicated }),
               client_turn_id: clientTurnId,
             },
             { signal: context?.signal },

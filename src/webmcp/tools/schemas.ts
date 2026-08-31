@@ -22,6 +22,7 @@ export interface SubmitTurnToolInput {
   answer: {
     text: string;
     source_language?: string;
+    translation_indicated?: boolean;
   };
 }
 
@@ -104,6 +105,11 @@ export const submitTurnInputSchema = {
           minLength: MIN_LANGUAGE_LENGTH,
           maxLength: MAX_LANGUAGE_LENGTH,
           description: 'Optional self-reported language of the relayed answer, such as en or th.',
+        },
+        translation_indicated: {
+          type: 'boolean',
+          description:
+            'True only when the relay explicitly indicates that the received answer text involved translation. This does not verify a translation or reconstruct original wording.',
         },
       },
       required: ['text'],
@@ -215,7 +221,11 @@ export function parseSubmitTurnToolInput(input: unknown): SubmitTurnToolInput {
   if (!isRecord(input.answer)) {
     throw new TypeError('answer must be an object');
   }
-  if (Object.keys(input.answer).some((key) => key !== 'text' && key !== 'source_language')) {
+  if (
+    Object.keys(input.answer).some(
+      (key) => key !== 'text' && key !== 'source_language' && key !== 'translation_indicated',
+    )
+  ) {
     throw new TypeError('answer contains an unknown field');
   }
 
@@ -229,6 +239,10 @@ export function parseSubmitTurnToolInput(input: unknown): SubmitTurnToolInput {
           MIN_LANGUAGE_LENGTH,
           MAX_LANGUAGE_LENGTH,
         );
+  const translationIndicated = input.answer.translation_indicated;
+  if (translationIndicated !== undefined && typeof translationIndicated !== 'boolean') {
+    throw new TypeError('answer.translation_indicated must be a boolean');
+  }
 
   return {
     case_id: caseId,
@@ -238,6 +252,9 @@ export function parseSubmitTurnToolInput(input: unknown): SubmitTurnToolInput {
     answer: {
       text: answerText,
       ...(sourceLanguage === undefined ? {} : { source_language: sourceLanguage }),
+      ...(translationIndicated === undefined
+        ? {}
+        : { translation_indicated: translationIndicated }),
     },
   };
 }

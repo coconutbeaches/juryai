@@ -35,6 +35,7 @@ import {
   WEBMCP_PROTOCOL_VERSION,
 } from '../webmcp/core/types.js';
 import type { CompilerInput, CompilerOutput } from '../webmcp/core/compiler-contract.js';
+import { createRuntimeCaseService } from '../webmcp/service/index.js';
 
 const DATABASE_URL = process.env.JURYAI_TEST_DATABASE_URL;
 if (!DATABASE_URL) {
@@ -105,6 +106,15 @@ function runtime(
     salts: sequentialSaltFactory(prefix + 'salt'),
     reviewUrl: (caseId) => `https://juryai.test/cases/${caseId}`,
     disclosure: { version: DISCLOSURE },
+  });
+}
+
+function runtimeService(instance: CaseRuntime, who: RuntimeRequestContext) {
+  return createRuntimeCaseService({
+    runtime: instance,
+    contextProvider: {
+      getRuntimeRequestContext: () => who,
+    },
   });
 }
 
@@ -497,6 +507,92 @@ describe('persistent replay and CAS across runtime instances', () => {
     const retry = await runtime(storeB, compiler).submitTurn(who, command);
     expect(retry.kind).toBe('replayed');
     expect(compiler.calls).toHaveLength(0);
+  });
+});
+
+describe('Step 63 CaseServicePort PostgreSQL integration', () => {
+  it('connects two service/runtime instances with durable replay, provenance, and conflict recovery', async () => {
+    const who = principal('service_adapter');
+    const instanceA = runtime(storeA);
+    const quietCompiler = new ScriptedSemanticCompiler(() => ({ verdict: 'no_assertions' }));
+    const instanceB = runtime(storeB, quietCompiler, unique('service_b') + '_');
+    const serviceA = runtimeService(instanceA, who);
+    const serviceB = runtimeService(instanceB, who);
+
+    const started = await serviceA.startCase({
+      client_request_id: unique('service_start_request'),
+    });
+    expect(started.ok).toBe(true);
+    if (!started.ok) return;
+
+    const readFromB = await serviceB.getCaseState({ case_id: started.case.case_id });
+    expect(readFromB).toEqual({ ok: true, case: started.case });
+
+    const sourceLanguageOnly = {
+      case_id: started.case.case_id,
+      expected_case_version: 0,
+      in_reply_to: ['req_expected_date'],
+      payload: payload(ANSWER),
+      source_language: 'de',
+      client_turn_id: unique('language_only_turn'),
+    };
+    const first = await serviceA.submitTurn(sourceLanguageOnly);
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+
+    const storedAfterFirst = await storeB.cases.findById(started.case.case_id);
+    expect(storedAfterFirst?.state.turn_log).toHaveLength(1);
+    expect(storedAfterFirst?.state.turn_log[0]).toMatchObject({
+      source_language: 'de',
+      translation_indicated: false,
+    });
+
+    const translated = {
+      case_id: started.case.case_id,
+      expected_case_version: first.case.case_version,
+      in_reply_to: ['req_expected_date'],
+      payload: payload('The relayed translation says I still expected April 25.'),
+      source_language: 'de',
+      translation_indicated: true,
+      client_turn_id: unique('translated_turn'),
+    };
+    const second = await serviceB.submitTurn(translated);
+    expect(second.ok).toBe(true);
+    if (!second.ok) return;
+
+    const replay = await serviceA.submitTurn(translated);
+    expect(replay).toEqual({ ...second, replayed: true });
+
+    const storedAfterReplay = await storeA.cases.findById(started.case.case_id);
+    expect(
+      storedAfterReplay?.state.turn_log.map((turn) => ({
+        source_language: turn.source_language,
+        translation_indicated: turn.translation_indicated,
+      })),
+    ).toEqual([
+      { source_language: 'de', translation_indicated: false },
+      { source_language: 'de', translation_indicated: true },
+    ]);
+    expect(await storeB.idempotency.listByCase(started.case.case_id)).toHaveLength(2);
+    expect(await storeB.compileRuns.listByCase(started.case.case_id)).toHaveLength(2);
+
+    const beforeConflict = await storeA.cases.findById(started.case.case_id);
+    const conflict = await serviceB.submitTurn({
+      case_id: started.case.case_id,
+      expected_case_version: 0,
+      in_reply_to: ['req_expected_date'],
+      payload: payload('This is a distinct stale answer about a different date.'),
+      client_turn_id: unique('stale_service_turn'),
+    });
+    expect(conflict).toMatchObject({
+      ok: false,
+      error: { code: 'VERSION_CONFLICT', retryable: false },
+      current_case_version: first.case.case_version,
+      likely_already_recorded: false,
+      case: { case_id: started.case.case_id, case_version: first.case.case_version },
+    });
+    expect(await storeB.cases.findById(started.case.case_id)).toEqual(beforeConflict);
+    expect(await storeB.idempotency.listByCase(started.case.case_id)).toHaveLength(2);
   });
 });
 
