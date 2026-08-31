@@ -118,6 +118,16 @@ function service(
   return createRuntimeCaseService({ runtime, contextProvider: provider });
 }
 
+function deferred<T>() {
+  let resolve: (value: T | PromiseLike<T>) => void = () => {
+    throw new Error('deferred promise was not initialized');
+  };
+  const promise = new Promise<T>((complete) => {
+    resolve = complete;
+  });
+  return { promise, resolve };
+}
+
 describe('Step 63 runtime CaseServicePort adapter', () => {
   it.each([false, true])(
     'maps created (runtime replayed=%s) to the same start success',
@@ -360,6 +370,64 @@ describe('Step 63 runtime CaseServicePort adapter', () => {
       'cancelled during session lookup',
     );
     expect(runtimeCalls).toBe(0);
+  });
+
+  it('rejects with the caller reason when startCase aborts during the runtime await', async () => {
+    const runtimeStarted = deferred<void>();
+    const runtimeResult = deferred<StartCaseOutcome>();
+    const adapter = service(
+      runtimeStub({
+        startCase: async () => {
+          runtimeStarted.resolve();
+          return runtimeResult.promise;
+        },
+      }),
+    );
+    const controller = new AbortController();
+    const abortReason = new Error('start caller disconnected');
+    let resolvedSuccessfully = false;
+    const invocation = adapter
+      .startCase({ client_request_id: 'in-flight-start-request' }, { signal: controller.signal })
+      .then((result) => {
+        resolvedSuccessfully = true;
+        return result;
+      });
+
+    await runtimeStarted.promise;
+    controller.abort(abortReason);
+    runtimeResult.resolve({ kind: 'created', replayed: false, case: CASE_STATE });
+
+    await expect(invocation).rejects.toBe(abortReason);
+    expect(resolvedSuccessfully).toBe(false);
+  });
+
+  it('rejects with the caller reason when getCaseState aborts during the runtime await', async () => {
+    const runtimeStarted = deferred<void>();
+    const runtimeResult = deferred<GetCaseStateOutcome>();
+    const adapter = service(
+      runtimeStub({
+        getCaseState: async () => {
+          runtimeStarted.resolve();
+          return runtimeResult.promise;
+        },
+      }),
+    );
+    const controller = new AbortController();
+    const abortReason = new Error('state caller disconnected');
+    let resolvedSuccessfully = false;
+    const invocation = adapter
+      .getCaseState({ case_id: 'case-1' }, { signal: controller.signal })
+      .then((result) => {
+        resolvedSuccessfully = true;
+        return result;
+      });
+
+    await runtimeStarted.promise;
+    controller.abort(abortReason);
+    runtimeResult.resolve({ kind: 'ok', case: CASE_STATE });
+
+    await expect(invocation).rejects.toBe(abortReason);
+    expect(resolvedSuccessfully).toBe(false);
   });
 
   it('passes AbortSignal to trusted context resolution and runtime submit unchanged', async () => {

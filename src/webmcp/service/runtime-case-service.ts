@@ -58,6 +58,7 @@ export function createRuntimeCaseService(
     ): Promise<StartCaseResult> => {
       const context = await requestContext(dependencies.contextProvider, options);
       const outcome = await dependencies.runtime.startCase(context, command);
+      options?.signal?.throwIfAborted();
 
       switch (outcome.kind) {
         case 'created':
@@ -83,6 +84,7 @@ export function createRuntimeCaseService(
     ): Promise<GetCaseStateResult> => {
       const context = await requestContext(dependencies.contextProvider, options);
       const outcome = await dependencies.runtime.getCaseState(context, query);
+      options?.signal?.throwIfAborted();
 
       switch (outcome.kind) {
         case 'ok':
