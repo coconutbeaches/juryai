@@ -234,6 +234,87 @@ describe('JuryAI WebMCP P2 V0.2 tool surface', () => {
     expect(result).toMatchObject({ kind: 'juryai_data', data: { ok: true, replayed: true } });
   });
 
+  it('preserves explicit translation provenance and the same metadata across retries', async () => {
+    const commands: SubmitTurnCommand[] = [];
+    let attempts = 0;
+    const service = makeService({
+      submitTurn: async (command) => {
+        commands.push(command);
+        attempts += 1;
+        if (attempts === 1) throw new Error('temporary transport failure');
+        return {
+          ok: true,
+          replayed: true,
+          turn_id: 'T-translated',
+          case: { ...CASE_STATE, case_version: 4 },
+          recorded: [],
+          superseded: [],
+        };
+      },
+    });
+    const tool = createJuryAiToolDefinitions(service, {
+      client_id_factory: () => 'stable-translated-turn-id',
+      write_retry_attempts: 2,
+    }).find((candidate) => candidate.name === 'submit_turn')!;
+
+    await tool.execute({
+      ...VALID_SUBMIT_INPUT,
+      answer: {
+        text: VALID_SUBMIT_INPUT.answer.text,
+        source_language: 'de',
+        translation_indicated: true,
+      },
+    });
+
+    expect(submitTurnInputSchema.properties.answer.properties.translation_indicated).toMatchObject({
+      type: 'boolean',
+    });
+    expect(commands).toHaveLength(2);
+    expect(commands[0]).toEqual(commands[1]);
+    expect(commands[0]).toMatchObject({
+      client_turn_id: 'stable-translated-turn-id',
+      source_language: 'de',
+      translation_indicated: true,
+    });
+  });
+
+  it.each([
+    ['source language alone', { source_language: 'de' }, false, undefined],
+    ['explicit false', { source_language: 'de', translation_indicated: false }, true, false],
+  ] as const)(
+    '%s does not invent translated provenance',
+    async (_label, answerMetadata, hasTranslationField, expectedTranslation) => {
+      const commands: SubmitTurnCommand[] = [];
+      const service = makeService({
+        submitTurn: async (command) => {
+          commands.push(command);
+          return {
+            ok: true,
+            turn_id: 'T-provenance',
+            case: { ...CASE_STATE, case_version: 4 },
+            recorded: [],
+            superseded: [],
+          };
+        },
+      });
+      const tool = createJuryAiToolDefinitions(service, {
+        client_id_factory: () => 'provenance-turn-id',
+      }).find((candidate) => candidate.name === 'submit_turn')!;
+
+      await tool.execute({
+        ...VALID_SUBMIT_INPUT,
+        answer: { text: VALID_SUBMIT_INPUT.answer.text, ...answerMetadata },
+      });
+
+      expect(commands).toHaveLength(1);
+      expect(commands[0]?.source_language).toBe('de');
+      expect(commands[0]?.translation_indicated).toBe(expectedTranslation);
+      expect(Object.prototype.hasOwnProperty.call(commands[0], 'translation_indicated')).toBe(
+        hasTranslationField,
+      );
+    },
+  );
+
   it.each([0, 1])('accepts expected_case_version %i', async (expectedCaseVersion) => {
     const commands: SubmitTurnCommand[] = [];
     const service = makeService({
@@ -345,6 +426,17 @@ describe('JuryAI WebMCP P2 V0.2 tool surface', () => {
     ['malformed case ID', { ...VALID_SUBMIT_INPUT, case_id: 'case with spaces' }],
     ['external client_turn_id', { ...VALID_SUBMIT_INPUT, client_turn_id: 'external-id' }],
     ['principal identity', { ...VALID_SUBMIT_INPUT, principal_id: 'principal-1' }],
+    [
+      'string translation indication',
+      {
+        ...VALID_SUBMIT_INPUT,
+        answer: { ...VALID_SUBMIT_INPUT.answer, translation_indicated: 'true' },
+      },
+    ],
+    [
+      'numeric translation indication',
+      { ...VALID_SUBMIT_INPUT, answer: { ...VALID_SUBMIT_INPUT.answer, translation_indicated: 1 } },
+    ],
   ])('rejects %s before calling the service', async (_label, input) => {
     let called = false;
     const service = makeService({

@@ -82,6 +82,7 @@ export interface SubmitTurnCommand {
   in_reply_to: string[];
   payload: SourceTurnPayload;
   source_language?: string;
+  translation_indicated?: boolean;
   client_turn_id: string;
 }
 

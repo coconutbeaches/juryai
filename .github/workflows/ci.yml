@@ -55,6 +55,7 @@ jobs:
           - src/tests/gate-zero-acceptance-policy.test.ts
           - src/tests/webmcp-core.test.ts
           - src/tests/webmcp-tools.test.ts
+          - src/tests/webmcp-case-service-adapter.test.ts
           - src/tests/webmcp-runtime.test.ts
           - src/tests/webmcp-model-compiler.test.ts
           - src/tests/webmcp-compiler-eval.test.ts
