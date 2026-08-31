@@ -68,7 +68,7 @@ export const canonicalSerialize = v2CanonicalSerialize;
 export const sha256 = v2Sha256;
 
 export const STRUCTURAL_VALIDATOR_VERSION = 'juryai-structural-validator-v0.2.0';
-export const RENDER_TEMPLATE_VERSION = 'juryai-canonical-account-render-v0.2.0';
+export const RENDER_TEMPLATE_VERSION = 'juryai-canonical-account-render-v0.3.0';
 
 export function isCanonicalId(value: unknown): value is string {
   return typeof value === 'string' && ID_PATTERN.test(value);

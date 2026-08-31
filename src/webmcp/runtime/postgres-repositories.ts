@@ -19,16 +19,20 @@ import {
   type CompilerRegistryEntry,
 } from '../core/compiler-contract.js';
 import type { IdempotencyRecord } from '../core/idempotency.js';
-import { canonicalSerialize } from '../core/types.js';
+import { canonicalSerialize, isHash } from '../core/types.js';
 import { validateSourceTurnRecord } from '../core/turns.js';
 import { InMemoryCaseRuntimeStore } from './in-memory-repositories.js';
 import {
+  type AttestationCommit,
+  type AttestationCommitResult,
   type CaseCreateResult,
   type CaseRepository,
   type CaseRuntimeStore,
   type CompileRunRepository,
   type CompilerRegistryRepository,
   type IdempotencyRepository,
+  type PersistedRenderChallenge,
+  type RenderChallengeRepository,
   type StartCaseCommit,
   type StartCaseIdempotencyRecord,
   type StartCaseIdempotencyRepository,
@@ -63,6 +67,21 @@ interface StartSnapshotRow extends StoredCaseRow {
   request: unknown;
 }
 
+interface RenderChallengeRow {
+  challenge_hash: unknown;
+  principal_id: unknown;
+  case_id: unknown;
+  case_version: unknown;
+  rendered_document_hash: unknown;
+  render_template_version: unknown;
+  attestation_contract_version: unknown;
+  adoption_statement_hash: unknown;
+  issued_at: unknown;
+  expires_at: unknown;
+  consumed_at: unknown;
+  attestation_id: unknown;
+}
+
 export interface PostgresStoreOptions extends PoolConfig {
   /** Existing pools are useful for application lifecycle ownership and tests. */
   pool?: Pool;
@@ -95,7 +114,9 @@ export class PostgresCaseRuntimeStore implements CaseRuntimeStore {
                   then 'submit_idempotency' end,
                 case when to_regclass($1 || '.compile_runs') is null then 'compile_runs' end,
                 case when to_regclass($1 || '.compiler_registry') is null
-                  then 'compiler_registry' end
+                  then 'compiler_registry' end,
+                case when to_regclass($1 || '.render_challenges') is null
+                  then 'render_challenges' end
               ], null) as missing`,
       [SCHEMA],
     );
@@ -160,6 +181,21 @@ export class PostgresCaseRuntimeStore implements CaseRuntimeStore {
         [caseId],
       );
       return result.rows.map((row) => decodeIdempotency((row as JsonRecordRow).record));
+    },
+  };
+
+  readonly renderChallenges: RenderChallengeRepository = {
+    findByHash: async (challengeHash) => {
+      const result = await this.#pool.query(
+        `select challenge_hash, principal_id, case_id, case_version,
+                rendered_document_hash, render_template_version,
+                attestation_contract_version, adoption_statement_hash,
+                issued_at, expires_at, consumed_at, attestation_id
+           from ${SCHEMA}.render_challenges
+          where challenge_hash = $1`,
+        [challengeHash],
+      );
+      return result.rows[0] ? decodeRenderChallenge(result.rows[0] as RenderChallengeRow) : null;
     },
   };
 
@@ -402,6 +438,118 @@ export class PostgresCaseRuntimeStore implements CaseRuntimeStore {
     });
   }
 
+  async issueRenderChallenge(challenge: PersistedRenderChallenge): Promise<void> {
+    const decoded = decodeRenderChallengeRecord(structuredClone(challenge));
+    await this.#pool.query(
+      `insert into ${SCHEMA}.render_challenges (
+         challenge_hash, principal_id, case_id, case_version,
+         rendered_document_hash, render_template_version,
+         attestation_contract_version, adoption_statement_hash,
+         issued_at, expires_at, consumed_at, attestation_id
+       ) values (
+         $1, $2, $3, $4, $5, $6, $7, $8,
+         to_timestamp($9::double precision / 1000.0),
+         to_timestamp($10::double precision / 1000.0), null, null
+       )`,
+      [
+        decoded.challenge_hash,
+        decoded.principal_id,
+        decoded.case_id,
+        decoded.case_version,
+        decoded.rendered_document_hash,
+        decoded.render_template_version,
+        decoded.attestation_contract_version,
+        decoded.adoption_statement_hash,
+        decoded.issued_at_ms,
+        decoded.expires_at_ms,
+      ],
+    );
+  }
+
+  async commitAttestation(commit: AttestationCommit): Promise<AttestationCommitResult> {
+    if (!Number.isSafeInteger(commit.expected_revision) || commit.expected_revision < 1) {
+      throw new TypeError('expected_revision must be a positive safe integer.');
+    }
+    const state = decodeCaseState(structuredClone(commit.next_state));
+    if (
+      state.case_id !== commit.case_id ||
+      state.principal_id !== commit.principal_id ||
+      !state.attestations.some((entry) => entry.attestation_id === commit.attestation_id)
+    ) {
+      throw new TypeError('Attestation commit identities do not match canonical state.');
+    }
+    return this.#transaction(async (client) => {
+      const selected = await client.query(
+        `select challenge_hash, principal_id, case_id, case_version,
+                rendered_document_hash, render_template_version,
+                attestation_contract_version, adoption_statement_hash,
+                issued_at, expires_at, consumed_at, attestation_id
+           from ${SCHEMA}.render_challenges
+          where challenge_hash = $1
+          for update`,
+        [commit.challenge_hash],
+      );
+      const row = selected.rows[0] as RenderChallengeRow | undefined;
+      if (!row) {
+        return { ok: false, reason: 'challenge_unknown', current: null };
+      }
+      const challenge = decodeRenderChallenge(row);
+      const currentResult = async (): Promise<StoredCase | null> => {
+        const current = await client.query(
+          `select revision, state from ${SCHEMA}.cases where case_id = $1`,
+          [commit.case_id],
+        );
+        return current.rows[0] ? decodeStoredCase(current.rows[0] as StoredCaseRow) : null;
+      };
+      if (challenge.case_id !== commit.case_id || challenge.principal_id !== commit.principal_id) {
+        return { ok: false, reason: 'challenge_unknown', current: await currentResult() };
+      }
+      if (challenge.consumed_at_ms !== null) {
+        const current = await currentResult();
+        if (
+          challenge.attestation_id !== null &&
+          current?.state.attestations.some(
+            (entry) => entry.attestation_id === challenge.attestation_id,
+          )
+        ) {
+          return { ok: true, replayed: true, stored: current, challenge };
+        }
+        return { ok: false, reason: 'challenge_consumed', current };
+      }
+
+      const updated = await client.query(
+        `update ${SCHEMA}.cases
+            set state = $1::jsonb, revision = revision + 1
+          where case_id = $2 and revision = $3
+          returning revision, state`,
+        [encodeJson(state), commit.case_id, commit.expected_revision],
+      );
+      const updatedRow = updated.rows[0] as StoredCaseRow | undefined;
+      if (!updatedRow) {
+        return { ok: false, reason: 'revision_conflict', current: await currentResult() };
+      }
+      const consumed = await client.query(
+        `update ${SCHEMA}.render_challenges
+            set consumed_at = to_timestamp($2::double precision / 1000.0),
+                attestation_id = $3
+          where challenge_hash = $1 and consumed_at is null
+          returning challenge_hash, principal_id, case_id, case_version,
+                    rendered_document_hash, render_template_version,
+                    attestation_contract_version, adoption_statement_hash,
+                    issued_at, expires_at, consumed_at, attestation_id`,
+        [commit.challenge_hash, commit.consumed_at_ms, commit.attestation_id],
+      );
+      const consumedRow = consumed.rows[0] as RenderChallengeRow | undefined;
+      if (!consumedRow) throw new Error('Locked render challenge could not be consumed.');
+      return {
+        ok: true,
+        replayed: false,
+        stored: decodeStoredCase(updatedRow),
+        challenge: decodeRenderChallenge(consumedRow),
+      };
+    });
+  }
+
   async #transaction<T>(operation: (client: PoolClient) => Promise<T>): Promise<T> {
     const client = await this.#pool.connect();
     let began = false;
@@ -610,6 +758,93 @@ function decodeCompileRun(value: unknown): CompileRunRecord {
     throw malformed('compile run', error);
   }
   return detached;
+}
+
+function databaseInteger(value: unknown, path: string): number {
+  const converted = typeof value === 'string' && /^\d+$/u.test(value) ? Number(value) : value;
+  return safeNonnegativeInteger(converted, path);
+}
+
+function timestampMs(value: unknown, path: string): number {
+  const date = value instanceof Date ? value : typeof value === 'string' ? new Date(value) : null;
+  const milliseconds = date?.getTime() ?? Number.NaN;
+  if (!Number.isSafeInteger(milliseconds) || milliseconds < 0) {
+    throw new TypeError(`Stored ${path} is not a valid timestamp.`);
+  }
+  return milliseconds;
+}
+
+function decodeRenderChallenge(row: RenderChallengeRow): PersistedRenderChallenge {
+  return decodeRenderChallengeRecord({
+    challenge_hash: row.challenge_hash,
+    principal_id: row.principal_id,
+    case_id: row.case_id,
+    case_version: databaseInteger(row.case_version, 'render challenge case_version'),
+    rendered_document_hash: row.rendered_document_hash,
+    render_template_version: row.render_template_version,
+    attestation_contract_version: row.attestation_contract_version,
+    adoption_statement_hash: row.adoption_statement_hash,
+    issued_at_ms: timestampMs(row.issued_at, 'render challenge issued_at'),
+    expires_at_ms: timestampMs(row.expires_at, 'render challenge expires_at'),
+    consumed_at_ms:
+      row.consumed_at === null
+        ? null
+        : timestampMs(row.consumed_at, 'render challenge consumed_at'),
+    attestation_id: row.attestation_id,
+  });
+}
+
+function decodeRenderChallengeRecord(value: unknown): PersistedRenderChallenge {
+  const record = exactObject(value, 'render challenge', [
+    'challenge_hash',
+    'principal_id',
+    'case_id',
+    'case_version',
+    'rendered_document_hash',
+    'render_template_version',
+    'attestation_contract_version',
+    'adoption_statement_hash',
+    'issued_at_ms',
+    'expires_at_ms',
+    'consumed_at_ms',
+    'attestation_id',
+  ]);
+  const decoded: PersistedRenderChallenge = {
+    challenge_hash: requiredString(record.challenge_hash, 'challenge_hash'),
+    principal_id: requiredString(record.principal_id, 'principal_id'),
+    case_id: requiredString(record.case_id, 'case_id'),
+    case_version: safeNonnegativeInteger(record.case_version, 'case_version'),
+    rendered_document_hash: requiredString(record.rendered_document_hash, 'rendered_document_hash'),
+    render_template_version: requiredString(
+      record.render_template_version,
+      'render_template_version',
+    ),
+    attestation_contract_version: requiredString(
+      record.attestation_contract_version,
+      'attestation_contract_version',
+    ),
+    adoption_statement_hash: requiredString(
+      record.adoption_statement_hash,
+      'adoption_statement_hash',
+    ),
+    issued_at_ms: safeNonnegativeInteger(record.issued_at_ms, 'issued_at_ms'),
+    expires_at_ms: safeNonnegativeInteger(record.expires_at_ms, 'expires_at_ms'),
+    consumed_at_ms:
+      record.consumed_at_ms === null
+        ? null
+        : safeNonnegativeInteger(record.consumed_at_ms, 'consumed_at_ms'),
+    attestation_id: nullableString(record.attestation_id, 'attestation_id'),
+  };
+  if (
+    !isHash(decoded.challenge_hash) ||
+    !isHash(decoded.rendered_document_hash) ||
+    !isHash(decoded.adoption_statement_hash) ||
+    decoded.expires_at_ms <= decoded.issued_at_ms ||
+    (decoded.consumed_at_ms === null) !== (decoded.attestation_id === null)
+  ) {
+    throw new TypeError('Stored render challenge bindings are malformed.');
+  }
+  return decoded;
 }
 
 function exactObject(

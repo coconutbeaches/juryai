@@ -25,7 +25,7 @@ body {
 }
 
 main {
-  width: min(100%, 38rem);
+  width: min(100%, 64rem);
   padding: clamp(1.5rem, 5vw, 3rem);
   border: 1px solid #cbd3cb;
   border-radius: 1rem;
@@ -54,6 +54,8 @@ label {
 }
 
 input,
+select,
+textarea,
 button {
   width: 100%;
   min-height: 2.75rem;
@@ -61,6 +63,66 @@ button {
   border: 1px solid #94a095;
   border-radius: 0.5rem;
   font: inherit;
+}
+
+textarea {
+  min-height: 8rem;
+  resize: vertical;
+}
+
+.readback-block,
+.action-panel {
+  margin-block: 1rem;
+  padding: 1rem;
+  border: 1px solid #cbd3cb;
+  border-radius: 0.75rem;
+  background: #fbfcfa;
+}
+
+.readback-block h3 {
+  margin-top: 0;
+}
+
+.readback-fields {
+  display: grid;
+  grid-template-columns: minmax(9rem, auto) 1fr;
+  gap: 0.35rem 0.75rem;
+}
+
+.readback-fields dt {
+  font-weight: 650;
+}
+
+.readback-fields dd {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.correct-button {
+  width: auto;
+  margin-top: 0.75rem;
+}
+
+.check-label {
+  grid-template-columns: auto 1fr;
+  align-items: start;
+}
+
+.check-label input {
+  width: auto;
+  min-height: auto;
+  margin-top: 0.25rem;
+}
+
+#canonical-document {
+  padding: 1rem;
+  overflow: auto;
+  border: 1px solid #cbd3cb;
+  border-radius: 0.5rem;
+  background: #f4f6f1;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 button {

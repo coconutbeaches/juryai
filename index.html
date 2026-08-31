@@ -61,6 +61,62 @@
         </p>
       </section>
 
+      <section id="review-section" hidden>
+        <p id="review-capability" class="muted"></p>
+        <h2 id="review-heading">JuryAI currently has this as your account</h2>
+        <p id="review-version" class="muted"></p>
+        <p id="review-message" role="status" aria-live="polite"></p>
+        <ul id="review-blockers"></ul>
+        <div id="readback-blocks"></div>
+
+        <section id="correction-panel" class="action-panel" hidden>
+          <h2>Correct this here</h2>
+          <form id="correction-form">
+            <label>
+              Part of the account
+              <select id="correction-requirement" required></select>
+            </label>
+            <label>
+              What do you need to do?
+              <select id="correction-disposition" required>
+                <option value="correct_meaning">Correct the meaning</option>
+                <option value="add_information">Add information</option>
+                <option value="change_answer">Change my answer</option>
+                <option value="resolve_clarification">Answer an open question</option>
+                <option value="dont_remember">I do not remember</option>
+                <option value="decline_to_answer">I choose not to answer</option>
+              </select>
+            </label>
+            <label id="correction-text-label">
+              My correction or answer
+              <textarea id="correction-text" maxlength="12000" required></textarea>
+            </label>
+            <button type="submit">Record my correction</button>
+          </form>
+        </section>
+
+        <section id="attestation-panel" class="action-panel" hidden>
+          <h2>Attest and lock</h2>
+          <p id="adoption-statement"></p>
+          <label class="check-label">
+            <input id="adoption-checkbox" type="checkbox" />
+            I have read the complete account and adopt the statement above.
+          </label>
+          <button id="attest-button" type="button" disabled>Attest this exact account</button>
+        </section>
+
+        <section id="locked-panel" class="action-panel" hidden>
+          <h2>My account</h2>
+          <p>
+            This exact JuryAI account has been attested and locked. This case record cannot be
+            changed. If you need to give JuryAI a different account, start a new case.
+          </p>
+        </section>
+
+        <h2>Complete canonical read-back</h2>
+        <pre id="canonical-document"></pre>
+      </section>
+
       <button id="logout-button" class="secondary" type="button" hidden>Log out</button>
     </main>
     <script type="module" src="/src/webmcp/browser/entry.ts"></script>

@@ -115,3 +115,20 @@ export function sessionRuntimeContextProvider(
 ): TrustedRuntimeRequestContextProvider {
   return { getRuntimeRequestContext: () => runtimeContextForSession(session) };
 }
+
+export function firstPartyRuntimeContextForSession(
+  session: WebSessionRecord,
+): RuntimeRequestContext {
+  return {
+    principal: { principal_id: principalForSupabaseSubject(session.auth_subject) },
+    source_channel: 'first_party_input',
+    relaying_agent: null,
+  };
+}
+
+/** Separate trusted provider: the relay path cannot be parameterized into first-party provenance. */
+export function firstPartyRuntimeContextProvider(
+  session: WebSessionRecord,
+): TrustedRuntimeRequestContextProvider {
+  return { getRuntimeRequestContext: () => firstPartyRuntimeContextForSession(session) };
+}

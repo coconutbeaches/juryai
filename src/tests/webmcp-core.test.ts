@@ -56,6 +56,8 @@ import {
   type Proposition,
 } from '../webmcp/core/propositions.js';
 import {
+  ATTESTATION_CONTRACT_VERSION,
+  adoptionStatementFor,
   appendAttestation,
   deriveAssuranceLevel,
   deriveCaseStatus,
@@ -955,8 +957,9 @@ describe('first-party render', () => {
       ],
     });
     const render = renderCanonicalAccount(state);
-    expect(render.document).toContain('WHAT IS STILL MISSING');
-    expect(render.document).toContain('R25: Was any payment made?');
+    expect(render.document).toContain('[REQUIREMENT R25]');
+    expect(render.document).toContain('status: "unsatisfied"');
+    expect(render.document).toContain('Was any payment made?');
   });
 
   it('surfaces epistemic strength for every proposition', () => {
@@ -987,8 +990,9 @@ describe('first-party render', () => {
       ),
     });
     const render = renderCanonicalAccount(state);
-    expect(render.document).toContain('CHANGES AND CORRECTIONS');
-    expect(render.document).toContain('superseded:');
+    expect(render.document).toContain('[PROPOSITION p1]');
+    expect(render.document).toContain('standing: "superseded"');
+    expect(render.document).toContain('superseded_by: "p2"');
   });
 
   it('hashes the document the human reads', () => {
@@ -1040,7 +1044,36 @@ describe('attestation', () => {
     expect(result.record.canonical_state_hash).toBe(hashCanonicalState(state));
     expect(result.record.assurance_level).toBe('ui_click');
     expect(result.record.structural_validator_version).toBe(STRUCTURAL_VALIDATOR_VERSION);
+    expect(result.record.attestation_contract_version).toBe(ATTESTATION_CONTRACT_VERSION);
+    expect(result.record.adoption_statement).toBe(adoptionStatementFor(state));
+    expect(result.record.adoption_statement_hash).toBe(sha256(result.record.adoption_statement));
     expect(validateCaseState(state).validator_version).toBe(STRUCTURAL_VALIDATOR_VERSION);
+  });
+
+  it('rejects a changed attestation contract before adoption', () => {
+    const state = ready();
+    const challenge = { ...challengeFor(state), attestation_contract_version: 'future-contract' };
+    const result = verifyAttestationAttempt(
+      state,
+      challenge,
+      attempt({ rendered_document_hash: challenge.rendered_document_hash }),
+      1_000,
+      validateCaseState,
+    );
+    expect(result).toMatchObject({ kind: 'rejected', reason: 'contract_changed' });
+  });
+
+  it('rejects a changed adoption statement hash', () => {
+    const state = ready();
+    const challenge = { ...challengeFor(state), adoption_statement_hash: 'f'.repeat(64) };
+    const result = verifyAttestationAttempt(
+      state,
+      challenge,
+      attempt({ rendered_document_hash: challenge.rendered_document_hash }),
+      1_000,
+      validateCaseState,
+    );
+    expect(result).toMatchObject({ kind: 'rejected', reason: 'adoption_changed' });
   });
 
   it('records the exact version reported by the injected structural validator', () => {
@@ -2268,6 +2301,7 @@ describe('structural validator', () => {
 
   it('rejects an attestation bound to a version that does not exist yet', () => {
     const state = baseState();
+    const adoptionStatement = adoptionStatementFor(state);
     const bad = {
       attestation_id: 'att_1',
       case_id: CASE_ID,
@@ -2276,6 +2310,9 @@ describe('structural validator', () => {
       rendered_document: 'x',
       rendered_document_hash: '2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881',
       render_template_version: 'v',
+      attestation_contract_version: ATTESTATION_CONTRACT_VERSION,
+      adoption_statement: adoptionStatement,
+      adoption_statement_hash: sha256(adoptionStatement),
       challenge: 'nonce-1',
       verification_method: 'first_party_ui_click',
       assurance_level: 'ui_click' as const,

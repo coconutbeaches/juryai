@@ -42,6 +42,7 @@ async function buildProductionServer(): Promise<JuryAiWebServer> {
     persistence: webStore,
     authForRequest: () => supabaseAuthForRequest(config),
     runtime: runtimeForRequest,
+    caseStore: () => caseStore,
   });
 }
 
@@ -78,3 +79,33 @@ export const handleDisclosure = (request: Request): Promise<Response> =>
 
 export const handleCaseService = (request: Request): Promise<Response> =>
   handle(request, (instance, incoming) => instance.caseService(incoming));
+
+function caseIdFromPath(
+  request: Request,
+  operation: 'review' | 'corrections' | 'attestations',
+): string {
+  const match = new RegExp(`/api/juryai/cases/([^/]+)/${operation}$`, 'u').exec(
+    new URL(request.url).pathname,
+  );
+  if (!match) return '';
+  try {
+    return decodeURIComponent(match[1]!);
+  } catch {
+    return '';
+  }
+}
+
+export const handleCaseReview = (request: Request): Promise<Response> =>
+  handle(request, (instance, incoming) =>
+    instance.reviewCase(incoming, caseIdFromPath(incoming, 'review')),
+  );
+
+export const handleCaseCorrection = (request: Request): Promise<Response> =>
+  handle(request, (instance, incoming) =>
+    instance.correctCase(incoming, caseIdFromPath(incoming, 'corrections')),
+  );
+
+export const handleCaseAttestation = (request: Request): Promise<Response> =>
+  handle(request, (instance, incoming) =>
+    instance.attestCase(incoming, caseIdFromPath(incoming, 'attestations')),
+  );
