@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ATTESTATION_CONTRACT_VERSION,
   adoptionStatementFor,
+  isAttestationRecordV03,
   type CaseState,
 } from '../webmcp/core/attestation.js';
 import { validateCaseState } from '../webmcp/core/structural-validator.js';
@@ -147,9 +148,12 @@ interface Harness {
   caseId: string;
 }
 
-async function harness(caseId = 'case_step64'): Promise<Harness> {
+async function harness(
+  caseId = 'case_step64',
+  transformInitial: (state: CaseState) => CaseState = (state) => state,
+): Promise<Harness> {
   const store = new InMemoryCaseRuntimeStore();
-  const initial = readyState(caseId);
+  const initial = transformInitial(readyState(caseId));
   expect(validateCaseState(initial).ok).toBe(true);
   await store.createCase({
     state: initial,
@@ -251,8 +255,29 @@ function correctionBody(overrides: Record<string, unknown> = {}): Record<string,
     in_reply_to: ['req_account'],
     client_turn_id: 'client_correction_1',
     disposition: 'correct_meaning',
+    target_proposition_id: 'prop_initial',
     text: 'This is my direct correction.',
     ...overrides,
+  };
+}
+
+function withSecondLiveProposition(state: CaseState): CaseState {
+  const initial = state.propositions[0]!;
+  return {
+    ...state,
+    requirements: state.requirements.map((requirement) => ({
+      ...requirement,
+      satisfying_types: [...requirement.satisfying_types, 'target_date'],
+    })),
+    propositions: [
+      ...state.propositions,
+      {
+        ...initial,
+        proposition_id: 'prop_secondary',
+        type: 'target_date',
+        statement: 'The earlier date was April 20.',
+      },
+    ],
   };
 }
 
@@ -336,12 +361,169 @@ describe('Step 64 authenticated first-party server', () => {
     ).not.toBeNull();
   });
 
+  it('textualizes a selected live target so terse same-text corrections stay distinct and retry safely', async () => {
+    const h = await harness('case_targeted_correction', withSecondLiveProposition);
+    h.compiler.setScript((input) => {
+      const target = input.turn.payload.answer.text.includes('prop_secondary')
+        ? 'prop_secondary'
+        : 'prop_initial';
+      return {
+        verdict: 'accepted_candidates',
+        assertions: [
+          {
+            quote: input.turn.payload.answer.text,
+            requirement_id: 'req_account',
+            type: target === 'prop_secondary' ? 'target_date' : 'narrative_fact',
+            epistemic_strength: 'asserted_confident',
+            statement: input.turn.payload.answer.text,
+            supersedes_candidate: target,
+          },
+        ],
+      };
+    });
+    const firstBody = correctionBody({ text: 'April 25', client_turn_id: 'targeted_first' });
+    const first = await h.server.correctCase(
+      post(`/api/juryai/cases/${h.caseId}/corrections`, firstBody),
+      h.caseId,
+    );
+    expect(first.status).toBe(200);
+    expect(h.compiler.calls.at(-1)?.turn.payload.answer.text).toBe(
+      'Correction to proposition prop_initial: April 25',
+    );
+
+    const retry = await h.server.correctCase(
+      post(`/api/juryai/cases/${h.caseId}/corrections`, firstBody),
+      h.caseId,
+    );
+    expect(retry.status).toBe(200);
+    expect(((await retry.json()) as { replayed?: boolean }).replayed).toBe(true);
+    expect(h.compiler.calls).toHaveLength(1);
+
+    const second = await h.server.correctCase(
+      post(
+        `/api/juryai/cases/${h.caseId}/corrections`,
+        correctionBody({
+          expected_case_version: 2,
+          client_turn_id: 'targeted_second',
+          target_proposition_id: 'prop_secondary',
+          text: 'April 25',
+        }),
+      ),
+      h.caseId,
+    );
+    expect(second.status).toBe(200);
+    expect(h.compiler.calls.at(-1)?.turn.payload.answer.text).toBe(
+      'Correction to proposition prop_secondary: April 25',
+    );
+    const stored = (await h.store.cases.findById(h.caseId))!;
+    expect(stored.state.turn_log.slice(-2).map((turn) => turn.request_fingerprint)).toHaveLength(2);
+    expect(
+      new Set(stored.state.turn_log.slice(-2).map((turn) => turn.request_fingerprint)).size,
+    ).toBe(2);
+    expect(
+      stored.state.propositions.find((entry) => entry.proposition_id === 'prop_initial'),
+    ).toHaveProperty('superseded_by', expect.any(String));
+    expect(
+      stored.state.propositions.find((entry) => entry.proposition_id === 'prop_secondary'),
+    ).toHaveProperty('superseded_by', expect.any(String));
+  });
+
+  it('fails closed for missing, foreign, incompatible, or non-live replacement targets', async () => {
+    const h = await harness('case_invalid_target', withSecondLiveProposition);
+    for (const overrides of [
+      { target_proposition_id: undefined },
+      { target_proposition_id: 'prop_foreign' },
+      { in_reply_to: ['req_other'] },
+    ]) {
+      const response = await h.server.correctCase(
+        post(
+          `/api/juryai/cases/${h.caseId}/corrections`,
+          correctionBody({ client_turn_id: `invalid_${JSON.stringify(overrides)}`, ...overrides }),
+        ),
+        h.caseId,
+      );
+      expect(response.status).toBe(400);
+      expect(((await response.json()) as { error: { code: string } }).error.code).toBe(
+        'INVALID_INPUT',
+      );
+    }
+
+    const accepted = await h.server.correctCase(
+      post(`/api/juryai/cases/${h.caseId}/corrections`, correctionBody()),
+      h.caseId,
+    );
+    expect(accepted.status).toBe(200);
+    const nonLive = await h.server.correctCase(
+      post(
+        `/api/juryai/cases/${h.caseId}/corrections`,
+        correctionBody({ expected_case_version: 2, client_turn_id: 'non_live_target' }),
+      ),
+      h.caseId,
+    );
+    expect(nonLive.status).toBe(400);
+  });
+
+  it('keeps target intent inside ordinary answer text and cannot bypass the semantic compiler', async () => {
+    const h = await harness('case_target_no_authority');
+    h.compiler.setScript(() => ({ verdict: 'no_assertions' }));
+    const response = await h.server.correctCase(
+      post(`/api/juryai/cases/${h.caseId}/corrections`, correctionBody({ text: 'April 25' })),
+      h.caseId,
+    );
+    expect(response.status).toBe(200);
+    expect(h.compiler.calls).toHaveLength(1);
+    const stored = (await h.store.cases.findById(h.caseId))!;
+    expect(
+      stored.state.propositions.find((entry) => entry.proposition_id === 'prop_initial')
+        ?.superseded_by,
+    ).toBeNull();
+    expect(stored.state.propositions).toHaveLength(1);
+  });
+
+  it('keeps add_information untargeted and does not imply replacement', async () => {
+    const h = await harness('case_add_information');
+    h.compiler.setScript(() => ({ verdict: 'no_assertions' }));
+    const response = await h.server.correctCase(
+      post(
+        `/api/juryai/cases/${h.caseId}/corrections`,
+        correctionBody({
+          disposition: 'add_information',
+          target_proposition_id: undefined,
+          text: 'One more detail.',
+        }),
+      ),
+      h.caseId,
+    );
+    expect(response.status).toBe(200);
+    expect(h.compiler.calls.at(-1)?.turn.payload.answer.text).toBe('One more detail.');
+    expect(
+      (await h.store.cases.findById(h.caseId))?.state.propositions[0]?.superseded_by,
+    ).toBeNull();
+
+    const targetedAddition = await h.server.correctCase(
+      post(
+        `/api/juryai/cases/${h.caseId}/corrections`,
+        correctionBody({
+          expected_case_version: 2,
+          client_turn_id: 'targeted_addition',
+          disposition: 'add_information',
+        }),
+      ),
+      h.caseId,
+    );
+    expect(targetedAddition.status).toBe(400);
+  });
+
   it('uses exact server literals for non-answer buttons and preserves retry/version/lock outcomes', async () => {
     const h = await harness();
     const first = await h.server.correctCase(
       post(
         `/api/juryai/cases/${h.caseId}/corrections`,
-        correctionBody({ disposition: 'dont_remember', text: undefined }),
+        correctionBody({
+          disposition: 'dont_remember',
+          target_proposition_id: undefined,
+          text: undefined,
+        }),
       ),
       h.caseId,
     );
@@ -350,7 +532,11 @@ describe('Step 64 authenticated first-party server', () => {
     const retry = await h.server.correctCase(
       post(
         `/api/juryai/cases/${h.caseId}/corrections`,
-        correctionBody({ disposition: 'dont_remember', text: undefined }),
+        correctionBody({
+          disposition: 'dont_remember',
+          target_proposition_id: undefined,
+          text: undefined,
+        }),
       ),
       h.caseId,
     );
@@ -420,6 +606,7 @@ describe('Step 64 authenticated first-party server', () => {
           expected_case_version: 2,
           client_turn_id: 'client_clarification_answer',
           disposition: 'resolve_clarification',
+          target_proposition_id: undefined,
           text: 'Yes, this replaces the earlier account.',
         }),
       ),
@@ -452,6 +639,7 @@ describe('Step 64 authenticated first-party server', () => {
     expect(stored?.state.case_version).toBe(1);
     expect(stored?.state.attestations).toHaveLength(1);
     const attestation = stored!.state.attestations[0]!;
+    if (!isAttestationRecordV03(attestation)) throw new Error('expected V0.3 attestation');
     expect(attestation.rendered_document).toBe(rendered.document);
     expect(attestation.adoption_statement).toBe(adoptionStatementFor(readyState(h.caseId)));
     expect(sha256(attestation.adoption_statement)).toBe(attestation.adoption_statement_hash);

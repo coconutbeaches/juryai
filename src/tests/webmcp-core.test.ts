@@ -57,6 +57,7 @@ import {
 } from '../webmcp/core/propositions.js';
 import {
   ATTESTATION_CONTRACT_VERSION,
+  LEGACY_RENDER_TEMPLATE_VERSION,
   adoptionStatementFor,
   appendAttestation,
   deriveAssuranceLevel,
@@ -67,6 +68,7 @@ import {
   renderCanonicalAccount,
   verifyAttestationAttempt,
   type AttestationAttempt,
+  type LegacyAttestationRecordV02,
   type CaseState,
 } from '../webmcp/core/attestation.js';
 import { validateCaseState } from '../webmcp/core/structural-validator.js';
@@ -931,12 +933,7 @@ function attempt(overrides: Partial<AttestationAttempt> = {}): AttestationAttemp
 }
 
 function attestationFor(state: CaseState) {
-  const challenge = issueRenderChallenge(
-    renderCanonicalAccount(state),
-    state.case_id,
-    'nonce-1',
-    0,
-  );
+  const challenge = issueRenderChallenge(state, renderCanonicalAccount(state), 'nonce-1', 0);
   const result = verifyAttestationAttempt(
     state,
     challenge,
@@ -1024,7 +1021,7 @@ describe('attestation', () => {
   }
 
   function challengeFor(state: CaseState, nowMs = 0) {
-    return issueRenderChallenge(renderCanonicalAccount(state), state.case_id, 'nonce-1', nowMs);
+    return issueRenderChallenge(state, renderCanonicalAccount(state), 'nonce-1', nowMs);
   }
 
   it('accepts a confirmation that matches the rendered account exactly', () => {
@@ -1337,11 +1334,64 @@ describe('append-only attestations and derived lock', () => {
     return attestationFor(state);
   }
 
+  function legacyV02Attested(state: CaseState): LegacyAttestationRecordV02 {
+    const current = attested(state);
+    const {
+      attestation_contract_version: _contract,
+      adoption_statement: _statement,
+      adoption_statement_hash: _statementHash,
+      ...historical
+    } = current;
+    const renderedDocument =
+      'JURYAI CANONICAL ACCOUNT\ntemplate: juryai-canonical-account-render-v0.2.0\n';
+    return {
+      ...historical,
+      render_template_version: LEGACY_RENDER_TEMPLATE_VERSION,
+      rendered_document: renderedDocument,
+      rendered_document_hash: sha256(renderedDocument),
+    };
+  }
+
   it('derives locked status from the attestation collection', () => {
     const state = baseState();
     expect(deriveCaseStatus(state)).toBe('draft');
     const locked: CaseState = { ...state, attestations: [attested(state)] };
     expect(deriveCaseStatus(locked)).toBe('locked');
+  });
+
+  it('keeps a complete historical V0.2 attestation readable without inventing adoption consent', () => {
+    const state = baseState();
+    const legacy = legacyV02Attested(state);
+    const locked: CaseState = { ...state, attestations: [legacy] };
+    expect(validateCaseState(locked).issues).toEqual([]);
+    expect(deriveCaseStatus(locked)).toBe('locked');
+    expect(legacy).not.toHaveProperty('attestation_contract_version');
+    expect(legacy).not.toHaveProperty('adoption_statement');
+    expect(legacy).not.toHaveProperty('adoption_statement_hash');
+  });
+
+  it('never accepts a partial or fieldless V0.3 record as historical V0.2', () => {
+    const state = baseState();
+    const current = attested(state);
+    for (const fieldsToDelete of [
+      ['adoption_statement_hash'],
+      ['attestation_contract_version', 'adoption_statement', 'adoption_statement_hash'],
+    ]) {
+      const malformed = structuredClone(current) as unknown as Record<string, unknown>;
+      for (const field of fieldsToDelete) delete malformed[field];
+      const report = validateCaseState({
+        ...state,
+        attestations: [malformed as unknown as LegacyAttestationRecordV02],
+      });
+      expect(report.ok).toBe(false);
+      expect(report.issues.map((entry) => entry.code)).toEqual(
+        expect.arrayContaining([
+          fieldsToDelete.length === 1
+            ? 'attestation_v03_shape_incomplete'
+            : 'attestation_legacy_shape_invalid',
+        ]),
+      );
+    }
   });
 
   it('returns to draft after an amendment while keeping the earlier attestation', () => {
@@ -1387,12 +1437,7 @@ describe('append-only attestations and derived lock', () => {
   it('refuses to attest a case version that is already locked', () => {
     const state = baseState();
     const locked: CaseState = { ...state, attestations: [attested(state)] };
-    const challenge = issueRenderChallenge(
-      renderCanonicalAccount(locked),
-      locked.case_id,
-      'nonce-2',
-      0,
-    );
+    const challenge = issueRenderChallenge(locked, renderCanonicalAccount(locked), 'nonce-2', 0);
     const result = verifyAttestationAttempt(
       locked,
       challenge,

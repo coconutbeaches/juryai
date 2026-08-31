@@ -50,6 +50,7 @@ export {
 } from './readback-format.js';
 
 export const ATTESTATION_CONTRACT_VERSION = 'juryai-webmcp-attestation-v0.3.0';
+export const LEGACY_RENDER_TEMPLATE_VERSION = 'juryai-canonical-account-render-v0.2.0';
 export const DEFAULT_CHALLENGE_TTL_MS = 15 * 60 * 1000;
 
 /* ------------------------------------------------------------------------ */
@@ -153,22 +154,19 @@ export interface RenderChallenge {
 }
 
 export function issueRenderChallenge(
+  state: CaseState,
   render: RenderedAccount,
-  caseId: string,
   nonce: string,
   nowMs: number,
   ttlMs: number = DEFAULT_CHALLENGE_TTL_MS,
 ): RenderChallenge {
-  const relayMaterial =
-    render.document.includes('"webmcp_agent_relay"') || render.document.includes('"file_import"');
-  const base =
-    'I have read this JuryAI account. It accurately represents the account I am giving JuryAI, including any uncertainty, disagreements, things I do not remember, and answers I chose not to give. I understand that attesting locks this case record.';
-  const statement = relayMaterial
-    ? `${base}\n\nSome parts may be worded by my AI assistant rather than by me. I have read those parts and they say what I mean.`
-    : base;
+  if (render.case_id !== state.case_id || render.case_version !== state.case_version) {
+    throw new TypeError('Render challenge state and document identities disagree.');
+  }
+  const statement = adoptionStatementFor(state);
   return {
     challenge: nonce,
-    case_id: caseId,
+    case_id: state.case_id,
     case_version: render.case_version,
     rendered_document_hash: render.document_hash,
     render_template_version: render.render_template_version,
@@ -207,7 +205,7 @@ export interface AttestedEvidenceRef {
   inspection_status: EvidenceReference['inspection_status'];
 }
 
-export interface AttestationRecord {
+interface AttestationRecordBase {
   attestation_id: string;
   case_id: string;
   case_version: number;
@@ -215,9 +213,6 @@ export interface AttestationRecord {
   rendered_document: string;
   rendered_document_hash: string;
   render_template_version: string;
-  attestation_contract_version: string;
-  adoption_statement: string;
-  adoption_statement_hash: string;
   challenge: string;
   /** Open string, never a boolean "confirmed". */
   verification_method: string;
@@ -242,6 +237,48 @@ export interface AttestationRecord {
   user_agent: string | null;
 }
 
+/** Historical V0.2 records predate the adoption contract and must stay readable as-is. */
+export interface LegacyAttestationRecordV02 extends AttestationRecordBase {
+  attestation_contract_version?: never;
+  adoption_statement?: never;
+  adoption_statement_hash?: never;
+}
+
+/** Every attestation created by the current server has this complete V0.3 shape. */
+export interface AttestationRecordV03 extends AttestationRecordBase {
+  attestation_contract_version: string;
+  adoption_statement: string;
+  adoption_statement_hash: string;
+}
+
+export type AttestationRecord = LegacyAttestationRecordV02 | AttestationRecordV03;
+
+const V03_ATTESTATION_FIELDS = [
+  'attestation_contract_version',
+  'adoption_statement',
+  'adoption_statement_hash',
+] as const;
+
+function hasOwn(
+  record: AttestationRecord,
+  field: (typeof V03_ATTESTATION_FIELDS)[number],
+): boolean {
+  return Object.prototype.hasOwnProperty.call(record, field);
+}
+
+export function isLegacyAttestationRecordV02(
+  record: AttestationRecord,
+): record is LegacyAttestationRecordV02 {
+  return (
+    record.render_template_version === LEGACY_RENDER_TEMPLATE_VERSION &&
+    V03_ATTESTATION_FIELDS.every((field) => !hasOwn(record, field))
+  );
+}
+
+export function isAttestationRecordV03(record: AttestationRecord): record is AttestationRecordV03 {
+  return V03_ATTESTATION_FIELDS.every((field) => hasOwn(record, field));
+}
+
 export interface AttestationAttempt {
   attestation_id: string;
   case_id: string;
@@ -258,7 +295,7 @@ export interface AttestationAttempt {
 }
 
 export type AttestationVerification =
-  | { kind: 'accepted'; record: AttestationRecord }
+  | { kind: 'accepted'; record: AttestationRecordV03 }
   | { kind: 'rejected'; reason: AttestationRejection; issues: ContractIssue[] };
 
 export type AttestationStructuralValidator = (state: CaseState) => {
@@ -404,7 +441,7 @@ export function verifyAttestationAttempt(
     );
   }
 
-  const record: AttestationRecord = {
+  const record: AttestationRecordV03 = {
     attestation_id: attempt.attestation_id,
     case_id: state.case_id,
     case_version: state.case_version,
@@ -447,7 +484,7 @@ export function verifyAttestationAttempt(
 /** Append-only. Never overwrites, never regresses, never deduplicates away. */
 export function appendAttestation(
   attestations: readonly AttestationRecord[],
-  record: AttestationRecord,
+  record: AttestationRecordV03,
 ): AttestationRecord[] {
   if (attestations.some((entry) => entry.attestation_id === record.attestation_id)) {
     throw new TypeError(
@@ -496,23 +533,48 @@ export function validateAttestationRecord(
       ),
     );
   }
-  if (record.attestation_contract_version !== ATTESTATION_CONTRACT_VERSION) {
+  const hasAnyV03Field = V03_ATTESTATION_FIELDS.some((field) => hasOwn(record, field));
+  if (!hasAnyV03Field) {
+    if (!isLegacyAttestationRecordV02(record)) {
+      issues.push(
+        issue(
+          'attestation_legacy_shape_invalid',
+          path + '.render_template_version',
+          'An attestation without V0.3 adoption fields must be an exact historical V0.2 record.',
+        ),
+      );
+    }
+  } else if (!isAttestationRecordV03(record)) {
     issues.push(
       issue(
-        'attestation_contract_version_invalid',
-        path + '.attestation_contract_version',
-        'attestation_contract_version is not the current durable contract.',
+        'attestation_v03_shape_incomplete',
+        path,
+        'A V0.3 attestation must contain every contract and adoption field.',
       ),
     );
-  }
-  if (sha256(record.adoption_statement) !== record.adoption_statement_hash) {
-    issues.push(
-      issue(
-        'attestation_adoption_hash_mismatch',
-        path + '.adoption_statement_hash',
-        'adoption_statement_hash does not match the stored adoption_statement.',
-      ),
-    );
+  } else {
+    if (record.attestation_contract_version !== ATTESTATION_CONTRACT_VERSION) {
+      issues.push(
+        issue(
+          'attestation_contract_version_invalid',
+          path + '.attestation_contract_version',
+          'attestation_contract_version is not the current durable contract.',
+        ),
+      );
+    }
+    if (
+      typeof record.adoption_statement !== 'string' ||
+      typeof record.adoption_statement_hash !== 'string' ||
+      sha256(record.adoption_statement) !== record.adoption_statement_hash
+    ) {
+      issues.push(
+        issue(
+          'attestation_adoption_hash_mismatch',
+          path + '.adoption_statement_hash',
+          'adoption_statement_hash does not match the stored adoption_statement.',
+        ),
+      );
+    }
   }
   if (record.challenge.trim().length === 0) {
     issues.push(

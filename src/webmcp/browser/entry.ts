@@ -46,7 +46,22 @@ const lockedPanel = element<HTMLElement>('locked-panel');
 const reviewPath = /^\/cases\/([^/]+)\/review$/u.exec(window.location.pathname);
 let currentReview: ParsedFirstPartyReview | null = null;
 let currentWebMcp: 'available' | 'unavailable' | 'registration_failed' = 'unavailable';
+let currentCorrectionTarget: { propositionId: string; requirementId: string } | null = null;
 let controller: BrowserShellController;
+
+function isReplacementDisposition(value: string): boolean {
+  return value === 'correct_meaning' || value === 'change_answer';
+}
+
+function syncCorrectionTargetControls(): void {
+  const hasTarget = currentCorrectionTarget !== null;
+  for (const option of correctionDisposition.options) {
+    if (isReplacementDisposition(option.value)) option.disabled = !hasTarget;
+  }
+  if (!hasTarget && isReplacementDisposition(correctionDisposition.value)) {
+    correctionDisposition.value = 'add_information';
+  }
+}
 
 function scalar(value: string | undefined): unknown {
   if (value === undefined) return undefined;
@@ -71,6 +86,8 @@ function requirementForBlock(
 function renderCanonicalBlocks(review: ParsedFirstPartyReview): void {
   readbackBlocks.replaceChildren();
   correctionRequirement.replaceChildren();
+  currentCorrectionTarget = null;
+  syncCorrectionTargetControls();
   const requirementIds = review.parsed_document.blocks
     .filter((block) => block.type === 'REQUIREMENT' && block.id !== null)
     .map((block) => block.id as string);
@@ -113,6 +130,15 @@ function renderCanonicalBlocks(review: ParsedFirstPartyReview): void {
       button.textContent = 'Correct this here';
       button.addEventListener('click', () => {
         correctionRequirement.value = requirementId;
+        if (block.type === 'PROPOSITION' && block.id !== null) {
+          currentCorrectionTarget = { propositionId: block.id, requirementId };
+          correctionDisposition.value = 'correct_meaning';
+        } else {
+          currentCorrectionTarget = null;
+          correctionDisposition.value =
+            block.type === 'CLARIFICATION' ? 'resolve_clarification' : 'add_information';
+        }
+        syncCorrectionTargetControls();
         correctionPanel.hidden = false;
         correctionPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
       });
@@ -232,6 +258,16 @@ correctionDisposition.addEventListener('change', () => {
   correctionText.required = takesText;
 });
 
+correctionRequirement.addEventListener('change', () => {
+  if (
+    currentCorrectionTarget !== null &&
+    currentCorrectionTarget.requirementId !== correctionRequirement.value
+  ) {
+    currentCorrectionTarget = null;
+    syncCorrectionTargetControls();
+  }
+});
+
 correctionForm.addEventListener('submit', (event) => {
   event.preventDefault();
   if (currentReview === null) return;
@@ -243,11 +279,16 @@ correctionForm.addEventListener('submit', (event) => {
     | 'decline_to_answer'
     | 'resolve_clarification';
   const takesText = disposition !== 'dont_remember' && disposition !== 'decline_to_answer';
+  const targetPropositionId = isReplacementDisposition(disposition)
+    ? currentCorrectionTarget?.propositionId
+    : undefined;
+  if (isReplacementDisposition(disposition) && targetPropositionId === undefined) return;
   void controller.submitCorrection({
     expected_case_version: currentReview.case_version,
     in_reply_to: [correctionRequirement.value],
     client_turn_id: `review_${crypto.randomUUID()}`,
     disposition,
+    ...(targetPropositionId === undefined ? {} : { target_proposition_id: targetPropositionId }),
     ...(takesText ? { text: correctionText.value } : {}),
     current_review: currentReview,
     webMcp: currentWebMcp,

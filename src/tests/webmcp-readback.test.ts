@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   adoptionStatementFor,
+  issueRenderChallenge,
   parseReadbackDocument,
   renderCanonicalAccount,
   verifyRenderCompleteness,
@@ -9,7 +10,7 @@ import {
 import type { Proposition } from '../webmcp/core/propositions.js';
 import type { RequirementDefinition } from '../webmcp/core/requirements.js';
 import { computePayloadCommitment, type SourceTurnRecord } from '../webmcp/core/turns.js';
-import { RENDER_TEMPLATE_VERSION } from '../webmcp/core/types.js';
+import { RENDER_TEMPLATE_VERSION, sha256 } from '../webmcp/core/types.js';
 
 const payload = { context: [], answer: { role: 'user' as const, text: 'Source answer.' } };
 
@@ -335,5 +336,55 @@ describe('Step 64 canonical read-back', () => {
       (entry) => entry.source_channel === 'first_party_input',
     );
     expect(adoptionStatementFor(direct)).not.toContain('Some parts may be worded');
+  });
+
+  it('derives every challenge adoption hash from CaseState, never serialized byte substrings', () => {
+    const directOnly = (): CaseState => {
+      const source = state();
+      source.propositions = source.propositions
+        .filter((entry) => entry.source_channel === 'first_party_input')
+        .map((entry) => ({ ...entry, supersedes: null }));
+      source.turn_log = source.turn_log.filter(
+        (entry) => entry.source_channel === 'first_party_input',
+      );
+      source.clarifications = [];
+      source.evidence_references = [];
+      return source;
+    };
+    const cases: Array<{ label: string; source: CaseState; relay: boolean }> = [];
+
+    const standaloneFileEvidence = directOnly();
+    standaloneFileEvidence.evidence_references = [
+      {
+        evidence_ref_id: 'evidence_file_only',
+        case_id: standaloneFileEvidence.case_id,
+        label: 'Standalone imported file',
+        inspection_status: 'uninspected',
+        source_channel: 'file_import',
+        created_at_case_version: standaloneFileEvidence.case_version,
+      },
+    ];
+    cases.push({ label: 'standalone file evidence', source: standaloneFileEvidence, relay: false });
+
+    for (const token of ['"file_import"', '"webmcp_agent_relay"']) {
+      const quotedToken = directOnly();
+      quotedToken.propositions[0]!.statement = `The user literally typed ${token}.`;
+      cases.push({ label: `user text ${token}`, source: quotedToken, relay: false });
+    }
+
+    cases.push({ label: 'genuine relay proposition', source: state(), relay: true });
+    cases.push({ label: 'first-party only', source: directOnly(), relay: false });
+
+    for (const testCase of cases) {
+      const statement = adoptionStatementFor(testCase.source);
+      const challenge = issueRenderChallenge(
+        testCase.source,
+        renderCanonicalAccount(testCase.source),
+        `nonce_${testCase.label}`,
+        0,
+      );
+      expect(challenge.adoption_statement_hash, testCase.label).toBe(sha256(statement));
+      expect(statement.includes('Some parts may be worded'), testCase.label).toBe(testCase.relay);
+    }
   });
 });

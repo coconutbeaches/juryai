@@ -151,6 +151,7 @@ describe('Step 64 browser review lifecycle', () => {
       in_reply_to: ['req_account'],
       client_turn_id: 'client_browser_1',
       disposition: 'correct_meaning',
+      target_proposition_id: 'prop_account',
       text: 'Corrected directly.',
       current_review: before,
       webMcp: 'unavailable',
@@ -160,6 +161,7 @@ describe('Step 64 browser review lifecycle', () => {
       in_reply_to: ['req_account'],
       client_turn_id: 'client_browser_1',
       disposition: 'correct_meaning',
+      target_proposition_id: 'prop_account',
       text: 'Corrected directly.',
     });
     expect(currentReview(states).case_version).toBe(2);
@@ -229,6 +231,8 @@ describe('Step 64 browser review lifecycle', () => {
     const entry = readFileSync(new URL('../webmcp/browser/entry.ts', import.meta.url), 'utf8');
     expect(html).toContain('<pre id="canonical-document"></pre>');
     expect(entry).toContain('canonicalDocument.textContent = state.review.document');
+    expect(entry).toContain('currentCorrectionTarget = { propositionId: block.id, requirementId }');
+    expect(entry).toContain('{ target_proposition_id: targetPropositionId }');
     expect(entry).not.toMatch(/Deadline:|amounts summary|key numbers/iu);
   });
 });

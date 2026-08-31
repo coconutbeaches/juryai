@@ -73,6 +73,12 @@ const CORRECTION_DISPOSITIONS = [
 
 type CorrectionDisposition = (typeof CORRECTION_DISPOSITIONS)[number];
 
+function isReplacementDisposition(
+  disposition: CorrectionDisposition,
+): disposition is 'correct_meaning' | 'change_answer' {
+  return disposition === 'correct_meaning' || disposition === 'change_answer';
+}
+
 function record(value: unknown, allowed: readonly string[]): Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     throw new TypeError('Request body must be an object.');
@@ -105,6 +111,7 @@ interface CorrectionInput {
   in_reply_to: string[];
   client_turn_id: string;
   disposition: CorrectionDisposition;
+  target_proposition_id: string | null;
   text: string;
 }
 
@@ -114,6 +121,7 @@ function correctionInput(value: unknown): CorrectionInput {
     'in_reply_to',
     'client_turn_id',
     'disposition',
+    'target_proposition_id',
     'text',
     // Explicitly listed nowhere: identity/provenance fields therefore fail.
   ]);
@@ -143,6 +151,16 @@ function correctionInput(value: unknown): CorrectionInput {
     throw new TypeError('disposition is invalid.');
   }
   const disposition = body.disposition as CorrectionDisposition;
+  const replacement = isReplacementDisposition(disposition);
+  if (
+    replacement &&
+    (!isCanonicalId(body.target_proposition_id) || (body.in_reply_to as unknown[]).length !== 1)
+  ) {
+    throw new TypeError('A replacement correction requires one target proposition.');
+  }
+  if (!replacement && body.target_proposition_id !== undefined) {
+    throw new TypeError('This correction disposition does not accept a target proposition.');
+  }
   let text: string;
   if (disposition === 'dont_remember') {
     if (body.text !== undefined) throw new TypeError('dont_remember does not accept text.');
@@ -160,13 +178,30 @@ function correctionInput(value: unknown): CorrectionInput {
     }
     text = body.text;
   }
-  return {
+  const decoded: CorrectionInput = {
     expected_case_version: body.expected_case_version as number,
     in_reply_to: [...body.in_reply_to] as string[],
     client_turn_id: body.client_turn_id,
     disposition,
+    target_proposition_id: replacement ? (body.target_proposition_id as string) : null,
     text,
   };
+  textualizeCorrection(decoded);
+  return decoded;
+}
+
+function textualizeCorrection(input: CorrectionInput): string {
+  if (isReplacementDisposition(input.disposition) && input.target_proposition_id === null) {
+    throw new TypeError('A replacement correction requires a target proposition.');
+  }
+  const answer =
+    input.disposition === 'correct_meaning'
+      ? `Correction to proposition ${input.target_proposition_id}: ${input.text}`
+      : input.disposition === 'change_answer'
+        ? `Changed answer replacing proposition ${input.target_proposition_id}: ${input.text}`
+        : input.text;
+  if (answer.length > 12_000) throw new TypeError('Correction answer is too long.');
+  return answer;
 }
 
 function attestationInput(value: unknown): { challenge: string; rendered_document_hash: string } {
@@ -440,7 +475,7 @@ export class JuryAiWebServer {
           throw new TypeError('Challenge factory did not return 32 base64url bytes.');
         }
         const nowMs = this.#now().getTime();
-        const challenge = issueRenderChallenge(render, caseId, rawChallenge, nowMs);
+        const challenge = issueRenderChallenge(stored.state, render, rawChallenge, nowMs);
         if (challenge.adoption_statement_hash !== adoptionStatementHash) {
           throw new Error('Adoption statement binding disagrees with the canonical render.');
         }
@@ -496,6 +531,33 @@ export class JuryAiWebServer {
     }
 
     try {
+      const store = await this.#caseStore();
+      const stored = await store.cases.findById(caseId);
+      if (!stored || stored.state.principal_id !== authorized.principal_id) {
+        return errorResponse(404, 'CASE_NOT_FOUND', 'No such case.');
+      }
+      if (
+        input.target_proposition_id !== null &&
+        stored.state.case_version === input.expected_case_version &&
+        deriveCaseStatus(stored.state) !== 'locked'
+      ) {
+        const target = stored.state.propositions.find(
+          (proposition) => proposition.proposition_id === input.target_proposition_id,
+        );
+        if (
+          !target ||
+          target.superseded_by !== null ||
+          input.in_reply_to.length !== 1 ||
+          input.in_reply_to[0] !== target.in_reply_to
+        ) {
+          return errorResponse(
+            400,
+            'INVALID_INPUT',
+            'The first-party correction target is invalid.',
+          );
+        }
+      }
+      const answer = textualizeCorrection(input);
       const runtime = await this.#dependencies.runtime();
       const service = createRuntimeCaseService({
         runtime,
@@ -506,7 +568,7 @@ export class JuryAiWebServer {
           case_id: caseId,
           expected_case_version: input.expected_case_version,
           in_reply_to: input.in_reply_to,
-          payload: { context: [], answer: { role: 'user', text: input.text } },
+          payload: { context: [], answer: { role: 'user', text: answer } },
           client_turn_id: input.client_turn_id,
           translation_indicated: false,
         },

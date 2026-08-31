@@ -403,6 +403,7 @@ export class BrowserShellController {
       | 'dont_remember'
       | 'decline_to_answer'
       | 'resolve_clarification';
+    target_proposition_id?: string;
     text?: string;
     current_review: ParsedFirstPartyReview;
     webMcp: WebMcpAvailability;
@@ -422,6 +423,9 @@ export class BrowserShellController {
         in_reply_to: input.in_reply_to,
         client_turn_id: input.client_turn_id,
         disposition: input.disposition,
+        ...(input.target_proposition_id === undefined
+          ? {}
+          : { target_proposition_id: input.target_proposition_id }),
         ...(input.text === undefined ? {} : { text: input.text }),
       });
       await this.#review(

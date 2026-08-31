@@ -17,11 +17,15 @@ import {
 import {
   ATTESTATION_CONTRACT_VERSION,
   adoptionStatementFor,
+  deriveCaseStatus,
   hashCanonicalState,
+  LEGACY_RENDER_TEMPLATE_VERSION,
   renderCanonicalAccount,
-  type AttestationRecord,
+  type AttestationRecordV03,
   type CaseState,
+  type LegacyAttestationRecordV02,
 } from '../webmcp/core/attestation.js';
+import { attributionFor, livePropositions } from '../webmcp/core/propositions.js';
 import { deriveReadiness } from '../webmcp/core/requirements.js';
 import { computeRequestFingerprint, type IdempotencyRecord } from '../webmcp/core/idempotency.js';
 import {
@@ -33,6 +37,7 @@ import {
 } from '../webmcp/core/turns.js';
 import {
   sha256,
+  describeEpistemicStrength,
   STRUCTURAL_VALIDATOR_VERSION,
   WEBMCP_CORE_SCHEMA_VERSION,
   WEBMCP_PROTOCOL_VERSION,
@@ -849,7 +854,7 @@ class TwoPartyCompilerGate {
   }
 }
 
-function attestationFor(state: CaseState): AttestationRecord {
+function attestationFor(state: CaseState): AttestationRecordV03 {
   const render = renderCanonicalAccount(state);
   const adoptionStatement = adoptionStatementFor(state);
   const readiness = deriveReadiness(state.requirements, state.propositions, state.clarifications);
@@ -889,6 +894,72 @@ function attestationFor(state: CaseState): AttestationRecord {
     created_at: new Date(START_MS).toISOString(),
     client_ip: null,
     user_agent: null,
+  };
+}
+
+function legacyV02Render(state: CaseState): { document: string; document_hash: string } {
+  const readiness = deriveReadiness(state.requirements, state.propositions, state.clarifications);
+  const live = livePropositions(state.propositions);
+  const superseded = state.propositions.filter((proposition) => proposition.superseded_by !== null);
+  const lines: string[] = [
+    'JURYAI CANONICAL ACCOUNT',
+    `template: ${LEGACY_RENDER_TEMPLATE_VERSION}`,
+    `case: ${state.case_id} (version ${state.case_version})`,
+    '',
+    'WHAT JURYAI HAS RECORDED',
+  ];
+  if (live.length === 0) lines.push('  (nothing recorded yet)');
+  for (const proposition of live) {
+    lines.push(`  - [${proposition.type}] ${proposition.statement}`);
+    lines.push(`      answering: ${proposition.in_reply_to}`);
+    lines.push(`      standing: ${attributionFor(proposition)}`);
+  }
+  lines.push('', 'WHAT IS STILL MISSING');
+  if (readiness.unresolved_requirement_ids.length === 0) lines.push('  (nothing outstanding)');
+  for (const requirementId of readiness.unresolved_requirement_ids) {
+    const definition = state.requirements.find(
+      (requirement) => requirement.requirement_id === requirementId,
+    );
+    lines.push(`  - ${requirementId}: ${definition?.prompt ?? '(unknown requirement)'}`);
+  }
+  lines.push('', 'OPEN CLARIFICATIONS');
+  const open = state.clarifications.filter(
+    (clarification) => clarification.resolved_at_case_version === null,
+  );
+  if (open.length === 0) lines.push('  (none)');
+  for (const clarification of open) {
+    lines.push(`  - ${clarification.clarification_id}: ${clarification.prompt}`);
+  }
+  lines.push('', 'CHANGES AND CORRECTIONS');
+  if (superseded.length === 0) lines.push('  (none)');
+  for (const proposition of superseded) {
+    lines.push(
+      `  - superseded: ${proposition.statement} (was ${describeEpistemicStrength(proposition.epistemic_strength)})`,
+    );
+  }
+  lines.push('', 'EVIDENCE REFERENCED');
+  if (state.evidence_references.length === 0) lines.push('  (none)');
+  for (const reference of state.evidence_references) {
+    lines.push(`  - ${reference.label} [${reference.inspection_status}]`);
+  }
+  const document = `${lines.join('\n')}\n`;
+  return { document, document_hash: sha256(document) };
+}
+
+function legacyV02AttestationFor(state: CaseState): LegacyAttestationRecordV02 {
+  const current = attestationFor(state);
+  const {
+    attestation_contract_version: _contract,
+    adoption_statement: _statement,
+    adoption_statement_hash: _statementHash,
+    ...historical
+  } = current;
+  const render = legacyV02Render(state);
+  return {
+    ...historical,
+    render_template_version: LEGACY_RENDER_TEMPLATE_VERSION,
+    rendered_document: render.document,
+    rendered_document_hash: render.document_hash,
   };
 }
 
@@ -1009,7 +1080,7 @@ async function persistentAttestationFixture(label: string) {
   const rawChallenge = Buffer.from(sha256(unique(`raw_challenge_${label}`)), 'hex').toString(
     'base64url',
   );
-  const record: AttestationRecord = {
+  const record: AttestationRecordV03 = {
     ...attestationFor(stored.state),
     attestation_id: unique(`attestation_record_${label}`),
     challenge: rawChallenge,
@@ -1048,6 +1119,29 @@ async function persistentAttestationFixture(label: string) {
 }
 
 describe('Step 64 PostgreSQL challenge and attestation atomicity', () => {
+  it('reads a real pre-Step64 V0.2 locked case without fabricating V0.3 consent', async () => {
+    const fixture = await persistentAttestationFixture('legacy_v02');
+    const legacy = legacyV02AttestationFor(fixture.stored.state);
+    const historicalState: CaseState = {
+      ...fixture.stored.state,
+      attestations: [legacy],
+    };
+    await pool.query(
+      `update juryai_p2.cases
+          set state = $1::jsonb, revision = revision + 1
+        where case_id = $2`,
+      [JSON.stringify(historicalState), historicalState.case_id],
+    );
+
+    const readBack = await storeB.cases.findById(historicalState.case_id);
+    expect(readBack?.state).toEqual(historicalState);
+    expect(deriveCaseStatus(readBack!.state)).toBe('locked');
+    expect(await storeB.cases.findActiveDraftByPrincipal(historicalState.principal_id)).toBeNull();
+    expect(readBack!.state.attestations[0]).not.toHaveProperty('attestation_contract_version');
+    expect(readBack!.state.attestations[0]).not.toHaveProperty('adoption_statement');
+    expect(readBack!.state.attestations[0]).not.toHaveProperty('adoption_statement_hash');
+  });
+
   it('stores only the hash lookup and keeps every challenge binding private', async () => {
     const fixture = await persistentAttestationFixture('hash_only');
     const row = await pool.query(
