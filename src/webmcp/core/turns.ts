@@ -22,6 +22,16 @@ import {
   type ContractIssue,
   type SourceChannel,
 } from './types.js';
+import {
+  MAX_CONTEXT_MESSAGES,
+  type RelayedAnswer,
+  type RelayedContextMessage,
+  type RelayedMessage,
+  type SourceTurnPayload,
+} from '../public-contract.js';
+
+export { MAX_CONTEXT_MESSAGES };
+export type { RelayedAnswer, RelayedContextMessage, RelayedMessage, SourceTurnPayload };
 
 export const TURN_SCHEMA_VERSION = 'juryai-webmcp-source-turn-v0.2.0';
 
@@ -44,29 +54,6 @@ export function normalizeForStorage(text: string): string {
 /* ------------------------------------------------------------------------ */
 /* Relayed payload: explicit context + answer                                */
 /* ------------------------------------------------------------------------ */
-
-export interface RelayedContextMessage {
-  role: 'assistant';
-  text: string;
-}
-
-export interface RelayedAnswer {
-  role: 'user';
-  text: string;
-}
-
-export type RelayedMessage = RelayedContextMessage | RelayedAnswer;
-
-/**
- * The answer is a named slot, never "the last user message in an array".
- * Nothing downstream is permitted to infer which utterance is the answer.
- */
-export interface SourceTurnPayload {
-  context: RelayedContextMessage[];
-  answer: RelayedAnswer;
-}
-
-export const MAX_CONTEXT_MESSAGES = 6;
 
 export function normalizePayload(payload: SourceTurnPayload): SourceTurnPayload {
   return {
