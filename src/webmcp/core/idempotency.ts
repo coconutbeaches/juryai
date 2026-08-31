@@ -26,6 +26,9 @@
 
 import { canonicalSerialize, issue, sha256, type ContractIssue } from './types.js';
 import { normalizeForStorage, type SourceTurnPayload, type SourceTurnRecord } from './turns.js';
+import type { ConflictTurnSummary } from '../public-contract.js';
+
+export type { ConflictTurnSummary };
 
 export const IDEMPOTENCY_CONTRACT_VERSION = 'juryai-webmcp-idempotency-v0.2.0';
 
@@ -161,15 +164,6 @@ export function resolveIdempotency(
 /* ------------------------------------------------------------------------ */
 /* Self-describing version conflict                                          */
 /* ------------------------------------------------------------------------ */
-
-export interface ConflictTurnSummary {
-  turn_id: string;
-  in_reply_to: string[];
-  answer_excerpt: string;
-  request_fingerprint: string;
-  client_turn_id: string | null;
-  received_at: string;
-}
 
 export function summarizeTurnForConflict(record: SourceTurnRecord): ConflictTurnSummary {
   const text = record.payload.answer.text;

@@ -20,20 +20,55 @@ import {
   type ContractIssue,
   type JsonValue,
 } from '../../v2/case-envelope.js';
+import {
+  EPISTEMIC_STRENGTHS,
+  HASH_PATTERN,
+  ID_PATTERN,
+  PERMITTED_CASE_STATE_SLOTS,
+  PROPOSITION_TYPES,
+  WEBMCP_CORE_SCHEMA_VERSION,
+  WEBMCP_PROTOCOL_VERSION,
+  type CaseStateResponse,
+  type CaseStatus,
+  type EpistemicStrength,
+  type EvidenceInspectionStatus,
+  type EvidenceReferenceSlot,
+  type NextRequirementSlot,
+  type OpenClarificationSlot,
+  type PermittedCaseStateSlot,
+  type PropositionType,
+  type RecentInterpretationSlot,
+} from '../public-contract.js';
 
 export type { ContractIssue, JsonValue };
+export {
+  EPISTEMIC_STRENGTHS,
+  HASH_PATTERN,
+  ID_PATTERN,
+  PERMITTED_CASE_STATE_SLOTS,
+  PROPOSITION_TYPES,
+  WEBMCP_CORE_SCHEMA_VERSION,
+  WEBMCP_PROTOCOL_VERSION,
+};
+export type {
+  CaseStateResponse,
+  CaseStatus,
+  EpistemicStrength,
+  EvidenceInspectionStatus,
+  EvidenceReferenceSlot,
+  NextRequirementSlot,
+  OpenClarificationSlot,
+  PermittedCaseStateSlot,
+  PropositionType,
+  RecentInterpretationSlot,
+};
 
 /** Single swap point for canonicalisation so every hash in P2 agrees. */
 export const canonicalSerialize = v2CanonicalSerialize;
 export const sha256 = v2Sha256;
 
-export const WEBMCP_CORE_SCHEMA_VERSION = 'juryai-webmcp-core-v0.2.0';
-export const WEBMCP_PROTOCOL_VERSION = 'juryai-webmcp-protocol-v0.2.0';
 export const STRUCTURAL_VALIDATOR_VERSION = 'juryai-structural-validator-v0.2.0';
 export const RENDER_TEMPLATE_VERSION = 'juryai-canonical-account-render-v0.2.0';
-
-export const ID_PATTERN = /^[A-Za-z][A-Za-z0-9_.:-]{0,159}$/u;
-export const HASH_PATTERN = /^[a-f0-9]{64}$/u;
 
 export function isCanonicalId(value: unknown): value is string {
   return typeof value === 'string' && ID_PATTERN.test(value);
@@ -97,9 +132,6 @@ export function describeSourceChannel(
 
 export type AttestationState = 'unattested' | 'human_attested';
 
-/** Lock status is derived from the attestation collection, never stored. */
-export type CaseStatus = 'draft' | 'locked';
-
 /* ------------------------------------------------------------------------ */
 /* Canonical proposition types — illegal states made unrepresentable.        */
 /* ------------------------------------------------------------------------ */
@@ -113,30 +145,6 @@ export type PropositionFamily =
   | 'document_content'
   | 'narrative'
   | 'non_answer';
-
-export type PropositionType =
-  // date_commitment
-  | 'target_date'
-  | 'contractual_deadline'
-  // monetary_instrument
-  | 'invoice'
-  | 'payment'
-  // scope
-  | 'requested_scope'
-  | 'accepted_scope'
-  // balance
-  | 'disputed_balance'
-  | 'established_debt'
-  // remedy
-  | 'requested_remedy'
-  | 'established_entitlement'
-  // document_content
-  | 'recalled_document_content'
-  | 'verified_document_content'
-  // narrative / non-answer
-  | 'narrative_fact'
-  | 'non_recollection'
-  | 'declined_to_answer';
 
 export interface PropositionTypeDescriptor {
   readonly type: PropositionType;
@@ -257,8 +265,6 @@ const DESCRIPTOR_LIST: readonly PropositionTypeDescriptor[] = [
   },
 ];
 
-export const PROPOSITION_TYPES: readonly PropositionType[] = DESCRIPTOR_LIST.map((d) => d.type);
-
 const DESCRIPTORS = new Map<PropositionType, PropositionTypeDescriptor>(
   DESCRIPTOR_LIST.map((d) => [d.type, d]),
 );
@@ -302,23 +308,6 @@ export function canSatisfyRole(
 /* Epistemic strength — a compiler-classified FIELD, not a proof.            */
 /* ------------------------------------------------------------------------ */
 
-export type EpistemicStrength =
-  | 'asserted_confident'
-  | 'asserted_qualified'
-  | 'recalled_uncertain'
-  | 'non_recollection'
-  | 'disputed_by_user'
-  | 'declined';
-
-export const EPISTEMIC_STRENGTHS: readonly EpistemicStrength[] = [
-  'asserted_confident',
-  'asserted_qualified',
-  'recalled_uncertain',
-  'non_recollection',
-  'disputed_by_user',
-  'declined',
-];
-
 export function isEpistemicStrength(value: unknown): value is EpistemicStrength {
   return typeof value === 'string' && EPISTEMIC_STRENGTHS.includes(value as EpistemicStrength);
 }
@@ -345,8 +334,6 @@ export function describeEpistemicStrength(strength: EpistemicStrength): string {
 /* Evidence references (V0: reference only, no upload through WebMCP).       */
 /* ------------------------------------------------------------------------ */
 
-export type EvidenceInspectionStatus = 'uninspected' | 'inspected';
-
 export interface EvidenceReference {
   evidence_ref_id: string;
   case_id: string;
@@ -359,24 +346,6 @@ export interface EvidenceReference {
 /* ------------------------------------------------------------------------ */
 /* Response-slot semantics: what may cross the WebMCP boundary.              */
 /* ------------------------------------------------------------------------ */
-
-/** The only keys `get_case_state` is permitted to return. */
-export const PERMITTED_CASE_STATE_SLOTS = [
-  'case_id',
-  'case_version',
-  'protocol_version',
-  'schema_version',
-  'status',
-  'unresolved_requirement_count',
-  'next_requirements',
-  'open_clarifications',
-  'recent_interpretations',
-  'evidence_references',
-  'warnings',
-  'review_url',
-] as const;
-
-export type PermittedCaseStateSlot = (typeof PERMITTED_CASE_STATE_SLOTS)[number];
 
 /**
  * Slots that must never leave the server. Anything here either hands the relay
@@ -402,48 +371,6 @@ export const FORBIDDEN_CASE_STATE_SLOTS = [
 ] as const;
 
 export type ForbiddenCaseStateSlot = (typeof FORBIDDEN_CASE_STATE_SLOTS)[number];
-
-export interface NextRequirementSlot {
-  requirement_id: string;
-  prompt: string;
-}
-
-export interface OpenClarificationSlot {
-  clarification_id: string;
-  requirement_id: string;
-  prompt: string;
-}
-
-export interface RecentInterpretationSlot {
-  proposition_id: string;
-  requirement_id: string;
-  /** JuryAI's own wording, never the agent's summary. */
-  statement: string;
-  type: PropositionType;
-  epistemic_strength: EpistemicStrength;
-  attribution: string;
-}
-
-export interface EvidenceReferenceSlot {
-  evidence_ref_id: string;
-  label: string;
-  inspection_status: EvidenceInspectionStatus;
-}
-
-export interface CaseStateResponse {
-  case_id: string;
-  case_version: number;
-  protocol_version: string;
-  schema_version: string;
-  status: CaseStatus;
-  unresolved_requirement_count: number;
-  next_requirements: NextRequirementSlot[];
-  open_clarifications: OpenClarificationSlot[];
-  recent_interpretations: RecentInterpretationSlot[];
-  evidence_references: EvidenceReferenceSlot[];
-  warnings: string[];
-  review_url: string;
-}
 
 /**
  * Agent-facing case content is data, never instructions. Wrapping is applied

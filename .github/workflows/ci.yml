@@ -56,6 +56,10 @@ jobs:
           - src/tests/webmcp-core.test.ts
           - src/tests/webmcp-tools.test.ts
           - src/tests/webmcp-case-service-adapter.test.ts
+          - src/tests/webmcp-public-contract.test.ts
+          - src/tests/webmcp-http-case-service.test.ts
+          - src/tests/webmcp-browser-shell.test.ts
+          - src/tests/webmcp-server-auth.test.ts
           - src/tests/webmcp-runtime.test.ts
           - src/tests/webmcp-model-compiler.test.ts
           - src/tests/webmcp-compiler-eval.test.ts
@@ -110,6 +114,10 @@ jobs:
         run: >-
           psql "$JURYAI_TEST_DATABASE_URL" -v ON_ERROR_STOP=1
           -f supabase/migrations/20260830081816_p2_persistent_repositories.sql
+      - name: Apply isolated Step 63.5 web migration
+        run: >-
+          psql "$JURYAI_TEST_DATABASE_URL" -v ON_ERROR_STOP=1
+          -f supabase/migrations/20260831133000_p2_authenticated_web_shell.sql
       - name: Run persistent integration test
         run: npx --no-install vitest run "${{ matrix.test_file }}"
 
@@ -128,6 +136,8 @@ jobs:
         run: npm ci --ignore-scripts
       - name: Typecheck
         run: npm run typecheck
+      - name: Build frameworkless browser shell
+        run: npm run build:web
       - name: Check every test file runs in the CI matrix
         run: npm run check:ci-test-coverage
       - name: Validate golden fixture

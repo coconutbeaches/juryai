@@ -36,6 +36,13 @@ import {
 } from '../webmcp/core/types.js';
 import type { CompilerInput, CompilerOutput } from '../webmcp/core/compiler-contract.js';
 import { createRuntimeCaseService } from '../webmcp/service/index.js';
+import {
+  JURYAI_P2_DISCLOSURE_VERSION,
+  PostgresWebSessionStore,
+  hashSessionToken,
+  sessionRuntimeContextProvider,
+  type WebSessionRecord,
+} from '../webmcp/server/index.js';
 
 const DATABASE_URL = process.env.JURYAI_TEST_DATABASE_URL;
 if (!DATABASE_URL) {
@@ -47,6 +54,7 @@ if (!DATABASE_URL) {
 const START_MS = Date.parse('2026-08-30T08:00:00.000Z');
 const DISCLOSURE = 'juryai-disclosure-v0.2.0';
 const pool = new Pool({ connectionString: DATABASE_URL });
+const webStore = new PostgresWebSessionStore(pool);
 const storeA = new PostgresCaseRuntimeStore({ connectionString: DATABASE_URL });
 const storeB = new PostgresCaseRuntimeStore({ connectionString: DATABASE_URL });
 let sequence = 0;
@@ -54,6 +62,7 @@ let sequence = 0;
 beforeAll(async () => {
   await storeA.assertReady();
   await storeB.assertReady();
+  await webStore.assertReady();
 });
 
 afterAll(async () => {
@@ -233,8 +242,10 @@ describe('PostgreSQL record round trips and configuration', () => {
       { relname: 'cases', relrowsecurity: true },
       { relname: 'compile_runs', relrowsecurity: true },
       { relname: 'compiler_registry', relrowsecurity: true },
+      { relname: 'disclosure_acceptances', relrowsecurity: true },
       { relname: 'start_case_idempotency', relrowsecurity: true },
       { relname: 'submit_idempotency', relrowsecurity: true },
+      { relname: 'web_sessions', relrowsecurity: true },
     ]);
     const policies = await pool.query(
       `select count(*)::int as count from pg_policies where schemaname = 'juryai_p2'`,
@@ -246,6 +257,116 @@ describe('PostgreSQL record round trips and configuration', () => {
         where table_schema = 'juryai_p2' and grantee = 'PUBLIC'`,
     );
     expect(publicGrants.rows[0]!.count).toBe(0);
+  });
+});
+
+describe('Step 63.5 private web session and disclosure persistence', () => {
+  function webSession(label: string, overrides: Partial<WebSessionRecord> = {}): WebSessionRecord {
+    const suffix = String(sequence + 1).padStart(12, '0');
+    const subject = `00000000-0000-4000-8000-${suffix}`;
+    const createdAt = new Date('2026-08-31T06:00:00.000Z');
+    return {
+      session_id_hash: hashSessionToken(unique(`raw_${label}`)),
+      principal_id: `supabase:${subject}`,
+      auth_provider: 'supabase',
+      auth_subject: subject,
+      created_at: createdAt,
+      expires_at: new Date(createdAt.getTime() + 7 * 24 * 60 * 60 * 1_000),
+      revoked_at: null,
+      ...overrides,
+    };
+  }
+
+  it('stores only a SHA-256 session lookup and rejects expiry and revocation', async () => {
+    const active = webSession('active');
+    await webStore.createSession(active);
+    expect(
+      await webStore.findActiveSession(
+        active.session_id_hash,
+        new Date(active.created_at.getTime() + 1),
+      ),
+    ).toEqual(active);
+
+    await webStore.revokeSession(active.session_id_hash, new Date(active.created_at.getTime() + 2));
+    expect(
+      await webStore.findActiveSession(
+        active.session_id_hash,
+        new Date(active.created_at.getTime() + 3),
+      ),
+    ).toBeNull();
+
+    const expired = webSession('expired', {
+      expires_at: new Date(active.created_at.getTime() + 10),
+    });
+    await webStore.createSession(expired);
+    expect(
+      await webStore.findActiveSession(
+        expired.session_id_hash,
+        new Date(active.created_at.getTime() + 10),
+      ),
+    ).toBeNull();
+
+    const stored = await pool.query(
+      `select session_id_hash from juryai_p2.web_sessions where session_id_hash = $1`,
+      [active.session_id_hash],
+    );
+    expect(stored.rows).toEqual([{ session_id_hash: active.session_id_hash }]);
+  });
+
+  it('records disclosure acceptance idempotently and rejects update/delete', async () => {
+    const session = webSession('disclosure');
+    const acceptedAt = new Date('2026-08-31T06:05:00.000Z');
+    await webStore.acceptDisclosure(session.principal_id, JURYAI_P2_DISCLOSURE_VERSION, acceptedAt);
+    await webStore.acceptDisclosure(
+      session.principal_id,
+      JURYAI_P2_DISCLOSURE_VERSION,
+      new Date(acceptedAt.getTime() + 1_000),
+    );
+    expect(
+      await webStore.hasDisclosureAcceptance(session.principal_id, JURYAI_P2_DISCLOSURE_VERSION),
+    ).toBe(true);
+    const rows = await pool.query(
+      `select accepted_at from juryai_p2.disclosure_acceptances
+        where principal_id = $1 and disclosure_version = $2`,
+      [session.principal_id, JURYAI_P2_DISCLOSURE_VERSION],
+    );
+    expect(rows.rows).toHaveLength(1);
+    expect(new Date(rows.rows[0]!.accepted_at)).toEqual(acceptedAt);
+    await expect(
+      pool.query(
+        `update juryai_p2.disclosure_acceptances set accepted_at = accepted_at
+          where principal_id = $1 and disclosure_version = $2`,
+        [session.principal_id, JURYAI_P2_DISCLOSURE_VERSION],
+      ),
+    ).rejects.toMatchObject({ code: '55000' });
+    await expect(
+      pool.query(
+        `delete from juryai_p2.disclosure_acceptances
+          where principal_id = $1 and disclosure_version = $2`,
+        [session.principal_id, JURYAI_P2_DISCLOSURE_VERSION],
+      ),
+    ).rejects.toMatchObject({ code: '55000' });
+  });
+
+  it('maps a stored Supabase subject through CaseServicePort into CaseRuntime', async () => {
+    const session = webSession('runtime');
+    await webStore.createSession(session);
+    await webStore.acceptDisclosure(
+      session.principal_id,
+      JURYAI_P2_DISCLOSURE_VERSION,
+      session.created_at,
+    );
+    const instance = runtime(storeA);
+    const service = createRuntimeCaseService({
+      runtime: instance,
+      contextProvider: sessionRuntimeContextProvider(session),
+    });
+    const result = await service.startCase({ client_request_id: unique('web_start') });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const stored = await storeB.cases.findById(result.case.case_id);
+    expect(stored?.state.principal_id).toBe(session.principal_id);
+    expect(stored?.state.turn_log).toEqual([]);
   });
 });
 

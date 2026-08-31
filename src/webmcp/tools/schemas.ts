@@ -1,12 +1,15 @@
-import { ID_PATTERN } from '../core/types.js';
-import { MAX_CONTEXT_MESSAGES, type RelayedContextMessage } from '../core/turns.js';
-import type { GetCaseStateQuery } from './ports.js';
+import {
+  ID_PATTERN,
+  MAX_ANSWER_TEXT_LENGTH,
+  MAX_CONTEXT_MESSAGES,
+  MAX_CONTEXT_TEXT_LENGTH,
+  MAX_LANGUAGE_LENGTH,
+  type GetCaseStateQuery,
+  type RelayedContextMessage,
+} from '../public-contract.js';
 
 const MAX_ID_LENGTH = 160;
-const MAX_CONTEXT_TEXT_LENGTH = 4_000;
-const MAX_ANSWER_TEXT_LENGTH = 12_000;
 const MIN_LANGUAGE_LENGTH = 2;
-const MAX_LANGUAGE_LENGTH = 64;
 
 export interface StartCaseToolInput {}
 
