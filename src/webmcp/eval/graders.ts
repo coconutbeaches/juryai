@@ -195,13 +195,17 @@ export function gradeExpectation(
     failures.push('assertions: output used forbidden supersession');
   }
 
+  const literalSurfaces = [
+    ...output.assertions.map((assertion) => assertion.statement),
+    ...output.clarifications_requested.map((clarification) => clarification.prompt),
+  ];
   for (const forbiddenLiteral of expected.statements_must_not_mention ?? []) {
     if (
-      output.assertions.some((assertion) =>
-        foldLiteral(assertion.statement).includes(foldLiteral(forbiddenLiteral)),
+      literalSurfaces.some((surface) =>
+        foldLiteral(surface).includes(foldLiteral(forbiddenLiteral)),
       )
     ) {
-      failures.push('assertions: statement used an explicit forbidden fixture literal');
+      failures.push('output: used an explicit forbidden fixture literal');
     }
   }
 }

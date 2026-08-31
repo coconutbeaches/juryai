@@ -237,7 +237,7 @@ describe('deterministic assertion expectations', () => {
     const forbidden = structuredClone(output);
     forbidden.assertions[0]!.statement += ' PRIVATE-FORBIDDEN-LITERAL';
     expect(gradeCompilerOutput(evalCase, scenario.input, forbidden).failures).toContain(
-      'assertions: statement used an explicit forbidden fixture literal',
+      'output: used an explicit forbidden fixture literal',
     );
   });
 });
@@ -281,6 +281,21 @@ describe('deterministic clarification expectations', () => {
     const { scenario, output } = await compileFixture(evalCase);
     output.clarifications_requested[0]!.prompt = 'This remains a non-empty model-owned question.';
     expect(gradeCompilerOutput(evalCase, scenario.input, output).failures).toEqual([]);
+  });
+
+  it('checks explicit forbidden literals in clarification prompts', async () => {
+    const evalCase = structuredClone(corpusCase('ambiguous.multiple_readings'));
+    evalCase.expect.statements_must_not_mention = ['PRIVATE-FORBIDDEN-LITERAL'];
+    const { scenario, output } = await compileFixture(evalCase);
+
+    output.clarifications_requested[0]!.prompt = 'A valid non-empty prompt.';
+    expect(gradeCompilerOutput(evalCase, scenario.input, output).failures).toEqual([]);
+
+    const forbidden = structuredClone(output);
+    forbidden.clarifications_requested[0]!.prompt += ' PRIVATE-FORBIDDEN-LITERAL';
+    expect(gradeCompilerOutput(evalCase, scenario.input, forbidden).failures).toContain(
+      'output: used an explicit forbidden fixture literal',
+    );
   });
 });
 
