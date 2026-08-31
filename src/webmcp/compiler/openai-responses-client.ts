@@ -100,19 +100,23 @@ const NON_TRANSIENT_QUOTA_CODES = new Set([
   'project_spend_limit_exceeded',
 ]);
 
-function isDefinitiveQuotaFailure(metadata: ProviderFailureMetadata | null): boolean {
-  return (
-    metadata?.type === 'insufficient_quota' ||
-    (metadata !== null && metadata.code !== null && NON_TRANSIENT_QUOTA_CODES.has(metadata.code))
-  );
+function structuredFailureTransient(metadata: ProviderFailureMetadata | null): boolean | null {
+  if (metadata?.code === 'rate_limit_exceeded') return true;
+  if (metadata !== null && metadata.code !== null && NON_TRANSIENT_QUOTA_CODES.has(metadata.code)) {
+    return false;
+  }
+  if (metadata?.type === 'insufficient_quota') return false;
+  return null;
 }
 
 function isTransientProviderFailure(
   status: number,
   metadata: ProviderFailureMetadata | null,
 ): boolean {
-  if (isDefinitiveQuotaFailure(metadata)) return false;
-  return status === 408 || status === 409 || status === 429 || status >= 500;
+  return (
+    structuredFailureTransient(metadata) ??
+    (status === 408 || status === 409 || status === 429 || status >= 500)
+  );
 }
 
 /**

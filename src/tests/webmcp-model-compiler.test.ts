@@ -1263,6 +1263,10 @@ describe('OpenAI Responses transport', () => {
 
   it.each([
     ['credit balance exhaustion', { type: 'insufficient_quota', code: 'credit_balance_exhausted' }],
+    [
+      'credit balance code over a rate-limit type',
+      { type: 'rate_limit_error', code: 'credit_balance_exhausted' },
+    ],
     ['insufficient quota type', { type: 'insufficient_quota', code: null }],
     ['insufficient quota code', { type: 'rate_limit_error', code: 'insufficient_quota' }],
     [
@@ -1293,14 +1297,19 @@ describe('OpenAI Responses transport', () => {
     );
   });
 
-  it('keeps an ordinary temporary 429 rate limit transient', async () => {
+  it.each([
+    ['ordinary rate limit', { type: 'rate_limit_error', code: 'rate_limit_exceeded' }],
+    [
+      'explicit temporary code over a generic quota type',
+      { type: 'insufficient_quota', code: 'rate_limit_exceeded' },
+    ],
+  ])('keeps a 429 %s transient', async (_label, metadata) => {
     const { client } = clientWith(
       () =>
         new Response(
           JSON.stringify({
             error: {
-              type: 'rate_limit_error',
-              code: 'rate_limit_exceeded',
+              ...metadata,
               param: null,
               message: 'temporary',
             },
