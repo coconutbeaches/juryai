@@ -5,6 +5,9 @@ import {
   type ModelContextLike,
 } from '../tools/register.js';
 import { createHttpCaseService, HttpCaseServiceError } from './http-case-service.js';
+import { decodeFirstPartyReview, type ParsedFirstPartyReview } from './review-contract.js';
+
+type WebMcpAvailability = 'available' | 'unavailable' | 'registration_failed';
 
 export type BrowserShellState =
   | { phase: 'loading' }
@@ -13,10 +16,24 @@ export type BrowserShellState =
   | { phase: 'disclosure'; copy: string }
   | {
       phase: 'ready';
-      webMcp: 'available' | 'unavailable' | 'registration_failed';
+      webMcp: WebMcpAvailability;
       activeDraftReviewUrl: string | null;
       message?: string;
     }
+  | { phase: 'review_loading'; webMcp: WebMcpAvailability; message?: string }
+  | {
+      phase:
+        | 'review_blocked'
+        | 'review_ready'
+        | 'review_stale'
+        | 'correction_submitting'
+        | 'attesting'
+        | 'locked';
+      webMcp: WebMcpAvailability;
+      review: ParsedFirstPartyReview;
+      message?: string;
+    }
+  | { phase: 'review_error'; webMcp: WebMcpAvailability; message: string }
   | { phase: 'error'; message: string };
 
 export interface BrowserShellView {
@@ -29,6 +46,7 @@ export interface BrowserShellControllerOptions {
   expectedOrigin?: string;
   getModelContext: () => ModelContextLike | undefined;
   registerTools?: typeof registerJuryAiWebMcpTools;
+  reviewCaseId?: string | null;
   createCaseService?: (options: {
     signal: AbortSignal;
     onUnauthorized: () => void;
@@ -164,6 +182,42 @@ export class BrowserShellController {
     }
   }
 
+  async #review(generation: number, webMcp: WebMcpAvailability, message?: string): Promise<void> {
+    const caseId = this.#options.reviewCaseId;
+    if (!caseId || !this.#isCurrent(generation)) return;
+    this.#options.view.render({ phase: 'review_loading', webMcp, message });
+    try {
+      const review = decodeFirstPartyReview(
+        await this.#json(`/api/juryai/cases/${encodeURIComponent(caseId)}/review`, {
+          signal: this.#pageController!.signal,
+        }),
+      );
+      if (!this.#isCurrent(generation)) return;
+      this.#options.view.render({
+        phase:
+          review.status === 'locked'
+            ? 'locked'
+            : review.attestable
+              ? 'review_ready'
+              : 'review_blocked',
+        webMcp,
+        review,
+        message,
+      });
+    } catch (error) {
+      if (!this.#isCurrent(generation)) return;
+      if (error instanceof BrowserApiError && error.status === 401) {
+        this.#invalidate(generation);
+        return;
+      }
+      this.#options.view.render({
+        phase: 'review_error',
+        webMcp,
+        message: 'The complete current account could not be loaded.',
+      });
+    }
+  }
+
   #isCurrent(generation: number): boolean {
     return generation === this.#generation && this.#pageController?.signal.aborted === false;
   }
@@ -220,6 +274,10 @@ export class BrowserShellController {
 
       const modelContext = this.#options.getModelContext();
       if (modelContext === undefined) {
+        if (this.#options.reviewCaseId) {
+          await this.#review(generation, 'unavailable', message);
+          return;
+        }
         this.#options.view.render({
           phase: 'ready',
           webMcp: 'unavailable',
@@ -238,6 +296,10 @@ export class BrowserShellController {
           return;
         }
         this.#registration = registration;
+        if (this.#options.reviewCaseId) {
+          await this.#review(generation, 'available', message);
+          return;
+        }
         this.#options.view.render({
           phase: 'ready',
           webMcp: 'available',
@@ -246,6 +308,14 @@ export class BrowserShellController {
         });
       } catch (error) {
         if (!this.#isCurrent(generation)) return;
+        if (this.#options.reviewCaseId) {
+          await this.#review(
+            generation,
+            'registration_failed',
+            'AI integration could not be registered.',
+          );
+          return;
+        }
         this.#options.view.render({
           phase: 'ready',
           webMcp: 'registration_failed',
@@ -320,6 +390,95 @@ export class BrowserShellController {
     }
     if (generation !== this.#generation) return;
     await this.initialize();
+  }
+
+  async submitCorrection(input: {
+    expected_case_version: number;
+    in_reply_to: string[];
+    client_turn_id: string;
+    disposition:
+      | 'correct_meaning'
+      | 'add_information'
+      | 'change_answer'
+      | 'dont_remember'
+      | 'decline_to_answer'
+      | 'resolve_clarification';
+    target_proposition_id?: string;
+    text?: string;
+    current_review: ParsedFirstPartyReview;
+    webMcp: WebMcpAvailability;
+  }): Promise<void> {
+    const caseId = this.#options.reviewCaseId;
+    if (!caseId) return;
+    const generation = this.#generation;
+    this.#options.view.render({
+      phase: 'correction_submitting',
+      webMcp: input.webMcp,
+      review: input.current_review,
+      message: 'Recording your first-party correction…',
+    });
+    try {
+      await this.#post(`/api/juryai/cases/${encodeURIComponent(caseId)}/corrections`, {
+        expected_case_version: input.expected_case_version,
+        in_reply_to: input.in_reply_to,
+        client_turn_id: input.client_turn_id,
+        disposition: input.disposition,
+        ...(input.target_proposition_id === undefined
+          ? {}
+          : { target_proposition_id: input.target_proposition_id }),
+        ...(input.text === undefined ? {} : { text: input.text }),
+      });
+      await this.#review(
+        generation,
+        input.webMcp,
+        'JuryAI recorded your correction. Please read the complete updated account before attesting.',
+      );
+    } catch (error) {
+      if (!this.#isCurrent(generation)) return;
+      if (error instanceof BrowserApiError && error.status === 401) {
+        this.#invalidate(generation);
+        return;
+      }
+      await this.#review(
+        generation,
+        input.webMcp,
+        'This account changed after you opened it. JuryAI has refreshed the complete current account below. Please read the updated account before attesting.',
+      );
+    }
+  }
+
+  async attest(review: ParsedFirstPartyReview, webMcp: WebMcpAvailability): Promise<void> {
+    const caseId = this.#options.reviewCaseId;
+    if (!caseId || review.challenge === null) return;
+    const generation = this.#generation;
+    this.#options.view.render({
+      phase: 'attesting',
+      webMcp,
+      review,
+      message: 'Attesting and locking this exact account…',
+    });
+    try {
+      await this.#post(`/api/juryai/cases/${encodeURIComponent(caseId)}/attestations`, {
+        challenge: review.challenge,
+        rendered_document_hash: review.document_hash,
+      });
+      await this.#review(
+        generation,
+        webMcp,
+        'This exact JuryAI account has been attested and locked.',
+      );
+    } catch (error) {
+      if (!this.#isCurrent(generation)) return;
+      if (error instanceof BrowserApiError && error.status === 401) {
+        this.#invalidate(generation);
+        return;
+      }
+      await this.#review(
+        generation,
+        webMcp,
+        'This account changed after you opened it. JuryAI has refreshed the complete current account below. Please read the updated account before attesting.',
+      );
+    }
   }
 
   teardown(): void {

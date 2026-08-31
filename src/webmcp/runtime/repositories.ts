@@ -130,6 +130,41 @@ export type TurnCommitResult =
   | { ok: true; stored: StoredCase }
   | { ok: false; reason: 'revision_conflict'; current: StoredCase | null };
 
+/** Hash-only durable binding for one opaque first-party render challenge. */
+export interface PersistedRenderChallenge {
+  challenge_hash: string;
+  principal_id: string;
+  case_id: string;
+  case_version: number;
+  rendered_document_hash: string;
+  render_template_version: string;
+  attestation_contract_version: string;
+  adoption_statement_hash: string;
+  issued_at_ms: number;
+  expires_at_ms: number;
+  consumed_at_ms: number | null;
+  attestation_id: string | null;
+}
+
+export interface RenderChallengeRepository {
+  findByHash(challengeHash: string): Promise<PersistedRenderChallenge | null>;
+}
+
+export interface AttestationCommit {
+  challenge_hash: string;
+  principal_id: string;
+  case_id: string;
+  expected_revision: number;
+  next_state: CaseState;
+  attestation_id: string;
+  consumed_at_ms: number;
+}
+
+export type AttestationCommitResult =
+  | { ok: true; replayed: boolean; stored: StoredCase; challenge: PersistedRenderChallenge }
+  | { ok: false; reason: 'challenge_unknown' | 'challenge_consumed'; current: StoredCase | null }
+  | { ok: false; reason: 'revision_conflict'; current: StoredCase | null };
+
 /**
  * The composed store the runtime depends on. Sub-repositories stay separately
  * addressable so a future adapter can back them with different tables, while
@@ -141,6 +176,8 @@ export interface CaseRuntimeStore {
   readonly idempotency: IdempotencyRepository;
   readonly startRequests: StartCaseIdempotencyRepository;
   readonly compilerRegistry: CompilerRegistryRepository;
+  /** Step 64 additions are optional only for older fault-injection wrappers. */
+  readonly renderChallenges?: RenderChallengeRepository;
   /**
    * Reads the start-request record and the case it names from one snapshot.
    * Optional only for compatibility with fault-injection/custom Phase-1
@@ -166,4 +203,6 @@ export interface CaseRuntimeStore {
    */
   createCase(commit: StartCaseCommit): Promise<CaseCreateResult>;
   commitTurn(commit: TurnCommit): Promise<TurnCommitResult>;
+  issueRenderChallenge?(challenge: PersistedRenderChallenge): Promise<void>;
+  commitAttestation?(commit: AttestationCommit): Promise<AttestationCommitResult>;
 }

@@ -16,11 +16,9 @@
 
 import {
   canonicalSerialize,
-  describeEpistemicStrength,
   isCanonicalId,
   isHash,
   issue,
-  RENDER_TEMPLATE_VERSION,
   sha256,
   WEBMCP_CORE_SCHEMA_VERSION,
   WEBMCP_PROTOCOL_VERSION,
@@ -37,8 +35,22 @@ import {
   type RequirementDefinition,
 } from './requirements.js';
 import { computeSourceTurnMetadataCommitment, type SourceTurnRecord } from './turns.js';
+import {
+  adoptionStatementFor,
+  renderCanonicalReadback,
+  verifyRenderCompleteness,
+} from './readback.js';
 
-export const ATTESTATION_CONTRACT_VERSION = 'juryai-webmcp-attestation-v0.2.0';
+export { verifyRenderCompleteness } from './readback.js';
+export { adoptionStatementFor } from './readback.js';
+export {
+  parseReadbackDocument,
+  READBACK_FORMAT_VERSION,
+  ReadbackParseError,
+} from './readback-format.js';
+
+export const ATTESTATION_CONTRACT_VERSION = 'juryai-webmcp-attestation-v0.3.0';
+export const LEGACY_RENDER_TEMPLATE_VERSION = 'juryai-canonical-account-render-v0.2.0';
 export const DEFAULT_CHALLENGE_TTL_MS = 15 * 60 * 1000;
 
 /* ------------------------------------------------------------------------ */
@@ -116,71 +128,7 @@ export interface RenderedAccount {
  * because it is the most error-prone attribute the validator cannot check.
  */
 export function renderCanonicalAccount(state: CaseState): RenderedAccount {
-  const readiness = deriveReadiness(state.requirements, state.propositions, state.clarifications);
-  const live = livePropositions(state.propositions);
-  const superseded = state.propositions.filter((p) => p.superseded_by !== null);
-  const lines: string[] = [];
-
-  lines.push('JURYAI CANONICAL ACCOUNT');
-  lines.push('template: ' + RENDER_TEMPLATE_VERSION);
-  lines.push('case: ' + state.case_id + ' (version ' + String(state.case_version) + ')');
-  lines.push('');
-  lines.push('WHAT JURYAI HAS RECORDED');
-  if (live.length === 0) {
-    lines.push('  (nothing recorded yet)');
-  }
-  for (const proposition of live) {
-    lines.push('  - [' + proposition.type + '] ' + proposition.statement);
-    lines.push('      answering: ' + proposition.in_reply_to);
-    lines.push('      standing: ' + attributionFor(proposition));
-  }
-
-  lines.push('');
-  lines.push('WHAT IS STILL MISSING');
-  if (readiness.unresolved_requirement_ids.length === 0) {
-    lines.push('  (nothing outstanding)');
-  }
-  for (const requirementId of readiness.unresolved_requirement_ids) {
-    const definition = state.requirements.find((r) => r.requirement_id === requirementId);
-    lines.push('  - ' + requirementId + ': ' + (definition?.prompt ?? '(unknown requirement)'));
-  }
-
-  lines.push('');
-  lines.push('OPEN CLARIFICATIONS');
-  const open = state.clarifications.filter((c) => c.resolved_at_case_version === null);
-  if (open.length === 0) lines.push('  (none)');
-  for (const clarification of open) {
-    lines.push('  - ' + clarification.clarification_id + ': ' + clarification.prompt);
-  }
-
-  lines.push('');
-  lines.push('CHANGES AND CORRECTIONS');
-  if (superseded.length === 0) lines.push('  (none)');
-  for (const proposition of superseded) {
-    lines.push(
-      '  - superseded: ' +
-        proposition.statement +
-        ' (was ' +
-        describeEpistemicStrength(proposition.epistemic_strength) +
-        ')',
-    );
-  }
-
-  lines.push('');
-  lines.push('EVIDENCE REFERENCED');
-  if (state.evidence_references.length === 0) lines.push('  (none)');
-  for (const reference of state.evidence_references) {
-    lines.push('  - ' + reference.label + ' [' + reference.inspection_status + ']');
-  }
-
-  const document = lines.join('\n') + '\n';
-  return {
-    render_template_version: RENDER_TEMPLATE_VERSION,
-    case_id: state.case_id,
-    case_version: state.case_version,
-    document,
-    document_hash: sha256(document),
-  };
+  return renderCanonicalReadback(state);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -199,23 +147,31 @@ export interface RenderChallenge {
   case_version: number;
   rendered_document_hash: string;
   render_template_version: string;
+  attestation_contract_version: string;
+  adoption_statement_hash: string;
   issued_at_ms: number;
   expires_at_ms: number;
 }
 
 export function issueRenderChallenge(
+  state: CaseState,
   render: RenderedAccount,
-  caseId: string,
   nonce: string,
   nowMs: number,
   ttlMs: number = DEFAULT_CHALLENGE_TTL_MS,
 ): RenderChallenge {
+  if (render.case_id !== state.case_id || render.case_version !== state.case_version) {
+    throw new TypeError('Render challenge state and document identities disagree.');
+  }
+  const statement = adoptionStatementFor(state);
   return {
     challenge: nonce,
-    case_id: caseId,
+    case_id: state.case_id,
     case_version: render.case_version,
     rendered_document_hash: render.document_hash,
     render_template_version: render.render_template_version,
+    attestation_contract_version: ATTESTATION_CONTRACT_VERSION,
+    adoption_statement_hash: sha256(statement),
     issued_at_ms: nowMs,
     expires_at_ms: nowMs + ttlMs,
   };
@@ -249,7 +205,7 @@ export interface AttestedEvidenceRef {
   inspection_status: EvidenceReference['inspection_status'];
 }
 
-export interface AttestationRecord {
+interface AttestationRecordBase {
   attestation_id: string;
   case_id: string;
   case_version: number;
@@ -281,6 +237,48 @@ export interface AttestationRecord {
   user_agent: string | null;
 }
 
+/** Historical V0.2 records predate the adoption contract and must stay readable as-is. */
+export interface LegacyAttestationRecordV02 extends AttestationRecordBase {
+  attestation_contract_version?: never;
+  adoption_statement?: never;
+  adoption_statement_hash?: never;
+}
+
+/** Every attestation created by the current server has this complete V0.3 shape. */
+export interface AttestationRecordV03 extends AttestationRecordBase {
+  attestation_contract_version: string;
+  adoption_statement: string;
+  adoption_statement_hash: string;
+}
+
+export type AttestationRecord = LegacyAttestationRecordV02 | AttestationRecordV03;
+
+const V03_ATTESTATION_FIELDS = [
+  'attestation_contract_version',
+  'adoption_statement',
+  'adoption_statement_hash',
+] as const;
+
+function hasOwn(
+  record: AttestationRecord,
+  field: (typeof V03_ATTESTATION_FIELDS)[number],
+): boolean {
+  return Object.prototype.hasOwnProperty.call(record, field);
+}
+
+export function isLegacyAttestationRecordV02(
+  record: AttestationRecord,
+): record is LegacyAttestationRecordV02 {
+  return (
+    record.render_template_version === LEGACY_RENDER_TEMPLATE_VERSION &&
+    V03_ATTESTATION_FIELDS.every((field) => !hasOwn(record, field))
+  );
+}
+
+export function isAttestationRecordV03(record: AttestationRecord): record is AttestationRecordV03 {
+  return V03_ATTESTATION_FIELDS.every((field) => hasOwn(record, field));
+}
+
 export interface AttestationAttempt {
   attestation_id: string;
   case_id: string;
@@ -297,7 +295,7 @@ export interface AttestationAttempt {
 }
 
 export type AttestationVerification =
-  | { kind: 'accepted'; record: AttestationRecord }
+  | { kind: 'accepted'; record: AttestationRecordV03 }
   | { kind: 'rejected'; reason: AttestationRejection; issues: ContractIssue[] };
 
 export type AttestationStructuralValidator = (state: CaseState) => {
@@ -313,6 +311,9 @@ export type AttestationRejection =
   | 'principal_mismatch'
   | 'state_changed'
   | 'render_changed'
+  | 'contract_changed'
+  | 'adoption_changed'
+  | 'render_incomplete'
   | 'structurally_invalid'
   | 'not_ready'
   | 'already_locked';
@@ -374,6 +375,13 @@ export function verifyAttestationAttempt(
       'Case state changed after the account was rendered.',
     );
   }
+  if (challenge.attestation_contract_version !== ATTESTATION_CONTRACT_VERSION) {
+    return reject(
+      'contract_changed',
+      'attestation_contract_changed',
+      'The attestation contract changed after the account was rendered.',
+    );
+  }
   const render = renderCanonicalAccount(state);
   if (
     render.document_hash !== challenge.rendered_document_hash ||
@@ -383,6 +391,30 @@ export function verifyAttestationAttempt(
       'render_changed',
       'attestation_render_changed',
       'The rendered account no longer matches what was confirmed.',
+    );
+  }
+  const completeness = verifyRenderCompleteness(state, render.document);
+  if (!completeness.ok) {
+    return {
+      kind: 'rejected',
+      reason: 'render_incomplete',
+      issues: [
+        issue(
+          'attestation_render_incomplete',
+          'attestation',
+          'The canonical read-back is incomplete and cannot be attested.',
+        ),
+        ...completeness.issues,
+      ],
+    };
+  }
+  const adoptionStatement = adoptionStatementFor(state);
+  const adoptionStatementHash = sha256(adoptionStatement);
+  if (challenge.adoption_statement_hash !== adoptionStatementHash) {
+    return reject(
+      'adoption_changed',
+      'attestation_adoption_changed',
+      'The adoption statement changed after the account was rendered.',
     );
   }
   const structuralReport = validateStructure(state);
@@ -409,7 +441,7 @@ export function verifyAttestationAttempt(
     );
   }
 
-  const record: AttestationRecord = {
+  const record: AttestationRecordV03 = {
     attestation_id: attempt.attestation_id,
     case_id: state.case_id,
     case_version: state.case_version,
@@ -417,6 +449,9 @@ export function verifyAttestationAttempt(
     rendered_document: render.document,
     rendered_document_hash: render.document_hash,
     render_template_version: render.render_template_version,
+    attestation_contract_version: ATTESTATION_CONTRACT_VERSION,
+    adoption_statement: adoptionStatement,
+    adoption_statement_hash: adoptionStatementHash,
     challenge: attempt.challenge,
     verification_method: attempt.verification_method,
     assurance_level: deriveAssuranceLevel(attempt.verification_method),
@@ -449,7 +484,7 @@ export function verifyAttestationAttempt(
 /** Append-only. Never overwrites, never regresses, never deduplicates away. */
 export function appendAttestation(
   attestations: readonly AttestationRecord[],
-  record: AttestationRecord,
+  record: AttestationRecordV03,
 ): AttestationRecord[] {
   if (attestations.some((entry) => entry.attestation_id === record.attestation_id)) {
     throw new TypeError(
@@ -497,6 +532,49 @@ export function validateAttestationRecord(
         'rendered_document_hash does not match the stored rendered_document.',
       ),
     );
+  }
+  const hasAnyV03Field = V03_ATTESTATION_FIELDS.some((field) => hasOwn(record, field));
+  if (!hasAnyV03Field) {
+    if (!isLegacyAttestationRecordV02(record)) {
+      issues.push(
+        issue(
+          'attestation_legacy_shape_invalid',
+          path + '.render_template_version',
+          'An attestation without V0.3 adoption fields must be an exact historical V0.2 record.',
+        ),
+      );
+    }
+  } else if (!isAttestationRecordV03(record)) {
+    issues.push(
+      issue(
+        'attestation_v03_shape_incomplete',
+        path,
+        'A V0.3 attestation must contain every contract and adoption field.',
+      ),
+    );
+  } else {
+    if (record.attestation_contract_version !== ATTESTATION_CONTRACT_VERSION) {
+      issues.push(
+        issue(
+          'attestation_contract_version_invalid',
+          path + '.attestation_contract_version',
+          'attestation_contract_version is not the current durable contract.',
+        ),
+      );
+    }
+    if (
+      typeof record.adoption_statement !== 'string' ||
+      typeof record.adoption_statement_hash !== 'string' ||
+      sha256(record.adoption_statement) !== record.adoption_statement_hash
+    ) {
+      issues.push(
+        issue(
+          'attestation_adoption_hash_mismatch',
+          path + '.adoption_statement_hash',
+          'adoption_statement_hash does not match the stored adoption_statement.',
+        ),
+      );
+    }
   }
   if (record.challenge.trim().length === 0) {
     issues.push(

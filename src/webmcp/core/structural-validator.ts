@@ -27,6 +27,7 @@ import {
 import {
   deriveCaseStatus,
   hashCanonicalState,
+  isLegacyAttestationRecordV02,
   renderCanonicalAccount,
   validateAttestationRecord,
   type CaseState,
@@ -626,8 +627,10 @@ function validateAttestations(state: CaseState): ContractIssue[] {
     }
 
     if (attestation.case_version === state.case_version) {
-      const render = renderCanonicalAccount(state);
-      if (render.document_hash !== attestation.rendered_document_hash) {
+      if (
+        !isLegacyAttestationRecordV02(attestation) &&
+        renderCanonicalAccount(state).document_hash !== attestation.rendered_document_hash
+      ) {
         issues.push(
           issue(
             'attestation_render_drift',

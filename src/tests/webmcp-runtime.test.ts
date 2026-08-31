@@ -20,6 +20,8 @@ import {
   type SubmitTurnOutcome,
 } from '../webmcp/runtime/index.js';
 import {
+  ATTESTATION_CONTRACT_VERSION,
+  adoptionStatementFor,
   hashCanonicalState,
   projectCaseState,
   renderCanonicalAccount,
@@ -1207,6 +1209,7 @@ describe('correction flow', () => {
  */
 function attestationFor(state: CaseState): AttestationRecord {
   const render = renderCanonicalAccount(state);
+  const adoptionStatement = adoptionStatementFor(state);
   const readiness = deriveReadiness(state.requirements, state.propositions, state.clarifications);
   return {
     attestation_id: 'att_' + state.case_id,
@@ -1216,6 +1219,9 @@ function attestationFor(state: CaseState): AttestationRecord {
     rendered_document: render.document,
     rendered_document_hash: render.document_hash,
     render_template_version: render.render_template_version,
+    attestation_contract_version: ATTESTATION_CONTRACT_VERSION,
+    adoption_statement: adoptionStatement,
+    adoption_statement_hash: sha256(adoptionStatement),
     challenge: 'challenge_' + state.case_id,
     verification_method: 'first_party_ui_click',
     assurance_level: 'ui_click',

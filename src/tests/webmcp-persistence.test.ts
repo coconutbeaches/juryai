@@ -15,11 +15,17 @@ import {
   type SubmitTurnCommand,
 } from '../webmcp/runtime/index.js';
 import {
+  ATTESTATION_CONTRACT_VERSION,
+  adoptionStatementFor,
+  deriveCaseStatus,
   hashCanonicalState,
+  LEGACY_RENDER_TEMPLATE_VERSION,
   renderCanonicalAccount,
-  type AttestationRecord,
+  type AttestationRecordV03,
   type CaseState,
+  type LegacyAttestationRecordV02,
 } from '../webmcp/core/attestation.js';
+import { attributionFor, livePropositions } from '../webmcp/core/propositions.js';
 import { deriveReadiness } from '../webmcp/core/requirements.js';
 import { computeRequestFingerprint, type IdempotencyRecord } from '../webmcp/core/idempotency.js';
 import {
@@ -30,6 +36,8 @@ import {
   type SourceTurnRecord,
 } from '../webmcp/core/turns.js';
 import {
+  sha256,
+  describeEpistemicStrength,
   STRUCTURAL_VALIDATOR_VERSION,
   WEBMCP_CORE_SCHEMA_VERSION,
   WEBMCP_PROTOCOL_VERSION,
@@ -243,6 +251,7 @@ describe('PostgreSQL record round trips and configuration', () => {
       { relname: 'compile_runs', relrowsecurity: true },
       { relname: 'compiler_registry', relrowsecurity: true },
       { relname: 'disclosure_acceptances', relrowsecurity: true },
+      { relname: 'render_challenges', relrowsecurity: true },
       { relname: 'start_case_idempotency', relrowsecurity: true },
       { relname: 'submit_idempotency', relrowsecurity: true },
       { relname: 'web_sessions', relrowsecurity: true },
@@ -845,8 +854,9 @@ class TwoPartyCompilerGate {
   }
 }
 
-function attestationFor(state: CaseState): AttestationRecord {
+function attestationFor(state: CaseState): AttestationRecordV03 {
   const render = renderCanonicalAccount(state);
+  const adoptionStatement = adoptionStatementFor(state);
   const readiness = deriveReadiness(state.requirements, state.propositions, state.clarifications);
   return {
     attestation_id: unique('attestation'),
@@ -856,6 +866,9 @@ function attestationFor(state: CaseState): AttestationRecord {
     rendered_document: render.document,
     rendered_document_hash: render.document_hash,
     render_template_version: render.render_template_version,
+    attestation_contract_version: ATTESTATION_CONTRACT_VERSION,
+    adoption_statement: adoptionStatement,
+    adoption_statement_hash: sha256(adoptionStatement),
     challenge: unique('challenge'),
     verification_method: 'first_party_ui_click',
     assurance_level: 'ui_click',
@@ -881,6 +894,72 @@ function attestationFor(state: CaseState): AttestationRecord {
     created_at: new Date(START_MS).toISOString(),
     client_ip: null,
     user_agent: null,
+  };
+}
+
+function legacyV02Render(state: CaseState): { document: string; document_hash: string } {
+  const readiness = deriveReadiness(state.requirements, state.propositions, state.clarifications);
+  const live = livePropositions(state.propositions);
+  const superseded = state.propositions.filter((proposition) => proposition.superseded_by !== null);
+  const lines: string[] = [
+    'JURYAI CANONICAL ACCOUNT',
+    `template: ${LEGACY_RENDER_TEMPLATE_VERSION}`,
+    `case: ${state.case_id} (version ${state.case_version})`,
+    '',
+    'WHAT JURYAI HAS RECORDED',
+  ];
+  if (live.length === 0) lines.push('  (nothing recorded yet)');
+  for (const proposition of live) {
+    lines.push(`  - [${proposition.type}] ${proposition.statement}`);
+    lines.push(`      answering: ${proposition.in_reply_to}`);
+    lines.push(`      standing: ${attributionFor(proposition)}`);
+  }
+  lines.push('', 'WHAT IS STILL MISSING');
+  if (readiness.unresolved_requirement_ids.length === 0) lines.push('  (nothing outstanding)');
+  for (const requirementId of readiness.unresolved_requirement_ids) {
+    const definition = state.requirements.find(
+      (requirement) => requirement.requirement_id === requirementId,
+    );
+    lines.push(`  - ${requirementId}: ${definition?.prompt ?? '(unknown requirement)'}`);
+  }
+  lines.push('', 'OPEN CLARIFICATIONS');
+  const open = state.clarifications.filter(
+    (clarification) => clarification.resolved_at_case_version === null,
+  );
+  if (open.length === 0) lines.push('  (none)');
+  for (const clarification of open) {
+    lines.push(`  - ${clarification.clarification_id}: ${clarification.prompt}`);
+  }
+  lines.push('', 'CHANGES AND CORRECTIONS');
+  if (superseded.length === 0) lines.push('  (none)');
+  for (const proposition of superseded) {
+    lines.push(
+      `  - superseded: ${proposition.statement} (was ${describeEpistemicStrength(proposition.epistemic_strength)})`,
+    );
+  }
+  lines.push('', 'EVIDENCE REFERENCED');
+  if (state.evidence_references.length === 0) lines.push('  (none)');
+  for (const reference of state.evidence_references) {
+    lines.push(`  - ${reference.label} [${reference.inspection_status}]`);
+  }
+  const document = `${lines.join('\n')}\n`;
+  return { document, document_hash: sha256(document) };
+}
+
+function legacyV02AttestationFor(state: CaseState): LegacyAttestationRecordV02 {
+  const current = attestationFor(state);
+  const {
+    attestation_contract_version: _contract,
+    adoption_statement: _statement,
+    adoption_statement_hash: _statementHash,
+    ...historical
+  } = current;
+  const render = legacyV02Render(state);
+  return {
+    ...historical,
+    render_template_version: LEGACY_RENDER_TEMPLATE_VERSION,
+    rendered_document: render.document,
+    rendered_document_hash: render.document_hash,
   };
 }
 
@@ -964,3 +1043,227 @@ async function removeRejectingTrigger(
   await pool.query(`drop trigger ${triggerName} on juryai_p2.${table}`);
   await pool.query(`drop function juryai_p2.${triggerName}_fn()`);
 }
+
+async function persistentAttestationFixture(label: string) {
+  const who = principal(`attestation_${label}`);
+  const prefix = unique(`attestation_runtime_${label}`) + '_';
+  const instance = new CaseRuntime({
+    store: storeA,
+    compiler: new ScriptedSemanticCompiler(acceptedScript),
+    clock: steppingClock(START_MS, 1_000),
+    ids: sequentialIdFactory(prefix),
+    salts: sequentialSaltFactory(`${prefix}salt`),
+    reviewUrl: (caseId) => `https://juryai.test/cases/${caseId}/review`,
+    disclosure: { version: DISCLOSURE },
+    requirements: {
+      version: 'step64-test-requirements-v1',
+      initialRequirements: () => [
+        {
+          requirement_id: 'req_expected_date',
+          prompt: 'By what date did you expect completion?',
+          satisfying_types: ['target_date', 'non_recollection', 'declined_to_answer'],
+          min_propositions: 1,
+          max_propositions: null,
+          adverse_fact_probe: false,
+          reopened_from: null,
+        },
+      ],
+    },
+  });
+  const started = await startCase(instance, who);
+  const submitted = await instance.submitTurn(who, submit(started.case.case_id));
+  if (submitted.kind !== 'committed') throw new Error('expected ready committed case');
+  const stored = (await storeA.cases.findById(started.case.case_id))!;
+  expect(deriveReadiness(stored.state.requirements, stored.state.propositions, []).ready).toBe(
+    true,
+  );
+  const rawChallenge = Buffer.from(sha256(unique(`raw_challenge_${label}`)), 'hex').toString(
+    'base64url',
+  );
+  const record: AttestationRecordV03 = {
+    ...attestationFor(stored.state),
+    attestation_id: unique(`attestation_record_${label}`),
+    challenge: rawChallenge,
+  };
+  const challengeHash = sha256(rawChallenge);
+  await storeA.issueRenderChallenge!({
+    challenge_hash: challengeHash,
+    principal_id: stored.state.principal_id,
+    case_id: stored.state.case_id,
+    case_version: stored.state.case_version,
+    rendered_document_hash: record.rendered_document_hash,
+    render_template_version: record.render_template_version,
+    attestation_contract_version: record.attestation_contract_version,
+    adoption_statement_hash: record.adoption_statement_hash,
+    issued_at_ms: START_MS + 10_000,
+    expires_at_ms: START_MS + 20_000,
+    consumed_at_ms: null,
+    attestation_id: null,
+  });
+  return {
+    who,
+    rawChallenge,
+    challengeHash,
+    stored,
+    record,
+    commit: {
+      challenge_hash: challengeHash,
+      principal_id: stored.state.principal_id,
+      case_id: stored.state.case_id,
+      expected_revision: stored.revision,
+      next_state: { ...stored.state, attestations: [...stored.state.attestations, record] },
+      attestation_id: record.attestation_id,
+      consumed_at_ms: START_MS + 11_000,
+    },
+  };
+}
+
+describe('Step 64 PostgreSQL challenge and attestation atomicity', () => {
+  it('reads a real pre-Step64 V0.2 locked case without fabricating V0.3 consent', async () => {
+    const fixture = await persistentAttestationFixture('legacy_v02');
+    const legacy = legacyV02AttestationFor(fixture.stored.state);
+    const historicalState: CaseState = {
+      ...fixture.stored.state,
+      attestations: [legacy],
+    };
+    await pool.query(
+      `update juryai_p2.cases
+          set state = $1::jsonb, revision = revision + 1
+        where case_id = $2`,
+      [JSON.stringify(historicalState), historicalState.case_id],
+    );
+
+    const readBack = await storeB.cases.findById(historicalState.case_id);
+    expect(readBack?.state).toEqual(historicalState);
+    expect(deriveCaseStatus(readBack!.state)).toBe('locked');
+    expect(await storeB.cases.findActiveDraftByPrincipal(historicalState.principal_id)).toBeNull();
+    expect(readBack!.state.attestations[0]).not.toHaveProperty('attestation_contract_version');
+    expect(readBack!.state.attestations[0]).not.toHaveProperty('adoption_statement');
+    expect(readBack!.state.attestations[0]).not.toHaveProperty('adoption_statement_hash');
+  });
+
+  it('stores only the hash lookup and keeps every challenge binding private', async () => {
+    const fixture = await persistentAttestationFixture('hash_only');
+    const row = await pool.query(
+      `select challenge_hash, principal_id, case_id, case_version,
+              rendered_document_hash, render_template_version,
+              attestation_contract_version, adoption_statement_hash,
+              issued_at, expires_at, consumed_at, attestation_id
+         from juryai_p2.render_challenges where challenge_hash = $1`,
+      [fixture.challengeHash],
+    );
+    expect(row.rows).toHaveLength(1);
+    expect(JSON.stringify(row.rows[0])).not.toContain(fixture.rawChallenge);
+    expect(row.rows[0]).toMatchObject({
+      challenge_hash: fixture.challengeHash,
+      consumed_at: null,
+      attestation_id: null,
+    });
+    const policies = await pool.query(
+      `select count(*)::int as count
+         from pg_policies
+        where schemaname = 'juryai_p2' and tablename = 'render_challenges'`,
+    );
+    expect(policies.rows[0]!.count).toBe(0);
+  });
+
+  it('commits state CAS and challenge consumption together without moving case_version', async () => {
+    const fixture = await persistentAttestationFixture('atomic_success');
+    const result = await storeA.commitAttestation!(fixture.commit);
+    expect(result).toMatchObject({ ok: true, replayed: false });
+    if (!result.ok) return;
+    expect(result.stored.revision).toBe(fixture.stored.revision + 1);
+    expect(result.stored.state.case_version).toBe(fixture.stored.state.case_version);
+    expect(result.stored.state.attestations).toEqual([fixture.record]);
+    expect(result.challenge).toMatchObject({
+      consumed_at_ms: fixture.commit.consumed_at_ms,
+      attestation_id: fixture.record.attestation_id,
+    });
+  });
+
+  it('rolls the case update back when challenge consumption fails', async () => {
+    const fixture = await persistentAttestationFixture('rollback');
+    await pool.query(
+      `create function juryai_p2.test_reject_attestation_consumption_fn()
+       returns trigger language plpgsql security invoker
+       set search_path = pg_catalog, pg_temp
+       as $$ begin raise exception 'forced challenge failure' using errcode = 'P0001'; end $$`,
+    );
+    await pool.query(
+      `create trigger aaa_test_reject_attestation_consumption
+       before update on juryai_p2.render_challenges
+       for each row when (new.attestation_id = '${fixture.record.attestation_id.replaceAll("'", "''")}')
+       execute function juryai_p2.test_reject_attestation_consumption_fn()`,
+    );
+    try {
+      await expect(storeA.commitAttestation!(fixture.commit)).rejects.toThrow();
+      expect(await storeB.cases.findById(fixture.stored.state.case_id)).toEqual(fixture.stored);
+      expect(await storeB.renderChallenges!.findByHash(fixture.challengeHash)).toMatchObject({
+        consumed_at_ms: null,
+        attestation_id: null,
+      });
+    } finally {
+      await pool.query(
+        'drop trigger aaa_test_reject_attestation_consumption on juryai_p2.render_challenges',
+      );
+      await pool.query('drop function juryai_p2.test_reject_attestation_consumption_fn()');
+    }
+  });
+
+  it('race A: a committed turn makes the earlier render lose CAS without consuming it', async () => {
+    const fixture = await persistentAttestationFixture('race_a');
+    const turn = quietTurn(fixture.stored.state, fixture.who, unique('race_a_turn'));
+    expect(
+      await storeB.commitTurn({
+        case_id: fixture.stored.state.case_id,
+        expected_revision: fixture.stored.revision,
+        next_state: turn.state,
+        idempotency: turn.idempotency,
+      }),
+    ).toMatchObject({ ok: true });
+    expect(await storeA.commitAttestation!(fixture.commit)).toMatchObject({
+      ok: false,
+      reason: 'revision_conflict',
+    });
+    expect(await storeA.renderChallenges!.findByHash(fixture.challengeHash)).toMatchObject({
+      consumed_at_ms: null,
+    });
+  });
+
+  it('race C: correction-state and attestation CAS cannot both mutate one revision', async () => {
+    const fixture = await persistentAttestationFixture('race_c');
+    const turn = quietTurn(fixture.stored.state, fixture.who, unique('race_c_turn'));
+    const [correction, attestation] = await Promise.all([
+      storeA.commitTurn({
+        case_id: fixture.stored.state.case_id,
+        expected_revision: fixture.stored.revision,
+        next_state: turn.state,
+        idempotency: turn.idempotency,
+      }),
+      storeB.commitAttestation!(fixture.commit),
+    ]);
+    expect([correction.ok, attestation.ok].filter(Boolean)).toHaveLength(1);
+    const current = (await storeA.cases.findById(fixture.stored.state.case_id))!;
+    expect(current.revision).toBe(fixture.stored.revision + 1);
+    expect(
+      current.state.attestations.length +
+        (current.state.turn_log.length - fixture.stored.state.turn_log.length),
+    ).toBe(1);
+  });
+
+  it('race D: two identical commits append once and the loser replays the same attestation', async () => {
+    const fixture = await persistentAttestationFixture('race_d');
+    const [first, second] = await Promise.all([
+      storeA.commitAttestation!(fixture.commit),
+      storeB.commitAttestation!(fixture.commit),
+    ]);
+    expect(first.ok).toBe(true);
+    expect(second.ok).toBe(true);
+    if (!first.ok || !second.ok) return;
+    expect([first.replayed, second.replayed].sort()).toEqual([false, true]);
+    expect(first.challenge.attestation_id).toBe(second.challenge.attestation_id);
+    expect(
+      (await storeA.cases.findById(fixture.stored.state.case_id))?.state.attestations,
+    ).toHaveLength(1);
+  });
+});

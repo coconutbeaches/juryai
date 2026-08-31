@@ -20,11 +20,15 @@ import {
 import { recordIdempotency, type IdempotencyRecord } from '../core/idempotency.js';
 import {
   type CaseCreateResult,
+  type AttestationCommit,
+  type AttestationCommitResult,
   type CaseRepository,
   type CaseRuntimeStore,
   type CompileRunRepository,
   type CompilerRegistryRepository,
   type IdempotencyRepository,
+  type PersistedRenderChallenge,
+  type RenderChallengeRepository,
   type StartCaseCommit,
   type StartCaseIdempotencyRecord,
   type StartCaseIdempotencyRepository,
@@ -45,6 +49,7 @@ export class InMemoryCaseRuntimeStore implements CaseRuntimeStore {
   #idempotency: IdempotencyRecord[] = [];
   #startRequests: StartCaseIdempotencyRecord[] = [];
   readonly #compileRuns = new Map<string, CompileRunRecord>();
+  readonly #renderChallenges = new Map<string, PersistedRenderChallenge>();
   #registry: CompilerRegistry = [];
 
   readonly cases: CaseRepository = {
@@ -90,6 +95,13 @@ export class InMemoryCaseRuntimeStore implements CaseRuntimeStore {
       this.#idempotency
         .filter((record) => record.case_id === caseId)
         .map((record) => structuredClone(record)),
+  };
+
+  readonly renderChallenges: RenderChallengeRepository = {
+    findByHash: async (challengeHash) => {
+      const found = this.#renderChallenges.get(challengeHash);
+      return found ? structuredClone(found) : null;
+    },
   };
 
   readonly compilerRegistry: CompilerRegistryRepository = {
@@ -184,6 +196,58 @@ export class InMemoryCaseRuntimeStore implements CaseRuntimeStore {
     });
     this.#idempotency = nextIdempotency;
     return { ok: true, stored: this.#read(commit.case_id) as StoredCase };
+  }
+
+  async issueRenderChallenge(challenge: PersistedRenderChallenge): Promise<void> {
+    if (this.#renderChallenges.has(challenge.challenge_hash)) {
+      throw new TypeError('Render challenge hash already exists.');
+    }
+    this.#renderChallenges.set(challenge.challenge_hash, structuredClone(challenge));
+  }
+
+  async commitAttestation(commit: AttestationCommit): Promise<AttestationCommitResult> {
+    const challenge = this.#renderChallenges.get(commit.challenge_hash);
+    const slot = this.#cases.get(commit.case_id);
+    if (
+      !challenge ||
+      challenge.case_id !== commit.case_id ||
+      challenge.principal_id !== commit.principal_id
+    ) {
+      return { ok: false, reason: 'challenge_unknown', current: this.#read(commit.case_id) };
+    }
+    if (challenge.consumed_at_ms !== null) {
+      if (
+        challenge.attestation_id !== null &&
+        slot?.state.attestations.some((entry) => entry.attestation_id === challenge.attestation_id)
+      ) {
+        return {
+          ok: true,
+          replayed: true,
+          stored: this.#read(commit.case_id) as StoredCase,
+          challenge: structuredClone(challenge),
+        };
+      }
+      return { ok: false, reason: 'challenge_consumed', current: this.#read(commit.case_id) };
+    }
+    if (!slot || slot.revision !== commit.expected_revision) {
+      return { ok: false, reason: 'revision_conflict', current: this.#read(commit.case_id) };
+    }
+    this.#cases.set(commit.case_id, {
+      revision: slot.revision + 1,
+      state: structuredClone(commit.next_state),
+    });
+    const consumed: PersistedRenderChallenge = {
+      ...challenge,
+      consumed_at_ms: commit.consumed_at_ms,
+      attestation_id: commit.attestation_id,
+    };
+    this.#renderChallenges.set(commit.challenge_hash, consumed);
+    return {
+      ok: true,
+      replayed: false,
+      stored: this.#read(commit.case_id) as StoredCase,
+      challenge: structuredClone(consumed),
+    };
   }
 
   #findStartRequest(

@@ -56,6 +56,9 @@ import {
   type Proposition,
 } from '../webmcp/core/propositions.js';
 import {
+  ATTESTATION_CONTRACT_VERSION,
+  LEGACY_RENDER_TEMPLATE_VERSION,
+  adoptionStatementFor,
   appendAttestation,
   deriveAssuranceLevel,
   deriveCaseStatus,
@@ -65,6 +68,7 @@ import {
   renderCanonicalAccount,
   verifyAttestationAttempt,
   type AttestationAttempt,
+  type LegacyAttestationRecordV02,
   type CaseState,
 } from '../webmcp/core/attestation.js';
 import { validateCaseState } from '../webmcp/core/structural-validator.js';
@@ -929,12 +933,7 @@ function attempt(overrides: Partial<AttestationAttempt> = {}): AttestationAttemp
 }
 
 function attestationFor(state: CaseState) {
-  const challenge = issueRenderChallenge(
-    renderCanonicalAccount(state),
-    state.case_id,
-    'nonce-1',
-    0,
-  );
+  const challenge = issueRenderChallenge(state, renderCanonicalAccount(state), 'nonce-1', 0);
   const result = verifyAttestationAttempt(
     state,
     challenge,
@@ -955,8 +954,9 @@ describe('first-party render', () => {
       ],
     });
     const render = renderCanonicalAccount(state);
-    expect(render.document).toContain('WHAT IS STILL MISSING');
-    expect(render.document).toContain('R25: Was any payment made?');
+    expect(render.document).toContain('[REQUIREMENT R25]');
+    expect(render.document).toContain('status: "unsatisfied"');
+    expect(render.document).toContain('Was any payment made?');
   });
 
   it('surfaces epistemic strength for every proposition', () => {
@@ -987,8 +987,9 @@ describe('first-party render', () => {
       ),
     });
     const render = renderCanonicalAccount(state);
-    expect(render.document).toContain('CHANGES AND CORRECTIONS');
-    expect(render.document).toContain('superseded:');
+    expect(render.document).toContain('[PROPOSITION p1]');
+    expect(render.document).toContain('standing: "superseded"');
+    expect(render.document).toContain('superseded_by: "p2"');
   });
 
   it('hashes the document the human reads', () => {
@@ -1020,7 +1021,7 @@ describe('attestation', () => {
   }
 
   function challengeFor(state: CaseState, nowMs = 0) {
-    return issueRenderChallenge(renderCanonicalAccount(state), state.case_id, 'nonce-1', nowMs);
+    return issueRenderChallenge(state, renderCanonicalAccount(state), 'nonce-1', nowMs);
   }
 
   it('accepts a confirmation that matches the rendered account exactly', () => {
@@ -1040,7 +1041,36 @@ describe('attestation', () => {
     expect(result.record.canonical_state_hash).toBe(hashCanonicalState(state));
     expect(result.record.assurance_level).toBe('ui_click');
     expect(result.record.structural_validator_version).toBe(STRUCTURAL_VALIDATOR_VERSION);
+    expect(result.record.attestation_contract_version).toBe(ATTESTATION_CONTRACT_VERSION);
+    expect(result.record.adoption_statement).toBe(adoptionStatementFor(state));
+    expect(result.record.adoption_statement_hash).toBe(sha256(result.record.adoption_statement));
     expect(validateCaseState(state).validator_version).toBe(STRUCTURAL_VALIDATOR_VERSION);
+  });
+
+  it('rejects a changed attestation contract before adoption', () => {
+    const state = ready();
+    const challenge = { ...challengeFor(state), attestation_contract_version: 'future-contract' };
+    const result = verifyAttestationAttempt(
+      state,
+      challenge,
+      attempt({ rendered_document_hash: challenge.rendered_document_hash }),
+      1_000,
+      validateCaseState,
+    );
+    expect(result).toMatchObject({ kind: 'rejected', reason: 'contract_changed' });
+  });
+
+  it('rejects a changed adoption statement hash', () => {
+    const state = ready();
+    const challenge = { ...challengeFor(state), adoption_statement_hash: 'f'.repeat(64) };
+    const result = verifyAttestationAttempt(
+      state,
+      challenge,
+      attempt({ rendered_document_hash: challenge.rendered_document_hash }),
+      1_000,
+      validateCaseState,
+    );
+    expect(result).toMatchObject({ kind: 'rejected', reason: 'adoption_changed' });
   });
 
   it('records the exact version reported by the injected structural validator', () => {
@@ -1304,11 +1334,64 @@ describe('append-only attestations and derived lock', () => {
     return attestationFor(state);
   }
 
+  function legacyV02Attested(state: CaseState): LegacyAttestationRecordV02 {
+    const current = attested(state);
+    const {
+      attestation_contract_version: _contract,
+      adoption_statement: _statement,
+      adoption_statement_hash: _statementHash,
+      ...historical
+    } = current;
+    const renderedDocument =
+      'JURYAI CANONICAL ACCOUNT\ntemplate: juryai-canonical-account-render-v0.2.0\n';
+    return {
+      ...historical,
+      render_template_version: LEGACY_RENDER_TEMPLATE_VERSION,
+      rendered_document: renderedDocument,
+      rendered_document_hash: sha256(renderedDocument),
+    };
+  }
+
   it('derives locked status from the attestation collection', () => {
     const state = baseState();
     expect(deriveCaseStatus(state)).toBe('draft');
     const locked: CaseState = { ...state, attestations: [attested(state)] };
     expect(deriveCaseStatus(locked)).toBe('locked');
+  });
+
+  it('keeps a complete historical V0.2 attestation readable without inventing adoption consent', () => {
+    const state = baseState();
+    const legacy = legacyV02Attested(state);
+    const locked: CaseState = { ...state, attestations: [legacy] };
+    expect(validateCaseState(locked).issues).toEqual([]);
+    expect(deriveCaseStatus(locked)).toBe('locked');
+    expect(legacy).not.toHaveProperty('attestation_contract_version');
+    expect(legacy).not.toHaveProperty('adoption_statement');
+    expect(legacy).not.toHaveProperty('adoption_statement_hash');
+  });
+
+  it('never accepts a partial or fieldless V0.3 record as historical V0.2', () => {
+    const state = baseState();
+    const current = attested(state);
+    for (const fieldsToDelete of [
+      ['adoption_statement_hash'],
+      ['attestation_contract_version', 'adoption_statement', 'adoption_statement_hash'],
+    ]) {
+      const malformed = structuredClone(current) as unknown as Record<string, unknown>;
+      for (const field of fieldsToDelete) delete malformed[field];
+      const report = validateCaseState({
+        ...state,
+        attestations: [malformed as unknown as LegacyAttestationRecordV02],
+      });
+      expect(report.ok).toBe(false);
+      expect(report.issues.map((entry) => entry.code)).toEqual(
+        expect.arrayContaining([
+          fieldsToDelete.length === 1
+            ? 'attestation_v03_shape_incomplete'
+            : 'attestation_legacy_shape_invalid',
+        ]),
+      );
+    }
   });
 
   it('returns to draft after an amendment while keeping the earlier attestation', () => {
@@ -1354,12 +1437,7 @@ describe('append-only attestations and derived lock', () => {
   it('refuses to attest a case version that is already locked', () => {
     const state = baseState();
     const locked: CaseState = { ...state, attestations: [attested(state)] };
-    const challenge = issueRenderChallenge(
-      renderCanonicalAccount(locked),
-      locked.case_id,
-      'nonce-2',
-      0,
-    );
+    const challenge = issueRenderChallenge(locked, renderCanonicalAccount(locked), 'nonce-2', 0);
     const result = verifyAttestationAttempt(
       locked,
       challenge,
@@ -2268,6 +2346,7 @@ describe('structural validator', () => {
 
   it('rejects an attestation bound to a version that does not exist yet', () => {
     const state = baseState();
+    const adoptionStatement = adoptionStatementFor(state);
     const bad = {
       attestation_id: 'att_1',
       case_id: CASE_ID,
@@ -2276,6 +2355,9 @@ describe('structural validator', () => {
       rendered_document: 'x',
       rendered_document_hash: '2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881',
       render_template_version: 'v',
+      attestation_contract_version: ATTESTATION_CONTRACT_VERSION,
+      adoption_statement: adoptionStatement,
+      adoption_statement_hash: sha256(adoptionStatement),
       challenge: 'nonce-1',
       verification_method: 'first_party_ui_click',
       assurance_level: 'ui_click' as const,
