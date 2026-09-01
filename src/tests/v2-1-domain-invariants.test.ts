@@ -658,6 +658,129 @@ describe('V2.1 quiescence, explicit reopen, and confirmation currency', () => {
     expect(envelope.challenges.challenge_during_final_confirmation?.status).toBe('resolved');
   });
 
+  it('rejects a material challenge response that reuses an existing source-turn identifier', () => {
+    let envelope = boundEnvelope();
+    envelope = apply(
+      envelope,
+      actor(envelope, 'party_b'),
+      positionOperation('party_b', 'challenge_source', 'B original account.'),
+    );
+    envelope = completeFormation(envelope, 'party_a');
+    envelope = completeFormation(envelope, 'party_b');
+    envelope = confirmParty(envelope, 'party_b');
+    envelope = apply(envelope, TRUSTED_SYSTEM_AUTHORITY_V21, {
+      type: 'open_controlled_disclosure',
+    });
+    envelope = apply(envelope, actor(envelope, 'party_a'), {
+      type: 'record_challenge',
+      challenge_id: 'challenge_source_turn_reuse',
+      target_position_id: 'position_party_b_challenge_source',
+      statement: 'A challenges B original account.',
+    });
+    envelope = apply(envelope, actor(envelope, 'party_b', 'first_party_human'), {
+      type: 'reopen_own_formation',
+      event_id: 'reopen_event_party_b_challenge_source',
+      reason: 'B needs to materially respond to the challenge.',
+      occurred_at: NOW,
+    });
+
+    const before = canonicalSerialize(envelope);
+    const reusedTurn = execute(envelope, actor(envelope, 'party_b'), {
+      type: 'respond_to_challenge',
+      challenge_id: 'challenge_source_turn_reuse',
+      response_statement: 'B supplies a corrected response.',
+      replacement_statement: 'B corrected account.',
+      source_turn: {
+        turn_id: 'turn_party_b_challenge_source',
+        content: 'B corrected account.',
+        spans: [{ start: 0, end: 20, quote: 'B corrected account.' }],
+      },
+    });
+    expect(reusedTurn).toMatchObject({ status: 'rejected', reason_code: 'invalid_operation' });
+    expect(canonicalSerialize(reusedTurn.envelope)).toBe(before);
+    expect(envelope.source_turns.turn_party_b_challenge_source?.content).toBe(
+      'B original account.',
+    );
+
+    envelope = apply(envelope, actor(envelope, 'party_b'), {
+      type: 'respond_to_challenge',
+      challenge_id: 'challenge_source_turn_reuse',
+      response_statement: 'B supplies a corrected response.',
+      replacement_statement: 'B corrected account.',
+      source_turn: {
+        turn_id: 'turn_party_b_challenge_source_fresh',
+        content: 'B corrected account.',
+        spans: [{ start: 0, end: 20, quote: 'B corrected account.' }],
+      },
+    });
+    expect(envelope.source_turns.turn_party_b_challenge_source?.content).toBe(
+      'B original account.',
+    );
+    expect(envelope.positions.position_party_b_challenge_source?.source_turn_id).toBe(
+      'turn_party_b_challenge_source_fresh',
+    );
+  });
+
+  it('party-scopes confirmation and confirmation-event identifiers without a collision oracle', () => {
+    let envelope = boundEnvelope();
+    envelope = completeFormation(envelope, 'party_a');
+    envelope = completeFormation(envelope, 'party_b');
+    envelope = confirmParty(envelope, 'party_a');
+    const aReceipt = envelope.formation.confirmations.party_a[0]!;
+
+    const confirmationAttempt = (confirmationId: string, eventId: string) =>
+      execute(envelope, actor(envelope, 'party_b', 'first_party_human'), {
+        type: 'record_party_confirmation',
+        confirmation_id: confirmationId,
+        event_id: eventId,
+        adoption_statement: 'B adopts the B account.',
+        confirmed_at: NOW,
+      });
+    const collidingConfirmation = confirmationAttempt(aReceipt.confirmation_id, aReceipt.event_id);
+    const absentOpponentScopedConfirmation = confirmationAttempt(
+      'confirmation_party_a_absent_probe',
+      'confirmation_event_party_a_absent_probe',
+    );
+    expect({
+      reason: collidingConfirmation.reason_code,
+      message: collidingConfirmation.message,
+    }).toEqual({
+      reason: absentOpponentScopedConfirmation.reason_code,
+      message: absentOpponentScopedConfirmation.message,
+    });
+
+    const collidingEvent = confirmationAttempt(
+      'confirmation_party_b_event_collision',
+      aReceipt.event_id,
+    );
+    const absentOpponentScopedEvent = confirmationAttempt(
+      'confirmation_party_b_event_absent',
+      'confirmation_event_party_a_absent_event_probe',
+    );
+    expect({ reason: collidingEvent.reason_code, message: collidingEvent.message }).toEqual({
+      reason: absentOpponentScopedEvent.reason_code,
+      message: absentOpponentScopedEvent.message,
+    });
+
+    const invalidReceiptScope = cloneCanonical(envelope);
+    invalidReceiptScope.formation.confirmations.party_a[0]!.confirmation_id =
+      'confirmation_party_b_tampered';
+    synchronizeFixture(invalidReceiptScope);
+    expect(validateCaseEnvelopeV21(invalidReceiptScope).map((issue) => issue.code)).toContain(
+      'confirmation_receipt_invalid',
+    );
+    const invalidEventScope = cloneCanonical(envelope);
+    invalidEventScope.formation.confirmations.party_a[0]!.event_id =
+      'confirmation_event_party_b_tampered';
+    synchronizeFixture(invalidEventScope);
+    expect(validateCaseEnvelopeV21(invalidEventScope).map((issue) => issue.code)).toContain(
+      'confirmation_receipt_invalid',
+    );
+
+    envelope = confirmParty(envelope, 'party_b');
+    expect(envelope.formation.confirmations.party_b).toHaveLength(1);
+  });
+
   it.each([
     ['party_a', 'party_b'],
     ['party_b', 'party_a'],

@@ -828,7 +828,8 @@ function authorizationFailure(
         }
         if (
           operation.source_turn !== null &&
-          !isPartyScopedIdV21('turn', partyAuthority.party_id, operation.source_turn.turn_id)
+          (!isPartyScopedIdV21('turn', partyAuthority.party_id, operation.source_turn.turn_id) ||
+            envelope.source_turns[operation.source_turn.turn_id])
         ) {
           return {
             reason: 'invalid_operation',
@@ -838,6 +839,15 @@ function authorizationFailure(
         break;
       }
       case 'record_party_confirmation':
+        if (
+          !isPartyScopedIdV21('confirmation', partyAuthority.party_id, operation.confirmation_id) ||
+          !isPartyScopedIdV21('confirmation_event', partyAuthority.party_id, operation.event_id)
+        ) {
+          return {
+            reason: 'confirmation_binding_invalid',
+            message: 'Confirmation identifier is unavailable.',
+          };
+        }
         if (!binding.independent_formation_complete) {
           return {
             reason: 'confirmation_binding_invalid',

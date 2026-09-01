@@ -502,6 +502,8 @@ function validateFormation(envelope: CaseEnvelopeV21, issues: ContractIssue[]): 
         receipt.party_readback_version !== PARTY_FORMATION_READBACK_VERSION_V21 ||
         !ID_PATTERN_V21.test(receipt.confirmation_id) ||
         !ID_PATTERN_V21.test(receipt.event_id) ||
+        !isPartyScopedIdV21('confirmation', partyId, receipt.confirmation_id) ||
+        !isPartyScopedIdV21('confirmation_event', partyId, receipt.event_id) ||
         receiptIds.has(receipt.confirmation_id) ||
         receiptEventIds.has(receipt.event_id) ||
         !HASH_PATTERN_V21.test(receipt.party_projection_hash) ||
