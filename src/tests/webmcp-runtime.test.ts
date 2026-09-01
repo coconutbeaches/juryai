@@ -57,6 +57,8 @@ import {
   type CompilerInput,
   type CompilerOutput,
 } from '../webmcp/core/compiler-contract.js';
+import { createRuntimeCaseService } from '../webmcp/service/runtime-case-service.js';
+import type { SubmitTurnCommand as PublicSubmitTurnCommand } from '../webmcp/public-contract.js';
 
 describe('scripted compiler identity', () => {
   it('tracks the canonical compiler contract version in its schema and version id', () => {
@@ -117,6 +119,27 @@ function payload(answer: string, context: string[] = []): SourceTurnPayload {
     context: context.map((text) => ({ role: 'assistant' as const, text })),
     answer: { role: 'user', text: answer },
   });
+}
+
+function publicSubmitCommand(
+  overrides: Partial<SubmitTurnCommand> & { case_id: string },
+): PublicSubmitTurnCommand {
+  const command = submitCommand(overrides);
+  if (command.client_turn_id === null) throw new Error('public command requires client_turn_id');
+  const { source_language: sourceLanguage } = command;
+  const rest: PublicSubmitTurnCommand = {
+    case_id: command.case_id,
+    expected_case_version: command.expected_case_version,
+    in_reply_to: command.in_reply_to,
+    payload: command.payload,
+    client_turn_id: command.client_turn_id,
+    ...(command.translation_indicated === undefined
+      ? {}
+      : { translation_indicated: command.translation_indicated }),
+  };
+  return sourceLanguage === null || sourceLanguage === undefined
+    ? rest
+    : { ...rest, source_language: sourceLanguage };
 }
 
 let startRequestCounter = 0;
@@ -484,6 +507,42 @@ describe('submitTurn input hardening', () => {
 /* ------------------------------------------------------------------------ */
 
 describe('submitTurn idempotency', () => {
+  it('never exposes another principal replay, proposition, turn, excerpt, or conflict data', async () => {
+    const h = harness();
+    h.scripted.setScript(expectedDateScript);
+    const serviceFor = (context: RuntimeRequestContext) =>
+      createRuntimeCaseService({
+        runtime: h.runtime,
+        contextProvider: { getRuntimeRequestContext: () => context },
+      });
+    const aliceService = serviceFor(ALICE);
+    const bobService = serviceFor(BOB);
+    const started = await aliceService.startCase(startCommand());
+    if (!started.ok) throw new Error('expected a created case');
+    const command = publicSubmitCommand({ case_id: started.case.case_id });
+    const committedResult = await aliceService.submitTurn(command);
+    if (!committedResult.ok) throw new Error('expected a committed turn');
+    const committedState = await loadState(h, started.case.case_id);
+    const propositionStatement = committedState.propositions[0]!.statement;
+    const sourceAnswer = committedState.turn_log[0]!.payload.answer.text;
+
+    // Bob reuses Alice's exact case, client id and payload. Ownership is
+    // decided before any replay or conflict material can cross the service.
+    const foreign = await bobService.submitTurn(command);
+    expect(foreign).toMatchObject({
+      ok: false,
+      error: { code: 'CASE_NOT_FOUND', retryable: false },
+    });
+    expect(foreign).not.toHaveProperty('case');
+    expect(foreign).not.toHaveProperty('recent_turns');
+    expect(foreign).not.toHaveProperty('likely_already_recorded');
+    const encoded = JSON.stringify(foreign);
+    for (const secret of [committedResult.turn_id, propositionStatement, sourceAnswer]) {
+      expect(encoded).not.toContain(secret);
+    }
+    expect((await loadState(h, started.case.case_id)).turn_log).toHaveLength(1);
+  });
+
   it('replays an identical client_turn_id without creating anything new', async () => {
     const h = harness();
     h.scripted.setScript(expectedDateScript);
@@ -1467,6 +1526,33 @@ describe('replay survives the case being locked', () => {
     expect(stale.kind).toBe('failed');
     if (stale.kind !== 'failed') return;
     expect(stale.failure.code).toBe('CASE_LOCKED');
+    expect((await loadState(h, caseId)).turn_log).toHaveLength(1);
+  });
+
+  it('freezes CASE_LOCKED before VERSION_CONFLICT on the external relay wire', async () => {
+    const { h, caseId } = await committedThenLocked();
+    const service = createRuntimeCaseService({
+      runtime: h.runtime,
+      contextProvider: { getRuntimeRequestContext: () => ALICE },
+    });
+
+    const result = await service.submitTurn(
+      publicSubmitCommand({
+        case_id: caseId,
+        client_turn_id: 'client_locked_stale_wire',
+        expected_case_version: 0,
+        in_reply_to: ['req_paid'],
+        payload: payload('I paid the deposit on 1 March.'),
+      }),
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: 'CASE_LOCKED', retryable: false },
+    });
+    expect(result).not.toHaveProperty('current_case_version');
+    expect(result).not.toHaveProperty('recent_turns');
+    expect(result).not.toHaveProperty('likely_already_recorded');
     expect((await loadState(h, caseId)).turn_log).toHaveLength(1);
   });
 });

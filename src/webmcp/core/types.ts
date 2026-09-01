@@ -14,12 +14,7 @@
  *    vouched for the record) are orthogonal axes, never a single ladder.
  */
 
-import {
-  canonicalSerialize as v2CanonicalSerialize,
-  sha256 as v2Sha256,
-  type ContractIssue,
-  type JsonValue,
-} from '../../v2/case-envelope.js';
+import { canonicalSerializeV1, sha256V1, type JsonValue } from './legacy-canonical-json-v1.js';
 import {
   EPISTEMIC_STRENGTHS,
   HASH_PATTERN,
@@ -40,7 +35,7 @@ import {
   type RecentInterpretationSlot,
 } from '../public-contract.js';
 
-export type { ContractIssue, JsonValue };
+export type { JsonValue };
 export {
   EPISTEMIC_STRENGTHS,
   HASH_PATTERN,
@@ -63,9 +58,15 @@ export type {
   RecentInterpretationSlot,
 };
 
-/** Single swap point for canonicalisation so every hash in P2 agrees. */
-export const canonicalSerialize = v2CanonicalSerialize;
-export const sha256 = v2Sha256;
+export interface ContractIssue {
+  code: string;
+  path: string;
+  message: string;
+}
+
+/** Frozen legacy names retained for every historical P2 caller. */
+export const canonicalSerialize = canonicalSerializeV1;
+export const sha256 = sha256V1;
 
 export const STRUCTURAL_VALIDATOR_VERSION = 'juryai-structural-validator-v0.2.0';
 export const RENDER_TEMPLATE_VERSION = 'juryai-canonical-account-render-v0.3.0';

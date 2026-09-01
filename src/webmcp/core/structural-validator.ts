@@ -26,9 +26,9 @@ import {
 } from './types.js';
 import {
   deriveCaseStatus,
-  hashCanonicalState,
+  hashCanonicalStateV1,
   isLegacyAttestationRecordV02,
-  renderCanonicalAccount,
+  renderCanonicalAccountV1,
   validateAttestationRecord,
   type CaseState,
 } from './attestation.js';
@@ -629,7 +629,7 @@ function validateAttestations(state: CaseState): ContractIssue[] {
     if (attestation.case_version === state.case_version) {
       if (
         !isLegacyAttestationRecordV02(attestation) &&
-        renderCanonicalAccount(state).document_hash !== attestation.rendered_document_hash
+        renderCanonicalAccountV1(state).document_hash !== attestation.rendered_document_hash
       ) {
         issues.push(
           issue(
@@ -639,7 +639,7 @@ function validateAttestations(state: CaseState): ContractIssue[] {
           ),
         );
       }
-      if (hashCanonicalState(state) !== attestation.canonical_state_hash) {
+      if (hashCanonicalStateV1(state) !== attestation.canonical_state_hash) {
         issues.push(
           issue(
             'attestation_state_drift',
