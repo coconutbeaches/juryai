@@ -215,6 +215,14 @@ export function otherPartyV21(partyId: PartyIdV21): PartyIdV21 {
   return partyId === 'party_a' ? 'party_b' : 'party_a';
 }
 
+export function isPartyScopedIdV21(
+  kind: 'position' | 'turn' | 'clarification' | 'evidence',
+  partyId: PartyIdV21,
+  identifier: string,
+): boolean {
+  return identifier.startsWith(`${kind}_${partyId}_`) && ID_PATTERN_V21.test(identifier);
+}
+
 export function hashSourceTurnContentV21(content: string): string {
   return sha256(content);
 }

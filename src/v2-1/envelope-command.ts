@@ -14,6 +14,7 @@ import {
   hashAdoptionStatementV21,
   hashCaseEnvelopeV21,
   hashSourceTurnContentV21,
+  isPartyScopedIdV21,
   isTrustedSystemAuthorityV21,
   otherPartyV21,
   type AuthenticatedPartyAuthorityV21,
@@ -487,6 +488,9 @@ function operationStructureFailure(operation: unknown): string | null {
   ) {
     return 'Operation identifier is invalid.';
   }
+  if (typed.type === 'bind_party' && !PARTY_IDS_V21.includes(typed.party_slot)) {
+    return 'Party slot is invalid.';
+  }
   if ('source_turn' in typed && typed.source_turn !== null) {
     const failure = sourceTurnInputFailure(typed.source_turn);
     if (failure) return failure;
@@ -510,7 +514,10 @@ function operationStructureFailure(operation: unknown): string | null {
   }
   const timestampFields = ['confirmed_at', 'occurred_at', 'redacted_at'] as const;
   for (const field of timestampFields) {
-    if (field in typed && Number.isNaN(Date.parse(String(typed[field])))) {
+    if (
+      field in typed &&
+      (typeof typed[field] !== 'string' || Number.isNaN(Date.parse(typed[field])))
+    ) {
       return `Operation ${field} is invalid.`;
     }
   }
@@ -685,6 +692,15 @@ function authorizationFailure(
     switch (operation.type) {
       case 'record_own_position':
         if (
+          !isPartyScopedIdV21('position', partyAuthority.party_id, operation.position_id) ||
+          !isPartyScopedIdV21('turn', partyAuthority.party_id, operation.source_turn.turn_id)
+        ) {
+          return {
+            reason: 'invalid_operation',
+            message: 'New material identifier is unavailable.',
+          };
+        }
+        if (
           envelope.positions[operation.position_id] ||
           envelope.source_turns[operation.source_turn.turn_id]
         ) {
@@ -695,6 +711,12 @@ function authorizationFailure(
         }
         break;
       case 'replace_own_position': {
+        if (!isPartyScopedIdV21('turn', partyAuthority.party_id, operation.source_turn.turn_id)) {
+          return {
+            reason: 'invalid_operation',
+            message: 'New material identifier is unavailable.',
+          };
+        }
         const position = envelope.positions[operation.position_id];
         if (!position) return { reason: 'invalid_operation', message: 'Position is unavailable.' };
         if (position.attributed_party_id !== partyAuthority.party_id) {
@@ -733,11 +755,25 @@ function authorizationFailure(
         break;
       }
       case 'record_own_clarification':
+        if (
+          !isPartyScopedIdV21('clarification', partyAuthority.party_id, operation.clarification_id)
+        ) {
+          return {
+            reason: 'invalid_operation',
+            message: 'New material identifier is unavailable.',
+          };
+        }
         if (envelope.clarifications[operation.clarification_id]) {
           return { reason: 'invalid_operation', message: 'Clarification already exists.' };
         }
         break;
       case 'record_own_evidence_reference':
+        if (!isPartyScopedIdV21('evidence', partyAuthority.party_id, operation.evidence_id)) {
+          return {
+            reason: 'invalid_operation',
+            message: 'New material identifier is unavailable.',
+          };
+        }
         if (envelope.evidence[operation.evidence_id]) {
           return { reason: 'invalid_operation', message: 'Evidence reference already exists.' };
         }
@@ -788,6 +824,15 @@ function authorizationFailure(
           return {
             reason: 'explicit_reopen_required',
             message: 'A material challenge response requires explicit first-party reopen.',
+          };
+        }
+        if (
+          operation.source_turn !== null &&
+          !isPartyScopedIdV21('turn', partyAuthority.party_id, operation.source_turn.turn_id)
+        ) {
+          return {
+            reason: 'invalid_operation',
+            message: 'New material identifier is unavailable.',
           };
         }
         break;
@@ -1119,13 +1164,26 @@ function rejected(
   reason: CommandFailureReasonV21,
   message: string,
 ): ApplyEnvelopeCommandResultV21 {
+  const control = (input.envelope as unknown as { control?: unknown } | null)?.control;
+  const safeVersion =
+    control !== null &&
+    typeof control === 'object' &&
+    Number.isSafeInteger((control as { envelope_version?: unknown }).envelope_version)
+      ? ((control as { envelope_version: number }).envelope_version ?? 0)
+      : 0;
+  let snapshot = input.envelope;
+  try {
+    snapshot = cloneCaseEnvelopeV21(input.envelope);
+  } catch {
+    // A non-JSON runtime value is already rejected; never dereference it for metadata.
+  }
   return {
     status: 'rejected',
     reason_code: reason,
     message,
-    envelope: cloneCaseEnvelopeV21(input.envelope),
-    prior_envelope_version: input.envelope.control.envelope_version,
-    resulting_envelope_version: input.envelope.control.envelope_version,
+    envelope: snapshot,
+    prior_envelope_version: safeVersion,
+    resulting_envelope_version: safeVersion,
     changed_visible_parties: [],
   };
 }

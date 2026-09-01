@@ -12,6 +12,7 @@ import {
   PARTY_IDS_V21,
   hashCaseEnvelopeV21,
   hashSourceTurnContentV21,
+  isPartyScopedIdV21,
   type CaseEnvelopeV21,
   type ContractIssue,
   type PartyIdV21,
@@ -36,6 +37,10 @@ function isString(value: unknown, maximum = 12_000): value is string {
 
 function isNullableString(value: unknown): value is string | null {
   return value === null || typeof value === 'string';
+}
+
+function isTimestamp(value: unknown): value is string {
+  return typeof value === 'string' && !Number.isNaN(Date.parse(value));
 }
 
 function isStringArray(value: unknown): value is string[] {
@@ -126,6 +131,7 @@ function validateSourceTurns(envelope: CaseEnvelopeV21, issues: ContractIssue[])
       turn.turn_id !== turnId ||
       !ID_PATTERN_V21.test(turnId) ||
       !isPartyId(turn.attributed_party_id) ||
+      !isPartyScopedIdV21('turn', turn.attributed_party_id, turnId) ||
       !HASH_PATTERN_V21.test(turn.content_hash) ||
       !Number.isSafeInteger(turn.content_length) ||
       turn.content_length < 1 ||
@@ -175,6 +181,7 @@ function validatePositions(envelope: CaseEnvelopeV21, issues: ContractIssue[]): 
       position.position_id !== positionId ||
       !ID_PATTERN_V21.test(positionId) ||
       !isPartyId(position.attributed_party_id) ||
+      !isPartyScopedIdV21('position', position.attributed_party_id, positionId) ||
       !['assertion', 'admission', 'denial', 'uncertainty'].includes(position.position_kind) ||
       !['disputed', 'unresolved', 'procedurally_resolved'].includes(position.resolution_status) ||
       !isString(position.statement) ||
@@ -276,6 +283,7 @@ function validateFormationMaps(envelope: CaseEnvelopeV21, issues: ContractIssue[
         clarification.clarification_id !== id ||
         !ID_PATTERN_V21.test(id) ||
         !isPartyId(clarification.party_id) ||
+        !isPartyScopedIdV21('clarification', clarification.party_id, id) ||
         !isString(clarification.question, 4_000) ||
         !isString(clarification.answer, 12_000) ||
         !['open', 'resolved'].includes(clarification.status)
@@ -305,6 +313,7 @@ function validateFormationMaps(envelope: CaseEnvelopeV21, issues: ContractIssue[
         evidence.evidence_id !== id ||
         !ID_PATTERN_V21.test(id) ||
         !isPartyId(evidence.attributed_party_id) ||
+        !isPartyScopedIdV21('evidence', evidence.attributed_party_id, id) ||
         !isString(evidence.description, 4_000) ||
         typeof evidence.required_for_readiness !== 'boolean' ||
         !['pending', 'eligible', 'ineligible', 'not_required'].includes(evidence.eligibility)
@@ -439,7 +448,7 @@ function validateFormation(envelope: CaseEnvelopeV21, issues: ContractIssue[]): 
         event.prior_formation_epoch < 1 ||
         event.resulting_formation_epoch !== event.prior_formation_epoch + 1 ||
         !isString(event.reason, 4_000) ||
-        Number.isNaN(Date.parse(event.occurred_at))
+        !isTimestamp(event.occurred_at)
       ) {
         issues.push(issue('reopen_event_invalid', path, 'Reopen event is invalid.'));
       }
@@ -505,7 +514,7 @@ function validateFormation(envelope: CaseEnvelopeV21, issues: ContractIssue[]): 
         receipt.formation_epoch < 1 ||
         !Number.isSafeInteger(receipt.shared_envelope_version) ||
         receipt.shared_envelope_version < 1 ||
-        Number.isNaN(Date.parse(receipt.confirmed_at))
+        !isTimestamp(receipt.confirmed_at)
       ) {
         issues.push(
           issue('confirmation_receipt_invalid', path, 'Confirmation receipt is invalid.'),

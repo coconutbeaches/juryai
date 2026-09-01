@@ -234,6 +234,26 @@ describe('V2.1 explicit contract versions and principal binding', () => {
     };
     expect(() => validateCaseEnvelopeV21(malformedEnvelope)).not.toThrow();
     expect(validateCaseEnvelopeV21(malformedEnvelope)[0]?.code).toBe('control_shape_invalid');
+    const validForCommand = createInitialCaseEnvelopeV21('case_malformed_rejection');
+    const validCommand = commandForV21(
+      validForCommand,
+      nextCommandId('command_malformed_envelope'),
+      { type: 'open_controlled_disclosure' },
+    );
+    let malformedRejection: ApplyEnvelopeCommandResultV21 | undefined;
+    expect(() => {
+      malformedRejection = applyEnvelopeCommandV21({
+        envelope: malformedEnvelope as never,
+        command: validCommand,
+        execution_authority: TRUSTED_SYSTEM_AUTHORITY_V21,
+      });
+    }).not.toThrow();
+    expect(malformedRejection).toMatchObject({
+      status: 'rejected',
+      reason_code: 'invalid_envelope',
+      prior_envelope_version: 0,
+      resulting_envelope_version: 0,
+    });
 
     const nestedCases = [
       () => {
@@ -275,6 +295,42 @@ describe('V2.1 explicit contract versions and principal binding', () => {
       execution_authority: actor(envelope, 'party_a'),
     });
     expect(result).toMatchObject({ status: 'rejected', reason_code: 'invalid_command' });
+
+    const invalidPartySlot = commandForV21(envelope, nextCommandId('command_invalid_party_slot'), {
+      type: 'bind_party',
+      party_slot: 'party_c',
+      authenticated_subject_id: 'subject_invalid_slot',
+      binding_event_id: 'binding_invalid_slot',
+    } as never);
+    expect(() =>
+      applyEnvelopeCommandV21({
+        envelope,
+        command: invalidPartySlot,
+        execution_authority: TRUSTED_SYSTEM_AUTHORITY_V21,
+      }),
+    ).not.toThrow();
+    expect(
+      applyEnvelopeCommandV21({
+        envelope,
+        command: invalidPartySlot,
+        execution_authority: TRUSTED_SYSTEM_AUTHORITY_V21,
+      }),
+    ).toMatchObject({ status: 'rejected', reason_code: 'invalid_command' });
+
+    const numericTimestamp = commandForV21(envelope, nextCommandId('command_numeric_timestamp'), {
+      type: 'record_party_confirmation',
+      confirmation_id: 'confirmation_party_a_numeric_time',
+      adoption_statement: 'I adopt this account.',
+      confirmed_at: 0,
+      event_id: 'confirmation_event_party_a_numeric_time',
+    } as never);
+    expect(
+      applyEnvelopeCommandV21({
+        envelope,
+        command: numericTimestamp,
+        execution_authority: actor(envelope, 'party_a', 'first_party_human'),
+      }),
+    ).toMatchObject({ status: 'rejected', reason_code: 'invalid_command' });
   });
 });
 
@@ -291,13 +347,13 @@ describe('V2.1 symmetric privacy and party-visible versioning', () => {
     envelope = apply(envelope, actor(envelope, 'party_b'), positionOperation('party_b', 'hidden'));
     envelope = apply(envelope, actor(envelope, 'party_b'), {
       type: 'record_own_clarification',
-      clarification_id: 'clarification_b_hidden',
+      clarification_id: 'clarification_party_b_hidden',
       question: 'What does B say?',
       answer: 'B supplies a private answer.',
     });
     envelope = apply(envelope, actor(envelope, 'party_b'), {
       type: 'record_own_evidence_reference',
-      evidence_id: 'evidence_b_hidden',
+      evidence_id: 'evidence_party_b_hidden',
       description: 'B private evidence reference',
       required_for_readiness: true,
     });
@@ -497,6 +553,16 @@ describe('V2.1 quiescence, explicit reopen, and confirmation currency', () => {
     let envelope = boundEnvelope();
     envelope = completeFormation(envelope, 'party_a');
     envelope = confirmParty(envelope, 'party_a');
+    const numericReceiptTimestamp = cloneCanonical(envelope);
+    (
+      numericReceiptTimestamp.formation.confirmations.party_a[0] as unknown as {
+        confirmed_at: unknown;
+      }
+    ).confirmed_at = 0;
+    synchronizeFixture(numericReceiptTimestamp);
+    expect(validateCaseEnvelopeV21(numericReceiptTimestamp).map((issue) => issue.code)).toContain(
+      'confirmation_receipt_invalid',
+    );
     const confirmedProjection = serializePartyFormationProjectionV21(envelope, 'party_a');
     expect(currentPartyConfirmationV21(envelope, 'party_a')).not.toBeNull();
 
@@ -532,6 +598,16 @@ describe('V2.1 quiescence, explicit reopen, and confirmation currency', () => {
     expect(
       projectPartyFormationV21(envelope, 'party_a').own_progress.last_reopen_event,
     ).toMatchObject({ event_id: 'reopen_event_human', resulting_formation_epoch: 2 });
+    const numericReopenTimestamp = cloneCanonical(envelope);
+    (
+      numericReopenTimestamp.formation.reopen_events[0] as unknown as {
+        occurred_at: unknown;
+      }
+    ).occurred_at = 0;
+    synchronizeFixture(numericReopenTimestamp);
+    expect(validateCaseEnvelopeV21(numericReopenTimestamp).map((issue) => issue.code)).toContain(
+      'reopen_event_invalid',
+    );
 
     envelope = apply(
       envelope,
@@ -666,7 +742,7 @@ describe('V2.1 operation-specific authorization', () => {
       expected_statement: position.statement,
       replacement_statement: 'A cannot replace B material.',
       source_turn: {
-        turn_id: 'turn_cross_party_replace',
+        turn_id: 'turn_party_a_cross_party_replace',
         content: 'A cannot replace B material.',
         spans: [{ start: 0, end: 28, quote: 'A cannot replace B material.' }],
       },
@@ -694,7 +770,7 @@ describe('V2.1 operation-specific authorization', () => {
       expected_statement: position.statement,
       replacement_statement: 'A still cannot replace disclosed B material.',
       source_turn: {
-        turn_id: 'turn_disclosed_cross_party_replace',
+        turn_id: 'turn_party_a_disclosed_cross_party_replace',
         content: 'A still cannot replace disclosed B material.',
         spans: [
           {
@@ -784,6 +860,104 @@ describe('V2.1 operation-specific authorization', () => {
       });
       expect({ reason: hiddenRequirement.reason_code, message: hiddenRequirement.message }).toEqual(
         { reason: absentRequirement.reason_code, message: absentRequirement.message },
+      );
+    }
+  });
+
+  it('prevents hidden-ID collision probes across every party-created material namespace', () => {
+    let envelope = boundEnvelope();
+    for (const partyId of ['party_a', 'party_b'] as const) {
+      envelope = apply(
+        envelope,
+        actor(envelope, partyId),
+        positionOperation(partyId, 'collision_probe'),
+      );
+      envelope = apply(envelope, actor(envelope, partyId), {
+        type: 'record_own_clarification',
+        clarification_id: `clarification_${partyId}_collision_probe`,
+        question: `${partyId} private question?`,
+        answer: `${partyId} private answer.`,
+      });
+      envelope = apply(envelope, actor(envelope, partyId), {
+        type: 'record_own_evidence_reference',
+        evidence_id: `evidence_${partyId}_collision_probe`,
+        description: `${partyId} private evidence.`,
+        required_for_readiness: false,
+      });
+    }
+
+    const externalOutcome = (result: ApplyEnvelopeCommandResultV21) => ({
+      reason: result.reason_code,
+      message: result.message,
+    });
+    for (const [requestingParty, opponentParty] of [
+      ['party_a', 'party_b'],
+      ['party_b', 'party_a'],
+    ] as const) {
+      const positionCollision = positionOperation(requestingParty, 'position_collision');
+      positionCollision.position_id = `position_${opponentParty}_collision_probe`;
+      const positionAbsent = positionOperation(requestingParty, 'position_absent');
+      positionAbsent.position_id = `position_${opponentParty}_absent_probe`;
+      expect(
+        externalOutcome(execute(envelope, actor(envelope, requestingParty), positionCollision)),
+      ).toEqual(
+        externalOutcome(execute(envelope, actor(envelope, requestingParty), positionAbsent)),
+      );
+
+      const sourceCollision = positionOperation(requestingParty, 'source_collision');
+      sourceCollision.source_turn.turn_id = `turn_${opponentParty}_collision_probe`;
+      const sourceAbsent = positionOperation(requestingParty, 'source_absent');
+      sourceAbsent.source_turn.turn_id = `turn_${opponentParty}_absent_probe`;
+      expect(
+        externalOutcome(execute(envelope, actor(envelope, requestingParty), sourceCollision)),
+      ).toEqual(externalOutcome(execute(envelope, actor(envelope, requestingParty), sourceAbsent)));
+
+      const clarification = (identifier: string): EnvelopeOperationV21 => ({
+        type: 'record_own_clarification',
+        clarification_id: identifier,
+        question: 'Private probe question?',
+        answer: 'Private probe answer.',
+      });
+      expect(
+        externalOutcome(
+          execute(
+            envelope,
+            actor(envelope, requestingParty),
+            clarification(`clarification_${opponentParty}_collision_probe`),
+          ),
+        ),
+      ).toEqual(
+        externalOutcome(
+          execute(
+            envelope,
+            actor(envelope, requestingParty),
+            clarification(`clarification_${opponentParty}_absent_probe`),
+          ),
+        ),
+      );
+
+      const evidence = (identifier: string): EnvelopeOperationV21 => ({
+        type: 'record_own_evidence_reference',
+        evidence_id: identifier,
+        description: 'Private evidence probe.',
+        required_for_readiness: false,
+      });
+      expect(
+        externalOutcome(
+          execute(
+            envelope,
+            actor(envelope, requestingParty),
+            evidence(`evidence_${opponentParty}_collision_probe`),
+          ),
+        ),
+      ).toEqual(
+        externalOutcome(
+          execute(
+            envelope,
+            actor(envelope, requestingParty),
+            evidence(`evidence_${opponentParty}_absent_probe`),
+          ),
+        ),
       );
     }
   });
@@ -929,13 +1103,13 @@ describe('V2.1 procedural bilateral readiness', () => {
     );
     envelope = apply(envelope, actor(envelope, 'party_a'), {
       type: 'record_own_evidence_reference',
-      evidence_id: 'evidence_a_required',
+      evidence_id: 'evidence_party_a_required',
       description: 'A required evidence reference.',
       required_for_readiness: true,
     });
     envelope = apply(envelope, TRUSTED_SYSTEM_AUTHORITY_V21, {
       type: 'set_evidence_eligibility',
-      evidence_id: 'evidence_a_required',
+      evidence_id: 'evidence_party_a_required',
       eligibility: 'eligible',
     });
     envelope = completeFormation(envelope, 'party_a');
@@ -977,7 +1151,7 @@ describe('V2.1 procedural bilateral readiness', () => {
     expect(currentPartyConfirmationV21(envelope, 'party_b')).not.toBeNull();
 
     const invalidReadyFixture = cloneCanonical(envelope);
-    invalidReadyFixture.evidence.evidence_a_required!.eligibility = 'ineligible';
+    invalidReadyFixture.evidence.evidence_party_a_required!.eligibility = 'ineligible';
     synchronizeFixture(invalidReadyFixture);
     expect(validateCaseEnvelopeV21(invalidReadyFixture).map((issue) => issue.code)).toContain(
       'ready_for_lock_state_invalid',
@@ -985,7 +1159,7 @@ describe('V2.1 procedural bilateral readiness', () => {
 
     envelope = apply(envelope, TRUSTED_SYSTEM_AUTHORITY_V21, {
       type: 'set_evidence_eligibility',
-      evidence_id: 'evidence_a_required',
+      evidence_id: 'evidence_party_a_required',
       eligibility: 'ineligible',
     });
     expect(envelope.control.workflow_state).toBe('final_confirmation');
