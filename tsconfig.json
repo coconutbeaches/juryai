@@ -9,8 +9,7 @@
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
     "noUncheckedIndexedAccess": true,
-    "outDir": "dist",
-    "types": ["node", "vitest/globals", "vite/client"]
+    "outDir": "dist"
   },
   "include": ["src/**/*.ts", "api/**/*.ts", "vite.config.ts"]
 }
