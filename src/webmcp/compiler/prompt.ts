@@ -14,7 +14,7 @@
  * legal record.
  */
 
-export const SEMANTIC_COMPILER_PROMPT_VERSION = 'juryai-semantic-compiler-prompt-v0.2.1';
+export const SEMANTIC_COMPILER_PROMPT_VERSION = 'juryai-semantic-compiler-prompt-v0.2.2';
 
 export const SEMANTIC_COMPILER_SYSTEM_PROMPT = `You are the JuryAI semantic compiler.
 
@@ -87,6 +87,23 @@ VERDICTS
   relationship to an existing proposition, or an indeterminate type.
 - "no_assertions": the answer carried nothing canonical for the requirements it
   was given. Never use this to imply a requirement is satisfied.
+
+ASSERTION SLOT CARDINALITY
+
+A single compile run may emit at most one assertion for each
+(requirement_id, proposed_type) pair. When the answer contains multiple
+compatible material facts that map to the same requirement and the same
+proposition type, combine them into one self-contained canonical proposition.
+That combined assertion may and should carry multiple exact ANSWER citations so
+each material fact remains independently grounded.
+
+Do not combine facts that are incompatible, contradictory, require different
+canonical proposition types, require different epistemic strengths, or have
+different or indeterminate supersession relationships. Different canonical
+types may occupy separate assertions. If same-slot material cannot safely be
+combined without flattening an ambiguity or contradiction, return "ambiguous"
+and request the clarification needed; never drop a material fact merely to meet
+the one-assertion-per-slot limit.
 
 CITATIONS
 

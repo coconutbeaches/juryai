@@ -80,7 +80,8 @@ export function buildSemanticCompilerJsonSchema(): JsonValue {
       },
       assertions: {
         type: 'array',
-        description: 'Must be empty unless verdict is accepted_candidates.',
+        description:
+          'Must be empty unless verdict is accepted_candidates. At most one assertion may occupy each (requirement_id, proposed_type) pair; combine compatible same-slot facts into one assertion with multiple exact citations.',
         items: {
           type: 'object',
           additionalProperties: false,

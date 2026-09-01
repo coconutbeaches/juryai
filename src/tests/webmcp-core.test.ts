@@ -2440,6 +2440,51 @@ describe('compiler contract', () => {
     expect(validateCompilerOutput(compilerInput(), compilerOutput())).toEqual([]);
   });
 
+  it('rejects duplicate requirement/type slots at the compiler-contract boundary', () => {
+    const output = compilerOutput();
+    const first = output.assertions[0]!;
+    const issues = validateCompilerOutput(compilerInput(), {
+      ...output,
+      assertions: [
+        first,
+        {
+          ...first,
+          assertion_id: 'a2',
+          statement: 'The user also expected completion by April 25.',
+        },
+      ],
+    });
+
+    expect(issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: 'compiler_assertion_slot_duplicate',
+          path: 'compiler_output.assertions[1]',
+        }),
+      ]),
+    );
+  });
+
+  it('allows different proposition types to occupy different slots in one output', () => {
+    const output = compilerOutput();
+    const first = output.assertions[0]!;
+    const issues = validateCompilerOutput(compilerInput(), {
+      ...output,
+      assertions: [
+        first,
+        {
+          ...first,
+          assertion_id: 'a2',
+          proposed_type: 'non_recollection',
+          epistemic_strength: 'non_recollection',
+          statement: 'The user does not remember another part of the answer.',
+        },
+      ],
+    });
+
+    expect(issues.map((entry) => entry.code)).not.toContain('compiler_assertion_slot_duplicate');
+  });
+
   it('rejects an accepted assertion with no exact source spans', () => {
     const output = compilerOutput();
     const first = output.assertions[0]!;

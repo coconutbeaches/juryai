@@ -424,6 +424,91 @@ const ACCEPTED_EXTRACTION: SemanticEvalCase[] = [
       ],
     }),
   },
+  {
+    id: 'accept.narrative_fact.multi_fact_same_slot',
+    category: 'accepted_extraction',
+    description:
+      'Compatible facts in one narrative slot are combined without losing their separate grounding.',
+    in_reply_to: ['req_other_party_position'],
+    answer:
+      'They say they completed the work they agreed to and that I still owe the remaining $5,000. They also say I changed the requirements during the project, which caused additional work and delays.',
+    expect: {
+      verdict: 'accepted_candidates',
+      assertions: [
+        {
+          requirement_id: 'req_other_party_position',
+          type: 'narrative_fact',
+          epistemic_strength: ['asserted_confident'],
+          statement_mentions: [
+            'completed',
+            '$5,000',
+            'changed requirements',
+            'additional work',
+            'delays',
+          ],
+        },
+      ],
+      clarifications: [],
+      forbid_supersession: true,
+    },
+    offline_completion: completion({
+      verdict: 'accepted_candidates',
+      assertions: [
+        {
+          requirement_id: 'req_other_party_position',
+          proposed_type: 'narrative_fact',
+          epistemic_strength: 'asserted_confident',
+          statement:
+            "The person says the other party's position is that it completed the agreed work, that $5,000 remains owed, and that the person's changed requirements caused additional work and delays.",
+          citations: [
+            answerCite('They say they completed the work they agreed to'),
+            answerCite('I still owe the remaining $5,000'),
+            answerCite(
+              'They also say I changed the requirements during the project, which caused additional work and delays.',
+            ),
+          ],
+        },
+      ],
+    }),
+    traps: [
+      {
+        name: 'decomposes compatible same-slot facts into duplicate assertions',
+        caught_by: 'boundary',
+        completion: completion({
+          verdict: 'accepted_candidates',
+          assertions: [
+            {
+              requirement_id: 'req_other_party_position',
+              proposed_type: 'narrative_fact',
+              epistemic_strength: 'asserted_confident',
+              statement:
+                "The person says the other party's position is that it completed the agreed work.",
+              citations: [answerCite('They say they completed the work they agreed to')],
+            },
+            {
+              requirement_id: 'req_other_party_position',
+              proposed_type: 'narrative_fact',
+              epistemic_strength: 'asserted_confident',
+              statement: "The person says the other party's position is that $5,000 remains owed.",
+              citations: [answerCite('I still owe the remaining $5,000')],
+            },
+            {
+              requirement_id: 'req_other_party_position',
+              proposed_type: 'narrative_fact',
+              epistemic_strength: 'asserted_confident',
+              statement:
+                "The person says the other party's position is that changed requirements caused additional work and delays.",
+              citations: [
+                answerCite(
+                  'They also say I changed the requirements during the project, which caused additional work and delays.',
+                ),
+              ],
+            },
+          ],
+        }),
+      },
+    ],
+  },
 ];
 
 /* ------------------------------------------------------------------------ */
@@ -1660,4 +1745,4 @@ export const SEMANTIC_EVAL_CORPUS: readonly SemanticEvalCase[] = [
   ...SAFETY,
 ];
 
-export const SEMANTIC_EVAL_CORPUS_VERSION = 'juryai-semantic-eval-corpus-v0.2.0';
+export const SEMANTIC_EVAL_CORPUS_VERSION = 'juryai-semantic-eval-corpus-v0.2.1';

@@ -27,7 +27,7 @@ import { verifyTurnSpan, type SourceTurnRecord, type TurnSpan } from './turns.js
 import type { Proposition } from './propositions.js';
 import type { RequirementDefinition } from './requirements.js';
 
-export const COMPILER_CONTRACT_VERSION = 'juryai-webmcp-compiler-contract-v0.2.0';
+export const COMPILER_CONTRACT_VERSION = 'juryai-webmcp-compiler-contract-v0.2.1';
 
 /* ------------------------------------------------------------------------ */
 /* Compiler identity                                                         */
@@ -272,6 +272,7 @@ export function validateCompilerOutput(
     input.existing_propositions.map((proposition) => proposition.proposition_id),
   );
   const seen = new Set<string>();
+  const seenSlots = new Set<string>();
 
   for (const [index, assertion] of output.assertions.entries()) {
     const at = path + '.assertions[' + String(index) + ']';
@@ -282,7 +283,8 @@ export function validateCompilerOutput(
     }
     seen.add(assertion.assertion_id);
 
-    if (!isPropositionType(assertion.proposed_type)) {
+    const knownType = isPropositionType(assertion.proposed_type);
+    if (!knownType) {
       issues.push(
         issue(
           'compiler_type_unknown',
@@ -290,6 +292,23 @@ export function validateCompilerOutput(
           'proposed_type is not a canonical proposition type.',
         ),
       );
+    }
+    if (knownType) {
+      const slot = assertion.requirement_id + '|' + assertion.proposed_type;
+      if (seenSlots.has(slot)) {
+        issues.push(
+          issue(
+            'compiler_assertion_slot_duplicate',
+            at,
+            "A compile run may emit at most one '" +
+              assertion.proposed_type +
+              "' assertion for requirement '" +
+              assertion.requirement_id +
+              "'. Compatible facts must be combined into one assertion with multiple exact spans.",
+          ),
+        );
+      }
+      seenSlots.add(slot);
     }
     if (!isEpistemicStrength(assertion.epistemic_strength)) {
       issues.push(

@@ -3,6 +3,7 @@ import {
   CaseRuntime,
   InMemoryCaseRuntimeStore,
   ScriptedSemanticCompiler,
+  applyCompilerOutput,
   initialRequirementSet,
   recordingDiagnosticsSink,
   sequentialIdFactory,
@@ -1068,7 +1069,7 @@ describe('structural validation gates the commit', () => {
     expect(state.propositions).toHaveLength(1);
   });
 
-  it('refuses two statements of one type against one requirement in a single run', async () => {
+  it('rejects duplicate same-slot assertions at the contract boundary and retains the mutation guard', async () => {
     const h = harness();
     h.scripted.setScript(() => ({
       verdict: 'accepted_candidates',
@@ -1096,11 +1097,31 @@ describe('structural validation gates the commit', () => {
       submitCommand({ case_id: caseId, payload: payload('April 25, or maybe May 2.') }),
     );
     expect(outcome.kind).toBe('failed');
-    const event = h.diagnostics.events.find((entry) => entry.kind === 'mutation_rejected');
-    expect(event?.issues.map((entry) => entry.code)).toContain(
+    const event = h.diagnostics.events.find(
+      (entry) => entry.kind === 'compiler_contract_violation',
+    );
+    expect(event?.issues.map((entry) => entry.code)).toContain('compiler_assertion_slot_duplicate');
+
+    const state = await loadState(h, caseId);
+    expect(state.propositions).toEqual([]);
+    const runs = await h.store.compileRuns.listByCase(caseId);
+    expect(runs).toHaveLength(1);
+    expect(runs[0]!.contract_issues.map((entry) => entry.code)).toContain(
+      'compiler_assertion_slot_duplicate',
+    );
+
+    const guarded = applyCompilerOutput({
+      state,
+      turn: runs[0]!.input.turn,
+      output: runs[0]!.output,
+      next_case_version: 1,
+      ids: sequentialIdFactory('guard.'),
+    });
+    expect(guarded.ok).toBe(false);
+    if (guarded.ok) return;
+    expect(guarded.issues.map((entry) => entry.code)).toContain(
       'mutation_duplicate_requirement_type',
     );
-    expect((await loadState(h, caseId)).propositions).toEqual([]);
   });
 });
 

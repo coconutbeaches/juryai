@@ -40,7 +40,7 @@ import {
   type SemanticModelRequest,
   type SemanticModelResponse,
 } from './model-client.js';
-import { SEMANTIC_COMPILER_SYSTEM_PROMPT } from './prompt.js';
+import { SEMANTIC_COMPILER_PROMPT_VERSION, SEMANTIC_COMPILER_SYSTEM_PROMPT } from './prompt.js';
 import { COMPILER_INPUT_RENDER_VERSION, renderCompilerInput } from './render-input.js';
 import {
   buildSemanticCompilerJsonSchema,
@@ -124,6 +124,7 @@ export interface ModelCompilerConfig {
   kind: 'model';
   provider_id: string;
   endpoint_sha256: string | null;
+  prompt_version: string;
   response_format: 'json_schema_strict';
   output_schema_hash: string;
   input_template_version: string;
@@ -238,6 +239,7 @@ export function modelCompilerConfigOf(resolved: ResolvedModelCompilerOptions): M
     kind: 'model',
     provider_id: resolved.provider_id,
     endpoint_sha256: resolved.endpoint_sha256,
+    prompt_version: SEMANTIC_COMPILER_PROMPT_VERSION,
     response_format: 'json_schema_strict',
     output_schema_hash: semanticCompilerSchemaHash(),
     input_template_version: 'juryai-compiler-input-v0.2.0',
