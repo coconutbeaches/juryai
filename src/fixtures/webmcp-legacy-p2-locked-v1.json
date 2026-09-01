@@ -1,0 +1,126 @@
+{
+  "fixture_version": "juryai-legacy-p2-locked-fixture-v1",
+  "fixture_kind": "synthetic_non_production",
+  "canonical_projection_version": "juryai-canonical-state-projection-v1",
+  "canonical_json_version": "juryai-legacy-canonical-json-v1",
+  "readback_renderer_version": "juryai-legacy-readback-renderer-v1",
+  "attestation_contract_version": "juryai-webmcp-attestation-v0.3.0",
+  "locked_case_state": {
+    "case_id": "case_fixture_legacy_locked_v1",
+    "case_version": 1,
+    "principal_id": "principal_fixture_legacy_v1",
+    "disclosure_version": "juryai-disclosure-fixture-v1",
+    "disclosure_accepted_at": "2026-06-01T09:59:00.000Z",
+    "requirements": [
+      {
+        "requirement_id": "req_delivery_date",
+        "prompt": "What delivery date did you expect?",
+        "satisfying_types": ["target_date"],
+        "min_propositions": 1,
+        "max_propositions": 1,
+        "adverse_fact_probe": false,
+        "reopened_from": null
+      }
+    ],
+    "propositions": [
+      {
+        "proposition_id": "prop_fixture_legacy_1",
+        "case_id": "case_fixture_legacy_locked_v1",
+        "type": "target_date",
+        "epistemic_strength": "asserted_confident",
+        "statement": "The user expected delivery by 30 June 2026.",
+        "in_reply_to": "req_delivery_date",
+        "derived_from_turn_ids": ["turn_fixture_legacy_1"],
+        "spans": [
+          {
+            "turn_id": "turn_fixture_legacy_1",
+            "region": "answer",
+            "message_index": null,
+            "encoding": "utf16",
+            "start": 23,
+            "end": 35,
+            "quote": "30 June 2026"
+          }
+        ],
+        "source_channel": "webmcp_agent_relay",
+        "relaying_agent": "Synthetic Fixture Relay",
+        "supersedes": null,
+        "superseded_by": null,
+        "superseded_at_case_version": null,
+        "created_at_case_version": 1,
+        "compile_run_id": "run_fixture_legacy_1",
+        "compiler_version_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "evidence_ref_id": null
+      }
+    ],
+    "clarifications": [],
+    "evidence_references": [],
+    "turn_log": [
+      {
+        "turn_id": "turn_fixture_legacy_1",
+        "case_id": "case_fixture_legacy_locked_v1",
+        "case_version_before": 0,
+        "received_at": "2026-06-01T10:00:00.000Z",
+        "principal_id": "principal_fixture_legacy_v1",
+        "source_channel": "webmcp_agent_relay",
+        "relaying_agent": "Synthetic Fixture Relay",
+        "source_language": "en",
+        "translation_indicated": false,
+        "in_reply_to": ["req_delivery_date"],
+        "client_turn_id": "client_fixture_legacy_1",
+        "request_fingerprint": "d505c6250d863a4ce3ed696ae87009b9d2ce1c97876d1b3d7c05c111ae760df7",
+        "payload": {
+          "context": [],
+          "answer": {
+            "role": "user",
+            "text": "I expected delivery by 30 June 2026."
+          }
+        },
+        "payload_commitment_salt": "fixture-salt-v1",
+        "payload_commitment": "e0a6c3b435d752892b2717e994644f56babbddec93e655a309c3da46cf65c002",
+        "compile_run_id": "run_fixture_legacy_1"
+      }
+    ],
+    "attestations": [
+      {
+        "attestation_id": "att_fixture_legacy_1",
+        "case_id": "case_fixture_legacy_locked_v1",
+        "case_version": 1,
+        "canonical_state_hash": "8375d67462e3e6d90efa22c10365e4af8c4f0efaa289cead07a62e483a3ac587",
+        "rendered_document": "JURYAI CANONICAL READ-BACK\nformat: juryai-readback-v0.3.0\ntemplate: juryai-canonical-account-render-v0.3.0\ncase: case_fixture_legacy_locked_v1\nversion: 1\n\n[REQUIREMENT req_delivery_date]\nprompt:\nWhat delivery date did you expect?\n.\nstatus: \"satisfied\"\nsatisfying_types: [\"target_date\"]\nmin_propositions: 1\nmax_propositions: 1\nadverse_fact_probe: false\nreopened_from: null\n[/REQUIREMENT]\n\n[PROPOSITION prop_fixture_legacy_1]\nstatement:\nThe user expected delivery by 30 June 2026.\n.\nrequirement: \"req_delivery_date\"\ntype: \"target_date\"\nepistemic_strength: \"asserted_confident\"\nepistemic_meaning:\nstated as certain\n.\nstanding: \"live\"\nsource_channel: \"webmcp_agent_relay\"\nrelaying_agent: \"Synthetic Fixture Relay\"\nwhere_this_came_from:\nRelayed to JuryAI through Synthetic Fixture Relay.\n.\nsource_turns: [{\"turn_id\":\"turn_fixture_legacy_1\",\"source_channel\":\"webmcp_agent_relay\",\"relaying_agent\":\"Synthetic Fixture Relay\",\"source_language\":\"en\",\"translation_indicated\":false}]\nderived_from_turns: [\"turn_fixture_legacy_1\"]\nspans: [{\"turn_id\":\"turn_fixture_legacy_1\",\"region\":\"answer\",\"message_index\":null,\"encoding\":\"utf16\",\"start\":23,\"end\":35,\"quote\":\"30 June 2026\"}]\nsupersedes: null\nsuperseded_by: null\nsuperseded_at_case_version: null\ncreated_at_case_version: 1\ncompile_run_id: \"run_fixture_legacy_1\"\ncompiler_version_id: \"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"\nevidence_ref_id: null\n[/PROPOSITION]\n\n[NON_ANSWER_RECAP]\nheading:\nThings you said you do not know, do not remember, or chose not to answer\n.\nproposition_ids: []\n[/NON_ANSWER_RECAP]\n",
+        "rendered_document_hash": "b11f61d8ca56e1b31cb3c5796b084c7a3e0b94da89b6b7f8905863d4329f8890",
+        "render_template_version": "juryai-canonical-account-render-v0.3.0",
+        "attestation_contract_version": "juryai-webmcp-attestation-v0.3.0",
+        "adoption_statement": "I have read this JuryAI account. It accurately represents the account I am giving JuryAI, including any uncertainty, disagreements, things I do not remember, and answers I chose not to give. I understand that attesting locks this case record.\n\nSome parts may be worded by my AI assistant rather than by me. I have read those parts and they say what I mean.",
+        "adoption_statement_hash": "c37e40f6654f179e998ad95ae0cfafacf2a3a662385950d60c39dc74c765e3ae",
+        "challenge": "fixture-challenge-v1",
+        "verification_method": "first_party_ui_click",
+        "assurance_level": "ui_click",
+        "authenticator_ref": null,
+        "signature": null,
+        "signature_alg": null,
+        "source_turn_ids": ["turn_fixture_legacy_1"],
+        "source_turn_commitments": [
+          "e0a6c3b435d752892b2717e994644f56babbddec93e655a309c3da46cf65c002"
+        ],
+        "source_turn_metadata_commitments": [
+          "7374b2c0d67050188acdb22f6e8c968c3d8186478ce69158dec44c91c24ac27d"
+        ],
+        "evidence_refs": [],
+        "unresolved_requirement_ids": [],
+        "schema_version": "juryai-webmcp-core-v0.2.0",
+        "protocol_version": "juryai-webmcp-protocol-v0.2.0",
+        "compiler_version_ids": [
+          "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        ],
+        "structural_validator_version": "juryai-structural-validator-v0.2.0",
+        "principal_id": "principal_fixture_legacy_v1",
+        "created_at": "2026-06-01T10:05:00.000Z",
+        "client_ip": null,
+        "user_agent": "Synthetic Fixture Browser"
+      }
+    ]
+  },
+  "expected_canonical_state_hash": "8375d67462e3e6d90efa22c10365e4af8c4f0efaa289cead07a62e483a3ac587",
+  "expected_rendered_document_hash": "b11f61d8ca56e1b31cb3c5796b084c7a3e0b94da89b6b7f8905863d4329f8890"
+}

@@ -4,13 +4,13 @@ import type { CaseRuntimeStore } from '../runtime/index.js';
 import { createRuntimeCaseService } from '../service/index.js';
 import {
   ATTESTATION_CONTRACT_VERSION,
-  adoptionStatementFor,
+  adoptionStatementForV1,
   appendAttestation,
   deriveCaseStatus,
   issueRenderChallenge,
-  renderCanonicalAccount,
+  renderCanonicalAccountV1,
   verifyAttestationAttempt,
-  verifyRenderCompleteness,
+  verifyRenderCompletenessV1,
   type AttestationAttempt,
   type RenderChallenge,
 } from '../core/attestation.js';
@@ -444,8 +444,8 @@ export class JuryAiWebServer {
       if (!stored || stored.state.principal_id !== authorized.principal_id) {
         return errorResponse(404, 'CASE_NOT_FOUND', 'No such case.');
       }
-      const render = renderCanonicalAccount(stored.state);
-      const completeness = verifyRenderCompleteness(stored.state, render.document);
+      const render = renderCanonicalAccountV1(stored.state);
+      const completeness = verifyRenderCompletenessV1(stored.state, render.document);
       const structural = validateCaseState(stored.state);
       const readiness = deriveReadiness(
         stored.state.requirements,
@@ -463,7 +463,7 @@ export class JuryAiWebServer {
       if (readiness.open_clarification_ids.length > 0) {
         blockingReasons.push('open_clarifications');
       }
-      const adoptionStatement = adoptionStatementFor(stored.state);
+      const adoptionStatement = adoptionStatementForV1(stored.state);
       const adoptionStatementHash = sha256(adoptionStatement);
       const attestable = blockingReasons.length === 0;
       let rawChallenge: string | null = null;

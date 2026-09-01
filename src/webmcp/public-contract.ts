@@ -159,6 +159,16 @@ export interface ConflictTurnSummary {
   received_at: string;
 }
 
+/** Exact legacy relay-visible shape of one version-conflict turn summary. */
+export const PERMITTED_CONFLICT_TURN_SUMMARY_SLOTS = [
+  'turn_id',
+  'in_reply_to',
+  'answer_excerpt',
+  'request_fingerprint',
+  'client_turn_id',
+  'received_at',
+] as const;
+
 export type JuryAiErrorCode =
   | 'AUTH_REQUIRED'
   | 'CASE_NOT_FOUND'
@@ -206,6 +216,16 @@ export interface SubmitTurnSuccess {
   superseded: string[];
 }
 
+/** `replayed` is optional; every other slot is required. */
+export const PERMITTED_SUBMIT_TURN_SUCCESS_SLOTS = [
+  'ok',
+  'replayed',
+  'turn_id',
+  'case',
+  'recorded',
+  'superseded',
+] as const;
+
 export interface VersionConflictResult {
   ok: false;
   error: {
@@ -218,6 +238,22 @@ export interface VersionConflictResult {
   likely_already_recorded: boolean;
   case: CaseStateResponse;
 }
+
+/** Exact legacy relay-visible VERSION_CONFLICT result shape. */
+export const PERMITTED_VERSION_CONFLICT_RESULT_SLOTS = [
+  'ok',
+  'error',
+  'current_case_version',
+  'recent_turns',
+  'likely_already_recorded',
+  'case',
+] as const;
+
+/** Exact legacy relay-visible generic submit failure shape; `case` is optional. */
+export const PERMITTED_SUBMIT_TURN_FAILURE_SLOTS = ['ok', 'error', 'case'] as const;
+
+/** Exact nested error shape shared by legacy submit result failures. */
+export const PERMITTED_SUBMIT_TURN_ERROR_SLOTS = ['code', 'message', 'retryable'] as const;
 
 export type StartCaseResult = StartCaseSuccess | OpenDraftExistsResult | JuryAiServiceError;
 export type GetCaseStateResult = GetCaseStateSuccess | JuryAiServiceError;
@@ -568,8 +604,8 @@ function decodeError(value: unknown): JuryAiServiceError['error'] {
   const error = exactObject(
     value,
     'service error',
-    ['code', 'message', 'retryable'],
-    ['code', 'message', 'retryable'],
+    PERMITTED_SUBMIT_TURN_ERROR_SLOTS,
+    PERMITTED_SUBMIT_TURN_ERROR_SLOTS,
   );
   const codes: readonly JuryAiErrorCode[] = [
     'AUTH_REQUIRED',
@@ -590,7 +626,10 @@ function decodeError(value: unknown): JuryAiServiceError['error'] {
 }
 
 function decodeGenericFailure(value: JsonObject): JuryAiServiceError {
-  const decoded = exactObject(value, 'service failure', ['ok', 'error', 'case'], ['ok', 'error']);
+  const decoded = exactObject(value, 'service failure', PERMITTED_SUBMIT_TURN_FAILURE_SLOTS, [
+    'ok',
+    'error',
+  ]);
   if (decoded.ok !== false) throw new TypeError('service failure ok must be false');
   return {
     ok: false,
@@ -648,22 +687,8 @@ function decodeConflictTurn(value: unknown, index: number): ConflictTurnSummary 
   const turn = exactObject(
     value,
     `recent_turns[${index}]`,
-    [
-      'turn_id',
-      'in_reply_to',
-      'answer_excerpt',
-      'request_fingerprint',
-      'client_turn_id',
-      'received_at',
-    ],
-    [
-      'turn_id',
-      'in_reply_to',
-      'answer_excerpt',
-      'request_fingerprint',
-      'client_turn_id',
-      'received_at',
-    ],
+    PERMITTED_CONFLICT_TURN_SUMMARY_SLOTS,
+    PERMITTED_CONFLICT_TURN_SUMMARY_SLOTS,
   );
   const fingerprint = string(turn.request_fingerprint, 'request_fingerprint', 64);
   if (!HASH_PATTERN.test(fingerprint)) throw new TypeError('request_fingerprint must be SHA-256');
@@ -685,12 +710,13 @@ function decodeConflictTurn(value: unknown, index: number): ConflictTurnSummary 
 function decodeSubmitTurnResult(value: unknown): SubmitTurnResult {
   const result = object(value, 'submitTurn result');
   if (result.ok === true) {
-    const success = exactObject(
-      result,
-      'submitTurn result',
-      ['ok', 'replayed', 'turn_id', 'case', 'recorded', 'superseded'],
-      ['ok', 'turn_id', 'case', 'recorded', 'superseded'],
-    );
+    const success = exactObject(result, 'submitTurn result', PERMITTED_SUBMIT_TURN_SUCCESS_SLOTS, [
+      'ok',
+      'turn_id',
+      'case',
+      'recorded',
+      'superseded',
+    ]);
     if (success.replayed !== undefined && typeof success.replayed !== 'boolean') {
       throw new TypeError('replayed must be a boolean');
     }
@@ -708,15 +734,15 @@ function decodeSubmitTurnResult(value: unknown): SubmitTurnResult {
     const conflict = exactObject(
       result,
       'submitTurn result',
-      ['ok', 'error', 'current_case_version', 'recent_turns', 'likely_already_recorded', 'case'],
-      ['ok', 'error', 'current_case_version', 'recent_turns', 'likely_already_recorded', 'case'],
+      PERMITTED_VERSION_CONFLICT_RESULT_SLOTS,
+      PERMITTED_VERSION_CONFLICT_RESULT_SLOTS,
     );
     if (conflict.ok !== false) throw new TypeError('VERSION_CONFLICT ok must be false');
     const conflictError = exactObject(
       conflict.error,
       'submitTurn error',
-      ['code', 'message', 'retryable'],
-      ['code', 'message', 'retryable'],
+      PERMITTED_SUBMIT_TURN_ERROR_SLOTS,
+      PERMITTED_SUBMIT_TURN_ERROR_SLOTS,
     );
     if (
       conflictError.code !== 'VERSION_CONFLICT' ||

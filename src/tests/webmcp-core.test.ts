@@ -591,9 +591,21 @@ describe('submit precheck', () => {
     expect(result.kind).toBe('proceed');
   });
 
-  it('does not leak another principal turns into a conflict response', () => {
-    const foreign = turn({ turn_id: 'turn_x', principal_id: 'user_other' });
-    const result = precheckSubmit(request({ payload: payload('Yes, it was contractual.') }), {
+  it('does not leak another principal into recent_turns or likely_already_recorded', () => {
+    const staleRequest = request({ payload: payload('Yes, it was contractual.') });
+    const collidingFingerprint = computeRequestFingerprint({
+      principal_id: staleRequest.principal_id,
+      case_id: staleRequest.case_id,
+      in_reply_to: staleRequest.in_reply_to,
+      payload: staleRequest.payload,
+    });
+    const foreign = turn({
+      turn_id: 'turn_x',
+      principal_id: 'user_other',
+      payload: payload('foreign principal secret answer'),
+      request_fingerprint: collidingFingerprint,
+    });
+    const result = precheckSubmit(staleRequest, {
       store,
       log: [committed, foreign],
       current_case_version: 18,
@@ -601,6 +613,8 @@ describe('submit precheck', () => {
     });
     if (result.kind !== 'version_conflict') throw new Error('expected a version conflict');
     expect(result.recent_turns.map((t) => t.turn_id)).not.toContain('turn_x');
+    expect(JSON.stringify(result.recent_turns)).not.toContain('foreign principal secret answer');
+    expect(result.likely_already_recorded).toBe(false);
   });
 });
 

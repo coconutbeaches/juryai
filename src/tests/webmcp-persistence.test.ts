@@ -755,6 +755,24 @@ describe('Step 63 CaseServicePort PostgreSQL integration', () => {
     const replay = await serviceA.submitTurn(translated);
     expect(replay).toEqual({ ...second, replayed: true });
 
+    const foreignWho = principal('service_adapter_foreign');
+    const foreignService = runtimeService(instanceB, foreignWho);
+    const foreignReplayAttempt = await foreignService.submitTurn(translated);
+    expect(foreignReplayAttempt).toMatchObject({
+      ok: false,
+      error: { code: 'CASE_NOT_FOUND', retryable: false },
+    });
+    expect(foreignReplayAttempt).not.toHaveProperty('case');
+    expect(foreignReplayAttempt).not.toHaveProperty('recent_turns');
+    expect(foreignReplayAttempt).not.toHaveProperty('likely_already_recorded');
+    const foreignWire = JSON.stringify(foreignReplayAttempt);
+    expect(foreignWire).not.toContain(second.turn_id);
+    expect(foreignWire).not.toContain(translated.payload.answer.text);
+    for (const interpretation of second.recorded) {
+      expect(foreignWire).not.toContain(interpretation.statement);
+      expect(foreignWire).not.toContain(interpretation.proposition_id);
+    }
+
     const storedAfterReplay = await storeA.cases.findById(started.case.case_id);
     expect(
       storedAfterReplay?.state.turn_log.map((turn) => ({

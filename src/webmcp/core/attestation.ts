@@ -36,13 +36,19 @@ import {
 } from './requirements.js';
 import { computeSourceTurnMetadataCommitment, type SourceTurnRecord } from './turns.js';
 import {
-  adoptionStatementFor,
-  renderCanonicalReadback,
-  verifyRenderCompleteness,
+  adoptionStatementForV1,
+  renderCanonicalReadbackV1,
+  verifyRenderCompletenessV1,
 } from './readback.js';
 
 export { verifyRenderCompleteness } from './readback.js';
 export { adoptionStatementFor } from './readback.js';
+export {
+  adoptionStatementForV1,
+  LEGACY_READBACK_RENDERER_VERSION,
+  renderCanonicalReadbackV1,
+  verifyRenderCompletenessV1,
+} from './readback.js';
 export {
   parseReadbackDocument,
   READBACK_FORMAT_VERSION,
@@ -51,6 +57,7 @@ export {
 
 export const ATTESTATION_CONTRACT_VERSION = 'juryai-webmcp-attestation-v0.3.0';
 export const LEGACY_RENDER_TEMPLATE_VERSION = 'juryai-canonical-account-render-v0.2.0';
+export const LEGACY_CANONICAL_STATE_PROJECTION_VERSION = 'juryai-canonical-state-projection-v1';
 export const DEFAULT_CHALLENGE_TTL_MS = 15 * 60 * 1000;
 
 /* ------------------------------------------------------------------------ */
@@ -72,7 +79,7 @@ export interface CaseState {
   attestations: AttestationRecord[];
 }
 
-export function canonicalStateProjection(state: CaseState): unknown {
+export function canonicalStateProjectionV1(state: CaseState): unknown {
   return {
     case_id: state.case_id,
     case_version: state.case_version,
@@ -86,9 +93,15 @@ export function canonicalStateProjection(state: CaseState): unknown {
   };
 }
 
-export function hashCanonicalState(state: CaseState): string {
-  return sha256(canonicalSerialize(canonicalStateProjection(state)));
+/** Backward-compatible name for the frozen legacy projection. */
+export const canonicalStateProjection = canonicalStateProjectionV1;
+
+export function hashCanonicalStateV1(state: CaseState): string {
+  return sha256(canonicalSerialize(canonicalStateProjectionV1(state)));
 }
+
+/** Backward-compatible name for the frozen legacy canonical hash. */
+export const hashCanonicalState = hashCanonicalStateV1;
 
 /**
  * Lock status is derived: the case is locked when its CURRENT version carries
@@ -127,9 +140,12 @@ export interface RenderedAccount {
  * human can catch it. Epistemic strength is surfaced for every proposition
  * because it is the most error-prone attribute the validator cannot check.
  */
-export function renderCanonicalAccount(state: CaseState): RenderedAccount {
-  return renderCanonicalReadback(state);
+export function renderCanonicalAccountV1(state: CaseState): RenderedAccount {
+  return renderCanonicalReadbackV1(state);
 }
+
+/** Backward-compatible name for the frozen legacy account renderer. */
+export const renderCanonicalAccount = renderCanonicalAccountV1;
 
 /* ------------------------------------------------------------------------ */
 /* Render challenge                                                          */
@@ -163,7 +179,7 @@ export function issueRenderChallenge(
   if (render.case_id !== state.case_id || render.case_version !== state.case_version) {
     throw new TypeError('Render challenge state and document identities disagree.');
   }
-  const statement = adoptionStatementFor(state);
+  const statement = adoptionStatementForV1(state);
   return {
     challenge: nonce,
     case_id: state.case_id,
@@ -382,7 +398,7 @@ export function verifyAttestationAttempt(
       'The attestation contract changed after the account was rendered.',
     );
   }
-  const render = renderCanonicalAccount(state);
+  const render = renderCanonicalAccountV1(state);
   if (
     render.document_hash !== challenge.rendered_document_hash ||
     render.document_hash !== attempt.rendered_document_hash
@@ -393,7 +409,7 @@ export function verifyAttestationAttempt(
       'The rendered account no longer matches what was confirmed.',
     );
   }
-  const completeness = verifyRenderCompleteness(state, render.document);
+  const completeness = verifyRenderCompletenessV1(state, render.document);
   if (!completeness.ok) {
     return {
       kind: 'rejected',
@@ -408,7 +424,7 @@ export function verifyAttestationAttempt(
       ],
     };
   }
-  const adoptionStatement = adoptionStatementFor(state);
+  const adoptionStatement = adoptionStatementForV1(state);
   const adoptionStatementHash = sha256(adoptionStatement);
   if (challenge.adoption_statement_hash !== adoptionStatementHash) {
     return reject(
@@ -445,7 +461,7 @@ export function verifyAttestationAttempt(
     attestation_id: attempt.attestation_id,
     case_id: state.case_id,
     case_version: state.case_version,
-    canonical_state_hash: hashCanonicalState(state),
+    canonical_state_hash: hashCanonicalStateV1(state),
     rendered_document: render.document,
     rendered_document_hash: render.document_hash,
     render_template_version: render.render_template_version,

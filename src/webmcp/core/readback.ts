@@ -20,6 +20,13 @@ import {
 
 export { parseReadbackDocument, READBACK_FORMAT_VERSION, ReadbackParseError };
 
+/**
+ * Stable identity for the renderer used by every historical `case_...` record.
+ * New dispute formats must use a separately named renderer rather than changing
+ * the meaning of this artifact.
+ */
+export const LEGACY_READBACK_RENDERER_VERSION = 'juryai-legacy-readback-renderer-v1';
+
 export interface RenderCompletenessReport {
   ok: boolean;
   issues: ContractIssue[];
@@ -307,9 +314,9 @@ function renderDocument(state: CaseState): string {
   return `${lines.join('\n')}\n`;
 }
 
-export function renderCanonicalReadback(state: CaseState): RenderedAccount {
+export function renderCanonicalReadbackV1(state: CaseState): RenderedAccount {
   const document = renderDocument(state);
-  const report = verifyRenderCompleteness(state, document);
+  const report = verifyRenderCompletenessV1(state, document);
   if (!report.ok) {
     const first = report.issues[0];
     throw new ReadbackRenderError(
@@ -326,6 +333,9 @@ export function renderCanonicalReadback(state: CaseState): RenderedAccount {
   };
 }
 
+/** Backward-compatible name for the frozen legacy renderer. */
+export const renderCanonicalReadback = renderCanonicalReadbackV1;
+
 function issue(code: string, path: string, message: string): ContractIssue {
   return { code, path, message };
 }
@@ -339,7 +349,7 @@ function expectedBlocks(state: CaseState): ReadbackBlock[] {
  * omissions, inventions, wrong block types, duplicate ids, incomplete fields,
  * and any parser/render round-trip drift.
  */
-export function verifyRenderCompleteness(
+export function verifyRenderCompletenessV1(
   state: CaseState,
   renderedDocument: string,
 ): RenderCompletenessReport {
@@ -445,7 +455,10 @@ export function verifyRenderCompleteness(
   return { ok: true, issues: [] };
 }
 
-export function adoptionStatementFor(state: CaseState): string {
+/** Backward-compatible name for the frozen legacy completeness verifier. */
+export const verifyRenderCompleteness = verifyRenderCompletenessV1;
+
+export function adoptionStatementForV1(state: CaseState): string {
   const base =
     'I have read this JuryAI account. It accurately represents the account I am giving JuryAI, including any uncertainty, disagreements, things I do not remember, and answers I chose not to give. I understand that attesting locks this case record.';
   const relay = state.propositions.some(
@@ -457,3 +470,6 @@ export function adoptionStatementFor(state: CaseState): string {
     ? `${base}\n\nSome parts may be worded by my AI assistant rather than by me. I have read those parts and they say what I mean.`
     : base;
 }
+
+/** Backward-compatible name for the frozen legacy adoption statement. */
+export const adoptionStatementFor = adoptionStatementForV1;

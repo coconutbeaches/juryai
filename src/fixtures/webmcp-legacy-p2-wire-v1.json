@@ -1,0 +1,212 @@
+{
+  "fixture_version": "juryai-legacy-p2-wire-v1",
+  "case_state": {
+    "case_id": "case_wire_fixture_1",
+    "case_version": 3,
+    "protocol_version": "juryai-webmcp-protocol-v0.2.0",
+    "schema_version": "juryai-webmcp-core-v0.2.0",
+    "status": "draft",
+    "unresolved_requirement_count": 1,
+    "next_requirements": [
+      {
+        "requirement_id": "req_expected_date",
+        "prompt": "What date did you expect?"
+      }
+    ],
+    "open_clarifications": [],
+    "recent_interpretations": [
+      {
+        "proposition_id": "prop_wire_fixture_1",
+        "requirement_id": "req_expected_date",
+        "statement": "The user expected completion by 25 April.",
+        "type": "target_date",
+        "epistemic_strength": "recalled_uncertain",
+        "attribution": "as relayed by an external AI assistant"
+      }
+    ],
+    "evidence_references": [],
+    "warnings": [],
+    "review_url": "https://juryai.test/cases/case_wire_fixture_1/review"
+  },
+  "submit_turn_results": {
+    "committed": {
+      "ok": true,
+      "turn_id": "turn_wire_fixture_1",
+      "case": {
+        "case_id": "case_wire_fixture_1",
+        "case_version": 3,
+        "protocol_version": "juryai-webmcp-protocol-v0.2.0",
+        "schema_version": "juryai-webmcp-core-v0.2.0",
+        "status": "draft",
+        "unresolved_requirement_count": 1,
+        "next_requirements": [
+          {
+            "requirement_id": "req_expected_date",
+            "prompt": "What date did you expect?"
+          }
+        ],
+        "open_clarifications": [],
+        "recent_interpretations": [
+          {
+            "proposition_id": "prop_wire_fixture_1",
+            "requirement_id": "req_expected_date",
+            "statement": "The user expected completion by 25 April.",
+            "type": "target_date",
+            "epistemic_strength": "recalled_uncertain",
+            "attribution": "as relayed by an external AI assistant"
+          }
+        ],
+        "evidence_references": [],
+        "warnings": [],
+        "review_url": "https://juryai.test/cases/case_wire_fixture_1/review"
+      },
+      "recorded": [
+        {
+          "proposition_id": "prop_wire_fixture_1",
+          "requirement_id": "req_expected_date",
+          "statement": "The user expected completion by 25 April.",
+          "type": "target_date",
+          "epistemic_strength": "recalled_uncertain",
+          "attribution": "as relayed by an external AI assistant"
+        }
+      ],
+      "superseded": []
+    },
+    "replayed": {
+      "ok": true,
+      "replayed": true,
+      "turn_id": "turn_wire_fixture_1",
+      "case": {
+        "case_id": "case_wire_fixture_1",
+        "case_version": 3,
+        "protocol_version": "juryai-webmcp-protocol-v0.2.0",
+        "schema_version": "juryai-webmcp-core-v0.2.0",
+        "status": "draft",
+        "unresolved_requirement_count": 1,
+        "next_requirements": [
+          {
+            "requirement_id": "req_expected_date",
+            "prompt": "What date did you expect?"
+          }
+        ],
+        "open_clarifications": [],
+        "recent_interpretations": [
+          {
+            "proposition_id": "prop_wire_fixture_1",
+            "requirement_id": "req_expected_date",
+            "statement": "The user expected completion by 25 April.",
+            "type": "target_date",
+            "epistemic_strength": "recalled_uncertain",
+            "attribution": "as relayed by an external AI assistant"
+          }
+        ],
+        "evidence_references": [],
+        "warnings": [],
+        "review_url": "https://juryai.test/cases/case_wire_fixture_1/review"
+      },
+      "recorded": [
+        {
+          "proposition_id": "prop_wire_fixture_1",
+          "requirement_id": "req_expected_date",
+          "statement": "The user expected completion by 25 April.",
+          "type": "target_date",
+          "epistemic_strength": "recalled_uncertain",
+          "attribution": "as relayed by an external AI assistant"
+        }
+      ],
+      "superseded": []
+    },
+    "version_conflict": {
+      "ok": false,
+      "error": {
+        "code": "VERSION_CONFLICT",
+        "message": "The case changed before this turn could be recorded.",
+        "retryable": false
+      },
+      "current_case_version": 3,
+      "recent_turns": [
+        {
+          "turn_id": "turn_wire_fixture_1",
+          "in_reply_to": ["req_expected_date"],
+          "answer_excerpt": "I expected completion by 25 April.",
+          "request_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "client_turn_id": "client_wire_fixture_1",
+          "received_at": "2026-08-31T06:00:00.000Z"
+        }
+      ],
+      "likely_already_recorded": true,
+      "case": {
+        "case_id": "case_wire_fixture_1",
+        "case_version": 3,
+        "protocol_version": "juryai-webmcp-protocol-v0.2.0",
+        "schema_version": "juryai-webmcp-core-v0.2.0",
+        "status": "draft",
+        "unresolved_requirement_count": 1,
+        "next_requirements": [
+          {
+            "requirement_id": "req_expected_date",
+            "prompt": "What date did you expect?"
+          }
+        ],
+        "open_clarifications": [],
+        "recent_interpretations": [
+          {
+            "proposition_id": "prop_wire_fixture_1",
+            "requirement_id": "req_expected_date",
+            "statement": "The user expected completion by 25 April.",
+            "type": "target_date",
+            "epistemic_strength": "recalled_uncertain",
+            "attribution": "as relayed by an external AI assistant"
+          }
+        ],
+        "evidence_references": [],
+        "warnings": [],
+        "review_url": "https://juryai.test/cases/case_wire_fixture_1/review"
+      }
+    },
+    "service_error": {
+      "ok": false,
+      "error": {
+        "code": "CASE_LOCKED",
+        "message": "This case version has been attested and cannot change.",
+        "retryable": false
+      }
+    },
+    "service_error_with_case": {
+      "ok": false,
+      "error": {
+        "code": "CONFLICT",
+        "message": "The case changed during persistence.",
+        "retryable": true
+      },
+      "case": {
+        "case_id": "case_wire_fixture_1",
+        "case_version": 3,
+        "protocol_version": "juryai-webmcp-protocol-v0.2.0",
+        "schema_version": "juryai-webmcp-core-v0.2.0",
+        "status": "draft",
+        "unresolved_requirement_count": 1,
+        "next_requirements": [
+          {
+            "requirement_id": "req_expected_date",
+            "prompt": "What date did you expect?"
+          }
+        ],
+        "open_clarifications": [],
+        "recent_interpretations": [
+          {
+            "proposition_id": "prop_wire_fixture_1",
+            "requirement_id": "req_expected_date",
+            "statement": "The user expected completion by 25 April.",
+            "type": "target_date",
+            "epistemic_strength": "recalled_uncertain",
+            "attribution": "as relayed by an external AI assistant"
+          }
+        ],
+        "evidence_references": [],
+        "warnings": [],
+        "review_url": "https://juryai.test/cases/case_wire_fixture_1/review"
+      }
+    }
+  }
+}

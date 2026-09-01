@@ -1,0 +1,18 @@
+{
+  "fixture_version": "juryai-golden-production-case-commitments-v1",
+  "fixture_kind": "read_only_production_commitments",
+  "observed_at": "2026-09-01",
+  "case_id": "case_21919135-c72a-4e37-a18f-b4d274025298",
+  "locked_case_version": 10,
+  "expected_status": "locked",
+  "commitments": {
+    "canonical_state_hash": "b4bf79467e2a85e16389f2aa26ecde415861ce5575ffa5cb873bb9b81813f1ad",
+    "rendered_document_hash": "a6ca8539069b5473002d22292b6490992a042163e1d8c6e8ea7b3f9a876f37c4",
+    "adoption_statement_hash": "c37e40f6654f179e998ad95ae0cfafacf2a3a662385950d60c39dc74c765e3ae",
+    "render_template_version": "juryai-canonical-account-render-v0.3.0",
+    "attestation_contract_version": "juryai-webmcp-attestation-v0.3.0",
+    "schema_version": "juryai-webmcp-core-v0.2.0",
+    "protocol_version": "juryai-webmcp-protocol-v0.2.0",
+    "structural_validator_version": "juryai-structural-validator-v0.2.0"
+  }
+}
