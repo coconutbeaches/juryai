@@ -48,6 +48,7 @@ jobs:
           - src/tests/person-a-dr002-claim-no-refund-diagnostic.test.ts
           - src/tests/person-a-dr002-claim-remedy-decomposition.test.ts
           - src/tests/v2-formation-adjudication-contract.test.ts
+          - src/tests/v2-1-domain-invariants.test.ts
           - src/tests/gate-zero-coverage-matrix.test.ts
           - src/tests/gate-zero-initial-ten-cases.test.ts
           - src/tests/gate-zero-frozen-corpus.test.ts
