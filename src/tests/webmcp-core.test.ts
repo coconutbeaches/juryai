@@ -79,6 +79,7 @@ import {
   compilerVersionId,
   registerCompilerVersion,
   validateCompilerOutput,
+  validateCompilerOutputForContractVersion,
   type CompilerOutput,
   type CompilerVersion,
 } from '../webmcp/core/compiler-contract.js';
@@ -2463,6 +2464,33 @@ describe('compiler contract', () => {
         }),
       ]),
     );
+  });
+
+  it('revalidates historical v0.2.0 outputs without applying the v0.2.1 slot rule', () => {
+    const output = compilerOutput();
+    const first = output.assertions[0]!;
+    const historicalOutput = {
+      ...output,
+      assertions: [
+        first,
+        {
+          ...first,
+          assertion_id: 'a2',
+          statement: 'The user also expected completion by April 25.',
+        },
+      ],
+    };
+
+    expect(
+      validateCompilerOutputForContractVersion(
+        compilerInput(),
+        historicalOutput,
+        'juryai-webmcp-compiler-contract-v0.2.0',
+      ).map((entry) => entry.code),
+    ).not.toContain('compiler_assertion_slot_duplicate');
+    expect(
+      validateCompilerOutput(compilerInput(), historicalOutput).map((entry) => entry.code),
+    ).toContain('compiler_assertion_slot_duplicate');
   });
 
   it('allows different proposition types to occupy different slots in one output', () => {

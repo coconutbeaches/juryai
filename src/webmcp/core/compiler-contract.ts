@@ -29,6 +29,10 @@ import type { RequirementDefinition } from './requirements.js';
 
 export const COMPILER_CONTRACT_VERSION = 'juryai-webmcp-compiler-contract-v0.2.1';
 
+const COMPILER_CONTRACTS_WITHOUT_ASSERTION_SLOT_CARDINALITY = new Set([
+  'juryai-webmcp-compiler-contract-v0.2.0',
+]);
+
 /* ------------------------------------------------------------------------ */
 /* Compiler identity                                                         */
 /* ------------------------------------------------------------------------ */
@@ -206,7 +210,19 @@ export function validateCompilerOutput(
   output: CompilerOutput,
   path = 'compiler_output',
 ): ContractIssue[] {
+  return validateCompilerOutputForContractVersion(input, output, COMPILER_CONTRACT_VERSION, path);
+}
+
+/** Revalidates an immutable run under the contract version its compiler recorded. */
+export function validateCompilerOutputForContractVersion(
+  input: CompilerInput,
+  output: CompilerOutput,
+  compilerContractVersion: string,
+  path = 'compiler_output',
+): ContractIssue[] {
   const issues: ContractIssue[] = [];
+  const enforceAssertionSlotCardinality =
+    !COMPILER_CONTRACTS_WITHOUT_ASSERTION_SLOT_CARDINALITY.has(compilerContractVersion);
 
   if (output.compile_run_id !== input.compile_run_id) {
     issues.push(
@@ -293,7 +309,7 @@ export function validateCompilerOutput(
         ),
       );
     }
-    if (knownType) {
+    if (knownType && enforceAssertionSlotCardinality) {
       const slot = assertion.requirement_id + '|' + assertion.proposed_type;
       if (seenSlots.has(slot)) {
         issues.push(
