@@ -153,7 +153,7 @@ export class BrowserShellController {
 
   constructor(options: BrowserShellControllerOptions) {
     this.#options = options;
-    this.#fetch = options.fetchImpl ?? fetch;
+    this.#fetch = options.fetchImpl ?? globalThis.fetch.bind(globalThis);
     this.#registerTools = options.registerTools ?? registerJuryAiWebMcpTools;
   }
 
