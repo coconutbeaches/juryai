@@ -79,6 +79,28 @@ describe('frameworkless browser shell lifecycle', () => {
     expect(states.at(-1)).toEqual({ phase: 'signed_out' });
   });
 
+  it('binds the default browser fetch receiver before requesting signed-out bootstrap', async () => {
+    const states: BrowserShellState[] = [];
+    const originalFetch = globalThis.fetch;
+    try {
+      globalThis.fetch = function (this: unknown, input): Promise<Response> {
+        if (this !== globalThis) throw new TypeError('Illegal invocation');
+        expect(String(input)).toBe('/api/juryai/bootstrap');
+        return Promise.resolve(Response.json({ authenticated: false }));
+      } as typeof fetch;
+
+      const controller = new BrowserShellController({
+        view: view(states),
+        getModelContext: () => undefined,
+      });
+      await controller.initialize();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+
+    expect(states.at(-1)).toEqual({ phase: 'signed_out' });
+  });
+
   it('does not create a case port or register tools before disclosure acceptance', async () => {
     const states: BrowserShellState[] = [];
     const controller = new BrowserShellController({

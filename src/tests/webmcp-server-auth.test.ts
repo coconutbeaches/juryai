@@ -14,6 +14,7 @@ import {
   type WebSessionPersistence,
   type WebSessionRecord,
 } from '../webmcp/server/index.js';
+import { handleBootstrap } from '../webmcp/server/production.js';
 import { PUBLIC_CASE_STATE } from './webmcp-browser-test-fixtures.js';
 
 const NOW = new Date('2026-08-31T06:00:00.000Z');
@@ -199,6 +200,20 @@ describe('Supabase identity proof boundary', () => {
 });
 
 describe('opaque JuryAI session boundary', () => {
+  it('serves signed-out bootstrap without initializing unavailable server dependencies', async () => {
+    const response = await handleBootstrap(
+      new Request('https://preview.juryai.test/api/juryai/bootstrap'),
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Cache-Control')).toBe('private, no-store');
+    expect(await response.json()).toEqual({ authenticated: false });
+
+    const rejected = await handleBootstrap(
+      new Request('https://preview.juryai.test/api/juryai/bootstrap', { method: 'POST' }),
+    );
+    expect(rejected.status).toBe(405);
+  });
+
   it('creates only a hashed seven-day session and never returns Supabase material', async () => {
     const store = new FakeWebStore();
     const { response, cookie } = await signIn(server(store));

@@ -9,8 +9,9 @@ import {
 } from '../runtime/index.js';
 import { loadJuryAiWebServerConfig } from './config.js';
 import { JURYAI_P2_DISCLOSURE_VERSION } from './disclosure.js';
-import { errorResponse } from './http.js';
+import { errorResponse, jsonResponse, requireMethod } from './http.js';
 import { JuryAiWebServer } from './server.js';
+import { readSessionCookie } from './session.js';
 import { supabaseAuthForRequest } from './supabase-auth.js';
 import { PostgresWebSessionStore } from './web-session-store.js';
 
@@ -71,8 +72,18 @@ export const handleVerifyOtp = (request: Request): Promise<Response> =>
 export const handleLogout = (request: Request): Promise<Response> =>
   handle(request, (instance, incoming) => instance.logout(incoming));
 
-export const handleBootstrap = (request: Request): Promise<Response> =>
-  handle(request, (instance, incoming) => instance.bootstrap(incoming));
+export const handleBootstrap = (request: Request): Promise<Response> => {
+  const rejected = requireMethod(request, 'GET');
+  if (rejected) return Promise.resolve(rejected);
+  const cookie = request.headers.get('Cookie');
+  if (
+    readSessionCookie(cookie, '__Host-juryai_session') === null &&
+    readSessionCookie(cookie, 'juryai_session_dev') === null
+  ) {
+    return Promise.resolve(jsonResponse({ authenticated: false }));
+  }
+  return handle(request, (instance, incoming) => instance.bootstrap(incoming));
+};
 
 export const handleDisclosure = (request: Request): Promise<Response> =>
   handle(request, (instance, incoming) => instance.acceptDisclosure(incoming));
