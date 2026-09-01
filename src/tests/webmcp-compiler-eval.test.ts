@@ -17,6 +17,7 @@ import {
   offlineCorpusCompiler,
   runMalformedSuite,
   runOfflineCorpus,
+  runBoundary,
   runSemanticEval,
   runTrapSuite,
   SEMANTIC_EVAL_CORPUS,
@@ -64,8 +65,8 @@ async function compileFixture(
 }
 
 describe('semantic eval corpus', () => {
-  it('retains all 27 versioned scenarios and required categories', () => {
-    expect(SEMANTIC_EVAL_CORPUS).toHaveLength(27);
+  it('retains all 28 versioned scenarios and required categories', () => {
+    expect(SEMANTIC_EVAL_CORPUS).toHaveLength(28);
     expect(SEMANTIC_EVAL_CORPUS_VERSION).toMatch(/^juryai-semantic-eval-corpus-v/u);
     const ids = SEMANTIC_EVAL_CORPUS.map((entry) => entry.id);
     expect(new Set(ids).size).toBe(ids.length);
@@ -107,7 +108,7 @@ describe('offline replay and runtime boundary', () => {
           boundary: result.boundary?.disposition,
         })),
     ).toEqual([]);
-    expect(report.passed).toBe(27);
+    expect(report.passed).toBe(28);
     for (const result of report.results) {
       expect(result.boundary?.disposition, result.case_id).toBe('committed');
     }
@@ -154,6 +155,41 @@ describe('offline replay and runtime boundary', () => {
 });
 
 describe('deterministic assertion expectations', () => {
+  it('coalesces the exact production multi-fact answer into one grounded narrative slot', async () => {
+    const evalCase = corpusCase('accept.narrative_fact.multi_fact_same_slot');
+    const { scenario, output } = await compileFixture(evalCase);
+
+    expect(output.assertions).toHaveLength(1);
+    const assertion = output.assertions[0]!;
+    expect(assertion).toMatchObject({
+      requirement_id: 'req_other_party_position',
+      proposed_type: 'narrative_fact',
+    });
+    expect(assertion.statement).toContain('completed');
+    expect(assertion.statement).toContain('$5,000');
+    expect(assertion.statement).toContain('changed requirements');
+    expect(assertion.statement).toContain('additional work');
+    expect(assertion.statement).toContain('delays');
+    expect(
+      assertion.spans.map((span) => scenario.turn.payload.answer.text.slice(span.start, span.end)),
+    ).toEqual([
+      'They say they completed the work they agreed to',
+      'I still owe the remaining $5,000',
+      'They also say I changed the requirements during the project, which caused additional work and delays.',
+    ]);
+
+    expect(gradeCompilerOutput(evalCase, scenario.input, output).failures).toEqual([]);
+    const boundary = runBoundary(
+      scenario.state,
+      scenario.input,
+      output,
+      evalCase,
+      scenario.next_case_version,
+    );
+    expect(boundary.disposition).toBe('committed');
+    expect(boundary.accepted_proposition_ids).toHaveLength(1);
+  });
+
   it('accepts the expected verdict and rejects a different verdict', async () => {
     const evalCase = corpusCase('accept.payment');
     const { scenario, output } = await compileFixture(evalCase);

@@ -20,6 +20,7 @@ import {
   SemanticModelError,
   SemanticModelIdentityError,
   SemanticModelRefusalError,
+  SEMANTIC_COMPILER_PROMPT_VERSION,
   SEMANTIC_COMPILER_SYSTEM_PROMPT,
   buildSemanticCompilerJsonSchema,
   semanticCompilerSchemaHash,
@@ -58,6 +59,9 @@ import {
 
 const ANSWER = 'I asked them to rewire the ground floor and move the consumer unit.';
 const REQUIREMENT = 'req_scope_requested';
+const PRODUCTION_MULTI_FACT_ANSWER =
+  'They say they completed the work they agreed to and that I still owe the remaining $5,000. They also say I changed the requirements during the project, which caused additional work and delays.';
+const OTHER_PARTY_POSITION_REQUIREMENT = 'req_other_party_position';
 
 function payloadOf(answer: string, context: string[] = []): SourceTurnPayload {
   return normalizePayload({
@@ -160,6 +164,24 @@ describe('compiler versioning', () => {
     expect(entry.compiler_version_id).toBe(compilerVersionId(entry.version));
     // The core registry re-derives every hash; this is the real check.
     expect(() => registerCompilerVersion([], entry)).not.toThrow();
+  });
+
+  it('versions the same-slot coalescing policy as a new prompt artefact', () => {
+    expect(SEMANTIC_COMPILER_PROMPT_VERSION).toBe('juryai-semantic-compiler-prompt-v0.2.2');
+    expect(SEMANTIC_COMPILER_SYSTEM_PROMPT).toContain(
+      'at most one assertion for each\n(requirement_id, proposed_type) pair',
+    );
+    expect(SEMANTIC_COMPILER_SYSTEM_PROMPT).toContain(
+      'combine them into one self-contained canonical proposition',
+    );
+    expect(SEMANTIC_COMPILER_SYSTEM_PROMPT).toContain('multiple exact ANSWER citations');
+
+    const entry = buildModelCompilerRegistryEntry({ ...base });
+    expect(entry.version.prompt_hash).toBe(sha256(SEMANTIC_COMPILER_SYSTEM_PROMPT));
+    expect(entry.compiler_version_id).toBe(compilerVersionId(entry.version));
+    expect((entry.config as Record<string, unknown>).prompt_version).toBe(
+      SEMANTIC_COMPILER_PROMPT_VERSION,
+    );
   });
 
   it('records an unknown model snapshot as null rather than inventing one', () => {
@@ -1625,6 +1647,93 @@ describe('the merged runtime boundary', () => {
     expect(proposition.compiler_version_id).toBe(result.compiler.registryEntry.compiler_version_id);
     // Provenance comes from the turn, not from anything the model said.
     expect(proposition.relaying_agent).toBe('ChatGPT (gpt-x)');
+  });
+
+  it('commits the exact production multi-fact answer as one narrative slot and advances once', async () => {
+    const completion = JSON.stringify({
+      verdict: 'accepted_candidates',
+      assertions: [
+        {
+          requirement_id: OTHER_PARTY_POSITION_REQUIREMENT,
+          proposed_type: 'narrative_fact',
+          epistemic_strength: 'asserted_confident',
+          statement:
+            "The person says the other party's position is that it completed the agreed work, that $5,000 remains owed, and that the person's changed requirements caused additional work and delays.",
+          supersedes_candidate: null,
+          citations: [
+            {
+              region: 'answer',
+              message_index: null,
+              quote: 'They say they completed the work they agreed to',
+            },
+            {
+              region: 'answer',
+              message_index: null,
+              quote: 'I still owe the remaining $5,000',
+            },
+            {
+              region: 'answer',
+              message_index: null,
+              quote:
+                'They also say I changed the requirements during the project, which caused additional work and delays.',
+            },
+          ],
+        },
+      ],
+      rejected_candidates: [],
+      clarifications_requested: [],
+    });
+    const harness = runtimeOver(completion);
+    const started = await harness.runtime.startCase(ALICE, { client_request_id: 'start_1' });
+    if (started.kind !== 'created') throw new Error('expected a created case');
+    const versionBefore = started.case.case_version;
+
+    const outcome = await harness.runtime.submitTurn(ALICE, {
+      case_id: started.case.case_id,
+      expected_case_version: versionBefore,
+      in_reply_to: [OTHER_PARTY_POSITION_REQUIREMENT],
+      payload: payloadOf(PRODUCTION_MULTI_FACT_ANSWER),
+      client_turn_id: 'production_canary_regression',
+    });
+
+    expect(outcome.kind).toBe('committed');
+    if (outcome.kind !== 'committed') return;
+    expect(outcome.case.case_version).toBe(versionBefore + 1);
+    expect(outcome.accepted_proposition_ids).toHaveLength(1);
+
+    const runs = await harness.store.compileRuns.listByCase(started.case.case_id);
+    expect(runs).toHaveLength(1);
+    expect(runs[0]!.contract_issues).toEqual([]);
+    expect(runs[0]!.output.assertions).toHaveLength(1);
+    const compiled = runs[0]!.output.assertions[0]!;
+    expect(compiled).toMatchObject({
+      requirement_id: OTHER_PARTY_POSITION_REQUIREMENT,
+      proposed_type: 'narrative_fact',
+    });
+    expect(
+      compiled.spans.map((span) => PRODUCTION_MULTI_FACT_ANSWER.slice(span.start, span.end)),
+    ).toEqual([
+      'They say they completed the work they agreed to',
+      'I still owe the remaining $5,000',
+      'They also say I changed the requirements during the project, which caused additional work and delays.',
+    ]);
+
+    const stored = await harness.store.cases.findById(started.case.case_id);
+    expect(stored!.state.case_version).toBe(versionBefore + 1);
+    expect(stored!.state.propositions).toHaveLength(1);
+    const proposition = stored!.state.propositions[0]!;
+    expect(proposition).toMatchObject({
+      in_reply_to: OTHER_PARTY_POSITION_REQUIREMENT,
+      type: 'narrative_fact',
+    });
+    expect(proposition.statement).toContain('completed');
+    expect(proposition.statement).toContain('$5,000');
+    expect(proposition.statement).toContain('changed requirements');
+    expect(proposition.statement).toContain('additional work');
+    expect(proposition.statement).toContain('delays');
+    expect(
+      new Set(stored!.state.propositions.map((item) => item.in_reply_to + '|' + item.type)).size,
+    ).toBe(stored!.state.propositions.length);
   });
 
   it('registers the compiler artefact the runtime pinned for the run', async () => {

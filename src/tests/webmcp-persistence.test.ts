@@ -42,7 +42,11 @@ import {
   WEBMCP_CORE_SCHEMA_VERSION,
   WEBMCP_PROTOCOL_VERSION,
 } from '../webmcp/core/types.js';
-import type { CompilerInput, CompilerOutput } from '../webmcp/core/compiler-contract.js';
+import {
+  compilerVersionId,
+  type CompilerInput,
+  type CompilerOutput,
+} from '../webmcp/core/compiler-contract.js';
 import { createRuntimeCaseService } from '../webmcp/service/index.js';
 import {
   JURYAI_P2_DISCLOSURE_VERSION,
@@ -212,6 +216,64 @@ describe('PostgreSQL record round trips and configuration', () => {
     } finally {
       await reader.close();
     }
+  });
+
+  it('reads v0.2.0 duplicate-slot runs under their recorded compiler contract', async () => {
+    const who = principal('historical_contract');
+    const answerText =
+      'They say they completed the work they agreed to and that I still owe the remaining $5,000. They also say I changed the requirements during the project, which caused additional work and delays.';
+    const legacyCompiler = new ScriptedSemanticCompiler(() => ({
+      verdict: 'accepted_candidates',
+      assertions: [
+        {
+          quote: 'They say they completed the work they agreed to',
+          requirement_id: 'req_other_party_position',
+          type: 'narrative_fact',
+          epistemic_strength: 'asserted_confident',
+          statement: 'The other party says it completed the agreed work.',
+        },
+        {
+          quote: 'I still owe the remaining $5,000',
+          requirement_id: 'req_other_party_position',
+          type: 'narrative_fact',
+          epistemic_strength: 'asserted_confident',
+          statement: 'The other party says $5,000 remains owed.',
+        },
+        {
+          quote:
+            'They also say I changed the requirements during the project, which caused additional work and delays.',
+          requirement_id: 'req_other_party_position',
+          type: 'narrative_fact',
+          epistemic_strength: 'asserted_confident',
+          statement: 'The other party says changed requirements caused additional work and delays.',
+        },
+      ],
+    }));
+    const legacyVersion = {
+      ...legacyCompiler.registryEntry.version,
+      schema_version: 'juryai-webmcp-compiler-contract-v0.2.0',
+    };
+    legacyCompiler.registryEntry.version = legacyVersion;
+    legacyCompiler.registryEntry.compiler_version_id = compilerVersionId(legacyVersion);
+
+    const instance = runtime(storeA, legacyCompiler);
+    const started = await startCase(instance, who);
+    const outcome = await instance.submitTurn(
+      who,
+      submit(started.case.case_id, {
+        in_reply_to: ['req_other_party_position'],
+        payload: payload(answerText),
+      }),
+    );
+
+    expect(outcome.kind).toBe('failed');
+    const stored = await storeB.cases.findById(started.case.case_id);
+    expect(stored?.state.case_version).toBe(0);
+    const runs = await storeB.compileRuns.listByCase(started.case.case_id);
+    expect(runs).toHaveLength(1);
+    expect(runs[0]?.contract_issues).toEqual([]);
+    expect(runs[0]?.output.assertions).toHaveLength(3);
+    expect(await storeB.compileRuns.findById(runs[0]!.compile_run_id)).toEqual(runs[0]);
   });
 
   it('requires an explicit adapter and never falls back from postgres', () => {

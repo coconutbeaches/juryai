@@ -14,7 +14,7 @@ import type { CaseState } from '../core/attestation.js';
 import {
   compilerInputHash,
   registerCompilerVersion,
-  validateCompilerOutput,
+  validateCompilerOutputForContractVersion,
   type CompileRunRecord,
   type CompilerRegistryEntry,
 } from '../core/compiler-contract.js';
@@ -57,6 +57,10 @@ interface JsonRecordRow {
 
 interface JsonEntryRow {
   entry: unknown;
+}
+
+interface CompileRunRow extends JsonRecordRow {
+  compiler_entry: unknown;
 }
 
 interface SubmitSnapshotRow extends StoredCaseRow {
@@ -201,7 +205,18 @@ export class PostgresCaseRuntimeStore implements CaseRuntimeStore {
 
   readonly compileRuns: CompileRunRepository = {
     append: async (record) => {
-      const detached = decodeCompileRun(structuredClone(record));
+      const registry = await this.#pool.query(
+        `select entry
+           from ${SCHEMA}.compiler_registry
+          where compiler_version_id = $1`,
+        [record.compiler_version_id],
+      );
+      const registryRow = registry.rows[0] as JsonEntryRow | undefined;
+      if (!registryRow) {
+        throw new TypeError('Compile run names an unregistered compiler version.');
+      }
+      const compiler = decodeCompilerRegistryEntry(registryRow.entry);
+      const detached = decodeCompileRun(structuredClone(record), compiler);
       try {
         await this.#pool.query(`insert into ${SCHEMA}.compile_runs (record) values ($1::jsonb)`, [
           encodeJson(detached),
@@ -217,20 +232,24 @@ export class PostgresCaseRuntimeStore implements CaseRuntimeStore {
     },
     findById: async (compileRunId) => {
       const result = await this.#pool.query(
-        `select record from ${SCHEMA}.compile_runs where compile_run_id = $1`,
+        `select run.record, registry.entry as compiler_entry
+           from ${SCHEMA}.compile_runs as run
+           left join ${SCHEMA}.compiler_registry as registry using (compiler_version_id)
+          where run.compile_run_id = $1`,
         [compileRunId],
       );
-      return result.rows[0] ? decodeCompileRun((result.rows[0] as JsonRecordRow).record) : null;
+      return result.rows[0] ? decodeCompileRunRow(result.rows[0] as CompileRunRow) : null;
     },
     listByCase: async (caseId) => {
       const result = await this.#pool.query(
-        `select record
-           from ${SCHEMA}.compile_runs
-          where case_id = $1
-          order by storage_sequence`,
+        `select run.record, registry.entry as compiler_entry
+           from ${SCHEMA}.compile_runs as run
+           left join ${SCHEMA}.compiler_registry as registry using (compiler_version_id)
+          where run.case_id = $1
+          order by run.storage_sequence`,
         [caseId],
       );
-      return result.rows.map((row) => decodeCompileRun((row as JsonRecordRow).record));
+      return result.rows.map((row) => decodeCompileRunRow(row as CompileRunRow));
     },
   };
 
@@ -711,7 +730,11 @@ function decodeCompilerRegistryEntry(value: unknown): CompilerRegistryEntry {
   return detached;
 }
 
-function decodeCompileRun(value: unknown): CompileRunRecord {
+function decodeCompileRunRow(row: CompileRunRow): CompileRunRecord {
+  return decodeCompileRun(row.record, decodeCompilerRegistryEntry(row.compiler_entry));
+}
+
+function decodeCompileRun(value: unknown, compiler: CompilerRegistryEntry): CompileRunRecord {
   const record = exactObject(value, 'compile run', [
     'compile_run_id',
     'case_id',
@@ -739,6 +762,9 @@ function decodeCompileRun(value: unknown): CompileRunRecord {
     ) {
       throw new TypeError('Compile-run identities disagree.');
     }
+    if (compiler.compiler_version_id !== detached.compiler_version_id) {
+      throw new TypeError('Compile run and compiler registry identities disagree.');
+    }
     validTimestamp(detached.started_at, 'started_at');
     validTimestamp(detached.finished_at, 'finished_at');
     const turnIssues = validateSourceTurnRecord(detached.input.turn, 'input.turn');
@@ -750,7 +776,11 @@ function decodeCompileRun(value: unknown): CompileRunRecord {
     if (compilerInputHash(detached.input) !== detached.input_hash) {
       throw new TypeError('Compile-run input_hash does not match its stored input.');
     }
-    const issues = validateCompilerOutput(detached.input, detached.output);
+    const issues = validateCompilerOutputForContractVersion(
+      detached.input,
+      detached.output,
+      compiler.version.schema_version,
+    );
     if (canonicalSerialize(issues) !== canonicalSerialize(detached.contract_issues)) {
       throw new TypeError('Compile-run contract issues do not match its stored input/output.');
     }

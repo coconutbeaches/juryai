@@ -79,6 +79,7 @@ import {
   compilerVersionId,
   registerCompilerVersion,
   validateCompilerOutput,
+  validateCompilerOutputForContractVersion,
   type CompilerOutput,
   type CompilerVersion,
 } from '../webmcp/core/compiler-contract.js';
@@ -2438,6 +2439,92 @@ function compilerOutput(overrides: Partial<CompilerOutput> = {}): CompilerOutput
 describe('compiler contract', () => {
   it('accepts a well-formed output', () => {
     expect(validateCompilerOutput(compilerInput(), compilerOutput())).toEqual([]);
+  });
+
+  it('rejects duplicate requirement/type slots at the compiler-contract boundary', () => {
+    const output = compilerOutput();
+    const first = output.assertions[0]!;
+    const issues = validateCompilerOutput(compilerInput(), {
+      ...output,
+      assertions: [
+        first,
+        {
+          ...first,
+          assertion_id: 'a2',
+          statement: 'The user also expected completion by April 25.',
+        },
+      ],
+    });
+
+    expect(issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: 'compiler_assertion_slot_duplicate',
+          path: 'compiler_output.assertions[1]',
+        }),
+      ]),
+    );
+  });
+
+  it('builds and revalidates v0.2.0 runs without applying the v0.2.1 slot rule', () => {
+    const output = compilerOutput();
+    const first = output.assertions[0]!;
+    const historicalOutput = {
+      ...output,
+      assertions: [
+        first,
+        {
+          ...first,
+          assertion_id: 'a2',
+          statement: 'The user also expected completion by April 25.',
+        },
+      ],
+    };
+
+    const legacyContract = 'juryai-webmcp-compiler-contract-v0.2.0';
+    const input = compilerInput();
+    const historicalIssues = validateCompilerOutputForContractVersion(
+      input,
+      historicalOutput,
+      legacyContract,
+    );
+    const historicalRecord = buildCompileRunRecord(
+      input,
+      historicalOutput,
+      {
+        started_at: '2026-08-29T06:00:00.000Z',
+        finished_at: '2026-08-29T06:00:01.000Z',
+      },
+      legacyContract,
+    );
+
+    expect(historicalIssues.map((entry) => entry.code)).not.toContain(
+      'compiler_assertion_slot_duplicate',
+    );
+    expect(historicalRecord.contract_issues).toEqual(historicalIssues);
+    expect(validateCompilerOutput(input, historicalOutput).map((entry) => entry.code)).toContain(
+      'compiler_assertion_slot_duplicate',
+    );
+  });
+
+  it('allows different proposition types to occupy different slots in one output', () => {
+    const output = compilerOutput();
+    const first = output.assertions[0]!;
+    const issues = validateCompilerOutput(compilerInput(), {
+      ...output,
+      assertions: [
+        first,
+        {
+          ...first,
+          assertion_id: 'a2',
+          proposed_type: 'non_recollection',
+          epistemic_strength: 'non_recollection',
+          statement: 'The user does not remember another part of the answer.',
+        },
+      ],
+    });
+
+    expect(issues.map((entry) => entry.code)).not.toContain('compiler_assertion_slot_duplicate');
   });
 
   it('rejects an accepted assertion with no exact source spans', () => {

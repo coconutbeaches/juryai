@@ -991,10 +991,15 @@ export class CaseRuntime {
     // enforced here rather than by loosening the frozen core validator.
     let runRecord: CompileRunRecord;
     try {
-      runRecord = buildCompileRunRecord(compilerInput, output, {
-        started_at: startedAt,
-        finished_at: finishedAt,
-      });
+      runRecord = buildCompileRunRecord(
+        compilerInput,
+        output,
+        {
+          started_at: startedAt,
+          finished_at: finishedAt,
+        },
+        pinnedCompiler.version.schema_version,
+      );
     } catch (error) {
       this.#diagnostics.record({
         kind: 'compiler_contract_violation',
