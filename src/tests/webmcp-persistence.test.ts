@@ -31,7 +31,6 @@ import { computeRequestFingerprint, type IdempotencyRecord } from '../webmcp/cor
 import {
   computePayloadCommitment,
   computeSourceTurnMetadataCommitment,
-  createSpan,
   normalizePayload,
   type SourceTurnPayload,
   type SourceTurnRecord,
@@ -44,10 +43,7 @@ import {
   WEBMCP_PROTOCOL_VERSION,
 } from '../webmcp/core/types.js';
 import {
-  buildCompilerInput,
-  compilerInputHash,
   compilerVersionId,
-  type CompileRunRecord,
   type CompilerInput,
   type CompilerOutput,
 } from '../webmcp/core/compiler-contract.js';
@@ -224,125 +220,60 @@ describe('PostgreSQL record round trips and configuration', () => {
 
   it('reads v0.2.0 duplicate-slot runs under their recorded compiler contract', async () => {
     const who = principal('historical_contract');
-    const started = await startCase(runtime(storeA), who);
-    const stored = await storeA.cases.findById(started.case.case_id);
-    if (!stored) throw new Error('started case was not stored');
-
-    const current = new ScriptedSemanticCompiler().registryEntry;
-    const legacyVersion = {
-      ...current.version,
-      schema_version: 'juryai-webmcp-compiler-contract-v0.2.0',
-    };
-    const legacyCompiler = {
-      ...current,
-      compiler_version_id: compilerVersionId(legacyVersion),
-      version: legacyVersion,
-    };
-    await storeA.compilerRegistry.register(legacyCompiler);
-
     const answerText =
       'They say they completed the work they agreed to and that I still owe the remaining $5,000. They also say I changed the requirements during the project, which caused additional work and delays.';
-    const sourcePayload = payload(answerText);
-    const compileRunId = unique('historical_compile_run');
-    const turnId = unique('historical_turn');
-    const fingerprint = computeRequestFingerprint({
-      principal_id: who.principal.principal_id,
-      case_id: stored.state.case_id,
-      in_reply_to: ['req_other_party_position'],
-      payload: sourcePayload,
-    });
-    const salt = unique('historical_salt');
-    const turn: SourceTurnRecord = {
-      turn_id: turnId,
-      case_id: stored.state.case_id,
-      case_version_before: stored.state.case_version,
-      received_at: new Date(START_MS).toISOString(),
-      principal_id: who.principal.principal_id,
-      source_channel: 'webmcp_agent_relay',
-      relaying_agent: 'ChatGPT (persistent integration)',
-      source_language: null,
-      translation_indicated: false,
-      in_reply_to: ['req_other_party_position'],
-      client_turn_id: unique('historical_client_turn'),
-      request_fingerprint: fingerprint,
-      payload: sourcePayload,
-      payload_commitment_salt: salt,
-      payload_commitment: computePayloadCommitment(sourcePayload, salt),
-      compile_run_id: compileRunId,
+    const legacyCompiler = new ScriptedSemanticCompiler(() => ({
+      verdict: 'accepted_candidates',
+      assertions: [
+        {
+          quote: 'They say they completed the work they agreed to',
+          requirement_id: 'req_other_party_position',
+          type: 'narrative_fact',
+          epistemic_strength: 'asserted_confident',
+          statement: 'The other party says it completed the agreed work.',
+        },
+        {
+          quote: 'I still owe the remaining $5,000',
+          requirement_id: 'req_other_party_position',
+          type: 'narrative_fact',
+          epistemic_strength: 'asserted_confident',
+          statement: 'The other party says $5,000 remains owed.',
+        },
+        {
+          quote:
+            'They also say I changed the requirements during the project, which caused additional work and delays.',
+          requirement_id: 'req_other_party_position',
+          type: 'narrative_fact',
+          epistemic_strength: 'asserted_confident',
+          statement: 'The other party says changed requirements caused additional work and delays.',
+        },
+      ],
+    }));
+    const legacyVersion = {
+      ...legacyCompiler.registryEntry.version,
+      schema_version: 'juryai-webmcp-compiler-contract-v0.2.0',
     };
-    const input = buildCompilerInput({
-      compile_run_id: compileRunId,
-      compiler_version_id: legacyCompiler.compiler_version_id,
-      state: stored.state,
-      turn,
-      requirements: stored.state.requirements,
-      livePropositions: livePropositions(stored.state.propositions),
-    });
-    const cited = (quote: string) => {
-      const start = answerText.indexOf(quote);
-      return createSpan(turnId, sourcePayload, 'answer', null, start, start + quote.length);
-    };
-    const historical: CompileRunRecord = {
-      compile_run_id: compileRunId,
-      case_id: stored.state.case_id,
-      turn_id: turnId,
-      compiler_version_id: legacyCompiler.compiler_version_id,
-      input,
-      input_hash: compilerInputHash(input),
-      input_template_version: input.input_template_version,
-      output: {
-        compile_run_id: compileRunId,
-        compiler_version_id: legacyCompiler.compiler_version_id,
-        verdict: 'accepted_candidates',
-        assertions: [
-          {
-            assertion_id: 'historical_assertion_1',
-            spans: [cited('They say they completed the work they agreed to')],
-            proposed_type: 'narrative_fact',
-            epistemic_strength: 'asserted_confident',
-            requirement_id: 'req_other_party_position',
-            statement: 'The other party says it completed the agreed work.',
-            supersedes_candidate: null,
-          },
-          {
-            assertion_id: 'historical_assertion_2',
-            spans: [cited('I still owe the remaining $5,000')],
-            proposed_type: 'narrative_fact',
-            epistemic_strength: 'asserted_confident',
-            requirement_id: 'req_other_party_position',
-            statement: 'The other party says $5,000 remains owed.',
-            supersedes_candidate: null,
-          },
-          {
-            assertion_id: 'historical_assertion_3',
-            spans: [
-              cited(
-                'They also say I changed the requirements during the project, which caused additional work and delays.',
-              ),
-            ],
-            proposed_type: 'narrative_fact',
-            epistemic_strength: 'asserted_confident',
-            requirement_id: 'req_other_party_position',
-            statement:
-              'The other party says changed requirements caused additional work and delays.',
-            supersedes_candidate: null,
-          },
-        ],
-        rejected_candidates: [],
-        clarifications_requested: [],
-        raw_model_output: null,
-      },
-      contract_issues: [],
-      started_at: new Date(START_MS + 1_000).toISOString(),
-      finished_at: new Date(START_MS + 2_000).toISOString(),
-    };
+    legacyCompiler.registryEntry.version = legacyVersion;
+    legacyCompiler.registryEntry.compiler_version_id = compilerVersionId(legacyVersion);
 
-    await pool.query('insert into juryai_p2.compile_runs (record) values ($1::jsonb)', [
-      JSON.stringify(historical),
-    ]);
+    const instance = runtime(storeA, legacyCompiler);
+    const started = await startCase(instance, who);
+    const outcome = await instance.submitTurn(
+      who,
+      submit(started.case.case_id, {
+        in_reply_to: ['req_other_party_position'],
+        payload: payload(answerText),
+      }),
+    );
 
-    expect(await storeB.compileRuns.findById(compileRunId)).toEqual(historical);
-    expect(await storeB.compileRuns.listByCase(stored.state.case_id)).toEqual([historical]);
+    expect(outcome.kind).toBe('failed');
+    const stored = await storeB.cases.findById(started.case.case_id);
+    expect(stored?.state.case_version).toBe(0);
+    const runs = await storeB.compileRuns.listByCase(started.case.case_id);
+    expect(runs).toHaveLength(1);
+    expect(runs[0]?.contract_issues).toEqual([]);
+    expect(runs[0]?.output.assertions).toHaveLength(3);
+    expect(await storeB.compileRuns.findById(runs[0]!.compile_run_id)).toEqual(runs[0]);
   });
 
   it('requires an explicit adapter and never falls back from postgres', () => {

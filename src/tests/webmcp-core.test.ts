@@ -2466,7 +2466,7 @@ describe('compiler contract', () => {
     );
   });
 
-  it('revalidates historical v0.2.0 outputs without applying the v0.2.1 slot rule', () => {
+  it('builds and revalidates v0.2.0 runs without applying the v0.2.1 slot rule', () => {
     const output = compilerOutput();
     const first = output.assertions[0]!;
     const historicalOutput = {
@@ -2481,16 +2481,30 @@ describe('compiler contract', () => {
       ],
     };
 
-    expect(
-      validateCompilerOutputForContractVersion(
-        compilerInput(),
-        historicalOutput,
-        'juryai-webmcp-compiler-contract-v0.2.0',
-      ).map((entry) => entry.code),
-    ).not.toContain('compiler_assertion_slot_duplicate');
-    expect(
-      validateCompilerOutput(compilerInput(), historicalOutput).map((entry) => entry.code),
-    ).toContain('compiler_assertion_slot_duplicate');
+    const legacyContract = 'juryai-webmcp-compiler-contract-v0.2.0';
+    const input = compilerInput();
+    const historicalIssues = validateCompilerOutputForContractVersion(
+      input,
+      historicalOutput,
+      legacyContract,
+    );
+    const historicalRecord = buildCompileRunRecord(
+      input,
+      historicalOutput,
+      {
+        started_at: '2026-08-29T06:00:00.000Z',
+        finished_at: '2026-08-29T06:00:01.000Z',
+      },
+      legacyContract,
+    );
+
+    expect(historicalIssues.map((entry) => entry.code)).not.toContain(
+      'compiler_assertion_slot_duplicate',
+    );
+    expect(historicalRecord.contract_issues).toEqual(historicalIssues);
+    expect(validateCompilerOutput(input, historicalOutput).map((entry) => entry.code)).toContain(
+      'compiler_assertion_slot_duplicate',
+    );
   });
 
   it('allows different proposition types to occupy different slots in one output', () => {

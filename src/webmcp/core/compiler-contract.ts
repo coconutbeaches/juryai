@@ -446,6 +446,7 @@ export function buildCompileRunRecord(
   input: CompilerInput,
   output: CompilerOutput,
   timing: { started_at: string; finished_at: string },
+  compilerContractVersion = COMPILER_CONTRACT_VERSION,
 ): CompileRunRecord {
   const inputSnapshot = structuredClone(input);
   const outputSnapshot = structuredClone(output);
@@ -458,7 +459,11 @@ export function buildCompileRunRecord(
     input_hash: compilerInputHash(inputSnapshot),
     input_template_version: input.input_template_version,
     output: outputSnapshot,
-    contract_issues: validateCompilerOutput(inputSnapshot, outputSnapshot),
+    contract_issues: validateCompilerOutputForContractVersion(
+      inputSnapshot,
+      outputSnapshot,
+      compilerContractVersion,
+    ),
     started_at: timing.started_at,
     finished_at: timing.finished_at,
   };
