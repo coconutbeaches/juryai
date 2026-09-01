@@ -15,6 +15,7 @@
  */
 
 import {
+  COMPILER_CONTRACT_VERSION,
   compilerVersionId,
   type CompilerInput,
   type CompilerOutput,
@@ -76,7 +77,7 @@ export function scriptedCompilerVersion(taxonomyVersion = 'juryai-p2-v0.2.0'): C
     model_snapshot: null,
     decoding: { temperature: 0, top_p: null, max_output_tokens: null, seed: 0 },
     taxonomy_version: taxonomyVersion,
-    schema_version: 'juryai-webmcp-compiler-contract-v0.2.0',
+    schema_version: COMPILER_CONTRACT_VERSION,
   };
 }
 

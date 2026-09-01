@@ -7,6 +7,7 @@ import {
   initialRequirementSet,
   recordingDiagnosticsSink,
   sequentialIdFactory,
+  scriptedCompilerVersion,
   scriptedRegistryEntry,
   sequentialSaltFactory,
   steppingClock,
@@ -50,10 +51,26 @@ import {
   type SourceTurnPayload,
 } from '../webmcp/core/turns.js';
 import {
+  COMPILER_CONTRACT_VERSION,
+  compilerVersionId,
   compilerInputHash,
   type CompilerInput,
   type CompilerOutput,
 } from '../webmcp/core/compiler-contract.js';
+
+describe('scripted compiler identity', () => {
+  it('tracks the canonical compiler contract version in its schema and version id', () => {
+    const version = scriptedCompilerVersion();
+    const changedContractVersion = {
+      ...version,
+      schema_version: `${COMPILER_CONTRACT_VERSION}-changed`,
+    };
+
+    expect(version.schema_version).toBe(COMPILER_CONTRACT_VERSION);
+    expect(scriptedRegistryEntry().compiler_version_id).toBe(compilerVersionId(version));
+    expect(compilerVersionId(changedContractVersion)).not.toBe(compilerVersionId(version));
+  });
+});
 
 /* ------------------------------------------------------------------------ */
 /* Harness                                                                   */
