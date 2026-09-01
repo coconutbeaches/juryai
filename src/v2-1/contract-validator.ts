@@ -439,9 +439,11 @@ function validateFormation(envelope: CaseEnvelopeV21, issues: ContractIssue[]): 
           'reason',
           'resulting_formation_epoch',
         ]) ||
+        typeof event.event_id !== 'string' ||
         !ID_PATTERN_V21.test(event.event_id) ||
         eventIds.has(event.event_id) ||
         !isPartyId(event.party_id) ||
+        !isPartyScopedIdV21('reopen_event', event.party_id, event.event_id) ||
         event.authenticated_subject_id !==
           envelope.parties[event.party_id]?.authenticated_subject_id ||
         !Number.isSafeInteger(event.prior_formation_epoch) ||
@@ -532,6 +534,27 @@ function validateFormation(envelope: CaseEnvelopeV21, issues: ContractIssue[]): 
           'confirmed_party_receipt_missing',
           `$.parties.${partyId}.edit_state`,
           'Confirmed edit state requires a party-scoped confirmation receipt.',
+        ),
+      );
+    }
+    if (
+      party.edit_state === 'reopened' &&
+      (!Array.isArray(envelope.formation.reopen_events) ||
+        !envelope.formation.reopen_events.some(
+          (event) =>
+            isRecord(event) &&
+            event.party_id === partyId &&
+            event.authenticated_subject_id === party.authenticated_subject_id &&
+            event.resulting_formation_epoch === party.formation_epoch &&
+            typeof event.event_id === 'string' &&
+            isPartyScopedIdV21('reopen_event', partyId, event.event_id),
+        ))
+    ) {
+      issues.push(
+        issue(
+          'reopened_party_event_missing',
+          `$.parties.${partyId}.edit_state`,
+          'Reopened edit state requires the matching first-party reopen event for the current formation epoch.',
         ),
       );
     }

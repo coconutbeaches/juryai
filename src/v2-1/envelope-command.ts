@@ -911,9 +911,13 @@ function authorizationFailure(
           };
         }
         if (
+          !isPartyScopedIdV21('reopen_event', partyAuthority.party_id, operation.event_id) ||
           envelope.formation.reopen_events.some((event) => event.event_id === operation.event_id)
         ) {
-          return { reason: 'invalid_operation', message: 'Reopen event already exists.' };
+          return {
+            reason: 'invalid_operation',
+            message: 'Reopen event identifier is unavailable.',
+          };
         }
         break;
       default:

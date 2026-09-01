@@ -216,7 +216,14 @@ export function otherPartyV21(partyId: PartyIdV21): PartyIdV21 {
 }
 
 export function isPartyScopedIdV21(
-  kind: 'position' | 'turn' | 'clarification' | 'evidence' | 'confirmation' | 'confirmation_event',
+  kind:
+    | 'position'
+    | 'turn'
+    | 'clarification'
+    | 'evidence'
+    | 'confirmation'
+    | 'confirmation_event'
+    | 'reopen_event',
   partyId: PartyIdV21,
   identifier: string,
 ): boolean {

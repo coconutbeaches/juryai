@@ -581,7 +581,7 @@ describe('V2.1 quiescence, explicit reopen, and confirmation currency', () => {
 
     const relayReopen = execute(envelope, actor(envelope, 'party_a'), {
       type: 'reopen_own_formation',
-      event_id: 'reopen_event_relay_denied',
+      event_id: 'reopen_event_party_a_relay_denied',
       reason: 'I need to correct my account.',
       occurred_at: NOW,
     });
@@ -589,7 +589,7 @@ describe('V2.1 quiescence, explicit reopen, and confirmation currency', () => {
 
     envelope = apply(envelope, actor(envelope, 'party_a', 'first_party_human'), {
       type: 'reopen_own_formation',
-      event_id: 'reopen_event_human',
+      event_id: 'reopen_event_party_a_human',
       reason: 'I need to correct my account.',
       occurred_at: NOW,
     });
@@ -597,7 +597,7 @@ describe('V2.1 quiescence, explicit reopen, and confirmation currency', () => {
     expect(currentPartyConfirmationV21(envelope, 'party_a')).toBeNull();
     expect(
       projectPartyFormationV21(envelope, 'party_a').own_progress.last_reopen_event,
-    ).toMatchObject({ event_id: 'reopen_event_human', resulting_formation_epoch: 2 });
+    ).toMatchObject({ event_id: 'reopen_event_party_a_human', resulting_formation_epoch: 2 });
     const numericReopenTimestamp = cloneCanonical(envelope);
     (
       numericReopenTimestamp.formation.reopen_events[0] as unknown as {
@@ -616,6 +616,139 @@ describe('V2.1 quiescence, explicit reopen, and confirmation currency', () => {
     );
     envelope = confirmParty(envelope, 'party_a');
     expect(currentPartyConfirmationV21(envelope, 'party_a')).not.toBeNull();
+  });
+
+  it.each([
+    ['party_a', 'party_b'],
+    ['party_b', 'party_a'],
+  ] as const)(
+    'party-scopes %s reopen events without exposing hidden %s event collisions',
+    (requestingParty, opponentParty) => {
+      let envelope = boundEnvelope();
+      envelope = completeFormation(envelope, 'party_a');
+      envelope = completeFormation(envelope, 'party_b');
+      envelope = confirmParty(envelope, 'party_a');
+      envelope = confirmParty(envelope, 'party_b');
+      const opponentEventId = `reopen_event_${opponentParty}_collision_probe`;
+      envelope = apply(envelope, actor(envelope, opponentParty, 'first_party_human'), {
+        type: 'reopen_own_formation',
+        event_id: opponentEventId,
+        reason: `${opponentParty} explicitly reopens its account.`,
+        occurred_at: NOW,
+      });
+
+      const before = canonicalSerialize(envelope);
+      const reopenAttempt = (eventId: string) =>
+        execute(envelope, actor(envelope, requestingParty, 'first_party_human'), {
+          type: 'reopen_own_formation',
+          event_id: eventId,
+          reason: `${requestingParty} explicitly reopens its account.`,
+          occurred_at: NOW,
+        });
+      const colliding = reopenAttempt(opponentEventId);
+      const absentOpponentScoped = reopenAttempt(`reopen_event_${opponentParty}_absent_probe`);
+      expect({ reason: colliding.reason_code, message: colliding.message }).toEqual({
+        reason: absentOpponentScoped.reason_code,
+        message: absentOpponentScoped.message,
+      });
+      expect(canonicalSerialize(colliding.envelope)).toBe(before);
+      expect(canonicalSerialize(absentOpponentScoped.envelope)).toBe(before);
+
+      envelope = apply(envelope, actor(envelope, requestingParty, 'first_party_human'), {
+        type: 'reopen_own_formation',
+        event_id: `reopen_event_${requestingParty}_fresh`,
+        reason: `${requestingParty} explicitly reopens its account.`,
+        occurred_at: NOW,
+      });
+      const tamperedScope = cloneCanonical(envelope);
+      const requestingEvent = tamperedScope.formation.reopen_events.find(
+        (event) => event.party_id === requestingParty,
+      )!;
+      requestingEvent.event_id = `reopen_event_${opponentParty}_tampered_scope`;
+      synchronizeFixture(tamperedScope);
+      expect(validateCaseEnvelopeV21(tamperedScope).map((issue) => issue.code)).toContain(
+        'reopen_event_invalid',
+      );
+    },
+  );
+
+  it('rejects reopened state without the matching first-party event at the current epoch', () => {
+    let confirmed = boundEnvelope();
+    confirmed = completeFormation(confirmed, 'party_a');
+    confirmed = confirmParty(confirmed, 'party_a');
+
+    const missingEvent = cloneCanonical(confirmed);
+    missingEvent.parties.party_a.edit_state = 'reopened';
+    synchronizeFixture(missingEvent);
+    expect(validateCaseEnvelopeV21(missingEvent).map((issue) => issue.code)).toContain(
+      'reopened_party_event_missing',
+    );
+    const rejectedEdit = execute(
+      missingEvent,
+      actor(missingEvent, 'party_a'),
+      positionOperation('party_a', 'forged_reopen'),
+    );
+    expect(rejectedEdit).toMatchObject({ status: 'rejected', reason_code: 'invalid_envelope' });
+    expect(canonicalSerialize(rejectedEdit.envelope)).toBe(canonicalSerialize(missingEvent));
+
+    const legitimatelyReopened = apply(
+      confirmed,
+      actor(confirmed, 'party_a', 'first_party_human'),
+      {
+        type: 'reopen_own_formation',
+        event_id: 'reopen_event_party_a_legitimate',
+        reason: 'A explicitly reopens the account.',
+        occurred_at: NOW,
+      },
+    );
+    expect(validateCaseEnvelopeV21(legitimatelyReopened)).toEqual([]);
+
+    const malformedEventId = cloneCanonical(legitimatelyReopened);
+    (
+      malformedEventId.formation.reopen_events[0] as unknown as {
+        event_id: unknown;
+      }
+    ).event_id = null;
+    synchronizeFixture(malformedEventId);
+    expect(validateCaseEnvelopeV21(malformedEventId).map((issue) => issue.code)).toContain(
+      'reopen_event_invalid',
+    );
+    expect(
+      execute(
+        malformedEventId,
+        actor(malformedEventId, 'party_a'),
+        positionOperation('party_a', 'malformed_reopen_event'),
+      ),
+    ).toMatchObject({ status: 'rejected', reason_code: 'invalid_envelope' });
+
+    const staleEpoch = cloneCanonical(legitimatelyReopened);
+    staleEpoch.parties.party_a.formation_epoch += 1;
+    synchronizeFixture(staleEpoch);
+    expect(validateCaseEnvelopeV21(staleEpoch).map((issue) => issue.code)).toContain(
+      'reopened_party_event_missing',
+    );
+
+    let wrongPartyHistory = boundEnvelope();
+    wrongPartyHistory = completeFormation(wrongPartyHistory, 'party_a');
+    wrongPartyHistory = completeFormation(wrongPartyHistory, 'party_b');
+    wrongPartyHistory = confirmParty(wrongPartyHistory, 'party_a');
+    wrongPartyHistory = confirmParty(wrongPartyHistory, 'party_b');
+    wrongPartyHistory = apply(
+      wrongPartyHistory,
+      actor(wrongPartyHistory, 'party_b', 'first_party_human'),
+      {
+        type: 'reopen_own_formation',
+        event_id: 'reopen_event_party_b_only_history',
+        reason: 'B explicitly reopens the account.',
+        occurred_at: NOW,
+      },
+    );
+    wrongPartyHistory.parties.party_a.edit_state = 'reopened';
+    wrongPartyHistory.parties.party_a.formation_epoch = 2;
+    synchronizeFixture(wrongPartyHistory);
+    expect(validateCaseEnvelopeV21(wrongPartyHistory).map((issue) => issue.code)).toContain(
+      'reopened_party_event_missing',
+    );
   });
 
   it('does not allow final_confirmation to remain a general-purpose add-object state', () => {
@@ -1153,7 +1286,7 @@ describe('V2.1 operation-specific authorization', () => {
       },
       {
         type: 'reopen_own_formation',
-        event_id: 'reopen_unbound',
+        event_id: 'reopen_event_party_b_unbound',
         reason: 'Correction required.',
         occurred_at: NOW,
       },
