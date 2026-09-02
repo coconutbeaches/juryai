@@ -19,6 +19,7 @@ import {
   type TurnSpan,
 } from '../webmcp/core/turns.js';
 import {
+  AGENT_DATA_MAX_LENGTH,
   describeEpistemicStrength,
   PROPOSITION_TYPES,
   wrapAgentFacingText,
@@ -69,6 +70,16 @@ import {
 } from './party-projection.js';
 
 const RECENT_INTERPRETATION_LIMIT = 5;
+const WIRE_TEXT_TRUNCATION_MARKER = '…[truncated]';
+const WIRE_TEXT_CONTENT_LIMIT = AGENT_DATA_MAX_LENGTH - wrapAgentFacingText('').length;
+
+function wrapPartyVisibleText(text: string): string {
+  const bounded =
+    text.length > WIRE_TEXT_CONTENT_LIMIT
+      ? `${text.slice(0, WIRE_TEXT_CONTENT_LIMIT - WIRE_TEXT_TRUNCATION_MARKER.length)}${WIRE_TEXT_TRUNCATION_MARKER}`
+      : text;
+  return wrapAgentFacingText(bounded);
+}
 
 export interface FormationRelayRepositoryV211 {
   findById(disputeId: string): Promise<StoredFormationDisputeV211 | null>;
@@ -201,10 +212,10 @@ function interpretation(position: PartyVisiblePositionV211): RecentInterpretatio
   return {
     proposition_id: position.position_id,
     requirement_id: position.requirement_id,
-    statement: wrapAgentFacingText(position.statement),
+    statement: wrapPartyVisibleText(position.statement),
     type: position.proposition_type,
     epistemic_strength: position.epistemic_strength,
-    attribution: wrapAgentFacingText(
+    attribution: wrapPartyVisibleText(
       `${position.attributed_party_id === 'party_a' ? 'Party A' : 'Party B'}; ${describeEpistemicStrength(position.epistemic_strength)}`,
     ),
   };
@@ -236,13 +247,20 @@ export function projectPartyCaseStateV211(
   );
   const challengePrompts = unansweredChallenges.map((challenge) => ({
     requirement_id: challenge.challenge_id,
-    prompt: wrapAgentFacingText(`Respond to this challenge: ${challenge.statement}`),
+    prompt: wrapPartyVisibleText(`Respond to this challenge: ${challenge.statement}`),
   }));
   const requirementPrompts = unresolvedRequirements.map((requirement) => ({
     requirement_id: requirement.requirement_id,
-    prompt: wrapAgentFacingText(requirement.prompt),
+    prompt: wrapPartyVisibleText(requirement.prompt),
   }));
-  const recent = livePositions(projection).slice(-RECENT_INTERPRETATION_LIMIT);
+  const recent = livePositions(projection)
+    .sort((left, right) => {
+      const introduced =
+        envelope.positions[left.position_id]!.introduced_envelope_version -
+        envelope.positions[right.position_id]!.introduced_envelope_version;
+      return introduced || left.position_id.localeCompare(right.position_id);
+    })
+    .slice(-RECENT_INTERPRETATION_LIMIT);
   const challengeWarnings = projection.visible_challenges.map((challenge) =>
     challenge.response
       ? `challenge_resolved:${challenge.challenge_id}; response:${challenge.response.response_id}; ${challenge.response.statement}`
@@ -262,7 +280,7 @@ export function projectPartyCaseStateV211(
       .map((clarification) => ({
         clarification_id: clarification.clarification_id,
         requirement_id: clarification.requirement_id,
-        prompt: wrapAgentFacingText(clarification.prompt),
+        prompt: wrapPartyVisibleText(clarification.prompt),
       })),
     recent_interpretations: recent.map(interpretation),
     evidence_references: [
@@ -270,11 +288,11 @@ export function projectPartyCaseStateV211(
       ...(projection.opponent_material?.evidence ?? []),
     ].map((evidence) => ({
       evidence_ref_id: evidence.evidence_id,
-      label: wrapAgentFacingText(evidence.description),
+      label: wrapPartyVisibleText(evidence.description),
       inspection_status: 'uninspected',
     })),
     warnings: [...projection.warnings, ...challengeWarnings, ...additionalWarnings].map(
-      wrapAgentFacingText,
+      wrapPartyVisibleText,
     ),
     review_url: reviewUrl,
   };

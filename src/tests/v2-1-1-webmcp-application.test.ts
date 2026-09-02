@@ -5,6 +5,7 @@ import { canonicalSerialize, cloneCanonical } from '../v2/case-envelope.js';
 import {
   PARTY_FORMATION_PROJECTION_VERSION_V211,
   TRUSTED_SYSTEM_AUTHORITY_V211,
+  hashCaseEnvelopeV211,
   partyAuthorityV211,
   type CaseEnvelopeV211,
   type FormationRequirementV211,
@@ -18,8 +19,10 @@ import {
   applyEnvelopeCeremonyCommandV211,
   ceremonyCommandForV211,
   createInitialCaseEnvelopeV211,
+  refreshPartyViewCursorsV211,
   type EnvelopeCeremonyOperationV211,
 } from '../v2-1-1/envelope-ceremony.js';
+import { validateCaseEnvelopeV211 } from '../v2-1-1/contract-validator.js';
 import {
   applyExternalRelaySubmissionV211,
   rebaseExternalRelaySubmissionV211,
@@ -464,6 +467,72 @@ describe('V2.1.1 dark party-scoped WebMCP application', () => {
     expect(Object.keys(repository.envelope.positions)).not.toContain('assert_1');
   });
 
+  it('orders recent interpretations by canonical introduction version across both parties', async () => {
+    const repository = new MemoryFormationRepository(baseEnvelope());
+    const compilerA = new ScriptedSemanticCompiler(standardScript());
+    const compilerB = new ScriptedSemanticCompiler(standardScript());
+    const a = serviceFor(repository, 'party_a', compilerA);
+    const b = serviceFor(repository, 'party_b', compilerB);
+    const id = repository.envelope.control.case_id;
+    await completeAndDisclose({ repository, a, b });
+
+    const additions = [
+      [a, compilerA, 'req_a_optional', 'payment', 'A payment position.'],
+      [b, compilerB, 'req_b_optional', 'invoice', 'B invoice position.'],
+      [a, compilerA, 'req_a_optional', 'requested_scope', 'A scope position.'],
+      [b, compilerB, 'req_b_optional', 'accepted_scope', 'B accepted scope position.'],
+      [a, compilerA, 'req_a_optional', 'disputed_balance', 'A balance position.'],
+    ] as const;
+    for (const [service, compiler, requirementId, type, answer] of additions) {
+      compiler.setScript((input) => ({
+        verdict: 'accepted_candidates',
+        assertions: [
+          {
+            quote: input.turn.payload.answer.text,
+            requirement_id: requirementId,
+            type,
+            epistemic_strength: 'asserted_confident',
+            statement: answer,
+          },
+        ],
+      }));
+      expect(await submit(service, id, [requirementId], answer)).toMatchObject({ ok: true });
+    }
+
+    const expected = Object.values(repository.envelope.positions)
+      .filter((position) => position.superseded_by === null)
+      .sort(
+        (left, right) =>
+          left.introduced_envelope_version - right.introduced_envelope_version ||
+          left.position_id.localeCompare(right.position_id),
+      )
+      .slice(-5)
+      .map((position) => position.position_id);
+    expect((await get(a, id)).recent_interpretations.map((item) => item.proposition_id)).toEqual(
+      expected,
+    );
+  });
+
+  it('keeps every wrapped party-visible string inside the frozen wire bound', () => {
+    const before = baseEnvelope();
+    const envelope = cloneCanonical(before);
+    envelope.evidence.evidence_long_description = {
+      evidence_id: 'evidence_long_description',
+      attributed_party_id: 'party_a',
+      description: 'e'.repeat(5_000),
+      required_for_readiness: false,
+      eligibility: 'not_required',
+    };
+    envelope.control.envelope_version += 1;
+    refreshPartyViewCursorsV211(before, envelope);
+    envelope.control.envelope_hash = hashCaseEnvelopeV211(envelope);
+    expect(validateCaseEnvelopeV211(envelope)).toEqual([]);
+    const state = projectPartyCaseStateV211(envelope, 'party_a', 'https://dark.invalid/review');
+    expect(state.evidence_references[0]!.label.length).toBeLessThanOrEqual(4_000);
+    expect(state.evidence_references[0]!.label).toContain('…[truncated]');
+    expect(decodeCaseStateResponse(state)).toEqual(state);
+  });
+
   it('maps compiler ambiguity to one server-minted party clarification', async () => {
     const repository = new MemoryFormationRepository(baseEnvelope());
     const id = repository.envelope.control.case_id;
@@ -487,6 +556,68 @@ describe('V2.1.1 dark party-scoped WebMCP application', () => {
       clarification_id: expect.stringMatching(/^clarification_party_a_/u),
     });
     expect(Object.keys(repository.envelope.positions)).toHaveLength(0);
+  });
+
+  it('fails the whole turn for duplicate or assertion-plus-clarification ambiguity', async () => {
+    const duplicateRepository = new MemoryFormationRepository(baseEnvelope());
+    const duplicateId = duplicateRepository.envelope.control.case_id;
+    const duplicateCompiler = new ScriptedSemanticCompiler(() => ({
+      verdict: 'ambiguous',
+      clarifications: [
+        {
+          requirement_id: 'req_a',
+          reason: 'multiple_incompatible_readings',
+          prompt: 'First prompt?',
+        },
+        {
+          requirement_id: 'req_a',
+          reason: 'multiple_incompatible_readings',
+          prompt: 'Second prompt?',
+        },
+      ],
+    }));
+    const duplicateBefore = canonicalSerialize(duplicateRepository.envelope);
+    expect(
+      await submit(
+        serviceFor(duplicateRepository, 'party_a', duplicateCompiler),
+        duplicateId,
+        ['req_a'],
+        'Ambiguous answer.',
+      ),
+    ).toMatchObject({ ok: false, error: { code: 'INVALID_INPUT' } });
+    expect(canonicalSerialize(duplicateRepository.envelope)).toBe(duplicateBefore);
+
+    const mixedRepository = new MemoryFormationRepository(baseEnvelope());
+    const mixedId = mixedRepository.envelope.control.case_id;
+    const mixedCompiler = new ScriptedSemanticCompiler((input) => ({
+      verdict: 'accepted_candidates',
+      assertions: [
+        {
+          quote: input.turn.payload.answer.text,
+          requirement_id: 'req_a',
+          type: 'narrative_fact',
+          epistemic_strength: 'asserted_confident',
+          statement: 'A candidate interpretation.',
+        },
+      ],
+      clarifications: [
+        {
+          requirement_id: 'req_a',
+          reason: 'multiple_incompatible_readings',
+          prompt: 'Which reading?',
+        },
+      ],
+    }));
+    const mixedBefore = canonicalSerialize(mixedRepository.envelope);
+    expect(
+      await submit(
+        serviceFor(mixedRepository, 'party_a', mixedCompiler),
+        mixedId,
+        ['req_a'],
+        'Candidate but ambiguous.',
+      ),
+    ).toMatchObject({ ok: false, error: { code: 'INVALID_INPUT' } });
+    expect(canonicalSerialize(mixedRepository.envelope)).toBe(mixedBefore);
   });
 
   it('opens disclosure only through the trusted seam and changes both projections once', async () => {
