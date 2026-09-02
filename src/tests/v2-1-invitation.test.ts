@@ -144,6 +144,12 @@ describe('structural production feature-off and neutral route', () => {
     expect(section).not.toMatch(/Party A|amount|evidence|claim|completed formation|progress/iu);
     expect(entry).toContain('const invitationJoinPath = /^\\/join\\/[^/]+$/u');
     expect(entry).toContain('if (invitationJoinPath)');
+    const invitationBranch = entry.indexOf('if (invitationJoinPath)');
+    const applicationBranch = entry.indexOf('} else {', invitationBranch);
+    const pageShowLifecycle = entry.indexOf("window.addEventListener('pageshow'", invitationBranch);
+    expect(invitationBranch).toBeGreaterThanOrEqual(0);
+    expect(applicationBranch).toBeGreaterThan(invitationBranch);
+    expect(pageShowLifecycle).toBeGreaterThan(applicationBranch);
     expect(entry).not.toMatch(/redeemInvitation|formation_invitations|opaque_token/iu);
   });
 

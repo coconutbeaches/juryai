@@ -310,11 +310,6 @@ logoutButton.addEventListener('click', () => {
   void controller.logout();
 });
 
-window.addEventListener('pagehide', () => controller.teardown());
-window.addEventListener('pageshow', (event) => {
-  void controller.pageShow(event.persisted);
-});
-
 routeNotice.hidden = true;
 
 if (invitationJoinPath) {
@@ -326,6 +321,10 @@ if (invitationJoinPath) {
   logoutButton.hidden = true;
   status.textContent = '';
 } else {
+  window.addEventListener('pagehide', () => controller.teardown());
+  window.addEventListener('pageshow', (event) => {
+    void controller.pageShow(event.persisted);
+  });
   wireBrowserShellHotLifecycle(import.meta.hot, controller);
   void controller.initialize();
 }
