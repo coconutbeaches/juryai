@@ -394,6 +394,28 @@ describe('PR 4B human handoff and intent assurance contract', () => {
     ).toMatchObject({ status: 'satisfied', receipt: { achieved_assurance: 'HHC-1' } });
   });
 
+  it.each([
+    ['agent_assertion', { assertion: 42 }],
+    ['fresh_user_phrase', { expression: { supplied: 'by caller' } }],
+  ] as const)('rejects non-string %s evidence without throwing', (method, malformedField) => {
+    const { runtime, now } = harness();
+    const challenge = issueChallenge(runtime, {
+      action: method === 'agent_assertion' ? 'test_only_protected_action' : 'join_dispute',
+      level: method === 'agent_assertion' ? 'HHC-0' : 'HHC-1',
+      methods: [method],
+    });
+    const malformed = {
+      ...evidence(method, challenge, now()),
+      ...malformedField,
+    } as unknown as IntentAssuranceEvidenceV1;
+    expect(
+      satisfy(runtime, challenge, method, TRUSTED_RELAY_EXPRESSION_ADAPTER_V1, now(), {
+        action: challenge.requested_action,
+        evidence: malformed,
+      }),
+    ).toMatchObject({ status: 'rejected', reason_code: 'invalid_evidence' });
+  });
+
   it('records HHC-1 as fresh intent evidence without physical-human proof', () => {
     const axes = intentAssuranceAxesForMethodV1('fresh_user_phrase');
     expect(axes.explicit_intent).toBe('fresh_expression_observed');
@@ -702,6 +724,28 @@ describe('PR 4B human handoff and intent assurance contract', () => {
           action_payload: ACTION_PAYLOAD,
         },
         TRUSTED_PROTECTED_ACTION_EXECUTOR_V1,
+      ),
+    ).toMatchObject({ status: 'rejected', reason_code: 'already_used' });
+  });
+
+  it('atomically claims challenge satisfaction by id before a replay can mint another receipt', () => {
+    const { runtime, now } = harness();
+    const pending = issueChallenge(runtime);
+    const first = satisfy(
+      runtime,
+      pending,
+      'first_party_ceremony',
+      TRUSTED_FIRST_PARTY_CEREMONY_ADAPTER_V1,
+      now(),
+    );
+    expect(first.status).toBe('satisfied');
+    expect(
+      satisfy(
+        runtime,
+        pending,
+        'first_party_ceremony',
+        TRUSTED_FIRST_PARTY_CEREMONY_ADAPTER_V1,
+        now(),
       ),
     ).toMatchObject({ status: 'rejected', reason_code: 'already_used' });
   });

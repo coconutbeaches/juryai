@@ -1544,12 +1544,14 @@ function validateEvidence(
   switch (evidence.method) {
     case 'agent_assertion':
       return (
+        typeof evidence.assertion === 'string' &&
         evidence.assertion.trim().length > 0 &&
         validId(evidence.agent_id) &&
         validId(evidence.interaction_id)
       );
     case 'fresh_user_phrase':
       return (
+        typeof evidence.expression === 'string' &&
         validId(evidence.agent_id) &&
         validId(evidence.interaction_id) &&
         challenge.expected_fresh_expression_hash !== null &&
@@ -1872,6 +1874,11 @@ export interface IntentAssuranceRuntimeV1 {
 export function createIntentAssuranceRuntimeV1(
   dependencies: IntentAssuranceRuntimeDependenciesV1,
 ): IntentAssuranceRuntimeV1 {
+  // This production-dark runtime owns one authoritative lifecycle record per
+  // challenge id. PR 5's durable application must enforce the same transitions
+  // with repository CAS and atomically persist consumption with the protected
+  // action; a request-supplied challenge snapshot is never lifecycle authority.
+  const challengeLifecycleById = new Map<string, HumanHandoffChallengeStatusV1>();
   return {
     issueChallenge(input, authority) {
       if (authority !== TRUSTED_HUMAN_HANDOFF_ISSUER_V1)
@@ -1945,9 +1952,12 @@ export function createIntentAssuranceRuntimeV1(
         invalidated_at: null,
         invalidation_reason: null,
       };
-      return validateHumanHandoffChallengeV1(challenge).length === 0
-        ? { status: 'issued', challenge: cloneCanonical(challenge) }
-        : rejection('invalid_challenge', 'Minted challenge failed its canonical contract.');
+      if (validateHumanHandoffChallengeV1(challenge).length > 0)
+        return rejection('invalid_challenge', 'Minted challenge failed its canonical contract.');
+      if (challengeLifecycleById.has(challenge.challenge_id))
+        return rejection('invalid_challenge', 'Challenge id was already issued.');
+      challengeLifecycleById.set(challenge.challenge_id, 'pending');
+      return { status: 'issued', challenge: cloneCanonical(challenge) };
     },
 
     satisfyChallenge(input, authority) {
@@ -1989,6 +1999,9 @@ export function createIntentAssuranceRuntimeV1(
           'insufficient_assurance',
           'Achieved assurance is below the required minimum.',
         );
+      if (challengeLifecycleById.get(input.challenge.challenge_id) !== 'pending')
+        return rejection('already_used', 'Challenge was already satisfied or invalidated.');
+      challengeLifecycleById.set(input.challenge.challenge_id, 'satisfied');
       const receiptId = dependencies.mint_receipt_id();
       const receipt: IntentAssuranceReceiptV1 = {
         receipt_version: INTENT_ASSURANCE_RECEIPT_VERSION_V1,
@@ -2020,8 +2033,10 @@ export function createIntentAssuranceRuntimeV1(
         consumed_at: null,
         consumption_id: null,
       };
-      if (validateIntentAssuranceReceiptV1(receipt).length > 0)
+      if (validateIntentAssuranceReceiptV1(receipt).length > 0) {
+        challengeLifecycleById.set(input.challenge.challenge_id, 'pending');
         return rejection('invalid_receipt', 'Minted receipt failed its canonical contract.');
+      }
       const challenge = cloneCanonical(input.challenge);
       challenge.status = 'satisfied';
       challenge.satisfied_at = now;
@@ -2029,8 +2044,10 @@ export function createIntentAssuranceRuntimeV1(
       if (
         validateHumanHandoffChallengeV1(challenge).length > 0 ||
         !receiptMatchesChallenge(receipt, challenge)
-      )
+      ) {
+        challengeLifecycleById.set(input.challenge.challenge_id, 'pending');
         return rejection('invalid_receipt', 'Receipt does not bind exactly to its challenge.');
+      }
       return {
         status: 'satisfied',
         challenge,
@@ -2071,9 +2088,14 @@ export function createIntentAssuranceRuntimeV1(
       if (precheck) return precheck;
       if (receipt.authorization_status !== 'available')
         return rejection('already_used', 'Assurance receipt has already been consumed.');
+      if (challengeLifecycleById.get(input.challenge.challenge_id) !== 'satisfied')
+        return rejection('already_used', 'Challenge authorization was already consumed.');
+      challengeLifecycleById.set(input.challenge.challenge_id, 'consumed');
       const consumptionId = dependencies.mint_consumption_id();
-      if (!validId(consumptionId) || !consumptionId.startsWith('assurance_consumption_'))
+      if (!validId(consumptionId) || !consumptionId.startsWith('assurance_consumption_')) {
+        challengeLifecycleById.set(input.challenge.challenge_id, 'satisfied');
         return rejection('invalid_receipt', 'Minted consumption id is invalid.');
+      }
       const challenge = cloneCanonical(input.challenge);
       challenge.status = 'consumed';
       challenge.consumed_at = now;
@@ -2103,11 +2125,13 @@ export function createIntentAssuranceRuntimeV1(
         validateIntentAssuranceReceiptV1(consumedReceipt).length > 0 ||
         validateIntentAssuranceConsumptionV1(consumption).length > 0 ||
         !consumptionMatchesReceiptAndChallenge(consumption, consumedReceipt, challenge)
-      )
+      ) {
+        challengeLifecycleById.set(input.challenge.challenge_id, 'satisfied');
         return rejection(
           'invalid_receipt',
           'Consumed authorization failed its canonical contract.',
         );
+      }
       const authorization = Object.freeze({
         consumption: deepFreeze(cloneCanonical(consumption)),
         [PROTECTED_AUTHORIZATION_BRAND_V1]: true as const,
@@ -2128,6 +2152,7 @@ export function createIntentAssuranceRuntimeV1(
         authority !== TRUSTED_HUMAN_HANDOFF_ISSUER_V1 ||
         validateHumanHandoffChallengeV1(challenge).length > 0 ||
         !['pending', 'satisfied'].includes(challenge.status) ||
+        challengeLifecycleById.get(challenge.challenge_id) !== challenge.status ||
         ![
           'state_changed',
           'party_binding_changed',
@@ -2142,7 +2167,9 @@ export function createIntentAssuranceRuntimeV1(
       invalidated.status = 'invalidated';
       invalidated.invalidated_at = dependencies.now();
       invalidated.invalidation_reason = reason;
-      return validateHumanHandoffChallengeV1(invalidated).length === 0 ? invalidated : null;
+      if (validateHumanHandoffChallengeV1(invalidated).length > 0) return null;
+      challengeLifecycleById.set(challenge.challenge_id, 'invalidated');
+      return invalidated;
     },
   };
 }
