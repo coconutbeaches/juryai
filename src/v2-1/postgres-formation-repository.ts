@@ -208,7 +208,7 @@ function decodeReplayRecord(value: unknown): FormationReplayRecordV21 {
   return {
     dispute_id: disputeId,
     party_id: decodedParty,
-    client_turn_id: canonicalId(record.client_turn_id, 'replay client turn id'),
+    client_turn_id: decodeClientTurnId(record.client_turn_id),
     request_fingerprint: hash(record.request_fingerprint, 'replay request fingerprint'),
     response,
     recorded_at_ms: safeInteger(record.recorded_at_ms, 'replay recorded_at_ms'),

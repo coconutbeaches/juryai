@@ -345,13 +345,21 @@ describe('party-scoped replay and authoritative CAS', () => {
       envelopeWithBindings({ dispute_id: id, party_a: subject, party_b: null }),
     );
     const prepared = await storedAndContext(storeA, id, subject);
-    const opaqueTurnId = '9 relay operation with spaces';
+    const opaqueTurnId = `9 ${'x'.repeat(198)}`;
     const command = positionCommand(prepared.stored.envelope, 'party_a', 'opaque_client_turn');
     if (command.operation.type !== 'record_own_position') {
       throw new Error('expected position command');
     }
     const input = commitInput(prepared.context, command, opaqueTurnId, 'opaque_client_turn');
-    expect((await storeA.commitExternalRelayCommand(input)).status).toBe('committed');
+    const committed = await storeA.commitExternalRelayCommand(input);
+    expect(committed.status).toBe('committed');
+    if (committed.status !== 'committed') return;
+    expect(await storeA.readReplay(prepared.context, opaqueTurnId)).toEqual(committed.response);
+    expect(await storeA.commitExternalRelayCommand(input)).toMatchObject({
+      status: 'replayed',
+      replayed: true,
+      response: committed.response,
+    });
 
     const records = await pool.query<{ client_turn_id: string; source_turn_id: string }>(
       `select submission.client_turn_id, source.source_turn_id
