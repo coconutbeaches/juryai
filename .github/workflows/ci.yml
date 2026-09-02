@@ -50,6 +50,7 @@ jobs:
           - src/tests/v2-formation-adjudication-contract.test.ts
           - src/tests/v2-1-domain-invariants.test.ts
           - src/tests/v2-1-1-external-relay-submission.test.ts
+          - src/tests/v2-1-1-webmcp-application.test.ts
           - src/tests/v2-1-persistence-boundary.test.ts
           - src/tests/v2-1-invitation.test.ts
           - src/tests/gate-zero-coverage-matrix.test.ts

@@ -12,6 +12,7 @@ import type {
   ExternalRelaySubmissionFailureReasonV211,
   ExternalRelaySubmissionV211,
 } from './external-relay-submission.js';
+import type { CeremonyCommandFailureReasonV211 } from './envelope-ceremony.js';
 
 export const FORMATION_PERSISTENCE_CONTRACT_VERSION_V211 =
   'juryai-v2.1-dark-formation-persistence-v2';
@@ -215,6 +216,22 @@ export type CommitExternalRelaySubmissionResultV211 =
       status: 'domain_rejected';
       replayed: false;
       reason_code: ExternalRelaySubmissionFailureReasonV211;
+      message: string;
+    };
+
+export interface CommitControlledDisclosureInputV211 {
+  dispute_id: string;
+  command_id: string;
+  expected_internal_envelope_version: number;
+  expected_internal_envelope_hash: string;
+}
+
+export type CommitControlledDisclosureResultV211 =
+  | { status: 'committed'; stored: StoredFormationDisputeV211 }
+  | { status: 'conflict'; current: StoredFormationDisputeV211 | null }
+  | {
+      status: 'domain_rejected';
+      reason_code: CeremonyCommandFailureReasonV211;
       message: string;
     };
 

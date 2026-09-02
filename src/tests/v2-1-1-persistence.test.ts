@@ -11,6 +11,10 @@ import {
   type PartyIdV211,
 } from '../v2-1-1/case-envelope.js';
 import {
+  TRUSTED_CONTROLLED_DISCLOSURE_APPLICATION_V211,
+  openControlledDisclosureV211,
+} from '../v2-1-1/controlled-disclosure.js';
+import {
   applyEnvelopeCeremonyCommandV211,
   ceremonyCommandForV211,
   createInitialCaseEnvelopeV211,
@@ -28,7 +32,9 @@ import type {
 } from '../v2-1-1/formation-persistence.js';
 import { resolveFormationReplayObjectsV211 } from '../v2-1-1/formation-persistence.js';
 import { PostgresFormationRepositoryV211 } from '../v2-1-1/postgres-formation-repository.js';
+import { createV211PartyCaseService } from '../v2-1-1/webmcp-application.js';
 import type { SourceTurnPayload, TurnSpan } from '../webmcp/core/turns.js';
+import { ScriptedSemanticCompiler } from '../webmcp/runtime/scripted-compiler.js';
 
 const DATABASE_URL = process.env.JURYAI_TEST_DATABASE_URL;
 if (!DATABASE_URL) {
@@ -237,6 +243,54 @@ async function counts(disputeId: string): Promise<Record<string, number>> {
 }
 
 describe('V2.1.1 external submission persistence', () => {
+  it('runs the dark party-scoped application through PostgreSQL and replays before recompiling', async () => {
+    const seeded = await createStored('application_integration');
+    const compiler = new ScriptedSemanticCompiler((input) => ({
+      verdict: 'accepted_candidates',
+      assertions: [
+        {
+          quote: input.turn.payload.answer.text,
+          requirement_id: 'req_a_story',
+          type: 'narrative_fact',
+          epistemic_strength: 'asserted_confident',
+          statement: input.turn.payload.answer.text,
+        },
+      ],
+    }));
+    const service = createV211PartyCaseService({
+      authenticated_subject_id: seeded.subject_a,
+      repository: storeA,
+      compiler,
+      review_url: (disputeId) => `https://dark.invalid/cases/${disputeId}/review`,
+      ids: { next: (kind, partyId) => unique(`${kind}_${partyId}`) },
+      clock: { now: () => Date.parse('2026-09-02T09:30:00.000Z') + sequence++ },
+      salts: { next: () => `application-salt-${unique('salt')}-0123456789` },
+    });
+    const state = await service.getCaseState({ case_id: seeded.dispute_id });
+    if (!state.ok) throw new Error(state.error.message);
+    const command = {
+      case_id: seeded.dispute_id,
+      expected_case_version: state.case.case_version,
+      in_reply_to: ['req_a_story'],
+      payload: {
+        context: [],
+        answer: { role: 'user' as const, text: 'A PostgreSQL-backed application fact.' },
+      },
+      client_turn_id: unique('application_client_turn'),
+    };
+    const committed = await service.submitTurn(command);
+    expect(committed).toMatchObject({ ok: true, recorded: [{ requirement_id: 'req_a_story' }] });
+    expect(await service.submitTurn(command)).toMatchObject({ ok: true, replayed: true });
+    expect(compiler.calls).toHaveLength(1);
+    expect(await counts(seeded.dispute_id)).toEqual({
+      formation_sources: 1,
+      formation_commands: 0,
+      formation_submissions: 1,
+      formation_compiler_runs: 1,
+      formation_replays: 1,
+    });
+  });
+
   it('atomically stores one source, one logical submission, one compiler run, one replay, and N positions', async () => {
     const seeded = await createStored('multi_effect');
     const context = await storeA.resolvePartyContext(seeded.dispute_id, seeded.subject_a);
@@ -361,6 +415,12 @@ describe('V2.1.1 external submission persistence', () => {
     expect(await storeA.readReplay(latestContext, submission.source_turn.client_turn_id)).toEqual(
       first.response,
     );
+    expect(
+      await storeA.readReplayRecord(latestContext, submission.source_turn.client_turn_id),
+    ).toMatchObject({
+      request_fingerprint: submission.source_turn.request_fingerprint,
+      response: first.response,
+    });
     const finalStored = await storeA.findById(seeded.dispute_id);
     expect(finalStored?.envelope.positions[firstPosition]).toMatchObject({
       superseded_by:
@@ -382,6 +442,42 @@ describe('V2.1.1 external submission persistence', () => {
     expect(await counts(seeded.dispute_id)).toMatchObject({
       formation_replays: 2,
       formation_sources: 2,
+    });
+  });
+
+  it('atomically persists trusted disclosure without inventing a party-attributed command audit', async () => {
+    const disputeId = unique('dispute_disclosure');
+    const subjectA = unique('subject_a_disclosure');
+    const subjectB = unique('subject_b_disclosure');
+    let envelope = createInitialCaseEnvelopeV211(disputeId);
+    envelope = bind(envelope, 'party_a', subjectA);
+    envelope = bind(envelope, 'party_b', subjectB);
+    await storeA.createDispute(envelope);
+    const before = await storeA.findById(disputeId);
+    if (!before) throw new Error('expected disclosure fixture');
+    const result = await openControlledDisclosureV211({
+      authority: TRUSTED_CONTROLLED_DISCLOSURE_APPLICATION_V211,
+      repository: storeA,
+      dispute_id: disputeId,
+    });
+    expect(result).toMatchObject({ status: 'committed' });
+    const after = await storeA.findById(disputeId);
+    expect(after?.envelope.control).toMatchObject({
+      disclosure_state: 'disclosed',
+      workflow_state: 'challenge_response',
+      envelope_version: before.internal_envelope_version + 1,
+    });
+    for (const partyId of ['party_a', 'party_b'] as const) {
+      expect(after?.envelope.control.party_views[partyId].party_visible_version).toBe(
+        before.envelope.control.party_views[partyId].party_visible_version + 1,
+      );
+    }
+    expect(await counts(disputeId)).toEqual({
+      formation_sources: 0,
+      formation_commands: 0,
+      formation_submissions: 0,
+      formation_compiler_runs: 0,
+      formation_replays: 0,
     });
   });
 

@@ -23,6 +23,8 @@ import {
   type ActiveFormationContextV211,
   type CommitExternalRelaySubmissionInputV211,
   type CommitExternalRelaySubmissionResultV211,
+  type CommitControlledDisclosureInputV211,
+  type CommitControlledDisclosureResultV211,
   type FormationCompilerRunAuditRecordV211,
   type FormationPartyPersistenceContextV211,
   type FormationReplayRecordV211,
@@ -31,6 +33,8 @@ import {
   type FormationSubmissionAuditRecordV211,
   type StoredFormationDisputeV211,
 } from './formation-persistence.js';
+import { applyEnvelopeCeremonyCommandV211, ceremonyCommandForV211 } from './envelope-ceremony.js';
+import { TRUSTED_SYSTEM_AUTHORITY_V211 } from './case-envelope.js';
 
 const SCHEMA = FORMATION_PERSISTENCE_SCHEMA_V211;
 const MAX_CLIENT_TURN_ID_LENGTH = 200;
@@ -522,6 +526,14 @@ export class PostgresFormationRepositoryV211 {
     context: FormationPartyPersistenceContextV211,
     clientTurnInput: string,
   ): Promise<FormationReplayResponseV211 | null> {
+    return (await this.readReplayRecord(context, clientTurnInput))?.response ?? null;
+  }
+
+  /** Application precheck: keeps fingerprint conflicts ahead of compilation. */
+  async readReplayRecord(
+    context: FormationPartyPersistenceContextV211,
+    clientTurnInput: string,
+  ): Promise<FormationReplayRecordV211 | null> {
     if (!this.#issuedContexts.has(context)) return null;
     const turn = clientTurnId(clientTurnInput);
     const result = await this.#pool.query(
@@ -534,7 +546,7 @@ export class PostgresFormationRepositoryV211 {
       [context.dispute_id, context.party_id, turn, context.authenticated_subject_id],
     );
     const row = result.rows[0] as ReplayRow | undefined;
-    return row ? decodeReplay(row.record).response : null;
+    return row ? decodeReplay(row.record) : null;
   }
 
   async commitExternalRelaySubmission(
@@ -678,6 +690,67 @@ export class PostgresFormationRepositoryV211 {
         stored: decodeStored(updatedRow),
         response,
       };
+    });
+  }
+
+  /**
+   * Trusted application seam for the single controlled-disclosure transition.
+   * It accepts no actor or role input and is not wired to a production route.
+   * The existing command audit relation is party-scoped; disclosure is a joint
+   * system transition, so this does not invent a party-attributed audit row.
+   * The updated envelope remains the sole canonical record of the transition.
+   */
+  async commitControlledDisclosure(
+    input: CommitControlledDisclosureInputV211,
+  ): Promise<CommitControlledDisclosureResultV211> {
+    assertV211DisputePersistenceId(input.dispute_id);
+    canonicalId(input.command_id, 'command_id');
+    safeInteger(input.expected_internal_envelope_version, 'expected_internal_envelope_version', 1);
+    hash(input.expected_internal_envelope_hash, 'expected_internal_envelope_hash');
+    return this.#transaction(async (client) => {
+      const selected = await client.query(
+        `select ${selectedFormationColumns()} from ${SCHEMA}.formation_disputes
+          where dispute_id = $1 for update`,
+        [input.dispute_id],
+      );
+      const row = selected.rows[0] as StoredFormationRow | undefined;
+      if (!row) return { status: 'conflict', current: null };
+      const current = decodeStored(row);
+      if (
+        current.internal_envelope_version !== input.expected_internal_envelope_version ||
+        current.internal_envelope_hash !== input.expected_internal_envelope_hash
+      ) {
+        return { status: 'conflict', current };
+      }
+      const applied = applyEnvelopeCeremonyCommandV211({
+        envelope: current.envelope,
+        command: ceremonyCommandForV211(current.envelope, input.command_id, {
+          type: 'open_controlled_disclosure',
+        }),
+        execution_authority: TRUSTED_SYSTEM_AUTHORITY_V211,
+      });
+      if (applied.status === 'rejected') {
+        return {
+          status: 'domain_rejected',
+          reason_code: applied.reason_code,
+          message: applied.message,
+        };
+      }
+      const updated = await client.query(
+        `update ${SCHEMA}.formation_disputes set envelope = $1::jsonb, updated_at = clock_timestamp()
+          where dispute_id = $2 and internal_envelope_version = $3 and internal_envelope_hash = $4
+          returning ${selectedFormationColumns()}`,
+        [
+          encode(applied.envelope),
+          input.dispute_id,
+          current.internal_envelope_version,
+          current.internal_envelope_hash,
+        ],
+      );
+      const updatedRow = updated.rows[0] as StoredFormationRow | undefined;
+      return updatedRow
+        ? { status: 'committed', stored: decodeStored(updatedRow) }
+        : { status: 'conflict', current };
     });
   }
 
