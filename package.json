@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "build:web": "vite build",
-    "test": "vitest run --exclude src/tests/webmcp-persistence.test.ts --exclude src/tests/v2-1-persistence.test.ts --exclude src/tests/v2-1-invitation-persistence.test.ts",
+    "test": "vitest run --exclude src/tests/webmcp-persistence.test.ts --exclude src/tests/v2-1-persistence.test.ts --exclude src/tests/v2-1-invitation-persistence.test.ts --exclude src/tests/v2-1-1-persistence.test.ts --exclude src/tests/v2-1-1-invitation-persistence.test.ts",
     "test:persistence": "vitest run src/tests/webmcp-persistence.test.ts src/tests/v2-1-persistence.test.ts src/tests/v2-1-invitation-persistence.test.ts",
+    "test:persistence:v211": "vitest run src/tests/v2-1-1-persistence.test.ts src/tests/v2-1-1-invitation-persistence.test.ts",
     "test:person-a": "vitest run src/tests/person-a-validation.test.ts src/tests/person-a-evaluation.test.ts src/tests/openai-responses.test.ts",
     "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
     "validate:golden": "tsx src/validation/validate-case-record.ts src/fixtures/dry_run_001.golden.json",
