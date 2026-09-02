@@ -576,6 +576,68 @@ describe('V2.1.1 version and semantic source contract', () => {
     ).toMatchObject({ status: 'rejected', reason_code: 'invalid_submission' });
   });
 
+  it('reports a malformed canonical position without throwing from either application boundary', () => {
+    const envelope = boundEnvelope();
+    const prepared = prepareSubmission({
+      envelope,
+      party_id: 'party_a',
+      payload: { context: [], answer: { role: 'user', text: 'A valid answer.' } },
+      in_reply_to: ['req_a_story'],
+      effects: (turnId) => [
+        {
+          type: 'semantic_assertion_candidate',
+          compiler_assertion_id: unique('assertion_malformed_envelope'),
+          requirement_id: 'req_a_story',
+          proposed_type: 'narrative_fact',
+          epistemic_strength: 'asserted_confident',
+          statement: 'A valid answer.',
+          spans: [answerSpan(turnId, 'A valid answer.')],
+          supersedes_candidate: null,
+        },
+      ],
+    });
+    const malformed = cloneCanonical(envelope) as unknown as {
+      positions: Record<string, unknown>;
+    };
+    malformed.positions.position_party_a_corrupt = null;
+
+    expect(validateCaseEnvelopeV211(malformed)).toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: 'v211_position_object' })]),
+    );
+    expect(() =>
+      applyExternalRelaySubmissionV211({
+        envelope: malformed as unknown as CaseEnvelopeV211,
+        submission: prepared.submission,
+        execution_authority: prepared.authority,
+      }),
+    ).not.toThrow();
+    expect(
+      applyExternalRelaySubmissionV211({
+        envelope: malformed as unknown as CaseEnvelopeV211,
+        submission: prepared.submission,
+        execution_authority: prepared.authority,
+      }),
+    ).toMatchObject({ status: 'rejected', reason_code: 'invalid_envelope' });
+
+    const command = ceremonyCommandForV211(envelope, unique('ceremony_malformed_envelope'), {
+      type: 'open_controlled_disclosure',
+    });
+    expect(() =>
+      applyEnvelopeCeremonyCommandV211({
+        envelope: malformed as unknown as CaseEnvelopeV211,
+        command,
+        execution_authority: TRUSTED_SYSTEM_AUTHORITY_V211,
+      }),
+    ).not.toThrow();
+    expect(
+      applyEnvelopeCeremonyCommandV211({
+        envelope: malformed as unknown as CaseEnvelopeV211,
+        command,
+        execution_authority: TRUSTED_SYSTEM_AUTHORITY_V211,
+      }),
+    ).toMatchObject({ status: 'rejected', reason_code: 'invalid_envelope' });
+  });
+
   it('permits a source-only accepted turn without changing either party-visible cursor', () => {
     const envelope = boundEnvelope();
     const beforeViews = cloneCanonical(envelope.control.party_views);
@@ -941,6 +1003,107 @@ describe('derived clarification, supersession, challenge, and quiescence semanti
       compile_run_id: response.submission.compiler_run.compile_run_id,
       semantic_position_id: null,
     });
+  });
+
+  it('rejects duplicate challenges for one party and target within one atomic batch', () => {
+    let envelope = submitAssertion(
+      boundEnvelope({ party_a: [], party_b: [requirement('req_b_story')] }),
+      'party_b',
+      'req_b_story',
+      'Party B completed the work.',
+    );
+    envelope = executeCeremony(envelope, TRUSTED_SYSTEM_AUTHORITY_V211, {
+      type: 'open_controlled_disclosure',
+    });
+    const target = Object.values(envelope.positions)[0]!;
+    const answer = 'I dispute both the completion and delivery claims.';
+    const prepared = prepareSubmission({
+      envelope,
+      party_id: 'party_a',
+      payload: { context: [], answer: { role: 'user', text: answer } },
+      in_reply_to: [target.position_id],
+      effects: (turnId) => [
+        {
+          type: 'challenge_candidate',
+          target_position_id: target.position_id,
+          statement: 'Party A disputes completion.',
+          spans: [answerSpan(turnId, answer, 'dispute')],
+        },
+        {
+          type: 'challenge_candidate',
+          target_position_id: target.position_id,
+          statement: 'Party A disputes delivery.',
+          spans: [answerSpan(turnId, answer, 'delivery')],
+        },
+      ],
+    });
+    const before = canonicalSerialize(envelope);
+    const result = applyPrepared(envelope, prepared);
+    expect(result).toMatchObject({ status: 'rejected', reason_code: 'effect_rejected' });
+    expect(canonicalSerialize(result.envelope)).toBe(before);
+    expect(Object.keys(result.envelope.challenges)).toHaveLength(0);
+    expect(result.envelope.source_turns[prepared.submission.source_turn.turn_id]).toBeUndefined();
+  });
+
+  it('rejects duplicate responses to one challenge within one atomic batch', () => {
+    let envelope = submitAssertion(
+      boundEnvelope({ party_a: [], party_b: [requirement('req_b_story')] }),
+      'party_b',
+      'req_b_story',
+      'Party B completed the work.',
+    );
+    envelope = executeCeremony(envelope, TRUSTED_SYSTEM_AUTHORITY_V211, {
+      type: 'open_controlled_disclosure',
+    });
+    const target = Object.values(envelope.positions)[0]!;
+    const challenged = prepareSubmission({
+      envelope,
+      party_id: 'party_a',
+      payload: { context: [], answer: { role: 'user', text: 'I dispute that claim.' } },
+      in_reply_to: [target.position_id],
+      effects: (turnId) => [
+        {
+          type: 'challenge_candidate',
+          target_position_id: target.position_id,
+          statement: 'Party A disputes the claim.',
+          spans: [answerSpan(turnId, 'I dispute that claim.')],
+        },
+      ],
+    });
+    const challengeResult = applyPrepared(envelope, challenged);
+    expect(challengeResult.status, challengeResult.message).toBe('applied');
+    if (challengeResult.status !== 'applied') throw new Error(challengeResult.message);
+    envelope = challengeResult.envelope;
+    const challenge = Object.values(envelope.challenges)[0]!;
+    const answer = 'I stand by the account and reject the challenge.';
+    const prepared = prepareSubmission({
+      envelope,
+      party_id: 'party_b',
+      payload: { context: [], answer: { role: 'user', text: answer } },
+      in_reply_to: [challenge.challenge_id],
+      effects: (turnId) => [
+        {
+          type: 'challenge_response_candidate',
+          challenge_id: challenge.challenge_id,
+          statement: 'Party B stands by the account.',
+          spans: [answerSpan(turnId, answer, 'stand by')],
+          semantic_correction: null,
+        },
+        {
+          type: 'challenge_response_candidate',
+          challenge_id: challenge.challenge_id,
+          statement: 'Party B rejects the challenge.',
+          spans: [answerSpan(turnId, answer, 'reject the challenge')],
+          semantic_correction: null,
+        },
+      ],
+    });
+    const before = canonicalSerialize(envelope);
+    const result = applyPrepared(envelope, prepared);
+    expect(result).toMatchObject({ status: 'rejected', reason_code: 'effect_rejected' });
+    expect(canonicalSerialize(result.envelope)).toBe(before);
+    expect(result.envelope.challenges[challenge.challenge_id]!.response).toBeNull();
+    expect(result.envelope.source_turns[prepared.submission.source_turn.turn_id]).toBeUndefined();
   });
 
   it('allows an unconfirmed challenge correction but requires first-party reopen once confirmed', () => {

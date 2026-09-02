@@ -880,6 +880,7 @@ export function validateCaseEnvelopeV211(value: unknown): ContractIssue[] {
     }
     const liveSlots = new Set<string>();
     for (const position of Object.values(envelope.positions)) {
+      if (!object(position)) continue;
       if (position.superseded_by === null) {
         const slot = `${position.attributed_party_id}|${position.requirement_id}|${position.proposition_type}`;
         if (liveSlots.has(slot))

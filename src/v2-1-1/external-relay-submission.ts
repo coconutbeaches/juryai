@@ -1138,6 +1138,12 @@ export function applyExternalRelaySubmissionV211(input: {
               challenge.challenging_party_id === partyId &&
               challenge.target_position_id === effect.target_position_id &&
               challenge.status === 'open',
+          ) ||
+          newChallenges.some(
+            (challenge) =>
+              challenge.challenging_party_id === partyId &&
+              challenge.target_position_id === effect.target_position_id &&
+              challenge.status === 'open',
           )
         ) {
           return rejected(
@@ -1177,6 +1183,9 @@ export function applyExternalRelaySubmissionV211(input: {
           !isPartyScopedIdV211('challenge_response', partyId, effect.response_id) ||
           Object.values(envelope.challenges).some(
             (challenge) => challenge.response?.response_id === effect.response_id,
+          ) ||
+          responseEffects.some(
+            (response) => response.challenge.challenge_id === effect.challenge_id,
           ) ||
           effect.statement.trim().length === 0 ||
           spans.issues.length > 0
