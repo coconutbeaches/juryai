@@ -578,6 +578,7 @@ describe('atomic audit history and database security', () => {
       'formation_commands',
       'formation_compiler_runs',
       'formation_disputes',
+      'formation_invitations',
       'formation_replays',
       'formation_sources',
       'formation_submissions',

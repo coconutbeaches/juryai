@@ -15,6 +15,7 @@ function element<T extends HTMLElement>(id: string): T {
 }
 
 const authSection = element<HTMLElement>('auth-section');
+const invitationJoinSection = element<HTMLElement>('invitation-join-section');
 const disclosureSection = element<HTMLElement>('disclosure-section');
 const readySection = element<HTMLElement>('ready-section');
 const reviewSection = element<HTMLElement>('review-section');
@@ -44,6 +45,7 @@ const attestButton = element<HTMLButtonElement>('attest-button');
 const lockedPanel = element<HTMLElement>('locked-panel');
 
 const reviewPath = /^\/cases\/([^/]+)\/review$/u.exec(window.location.pathname);
+const invitationJoinPath = /^\/join\/[^/]+$/u.test(window.location.pathname);
 let currentReview: ParsedFirstPartyReview | null = null;
 let currentWebMcp: 'available' | 'unavailable' | 'registration_failed' = 'unavailable';
 let currentCorrectionTarget: { propositionId: string; requirementId: string } | null = null;
@@ -315,6 +317,15 @@ window.addEventListener('pageshow', (event) => {
 
 routeNotice.hidden = true;
 
-wireBrowserShellHotLifecycle(import.meta.hot, controller);
-
-void controller.initialize();
+if (invitationJoinPath) {
+  invitationJoinSection.hidden = false;
+  authSection.hidden = true;
+  disclosureSection.hidden = true;
+  readySection.hidden = true;
+  reviewSection.hidden = true;
+  logoutButton.hidden = true;
+  status.textContent = '';
+} else {
+  wireBrowserShellHotLifecycle(import.meta.hot, controller);
+  void controller.initialize();
+}

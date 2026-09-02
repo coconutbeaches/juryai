@@ -3,7 +3,10 @@
   "framework": "vite",
   "buildCommand": "npm run build:web",
   "outputDirectory": "dist",
-  "rewrites": [{ "source": "/cases/:caseId/review", "destination": "/index.html" }],
+  "rewrites": [
+    { "source": "/cases/:caseId/review", "destination": "/index.html" },
+    { "source": "/join/:token", "destination": "/index.html" }
+  ],
   "headers": [
     {
       "source": "/(.*)",
