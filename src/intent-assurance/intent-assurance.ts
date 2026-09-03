@@ -195,6 +195,12 @@ const VERIFIED_RECEIPT_BRAND_V1: unique symbol = Symbol('juryai-verified-assuran
 const PROTECTED_AUTHORIZATION_BRAND_V1: unique symbol = Symbol(
   'juryai-protected-action-authorization-v1',
 );
+const OBSERVED_EVIDENCE_BRAND_V1: unique symbol = Symbol(
+  'juryai-observed-intent-assurance-evidence-v1',
+);
+const VERIFIED_DURABLE_EVIDENCE_BRAND_V1: unique symbol = Symbol(
+  'juryai-verified-durable-intent-assurance-evidence-v1',
+);
 
 export interface TrustedHumanHandoffIssuerAuthorityV1 {
   readonly authority_kind: 'trusted_handoff_challenge_issuer_v1';
@@ -376,11 +382,36 @@ export interface ProtectedActionAuthorizationV1 {
   readonly [PROTECTED_AUTHORIZATION_BRAND_V1]: true;
 }
 
+export interface ObservedIntentAssuranceEvidenceV1 {
+  /** Server-adapter observation. Request JSON cannot manufacture this wrapper. */
+  readonly evidence: IntentAssuranceEvidenceV1;
+  readonly adapter_authority: TrustedIntentAssuranceAdapterAuthorityV1;
+  readonly [OBSERVED_EVIDENCE_BRAND_V1]: true;
+}
+
+export interface VerifiedDurableIntentAssuranceEvidenceV1 {
+  /** Ephemeral verification result for immediate use inside one database transaction. */
+  readonly challenge: HumanHandoffChallengeV1;
+  readonly current_state_binding: IntentAssuranceStateBindingV1;
+  readonly requested_action: IntentAssuranceActionV1;
+  readonly action_payload: JsonValue;
+  readonly evidence: IntentAssuranceEvidenceV1;
+  readonly adapter_id: string;
+  readonly achieved_assurance: IntentAssuranceLevelV1;
+  readonly assurance_axes: IntentAssuranceAxesV1;
+  readonly interaction_provenance: IntentAssuranceInteractionProvenanceV1;
+  readonly evidence_commitment: string;
+  readonly completed_at: string;
+  readonly [VERIFIED_DURABLE_EVIDENCE_BRAND_V1]: true;
+}
+
 const verifiedReceiptObjects = new WeakSet<object>();
 const consumedVerifiedReceiptObjects = new WeakSet<object>();
 const protectedAuthorizationObjects = new WeakSet<object>();
 const resolvedStateBindingObjects = new WeakSet<object>();
 const resolvedPolicyDecisionObjects = new WeakSet<object>();
+const observedEvidenceObjects = new WeakSet<object>();
+const verifiedDurableEvidenceObjects = new WeakSet<object>();
 
 const LEVEL_RANK: Record<IntentAssuranceLevelV1, number> = {
   'HHC-0': 0,
@@ -1424,11 +1455,13 @@ export type IntentAssuranceRejectionReasonV1 =
   | 'method_not_permitted'
   | 'insufficient_assurance';
 
-type RejectionV1 = {
+export type IntentAssuranceRejectionV1 = {
   status: 'rejected';
   reason_code: IntentAssuranceRejectionReasonV1;
   message: string;
 };
+
+type RejectionV1 = IntentAssuranceRejectionV1;
 
 function rejection(reason: IntentAssuranceRejectionReasonV1, message: string): RejectionV1 {
   return { status: 'rejected', reason_code: reason, message };
@@ -1693,6 +1726,216 @@ function deepFreeze<T>(value: T): T {
   if (typeof value !== 'object' || value === null || Object.isFrozen(value)) return value;
   for (const child of Object.values(value as Record<string, unknown>)) deepFreeze(child);
   return Object.freeze(value);
+}
+
+export function observeIntentAssuranceEvidenceV1(
+  evidence: IntentAssuranceEvidenceV1,
+  authority: TrustedIntentAssuranceAdapterAuthorityV1,
+): ObservedIntentAssuranceEvidenceV1 | null {
+  if (
+    !isTrustedIntentAssuranceAdapterAuthorityV1(authority) ||
+    !object(evidence) ||
+    !INTENT_ASSURANCE_METHODS_V1.includes(evidence.method as never) ||
+    !authority.permitted_methods.includes(evidence.method)
+  ) {
+    return null;
+  }
+  const observed = Object.freeze({
+    evidence: deepFreeze(cloneCanonical(evidence)),
+    adapter_authority: authority,
+    [OBSERVED_EVIDENCE_BRAND_V1]: true as const,
+  });
+  observedEvidenceObjects.add(observed);
+  return observed;
+}
+
+export type VerifyDurableIntentAssuranceEvidenceResultV1 =
+  | {
+      status: 'verified';
+      verified_evidence: VerifiedDurableIntentAssuranceEvidenceV1;
+    }
+  | IntentAssuranceRejectionV1;
+
+export function verifyDurableIntentAssuranceEvidenceV1(input: {
+  challenge: HumanHandoffChallengeV1;
+  current_state_binding: ResolvedIntentAssuranceStateBindingV1;
+  requested_action: IntentAssuranceActionV1;
+  action_payload: JsonValue;
+  observed_evidence: ObservedIntentAssuranceEvidenceV1;
+  completed_at: string;
+}): VerifyDurableIntentAssuranceEvidenceResultV1 {
+  if (
+    !isResolvedIntentAssuranceStateBindingV1(input.current_state_binding) ||
+    !object(input.observed_evidence) ||
+    !observedEvidenceObjects.has(input.observed_evidence)
+  ) {
+    return rejection('untrusted_authority', 'Trusted durable assurance inputs are required.');
+  }
+  const evidence = input.observed_evidence.evidence;
+  const authority = input.observed_evidence.adapter_authority;
+  const precheck = validateChallengeForAction(
+    input.challenge,
+    input.current_state_binding.binding,
+    input.requested_action,
+    input.action_payload,
+    input.completed_at,
+    'pending',
+  );
+  if (precheck) return precheck;
+  if (
+    !input.challenge.permitted_methods.includes(evidence.method) ||
+    !authority.permitted_methods.includes(evidence.method)
+  ) {
+    return rejection(
+      'method_not_permitted',
+      'Assurance method is not permitted for this challenge or adapter.',
+    );
+  }
+  if (!validateEvidence(evidence, input.challenge, input.completed_at)) {
+    return rejection('invalid_evidence', 'Assurance evidence is invalid or not fresh.');
+  }
+  const achieved = METHOD_LEVEL[evidence.method];
+  if (!assuranceLevelSatisfiesV1(achieved, input.challenge.required_minimum_assurance)) {
+    return rejection('insufficient_assurance', 'Achieved assurance is below the required minimum.');
+  }
+  const verified = Object.freeze({
+    challenge: deepFreeze(cloneCanonical(input.challenge)),
+    current_state_binding: deepFreeze(cloneCanonical(input.current_state_binding.binding)),
+    requested_action: input.requested_action,
+    action_payload: deepFreeze(cloneCanonical(input.action_payload)),
+    evidence: deepFreeze(cloneCanonical(evidence)),
+    adapter_id: authority.adapter_id,
+    achieved_assurance: achieved,
+    assurance_axes: deepFreeze(cloneAxes(evidence.method)),
+    interaction_provenance: deepFreeze(provenanceForEvidence(evidence)),
+    evidence_commitment: sha256(canonicalSerialize(evidence)),
+    completed_at: input.completed_at,
+    [VERIFIED_DURABLE_EVIDENCE_BRAND_V1]: true as const,
+  });
+  verifiedDurableEvidenceObjects.add(verified);
+  return { status: 'verified', verified_evidence: verified };
+}
+
+export type ConsumeDurableIntentAssuranceResultV1 =
+  | {
+      status: 'consumed';
+      challenge: HumanHandoffChallengeV1;
+      receipt: IntentAssuranceReceiptV1;
+      consumption: IntentAssuranceConsumptionV1;
+      authorization: ProtectedActionAuthorizationV1;
+    }
+  | IntentAssuranceRejectionV1;
+
+export function consumeDurableIntentAssuranceEvidenceV1(
+  input: {
+    verified_evidence: VerifiedDurableIntentAssuranceEvidenceV1;
+    receipt_id: string;
+    consumption_id: string;
+    consumed_at: string;
+  },
+  authority: TrustedProtectedActionExecutorAuthorityV1,
+): ConsumeDurableIntentAssuranceResultV1 {
+  if (
+    authority !== TRUSTED_PROTECTED_ACTION_EXECUTOR_V1 ||
+    !object(input.verified_evidence) ||
+    !verifiedDurableEvidenceObjects.has(input.verified_evidence)
+  ) {
+    return rejection('untrusted_authority', 'Verified durable assurance evidence is required.');
+  }
+  if (
+    !validId(input.receipt_id) ||
+    !input.receipt_id.startsWith('assurance_receipt_') ||
+    !validId(input.consumption_id) ||
+    !input.consumption_id.startsWith('assurance_consumption_') ||
+    !validIso(input.consumed_at) ||
+    Date.parse(input.consumed_at) < Date.parse(input.verified_evidence.completed_at)
+  ) {
+    return rejection('invalid_receipt', 'Durable assurance completion metadata is invalid.');
+  }
+  const verified = input.verified_evidence;
+  const pendingChallenge = verified.challenge;
+  const satisfiedChallenge = cloneCanonical(pendingChallenge);
+  satisfiedChallenge.status = 'satisfied';
+  satisfiedChallenge.satisfied_at = verified.completed_at;
+  satisfiedChallenge.satisfied_by_receipt_id = input.receipt_id;
+
+  const availableReceipt: IntentAssuranceReceiptV1 = {
+    receipt_version: INTENT_ASSURANCE_RECEIPT_VERSION_V1,
+    receipt_id: input.receipt_id,
+    challenge_version: pendingChallenge.challenge_version,
+    challenge_id: pendingChallenge.challenge_id,
+    authenticated_subject_id: pendingChallenge.authenticated_subject_id,
+    dispute_id: pendingChallenge.dispute_id,
+    party_id: pendingChallenge.party_id,
+    requested_action: pendingChallenge.requested_action,
+    action_payload_hash: pendingChallenge.action_payload_hash,
+    policy_version: pendingChallenge.policy_version,
+    policy_profile_id: pendingChallenge.policy_profile_id,
+    party_projection_contract_version: pendingChallenge.party_projection_contract_version,
+    party_projection_hash: pendingChallenge.party_projection_hash,
+    party_visible_version: pendingChallenge.party_visible_version,
+    formation_epoch: pendingChallenge.formation_epoch,
+    method: verified.evidence.method,
+    achieved_assurance: verified.achieved_assurance,
+    required_minimum_assurance: pendingChallenge.required_minimum_assurance,
+    assurance_axes: cloneCanonical(verified.assurance_axes),
+    interaction_provenance: cloneCanonical(verified.interaction_provenance),
+    verifier_adapter_id: verified.adapter_id,
+    evidence_reference: verified.evidence.evidence_reference,
+    evidence_commitment: verified.evidence_commitment,
+    challenge_issued_at: pendingChallenge.issued_at,
+    completed_at: verified.completed_at,
+    authorization_status: 'available',
+    consumed_at: null,
+    consumption_id: null,
+  };
+  if (
+    validateHumanHandoffChallengeV1(satisfiedChallenge).length > 0 ||
+    validateIntentAssuranceReceiptV1(availableReceipt).length > 0 ||
+    !receiptMatchesChallenge(availableReceipt, satisfiedChallenge)
+  ) {
+    return rejection('invalid_receipt', 'Verified evidence could not produce a canonical receipt.');
+  }
+
+  const challenge = cloneCanonical(satisfiedChallenge);
+  challenge.status = 'consumed';
+  challenge.consumed_at = input.consumed_at;
+  challenge.consumed_by_consumption_id = input.consumption_id;
+  const receipt = cloneCanonical(availableReceipt);
+  receipt.authorization_status = 'consumed';
+  receipt.consumed_at = input.consumed_at;
+  receipt.consumption_id = input.consumption_id;
+  const consumption: IntentAssuranceConsumptionV1 = {
+    consumption_version: INTENT_ASSURANCE_CONSUMPTION_VERSION_V1,
+    consumption_id: input.consumption_id,
+    receipt_id: input.receipt_id,
+    challenge_id: challenge.challenge_id,
+    authenticated_subject_id: challenge.authenticated_subject_id,
+    dispute_id: challenge.dispute_id,
+    party_id: challenge.party_id,
+    requested_action: challenge.requested_action,
+    action_payload_hash: challenge.action_payload_hash,
+    party_projection_contract_version: challenge.party_projection_contract_version,
+    party_projection_hash: challenge.party_projection_hash,
+    party_visible_version: challenge.party_visible_version,
+    formation_epoch: challenge.formation_epoch,
+    consumed_at: input.consumed_at,
+  };
+  if (
+    validateHumanHandoffChallengeV1(challenge).length > 0 ||
+    validateIntentAssuranceReceiptV1(receipt).length > 0 ||
+    validateIntentAssuranceConsumptionV1(consumption).length > 0 ||
+    !receiptMatchesChallenge(receipt, challenge) ||
+    !consumptionMatchesReceiptAndChallenge(consumption, receipt, challenge)
+  ) {
+    return rejection('invalid_receipt', 'Durable consumption failed its canonical contract.');
+  }
+  const authorization = Object.freeze({
+    consumption: deepFreeze(cloneCanonical(consumption)),
+    [PROTECTED_AUTHORIZATION_BRAND_V1]: true as const,
+  });
+  protectedAuthorizationObjects.add(authorization);
+  return { status: 'consumed', challenge, receipt, consumption, authorization };
 }
 
 function verifiedReceipt(receipt: IntentAssuranceReceiptV1): VerifiedIntentAssuranceReceiptV1 {
