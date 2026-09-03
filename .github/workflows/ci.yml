@@ -53,6 +53,7 @@ jobs:
           - src/tests/v2-1-1-webmcp-application.test.ts
           - src/tests/intent-assurance.test.ts
           - src/tests/v2-1-1-party-review.test.ts
+          - src/tests/v2-1-2-disclosure-review-closure.test.ts
           - src/tests/v2-1-persistence-boundary.test.ts
           - src/tests/v2-1-invitation.test.ts
           - src/tests/gate-zero-coverage-matrix.test.ts
@@ -100,6 +101,7 @@ jobs:
           - src/tests/v2-1-1-persistence.test.ts
           - src/tests/v2-1-1-invitation-persistence.test.ts
           - src/tests/v2-1-1-party-review-persistence.test.ts
+          - src/tests/v2-1-2-disclosure-review-persistence.test.ts
     services:
       postgres:
         image: postgres:16-alpine
@@ -162,6 +164,11 @@ jobs:
         run: >-
           psql "$JURYAI_TEST_DATABASE_URL" -v ON_ERROR_STOP=1
           -f supabase/migrations/20260903022149_v211_party_review_intent_assurance.sql
+      - name: Apply V2.1.2 disclosure-review closure migration
+        if: startsWith(matrix.test_file, 'src/tests/v2-1-1-') || matrix.test_file == 'src/tests/v2-1-2-disclosure-review-persistence.test.ts'
+        run: >-
+          psql "$JURYAI_TEST_DATABASE_URL" -v ON_ERROR_STOP=1
+          -f supabase/migrations/20260903043758_v212_disclosure_review_closure.sql
       - name: Run persistent integration test
         run: npx --no-install vitest run "${{ matrix.test_file }}"
       - name: Prove V2.1.1 migration rejects populated dark state
