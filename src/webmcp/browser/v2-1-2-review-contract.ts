@@ -21,6 +21,11 @@ export interface ParsedFirstPartyReviewV212 {
   disclosure_review_acknowledgment_statement: string;
 }
 
+export interface ParsedInvitationRedemptionV212 {
+  status: 'redeemed';
+  review_path: string;
+}
+
 function exactObject(
   value: unknown,
   label: string,
@@ -44,6 +49,18 @@ function boundedString(value: unknown, label: string, maximum: number): string {
     throw new TypeError(`${label} is invalid.`);
   }
   return value;
+}
+
+export function decodeInvitationRedemptionV212(value: unknown): ParsedInvitationRedemptionV212 {
+  const response = exactObject(value, 'invitation redemption', ['review_path', 'status']);
+  if (response.status !== 'redeemed') {
+    throw new TypeError('Invitation redemption status is invalid.');
+  }
+  const reviewPath = boundedString(response.review_path, 'invitation review path', 256);
+  if (!/^\/cases\/dispute_[A-Za-z0-9_.:-]+\/review$/u.test(reviewPath)) {
+    throw new TypeError('Invitation review path is invalid.');
+  }
+  return { status: 'redeemed', review_path: reviewPath };
 }
 
 function boolean(value: unknown, label: string): boolean {

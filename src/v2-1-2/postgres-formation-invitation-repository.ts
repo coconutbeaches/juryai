@@ -12,8 +12,8 @@ import {
 } from '../v2-1/invitation-contract.js';
 import {
   invitationUnavailableResultV21,
+  type InvitationUnavailableResultV21,
   type InvitationIssuedResultV21,
-  type RedeemFormationInvitationResultV21,
 } from '../v2-1/invitation-service.js';
 import {
   HASH_PATTERN_V212,
@@ -79,6 +79,9 @@ export interface PostgresFormationInvitationRepositoryOptionsV212 extends PoolCo
   random_bytes?: (size: number) => Uint8Array;
   random_uuid?: () => string;
 }
+
+export type RedeemFormationInvitationResultV212 =
+  { status: 'redeemed'; dispute_id: string } | InvitationUnavailableResultV21;
 
 function safeInteger(value: unknown, label: string, minimum = 0): number {
   const decoded = typeof value === 'string' && /^\d+$/u.test(value) ? Number(value) : value;
@@ -280,7 +283,7 @@ export class PostgresFormationInvitationRepositoryV212 {
     opaque_token: string;
     authenticated_subject_id: string;
     authenticated_email: string;
-  }): Promise<RedeemFormationInvitationResultV21> {
+  }): Promise<RedeemFormationInvitationResultV212> {
     if (!authorized(input.authority)) return invitationUnavailableResultV21();
     const tokenHash = opaqueTokenHashForLookup(input.opaque_token);
     const nowMs = safeInteger(this.#clock(), 'redemption clock');
@@ -399,7 +402,7 @@ export class PostgresFormationInvitationRepositoryV212 {
           ],
         );
         if (consumed.rowCount !== 1) throw new Error('Invitation consumption failed.');
-        return { status: 'redeemed' };
+        return { status: 'redeemed', dispute_id: id };
       });
     } catch {
       return invitationUnavailableResultV21();

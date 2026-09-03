@@ -17,7 +17,10 @@ import {
 } from '../v2-1-2/party-review-application.js';
 import { ENVELOPE_COMMAND_VERSION_V212 } from '../v2-1-2/case-envelope.js';
 import { derivePartyReviewStateV212 } from '../v2-1-2/party-review-state.js';
-import { decodeFirstPartyReviewV212 } from '../webmcp/browser/v2-1-2-review-contract.js';
+import {
+  decodeFirstPartyReviewV212,
+  decodeInvitationRedemptionV212,
+} from '../webmcp/browser/v2-1-2-review-contract.js';
 
 function publicCase(caseId: string, version = 1): CaseStateResponse {
   return {
@@ -221,7 +224,23 @@ describe('PR 6 production activation boundary', () => {
     expect(browserEntry).not.toContain('navigator.modelContext');
     expect(browserEntry).toContain('pageActionController.abort()');
     expect(browserEntry).toContain('if (actionSignal.aborted) return;');
+    expect(browserEntry).toContain('window.location.assign(redemption.review_path)');
+    expect(browserEntry).not.toContain("window.location.assign('/')");
     expect(production).not.toMatch(/allowlist|cohort|shadow rollout/iu);
+  });
+
+  it('accepts only a same-origin canonical dispute review path after invitation redemption', () => {
+    expect(
+      decodeInvitationRedemptionV212({
+        status: 'redeemed',
+        review_path: '/cases/dispute_joined_1/review',
+      }),
+    ).toEqual({ status: 'redeemed', review_path: '/cases/dispute_joined_1/review' });
+    for (const review_path of ['/', 'https://attacker.test/review', '/cases/case_legacy/review']) {
+      expect(() => decodeInvitationRedemptionV212({ status: 'redeemed', review_path })).toThrow(
+        /review path is invalid/u,
+      );
+    }
   });
 
   it('multiplexes the new first-party case actions within the Vercel function limit', () => {

@@ -932,13 +932,20 @@ export class JuryAiWebServer {
         this.#now(),
         this.#dependencies.sessionTokenFactory,
       );
-      return jsonResponse({ status: 'redeemed' }, 200, {
-        'Set-Cookie': sessionCookie(
-          issued.rawToken,
-          issued.record.expires_at,
-          this.#dependencies.config.cookie,
-        ),
-      });
+      return jsonResponse(
+        {
+          status: 'redeemed',
+          review_path: `/cases/${encodeURIComponent(redeemed.dispute_id)}/review`,
+        },
+        200,
+        {
+          'Set-Cookie': sessionCookie(
+            issued.rawToken,
+            issued.record.expires_at,
+            this.#dependencies.config.cookie,
+          ),
+        },
+      );
     } catch {
       return errorResponse(404, 'INVITATION_UNAVAILABLE', 'This invitation is unavailable.');
     }

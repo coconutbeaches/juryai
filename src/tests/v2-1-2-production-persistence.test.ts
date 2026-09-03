@@ -577,7 +577,7 @@ describe('V2.1.2 production PostgreSQL composition', () => {
         authenticated_subject_id: subjectB,
         authenticated_email: 'intended-b@example.com',
       }),
-    ).resolves.toEqual({ status: 'redeemed' });
+    ).resolves.toEqual({ status: 'redeemed', dispute_id: envelope.control.case_id });
     await expect(
       invitations.redeemInvitation({
         authority,

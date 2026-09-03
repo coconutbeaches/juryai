@@ -1,7 +1,10 @@
 import './styles.css';
 import type { ModelContextLike } from '../tools/register.js';
 import type { ParsedFirstPartyReview } from './review-contract.js';
-import type { ParsedFirstPartyReviewV212 } from './v2-1-2-review-contract.js';
+import {
+  decodeInvitationRedemptionV212,
+  type ParsedFirstPartyReviewV212,
+} from './v2-1-2-review-contract.js';
 import {
   BrowserShellController,
   type BrowserShellState,
@@ -607,13 +610,15 @@ if (invitationJoinPath) {
     const actionSignal = pageActionController.signal;
     void (async () => {
       try {
-        await postJson(
-          `/api/juryai/join/${encodeURIComponent(decodeURIComponent(token))}`,
-          { email: invitationEmail.value, otp: invitationOtp.value },
-          actionSignal,
+        const redemption = decodeInvitationRedemptionV212(
+          await postJson(
+            `/api/juryai/join/${encodeURIComponent(decodeURIComponent(token))}`,
+            { email: invitationEmail.value, otp: invitationOtp.value },
+            actionSignal,
+          ),
         );
         if (actionSignal.aborted) return;
-        window.location.assign('/');
+        window.location.assign(redemption.review_path);
       } catch {
         if (actionSignal.aborted) return;
         invitationStatus.textContent = 'This invitation is unavailable.';

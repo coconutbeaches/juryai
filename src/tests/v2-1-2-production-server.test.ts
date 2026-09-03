@@ -76,7 +76,7 @@ function firstParty(overrides: Partial<ProductionFirstPartyServiceV212> = {}) {
       csurl_path: '/join/opaque-token',
       expires_at: '2026-09-10T09:00:00.000Z',
     }),
-    redeemInvitation: async () => ({ status: 'redeemed' as const }),
+    redeemInvitation: async () => ({ status: 'redeemed' as const, dispute_id: 'dispute_1' }),
     getReview: async () => null,
     getReviewPage: async () => null,
     acknowledgeDisclosureReview: async () => ({ status: 'unauthorized' as const }),
@@ -185,7 +185,10 @@ describe('PR 6 first-party HTTP authority boundary', () => {
       'token',
     );
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ status: 'redeemed' });
+    expect(await response.json()).toEqual({
+      status: 'redeemed',
+      review_path: '/cases/dispute_1/review',
+    });
     expect(response.headers.get('Set-Cookie')).toContain('__Host-juryai_session=');
     expect(subjects).toEqual([SUBJECT]);
     expect(sessions.records.size).toBe(2);
