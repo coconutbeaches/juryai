@@ -6,6 +6,10 @@ import {
 } from '../tools/register.js';
 import { createHttpCaseService, HttpCaseServiceError } from './http-case-service.js';
 import { decodeFirstPartyReview, type ParsedFirstPartyReview } from './review-contract.js';
+import {
+  decodeFirstPartyReviewV212,
+  type ParsedFirstPartyReviewV212,
+} from './v2-1-2-review-contract.js';
 
 type WebMcpAvailability = 'available' | 'unavailable' | 'registration_failed';
 
@@ -31,6 +35,12 @@ export type BrowserShellState =
         | 'locked';
       webMcp: WebMcpAvailability;
       review: ParsedFirstPartyReview;
+      message?: string;
+    }
+  | {
+      phase: 'v212_review';
+      webMcp: WebMcpAvailability;
+      v212Review: ParsedFirstPartyReviewV212;
       message?: string;
     }
   | { phase: 'review_error'; webMcp: WebMcpAvailability; message: string }
@@ -187,12 +197,20 @@ export class BrowserShellController {
     if (!caseId || !this.#isCurrent(generation)) return;
     this.#options.view.render({ phase: 'review_loading', webMcp, message });
     try {
-      const review = decodeFirstPartyReview(
-        await this.#json(`/api/juryai/cases/${encodeURIComponent(caseId)}/review`, {
-          signal: this.#pageController!.signal,
-        }),
-      );
+      const rawReview = await this.#json(`/api/juryai/cases/${encodeURIComponent(caseId)}/review`, {
+        signal: this.#pageController!.signal,
+      });
       if (!this.#isCurrent(generation)) return;
+      if (caseId.startsWith('dispute_')) {
+        this.#options.view.render({
+          phase: 'v212_review',
+          webMcp,
+          v212Review: decodeFirstPartyReviewV212(rawReview),
+          message,
+        });
+        return;
+      }
+      const review = decodeFirstPartyReview(rawReview);
       this.#options.view.render({
         phase:
           review.status === 'locked'

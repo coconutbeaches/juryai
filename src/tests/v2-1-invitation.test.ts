@@ -135,35 +135,35 @@ describe('structural production feature-off and neutral route', () => {
     expect(await second.json()).toEqual(invitationUnavailableResultV21());
   });
 
-  it('renders a neutral join seam without case facts and makes no redemption request', () => {
+  it('renders a neutral join seam without case facts and redeems only on explicit submit', () => {
     const html = readFileSync(resolve(repositoryRoot, 'index.html'), 'utf8');
     const entry = readFileSync(resolve(repositoryRoot, 'src/webmcp/browser/entry.ts'), 'utf8');
     const section = /<section id="invitation-join-section"[\s\S]*?<\/section>/u.exec(html)?.[0];
     expect(section).toContain('You’ve been invited to participate in a JuryAI dispute.');
-    expect(section).toContain('Invitation verification is not available yet.');
+    expect(section).toMatch(/Sign in to verify whether this\s+invitation is for you\./u);
     expect(section).not.toMatch(/Party A|amount|evidence|claim|completed formation|progress/iu);
     expect(entry).toContain('const invitationJoinPath = /^\\/join\\/[^/]+$/u');
     expect(entry).toContain('if (invitationJoinPath)');
     const invitationBranch = entry.indexOf('if (invitationJoinPath)');
-    const applicationBranch = entry.indexOf('} else {', invitationBranch);
-    const pageShowLifecycle = entry.indexOf("window.addEventListener('pageshow'", invitationBranch);
+    const pageShowLifecycle = entry.indexOf("window.addEventListener('pageshow'");
     expect(invitationBranch).toBeGreaterThanOrEqual(0);
-    expect(applicationBranch).toBeGreaterThan(invitationBranch);
-    expect(pageShowLifecycle).toBeGreaterThan(applicationBranch);
-    expect(entry).not.toMatch(/redeemInvitation|formation_invitations|opaque_token/iu);
+    expect(pageShowLifecycle).toBeGreaterThanOrEqual(0);
+    expect(pageShowLifecycle).toBeLessThan(invitationBranch);
+    expect(entry).toContain("addEventListener('submit'");
+    expect(entry).toContain('`/api/juryai/join/${encodeURIComponent(decodeURIComponent(token))}`');
+    expect(entry).not.toMatch(/formation_invitations|opaque_token/iu);
   });
 
-  it('keeps persistence/test authority out of production routes and WebMCP', () => {
+  it('keeps test-only invitation authority and direct persistence out of public routes', () => {
     const productionSources = [...sourceFilesBelow('api'), ...sourceFilesBelow('src/webmcp')];
     for (const file of productionSources) {
       const source = readFileSync(file, 'utf8');
-      expect(source, file).not.toContain('postgres-formation-invitation-repository');
       expect(source, file).not.toContain('testOnlyInvitationFeatureAuthorityV21');
       expect(source, file).not.toContain('testOnlyInvitationServiceV21');
       expect(source, file).not.toContain('TRUSTED_FIRST_PARTY_INVITATION_ACTION_V21');
     }
     const route = readFileSync(resolve(repositoryRoot, 'api/juryai/join/[token].ts'), 'utf8');
-    expect(route).toContain('productionDisabledInvitationRouteV21');
+    expect(route).toContain('handleJoinInvitation');
     expect(route).not.toMatch(/Pool|repository|redeem|issue/iu);
   });
 

@@ -54,6 +54,9 @@ jobs:
           - src/tests/intent-assurance.test.ts
           - src/tests/v2-1-1-party-review.test.ts
           - src/tests/v2-1-2-disclosure-review-closure.test.ts
+          - src/tests/v2-1-2-party-review.test.ts
+          - src/tests/v2-1-2-production-activation.test.ts
+          - src/tests/v2-1-2-production-server.test.ts
           - src/tests/v2-1-persistence-boundary.test.ts
           - src/tests/v2-1-invitation.test.ts
           - src/tests/gate-zero-coverage-matrix.test.ts
@@ -102,6 +105,7 @@ jobs:
           - src/tests/v2-1-1-invitation-persistence.test.ts
           - src/tests/v2-1-1-party-review-persistence.test.ts
           - src/tests/v2-1-2-disclosure-review-persistence.test.ts
+          - src/tests/v2-1-2-production-persistence.test.ts
     services:
       postgres:
         image: postgres:16-alpine
@@ -155,20 +159,25 @@ jobs:
           psql "$JURYAI_TEST_DATABASE_URL" -v ON_ERROR_STOP=1
           -f supabase/migrations/20260902054913_v21_formation_invitations.sql
       - name: Apply guarded V2.1.1 external-relay migration
-        if: startsWith(matrix.test_file, 'src/tests/v2-1-1-') || matrix.test_file == 'src/tests/v2-1-2-disclosure-review-persistence.test.ts'
+        if: startsWith(matrix.test_file, 'src/tests/v2-1-1-') || startsWith(matrix.test_file, 'src/tests/v2-1-2-')
         run: >-
           psql "$JURYAI_TEST_DATABASE_URL" -v ON_ERROR_STOP=1
           -f supabase/migrations/20260902091449_v211_external_relay_submission.sql
       - name: Apply private V2.1.1 party-review assurance migration
-        if: matrix.test_file == 'src/tests/v2-1-1-party-review-persistence.test.ts'
+        if: matrix.test_file == 'src/tests/v2-1-1-party-review-persistence.test.ts' || startsWith(matrix.test_file, 'src/tests/v2-1-2-')
         run: >-
           psql "$JURYAI_TEST_DATABASE_URL" -v ON_ERROR_STOP=1
           -f supabase/migrations/20260903022149_v211_party_review_intent_assurance.sql
       - name: Apply V2.1.2 disclosure-review closure migration
-        if: startsWith(matrix.test_file, 'src/tests/v2-1-1-') || matrix.test_file == 'src/tests/v2-1-2-disclosure-review-persistence.test.ts'
+        if: startsWith(matrix.test_file, 'src/tests/v2-1-1-') || startsWith(matrix.test_file, 'src/tests/v2-1-2-')
         run: >-
           psql "$JURYAI_TEST_DATABASE_URL" -v ON_ERROR_STOP=1
           -f supabase/migrations/20260903043758_v212_disclosure_review_closure.sql
+      - name: Apply additive V2.1.2 protected-action pairing migration
+        if: startsWith(matrix.test_file, 'src/tests/v2-1-2-')
+        run: >-
+          psql "$JURYAI_TEST_DATABASE_URL" -v ON_ERROR_STOP=1
+          -f supabase/migrations/20260903074232_v212_party_review_protected_action.sql
       - name: Run persistent integration test
         run: npx --no-install vitest run "${{ matrix.test_file }}"
       - name: Prove V2.1.1 migration rejects populated dark state

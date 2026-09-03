@@ -1,3 +1,3 @@
-import { productionDisabledInvitationRouteV21 } from '../../../src/v2-1/invitation-route.js';
+import { handleJoinInvitation } from '../../../src/webmcp/server/production.js';
 
-export default { fetch: productionDisabledInvitationRouteV21 };
+export default { fetch: handleJoinInvitation };

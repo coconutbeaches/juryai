@@ -870,10 +870,11 @@ describe('V2.1.2 canonical disclosure-review closure', () => {
     );
   });
 
-  it('keeps production composition dark and the public WebMCP surface at exactly three tools', () => {
+  it('activates only V2.1.2 composition and keeps the public WebMCP surface at three tools', () => {
     const production = readFileSync(`${projectRoot}/src/webmcp/server/production.ts`, 'utf8');
-    expect(production).not.toContain('v2-1-2');
-    expect(production).not.toContain('V212');
+    expect(production).toContain('v2-1-2');
+    expect(production).not.toContain('v2-1-1');
+    expect(production).not.toContain('createDarkVersionedCaseService');
     const service = {} as CaseServicePort;
     expect(createJuryAiToolDefinitions(service).map((tool) => tool.name)).toEqual([
       'start_case',

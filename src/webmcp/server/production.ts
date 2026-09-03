@@ -14,6 +14,18 @@ import { JuryAiWebServer } from './server.js';
 import { readSessionCookie } from './session.js';
 import { supabaseAuthForRequest } from './supabase-auth.js';
 import { PostgresWebSessionStore } from './web-session-store.js';
+import { createRuntimeCaseService } from '../service/index.js';
+import { principalForSupabaseSubject, sessionRuntimeContextProvider } from './session.js';
+import { PostgresDisclosureReviewRepositoryV212 } from '../../v2-1-2/postgres-disclosure-review-repository.js';
+import {
+  PostgresFormationInvitationRepositoryV212,
+  productionInvitationAuthorityV212,
+} from '../../v2-1-2/postgres-formation-invitation-repository.js';
+import {
+  createProductionCaseServiceV212,
+  createProductionVersionedCaseServiceV212,
+} from '../../v2-1-2/production-case-service.js';
+import { createProductionFirstPartyServiceV212 } from '../../v2-1-2/production-first-party.js';
 
 let productionServer: Promise<JuryAiWebServer> | null = null;
 
@@ -23,12 +35,27 @@ async function buildProductionServer(): Promise<JuryAiWebServer> {
   const caseStore = new PostgresCaseRuntimeStore({ pool });
   const webStore = new PostgresWebSessionStore(pool);
   await Promise.all([caseStore.assertReady(), webStore.assertReady()]);
+  const compiler = createLiveSemanticCompiler({ env: process.env });
+
+  const formationStore = config.v212ProductionEnabled
+    ? new PostgresDisclosureReviewRepositoryV212({ pool })
+    : null;
+  const invitationStore =
+    config.v212ProductionEnabled && config.invitationAccountCommitmentSecret
+      ? new PostgresFormationInvitationRepositoryV212({
+          pool,
+          account_commitment_secret: config.invitationAccountCommitmentSecret,
+        })
+      : null;
+  if (formationStore && invitationStore) {
+    await Promise.all([formationStore.assertReady(), invitationStore.assertReady()]);
+  }
 
   let runtime: CaseRuntime | null = null;
   const runtimeForRequest = (): CaseRuntime => {
     runtime ??= new CaseRuntime({
       store: caseStore,
-      compiler: createLiveSemanticCompiler({ env: process.env }),
+      compiler,
       clock: systemClock,
       ids: randomIdFactory(),
       salts: randomSaltFactory(),
@@ -38,12 +65,48 @@ async function buildProductionServer(): Promise<JuryAiWebServer> {
     return runtime;
   };
 
+  const legacyForSession = async (session: Parameters<typeof sessionRuntimeContextProvider>[0]) =>
+    createRuntimeCaseService({
+      runtime: runtimeForRequest(),
+      contextProvider: sessionRuntimeContextProvider(session),
+    });
+
   return new JuryAiWebServer({
     config,
     persistence: webStore,
     authForRequest: () => supabaseAuthForRequest(config),
     runtime: runtimeForRequest,
     caseStore: () => caseStore,
+    caseServiceForSession: async (session) => {
+      const legacy = await legacyForSession(session);
+      const v212 =
+        config.v212ProductionEnabled && formationStore && config.invitationAccountCommitmentSecret
+          ? createProductionCaseServiceV212({
+              authenticated_subject_id: session.principal_id,
+              repository: formationStore,
+              compiler,
+              review_url: (disputeId) =>
+                `${config.publicOrigin}/cases/${encodeURIComponent(disputeId)}/review`,
+              idempotency_secret: config.invitationAccountCommitmentSecret,
+            })
+          : null;
+      return createProductionVersionedCaseServiceV212({
+        enabled: config.v212ProductionEnabled === true,
+        legacy,
+        v212,
+      });
+    },
+    v212FirstPartyForSubject:
+      config.v212ProductionEnabled && formationStore && invitationStore
+        ? (subject) =>
+            createProductionFirstPartyServiceV212({
+              enabled: true,
+              authenticated_subject_id: principalForSupabaseSubject(subject),
+              repository: formationStore,
+              invitations: invitationStore,
+              invitation_authority: productionInvitationAuthorityV212(true),
+            })
+        : undefined,
   });
 }
 
@@ -93,7 +156,14 @@ export const handleCaseService = (request: Request): Promise<Response> =>
 
 function caseIdFromPath(
   request: Request,
-  operation: 'review' | 'corrections' | 'attestations',
+  operation:
+    | 'review'
+    | 'corrections'
+    | 'attestations'
+    | 'invitations'
+    | 'disclosure-review'
+    | 'review-challenges'
+    | 'review-actions',
 ): string {
   const match = new RegExp(`/api/juryai/cases/([^/]+)/${operation}$`, 'u').exec(
     new URL(request.url).pathname,
@@ -120,3 +190,36 @@ export const handleCaseAttestation = (request: Request): Promise<Response> =>
   handle(request, (instance, incoming) =>
     instance.attestCase(incoming, caseIdFromPath(incoming, 'attestations')),
   );
+
+export const handleFormationInvitation = (request: Request): Promise<Response> =>
+  handle(request, (instance, incoming) =>
+    instance.issueFormationInvitation(incoming, caseIdFromPath(incoming, 'invitations')),
+  );
+
+export const handleDisclosureReviewAcknowledgment = (request: Request): Promise<Response> =>
+  handle(request, (instance, incoming) =>
+    instance.acknowledgeDisclosureReview(incoming, caseIdFromPath(incoming, 'disclosure-review')),
+  );
+
+export const handlePartyReviewChallenge = (request: Request): Promise<Response> =>
+  handle(request, (instance, incoming) =>
+    instance.issuePartyReviewChallenge(incoming, caseIdFromPath(incoming, 'review-challenges')),
+  );
+
+export const handlePartyReviewAction = (request: Request): Promise<Response> =>
+  handle(request, (instance, incoming) =>
+    instance.executePartyReviewAction(incoming, caseIdFromPath(incoming, 'review-actions')),
+  );
+
+export const handleJoinInvitation = (request: Request): Promise<Response> => {
+  const match = /\/api\/juryai\/join\/([^/]+)$/u.exec(new URL(request.url).pathname);
+  let token = '';
+  try {
+    token = match ? decodeURIComponent(match[1]!) : '';
+  } catch {
+    token = '';
+  }
+  return handle(request, (instance, incoming) =>
+    instance.redeemFormationInvitation(incoming, token),
+  );
+};

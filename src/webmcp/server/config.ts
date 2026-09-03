@@ -13,7 +13,13 @@ export interface JuryAiWebServerConfig {
   supabaseUrl: string;
   supabasePublishableKey: string;
   production: boolean;
+  v212ProductionEnabled?: boolean;
+  invitationAccountCommitmentSecret?: string | null;
   cookie: JuryAiCookieConfig;
+}
+
+export function v212ProductionEnabled(env: ServerEnvironment): boolean {
+  return env.JURYAI_V212_PRODUCTION_ENABLED === 'true';
 }
 
 function required(env: ServerEnvironment, name: string): string {
@@ -76,12 +82,24 @@ export function loadJuryAiWebServerConfig(
   }
 
   const secure = publicUrl.protocol === 'https:';
+  const v212Enabled = v212ProductionEnabled(env);
+  const invitationSecret = env.JURYAI_INVITATION_ACCOUNT_COMMITMENT_SECRET;
+  if (
+    v212Enabled &&
+    (typeof invitationSecret !== 'string' || Buffer.byteLength(invitationSecret, 'utf8') < 32)
+  ) {
+    throw new Error(
+      'JURYAI_INVITATION_ACCOUNT_COMMITMENT_SECRET must contain at least 32 bytes when V2.1.2 is enabled.',
+    );
+  }
   return {
     publicOrigin: publicUrl.origin,
     databaseUrl: required(env, 'JURYAI_DATABASE_URL'),
     supabaseUrl: supabaseUrl.origin,
     supabasePublishableKey: required(env, 'JURYAI_SUPABASE_PUBLISHABLE_KEY'),
     production,
+    v212ProductionEnabled: v212Enabled,
+    invitationAccountCommitmentSecret: v212Enabled ? invitationSecret! : null,
     cookie: secure
       ? { name: '__Host-juryai_session', secure: true }
       : { name: 'juryai_session_dev', secure: false },
