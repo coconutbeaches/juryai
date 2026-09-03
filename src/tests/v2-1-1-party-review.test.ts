@@ -7,11 +7,14 @@ import {
   TRUSTED_FIRST_PARTY_CEREMONY_ADAPTER_V1,
   TRUSTED_INTENT_ASSURANCE_POLICY_RESOLVER_V1,
   TRUSTED_INTENT_ASSURANCE_STATE_RESOLVER_V1,
+  TRUSTED_PROTECTED_ACTION_EXECUTOR_V1,
+  consumeDurableIntentAssuranceEvidenceV1,
   hashIntentAssuranceActionPayloadV1,
   observeIntentAssuranceEvidenceV1,
   protectedActionAuthorizationMatchesV1,
   resolveIntentAssurancePolicyDecisionV1,
   resolveIntentAssuranceStateBindingV1,
+  verifyDurableIntentAssuranceEvidenceV1,
   type HumanHandoffChallengeV1,
   type IntentAssuranceActionV1,
   type IntentAssuranceLevelV1,
@@ -555,6 +558,59 @@ describe('PR 5 party review state and assurance-gated ceremonies', () => {
         consumption_id: unique('assurance_consumption'),
       }),
     ).toMatchObject({ status: 'rejected', reason_code: 'already_used' });
+  });
+
+  it('consumes one branded durable-evidence result at most once even outside the repository', () => {
+    const envelope = boundEnvelope();
+    const prepared = prepare(envelope, 'party_a');
+    const cursor = envelope.control.party_views.party_a;
+    const binding = resolveIntentAssuranceStateBindingV1(
+      {
+        authenticated_subject_id: SUBJECT_A,
+        dispute_id: envelope.control.case_id,
+        party_id: 'party_a',
+        party_projection_contract_version: PARTY_FORMATION_PROJECTION_VERSION_V211,
+        party_projection_hash: cursor.party_projection_hash,
+        party_visible_version: cursor.party_visible_version,
+        formation_epoch: envelope.parties.party_a.formation_epoch,
+      },
+      TRUSTED_INTENT_ASSURANCE_STATE_RESOLVER_V1,
+    )!;
+    const verified = verifyDurableIntentAssuranceEvidenceV1({
+      challenge: prepared.challenge,
+      current_state_binding: binding,
+      requested_action: 'confirm_case_account',
+      action_payload: prepared.action_payload as never,
+      observed_evidence: observed(prepared.challenge),
+      completed_at: '2026-09-03T01:00:01.000Z',
+    });
+    if (verified.status !== 'verified') throw new Error(verified.message);
+    expect(
+      consumeDurableIntentAssuranceEvidenceV1(
+        {
+          verified_evidence: verified.verified_evidence,
+          receipt_id: unique('assurance_receipt'),
+          consumption_id: unique('assurance_consumption'),
+          consumed_at: '2026-09-03T01:00:01.000Z',
+        },
+        TRUSTED_PROTECTED_ACTION_EXECUTOR_V1,
+      ),
+    ).toMatchObject({ status: 'consumed' });
+    expect(
+      consumeDurableIntentAssuranceEvidenceV1(
+        {
+          verified_evidence: verified.verified_evidence,
+          receipt_id: unique('assurance_receipt'),
+          consumption_id: unique('assurance_consumption'),
+          consumed_at: '2026-09-03T01:00:01.000Z',
+        },
+        TRUSTED_PROTECTED_ACTION_EXECUTOR_V1,
+      ),
+    ).toEqual({
+      status: 'rejected',
+      reason_code: 'already_used',
+      message: 'Verified durable assurance evidence was already consumed.',
+    });
   });
 
   it('binds authenticated subject in the first-party application and exposes no caller party field', async () => {

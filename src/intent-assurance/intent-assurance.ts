@@ -412,6 +412,7 @@ const resolvedStateBindingObjects = new WeakSet<object>();
 const resolvedPolicyDecisionObjects = new WeakSet<object>();
 const observedEvidenceObjects = new WeakSet<object>();
 const verifiedDurableEvidenceObjects = new WeakSet<object>();
+const consumedVerifiedDurableEvidenceObjects = new WeakSet<object>();
 
 const LEVEL_RANK: Record<IntentAssuranceLevelV1, number> = {
   'HHC-0': 0,
@@ -1842,6 +1843,9 @@ export function consumeDurableIntentAssuranceEvidenceV1(
   ) {
     return rejection('untrusted_authority', 'Verified durable assurance evidence is required.');
   }
+  if (consumedVerifiedDurableEvidenceObjects.has(input.verified_evidence)) {
+    return rejection('already_used', 'Verified durable assurance evidence was already consumed.');
+  }
   if (
     !validId(input.receipt_id) ||
     !input.receipt_id.startsWith('assurance_receipt_') ||
@@ -1930,6 +1934,7 @@ export function consumeDurableIntentAssuranceEvidenceV1(
   ) {
     return rejection('invalid_receipt', 'Durable consumption failed its canonical contract.');
   }
+  consumedVerifiedDurableEvidenceObjects.add(input.verified_evidence);
   const authorization = Object.freeze({
     consumption: deepFreeze(cloneCanonical(consumption)),
     [PROTECTED_AUTHORIZATION_BRAND_V1]: true as const,
