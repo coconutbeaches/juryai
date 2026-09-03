@@ -4,6 +4,7 @@ import {
   decodeCaseServiceHttpRequest,
   decodeCaseStateResponse,
 } from '../webmcp/public-contract.js';
+import { createJuryAiToolDefinitions } from '../webmcp/tools/definitions.js';
 import { PUBLIC_CASE_STATE } from './webmcp-browser-test-fixtures.js';
 
 describe('browser-safe JuryAI public contract', () => {
@@ -48,7 +49,7 @@ describe('browser-safe JuryAI public contract', () => {
     ).toThrow(/unknown field/u);
   });
 
-  it('builds the real browser graph without Node, Supabase, secrets, or a fourth tool', async () => {
+  it('builds the real browser graph without Node, Supabase, or server secrets', async () => {
     const result = await build({
       logLevel: 'silent',
       build: { write: false },
@@ -76,6 +77,24 @@ describe('browser-safe JuryAI public contract', () => {
     expect(javascript).toContain('start_case');
     expect(javascript).toContain('get_case_state');
     expect(javascript).toContain('submit_turn');
-    expect(javascript).not.toMatch(/attest_case|confirm_case|lock_case|upload_evidence/u);
+    const service = {
+      startCase: async () => ({
+        ok: false as const,
+        error: { code: 'INTERNAL_ERROR' as const, message: '', retryable: false },
+      }),
+      getCaseState: async () => ({
+        ok: false as const,
+        error: { code: 'INTERNAL_ERROR' as const, message: '', retryable: false },
+      }),
+      submitTurn: async () => ({
+        ok: false as const,
+        error: { code: 'INTERNAL_ERROR' as const, message: '', retryable: false },
+      }),
+    };
+    expect(createJuryAiToolDefinitions(service).map((tool) => tool.name)).toEqual([
+      'start_case',
+      'get_case_state',
+      'submit_turn',
+    ]);
   });
 });

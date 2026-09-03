@@ -44,6 +44,9 @@ import {
 } from './session.js';
 import type { SupabaseAuthGateway } from './supabase-auth.js';
 import type { WebSessionPersistence, WebSessionRecord } from './web-session-store.js';
+import type { CaseServicePort } from '../public-contract.js';
+import type { ProductionFirstPartyServiceV212 } from '../../v2-1-2/production-first-party.js';
+import { reviewChallengeForPublicResponseV212 } from '../../v2-1-2/production-first-party.js';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
 const OTP_PATTERN = /^\d{6}$/u;
@@ -60,6 +63,10 @@ export interface JuryAiWebServerDependencies {
   sessionTokenFactory?: SessionTokenFactory;
   challengeTokenFactory?: () => string;
   attestationIdFactory?: () => string;
+  caseServiceForSession?: (session: WebSessionRecord) => CaseServicePort | Promise<CaseServicePort>;
+  v212FirstPartyForSubject?: (
+    authenticatedSubjectId: string,
+  ) => ProductionFirstPartyServiceV212 | Promise<ProductionFirstPartyServiceV212>;
 }
 
 const CORRECTION_DISPOSITIONS = [
@@ -215,6 +222,40 @@ function attestationInput(value: unknown): { challenge: string; rendered_documen
   return { challenge: body.challenge, rendered_document_hash: body.rendered_document_hash };
 }
 
+function caseId(value: unknown): string {
+  if (typeof value !== 'string' || !isV212DisputePersistenceId(value)) {
+    throw new TypeError('dispute_id is invalid.');
+  }
+  return value;
+}
+
+function isV212DisputePersistenceId(value: string): boolean {
+  return value.startsWith('dispute_') && isCanonicalId(value);
+}
+
+function invitationToken(value: unknown): string {
+  if (typeof value !== 'string' || value.length === 0 || value.length > 512) {
+    throw new TypeError('Invitation token is invalid.');
+  }
+  return value;
+}
+
+function challengeId(value: unknown): string {
+  if (typeof value !== 'string' || !isCanonicalId(value)) {
+    throw new TypeError('challenge_id is invalid.');
+  }
+  return value;
+}
+
+type ProtectedReviewAction = 'confirm_case_account' | 'reopen_confirmed_material';
+
+function protectedReviewAction(value: unknown): ProtectedReviewAction {
+  if (value !== 'confirm_case_account' && value !== 'reopen_confirmed_material') {
+    throw new TypeError('Protected review action is invalid.');
+  }
+  return value;
+}
+
 export class JuryAiWebServer {
   readonly #dependencies: JuryAiWebServerDependencies;
 
@@ -272,6 +313,14 @@ export class JuryAiWebServer {
       throw new Error('Step 64 persistence primitives are unavailable.');
     }
     return store;
+  }
+
+  async #v212FirstParty(
+    authenticatedSubjectId: string,
+  ): Promise<ProductionFirstPartyServiceV212 | null> {
+    return this.#dependencies.v212FirstPartyForSubject
+      ? this.#dependencies.v212FirstPartyForSubject(authenticatedSubjectId)
+      : null;
   }
 
   async requestOtp(request: Request): Promise<Response> {
@@ -437,6 +486,22 @@ export class JuryAiWebServer {
     if (!isCanonicalId(caseId)) return errorResponse(404, 'CASE_NOT_FOUND', 'No such case.');
     const authorized = await this.#authorizedSession(request);
     if (authorized instanceof Response) return authorized;
+
+    if (isV212DisputePersistenceId(caseId)) {
+      try {
+        const service = await this.#v212FirstParty(authorized.auth_subject);
+        const review = service ? await service.getReviewPage(caseId) : null;
+        return review
+          ? jsonResponse(review)
+          : errorResponse(404, 'CASE_NOT_FOUND', 'No such case.');
+      } catch {
+        return errorResponse(
+          500,
+          'REVIEW_UNAVAILABLE',
+          'The case review is temporarily unavailable.',
+        );
+      }
+    }
 
     try {
       const store = await this.#caseStore();
@@ -775,11 +840,12 @@ export class JuryAiWebServer {
     }
 
     try {
-      const runtime = await this.#dependencies.runtime();
-      const service = createRuntimeCaseService({
-        runtime,
-        contextProvider: sessionRuntimeContextProvider(session),
-      });
+      const service = this.#dependencies.caseServiceForSession
+        ? await this.#dependencies.caseServiceForSession(session)
+        : createRuntimeCaseService({
+            runtime: await this.#dependencies.runtime(),
+            contextProvider: sessionRuntimeContextProvider(session),
+          });
       switch (envelope.operation) {
         case 'startCase': {
           const result = await service.startCase(envelope.input, { signal: request.signal });
@@ -796,6 +862,215 @@ export class JuryAiWebServer {
       }
     } catch {
       return errorResponse(500, 'INTERNAL_ERROR', 'The case service is temporarily unavailable.');
+    }
+  }
+
+  async issueFormationInvitation(request: Request, disputeId: string): Promise<Response> {
+    const rejected = this.#postBoundary(request);
+    if (rejected) return rejected;
+    let id: string;
+    let intendedEmail: string;
+    try {
+      id = caseId(disputeId);
+      const body = record(await readJsonBody(request, 2_048), ['email']);
+      intendedEmail = email(body.email);
+    } catch {
+      return errorResponse(400, 'INVALID_INPUT', 'The invitation request is invalid.');
+    }
+    const authorized = await this.#authorizedSession(request);
+    if (authorized instanceof Response) return authorized;
+    try {
+      const service = await this.#v212FirstParty(authorized.auth_subject);
+      const result = service
+        ? await service.issueInvitation({ dispute_id: id, intended_account_email: intendedEmail })
+        : { status: 'unavailable' as const };
+      return result.status === 'issued'
+        ? jsonResponse(result, 201)
+        : errorResponse(404, 'INVITATION_UNAVAILABLE', 'This invitation is unavailable.');
+    } catch {
+      return errorResponse(404, 'INVITATION_UNAVAILABLE', 'This invitation is unavailable.');
+    }
+  }
+
+  async redeemFormationInvitation(request: Request, rawToken: string): Promise<Response> {
+    const rejected = this.#postBoundary(request);
+    if (rejected) return rejected;
+    if (!this.#dependencies.v212FirstPartyForSubject) {
+      return errorResponse(404, 'INVITATION_UNAVAILABLE', 'This invitation is unavailable.');
+    }
+    let token: string;
+    let address: string;
+    let verificationCode: string;
+    try {
+      token = invitationToken(rawToken);
+      const body = record(await readJsonBody(request, 4_096), ['email', 'otp']);
+      address = email(body.email);
+      verificationCode = otp(body.otp);
+    } catch {
+      return errorResponse(404, 'INVITATION_UNAVAILABLE', 'This invitation is unavailable.');
+    }
+    try {
+      const subject = await this.#dependencies
+        .authForRequest()
+        .verifyEmailOtp(address, verificationCode);
+      if (!subject) {
+        return errorResponse(404, 'INVITATION_UNAVAILABLE', 'This invitation is unavailable.');
+      }
+      const service = await this.#v212FirstParty(subject);
+      const redeemed = service
+        ? await service.redeemInvitation({
+            opaque_token: token,
+            authenticated_email: address,
+          })
+        : { status: 'unavailable' as const };
+      if (redeemed.status !== 'redeemed') {
+        return errorResponse(404, 'INVITATION_UNAVAILABLE', 'This invitation is unavailable.');
+      }
+      const issued = await issueWebSession(
+        this.#dependencies.persistence,
+        subject,
+        this.#now(),
+        this.#dependencies.sessionTokenFactory,
+      );
+      return jsonResponse({ status: 'redeemed' }, 200, {
+        'Set-Cookie': sessionCookie(
+          issued.rawToken,
+          issued.record.expires_at,
+          this.#dependencies.config.cookie,
+        ),
+      });
+    } catch {
+      return errorResponse(404, 'INVITATION_UNAVAILABLE', 'This invitation is unavailable.');
+    }
+  }
+
+  async acknowledgeDisclosureReview(request: Request, disputeId: string): Promise<Response> {
+    const rejected = this.#postBoundary(request);
+    if (rejected) return rejected;
+    try {
+      caseId(disputeId);
+      const body = record(await readJsonBody(request, 1_024), []);
+      if (Object.keys(body).length !== 0) throw new TypeError('Body must be empty.');
+    } catch {
+      return errorResponse(400, 'INVALID_INPUT', 'The acknowledgment request is invalid.');
+    }
+    const authorized = await this.#authorizedSession(request);
+    if (authorized instanceof Response) return authorized;
+    try {
+      const service = await this.#v212FirstParty(authorized.auth_subject);
+      const result = service ? await service.acknowledgeDisclosureReview(disputeId) : null;
+      return result?.status === 'committed'
+        ? jsonResponse({
+            ok: true,
+            case_version:
+              result.stored.envelope.control.party_views[
+                result.stored.envelope.parties.party_a.authenticated_subject_id ===
+                authorized.principal_id
+                  ? 'party_a'
+                  : 'party_b'
+              ].party_visible_version,
+          })
+        : result?.status === 'conflict'
+          ? errorResponse(
+              409,
+              'VERSION_CONFLICT',
+              'The visible review changed. Reload and review again.',
+            )
+          : errorResponse(404, 'CASE_NOT_FOUND', 'No such case.');
+    } catch {
+      return errorResponse(500, 'REVIEW_UNAVAILABLE', 'The review acknowledgment is unavailable.');
+    }
+  }
+
+  async issuePartyReviewChallenge(request: Request, disputeId: string): Promise<Response> {
+    const rejected = this.#postBoundary(request);
+    if (rejected) return rejected;
+    let action: ProtectedReviewAction;
+    let reopenReason: string | undefined;
+    try {
+      caseId(disputeId);
+      const body = record(await readJsonBody(request, 4_096), ['action', 'reason']);
+      action = protectedReviewAction(body.action);
+      if (action === 'reopen_confirmed_material') {
+        if (typeof body.reason !== 'string' || !body.reason.trim() || body.reason.length > 2_000) {
+          throw new TypeError('Reopen reason is invalid.');
+        }
+        reopenReason = body.reason;
+      } else if (body.reason !== undefined) {
+        throw new TypeError('Confirmation does not accept a reason.');
+      }
+    } catch {
+      return errorResponse(400, 'INVALID_INPUT', 'The protected review request is invalid.');
+    }
+    const authorized = await this.#authorizedSession(request);
+    if (authorized instanceof Response) return authorized;
+    try {
+      const service = await this.#v212FirstParty(authorized.auth_subject);
+      const result = service
+        ? await service.issueReviewChallenge({
+            dispute_id: disputeId,
+            action,
+            reopen_reason: reopenReason,
+          })
+        : { status: 'rejected' as const };
+      return result.status === 'issued'
+        ? jsonResponse({
+            challenge: reviewChallengeForPublicResponseV212(result.challenge),
+            review_state_hash: result.review_state.review_state_hash,
+            party_readback_hash: result.review_state.party_readback_hash,
+          })
+        : errorResponse(
+            409,
+            'REVIEW_ACTION_UNAVAILABLE',
+            'The protected review action is unavailable.',
+          );
+    } catch {
+      return errorResponse(
+        500,
+        'REVIEW_UNAVAILABLE',
+        'The protected review action is unavailable.',
+      );
+    }
+  }
+
+  async executePartyReviewAction(request: Request, disputeId: string): Promise<Response> {
+    const rejected = this.#postBoundary(request);
+    if (rejected) return rejected;
+    let action: ProtectedReviewAction;
+    let challenge: string;
+    try {
+      caseId(disputeId);
+      const body = record(await readJsonBody(request, 2_048), ['action', 'challenge_id']);
+      action = protectedReviewAction(body.action);
+      challenge = challengeId(body.challenge_id);
+    } catch {
+      return errorResponse(400, 'INVALID_INPUT', 'The protected review request is invalid.');
+    }
+    const authorized = await this.#authorizedSession(request);
+    if (authorized instanceof Response) return authorized;
+    try {
+      const service = await this.#v212FirstParty(authorized.auth_subject);
+      const result = service
+        ? await service.executeReviewAction({
+            dispute_id: disputeId,
+            action,
+            challenge_id: challenge,
+            first_party_session_id: `web_session_${authorized.session_id_hash}`,
+          })
+        : { status: 'rejected' as const };
+      return result.status === 'applied'
+        ? jsonResponse({ ok: true, review: result.review_state })
+        : errorResponse(
+            409,
+            'REVIEW_ACTION_UNAVAILABLE',
+            'The protected review action is unavailable.',
+          );
+    } catch {
+      return errorResponse(
+        500,
+        'REVIEW_UNAVAILABLE',
+        'The protected review action is unavailable.',
+      );
     }
   }
 }

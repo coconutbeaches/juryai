@@ -50,7 +50,7 @@ export type ApplyExternalRelaySubmissionResultV212 =
       envelope: CaseEnvelopeV212;
     });
 
-function frozenRelayExecutionViewV211(envelope: CaseEnvelopeV212): CaseEnvelopeV211 {
+export function frozenRelayExecutionViewV211(envelope: CaseEnvelopeV212): CaseEnvelopeV211 {
   const view = cloneCanonical(envelope) as unknown as CaseEnvelopeV211;
   delete (view.formation as unknown as Record<string, unknown>).disclosure_review_acknowledgments;
   view.control.schema_version = CASE_ENVELOPE_SCHEMA_VERSION_V211;

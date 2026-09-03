@@ -23,7 +23,29 @@
           You’ve been invited to participate in a JuryAI dispute. Sign in to verify whether this
           invitation is for you.
         </p>
-        <p class="muted">Invitation verification is not available yet.</p>
+        <form id="invitation-join-form">
+          <label>
+            Invited email
+            <input id="invitation-email" type="email" autocomplete="email" required />
+          </label>
+          <button id="invitation-request-code" class="secondary" type="button">
+            Request six-digit code
+          </button>
+          <label>
+            Verification code
+            <input
+              id="invitation-otp"
+              type="text"
+              inputmode="numeric"
+              autocomplete="one-time-code"
+              pattern="[0-9]{6}"
+              maxlength="6"
+              required
+            />
+          </label>
+          <button type="submit">Verify and join this dispute</button>
+        </form>
+        <p id="invitation-status" class="muted" role="status" aria-live="polite"></p>
       </section>
 
       <section id="auth-section" hidden>
@@ -77,6 +99,74 @@
         <p id="review-message" role="status" aria-live="polite"></p>
         <ul id="review-blockers"></ul>
         <div id="readback-blocks"></div>
+
+        <section id="v212-review-panel" hidden>
+          <p id="v212-workflow" class="muted"></p>
+          <section id="v212-invitation-panel" class="action-panel" hidden>
+            <h2>Invite the other party</h2>
+            <p>The invitation can be used only by the intended authenticated email account.</p>
+            <form id="v212-invitation-form">
+              <label>
+                Other party email
+                <input id="v212-invitation-email" type="email" autocomplete="email" required />
+              </label>
+              <button type="submit">Create secure invitation</button>
+            </form>
+            <p id="v212-invitation-result" class="muted"></p>
+          </section>
+          <section id="v212-waiting-panel" class="action-panel" hidden>
+            <h2>Waiting for the other party</h2>
+            <p>
+              They must authenticate through the invitation before their independent formation
+              begins.
+            </p>
+          </section>
+          <section id="v212-visible-material" class="action-panel">
+            <h2>Material currently visible to you</h2>
+            <pre id="v212-visible-material-document"></pre>
+          </section>
+          <section id="v212-disclosure-review-panel" class="action-panel" hidden>
+            <h2>Finish disclosed-material review</h2>
+            <p id="v212-disclosure-review-statement"></p>
+            <button id="v212-finish-review" type="button">Finish review</button>
+          </section>
+          <section id="v212-confirmation-panel" class="action-panel" hidden>
+            <h2>Confirm your account</h2>
+            <p>I adopt this exact account as my statement of the dispute.</p>
+            <button id="v212-prepare-confirmation" type="button">Review confirmation step</button>
+            <div id="v212-confirmation-ceremony" hidden>
+              <p id="v212-confirmation-reference" class="muted"></p>
+              <label class="check-label">
+                <input id="v212-confirmation-checkbox" type="checkbox" />
+                I have reviewed this exact canonical account and authorize this confirmation.
+              </label>
+              <button id="v212-confirm" type="button" disabled>Confirm this exact account</button>
+            </div>
+          </section>
+          <section id="v212-reopen-panel" class="action-panel" hidden>
+            <h2>Reopen your confirmed account</h2>
+            <label>
+              Why you need to reopen
+              <textarea id="v212-reopen-reason" maxlength="2000"></textarea>
+            </label>
+            <button id="v212-prepare-reopen" type="button">Review reopen step</button>
+            <div id="v212-reopen-ceremony" hidden>
+              <p id="v212-reopen-reference" class="muted"></p>
+              <label class="check-label">
+                <input id="v212-reopen-checkbox" type="checkbox" />
+                I authorize reopening my own formation and understand I must confirm it again.
+              </label>
+              <button id="v212-reopen" type="button" disabled>Reopen my account</button>
+            </div>
+          </section>
+          <section id="v212-ready-panel" class="action-panel" hidden>
+            <h2>Both accounts are ready</h2>
+            <p>
+              The two party-specific accounts are procedurally ready for the next stage. No shared
+              narrative has been adopted.
+            </p>
+          </section>
+        </section>
 
         <section id="correction-panel" class="action-panel" hidden>
           <h2>Correct this here</h2>
