@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type {
   CaseServicePort,
@@ -222,6 +222,28 @@ describe('PR 6 production activation boundary', () => {
     expect(browserEntry).toContain('pageActionController.abort()');
     expect(browserEntry).toContain('if (actionSignal.aborted) return;');
     expect(production).not.toMatch(/allowlist|cohort|shadow rollout/iu);
+  });
+
+  it('multiplexes the new first-party case actions within the Vercel function limit', () => {
+    const apiFunctions = readdirSync('api', { recursive: true, encoding: 'utf8' }).filter((entry) =>
+      entry.endsWith('.ts'),
+    );
+    const dispatcherPath = 'api/juryai/cases/[caseId]/[action].ts';
+    const dispatcher = readFileSync(dispatcherPath, 'utf8');
+    expect(apiFunctions).toHaveLength(11);
+    expect(apiFunctions.length).toBeLessThanOrEqual(12);
+    expect(dispatcher).toContain("'disclosure-review': handleDisclosureReviewAcknowledgment");
+    expect(dispatcher).toContain('invitations: handleFormationInvitation');
+    expect(dispatcher).toContain("'review-actions': handlePartyReviewAction");
+    expect(dispatcher).toContain("'review-challenges': handlePartyReviewChallenge");
+    for (const supersededRoute of [
+      'disclosure-review.ts',
+      'invitations.ts',
+      'review-actions.ts',
+      'review-challenges.ts',
+    ]) {
+      expect(existsSync(`api/juryai/cases/[caseId]/${supersededRoute}`)).toBe(false);
+    }
   });
 
   it('contains no P3, payment, escrow, identity-upgrade, or WebAuthn activation dependency', () => {
