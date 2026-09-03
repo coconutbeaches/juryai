@@ -46,7 +46,10 @@ import {
   PostgresFormationInvitationRepositoryV212,
   productionInvitationAuthorityV212,
 } from '../v2-1-2/postgres-formation-invitation-repository.js';
-import { createProductionCaseServiceV212 } from '../v2-1-2/production-case-service.js';
+import {
+  createInitialProductionDisputeV212,
+  createProductionCaseServiceV212,
+} from '../v2-1-2/production-case-service.js';
 import { ScriptedSemanticCompiler } from '../webmcp/runtime/scripted-compiler.js';
 import { projectRoot } from './test-helpers.js';
 
@@ -386,6 +389,78 @@ describe('authorized V2.1.2 assurance migration', () => {
 });
 
 describe('V2.1.2 production PostgreSQL composition', () => {
+  it('replays the current dispute after the same start request has already been mutated', async () => {
+    const subject = unique('start_replay_subject');
+    const clientRequestId = unique('start_replay_request');
+    const compiler = new ScriptedSemanticCompiler((compilerInput) => ({
+      verdict: 'accepted_candidates',
+      assertions: [
+        {
+          quote: compilerInput.turn.payload.answer.text,
+          requirement_id: compilerInput.requirement_context[0]!.requirement_id,
+          type: 'narrative_fact',
+          epistemic_strength: 'asserted_confident',
+          statement: compilerInput.turn.payload.answer.text,
+        },
+      ],
+    }));
+    const service = createProductionCaseServiceV212({
+      authenticated_subject_id: subject,
+      repository: formation,
+      compiler,
+      review_url: (id) => `https://juryai.test/cases/${id}/review`,
+      idempotency_secret: 'pr6-start-replay-secret-with-at-least-32-bytes',
+    });
+    const first = await service.startCase({ client_request_id: clientRequestId });
+    if (!first.ok) throw new Error(first.error.message);
+    const requirementId = first.case.next_requirements[0]!.requirement_id;
+    const submitted = await service.submitTurn({
+      case_id: first.case.case_id,
+      expected_case_version: first.case.case_version,
+      in_reply_to: [requirementId],
+      payload: { context: [], answer: { role: 'user', text: 'My independent account.' } },
+      client_turn_id: unique('start_replay_turn'),
+    });
+    if (!submitted.ok) throw new Error(submitted.error.message);
+
+    const replayed = await service.startCase({ client_request_id: clientRequestId });
+    expect(replayed).toMatchObject({
+      ok: true,
+      case: {
+        case_id: first.case.case_id,
+        case_version: submitted.case.case_version,
+      },
+    });
+    expect(replayed.ok && replayed.case.case_version).toBeGreaterThan(first.case.case_version);
+  });
+
+  it('rejects a deterministic dispute ID collision from a different creator binding', async () => {
+    const owner = createInitialProductionDisputeV212({
+      authenticated_subject_id: unique('start_owner'),
+      client_request_id: unique('start_owner_request'),
+      idempotency_secret: 'pr6-start-owner-secret-with-at-least-32-bytes',
+    });
+    await formation.createDispute(owner);
+    const initialRequirements = Object.fromEntries(
+      (['party_a', 'party_b'] as const).map((partyId) => [
+        partyId,
+        Object.values(owner.requirements)
+          .filter((entry) => entry.party_id === partyId)
+          .map(({ party_id: _partyId, ...entry }) => entry),
+      ]),
+    ) as Parameters<typeof createInitialCaseEnvelopeV212>[1];
+    let collision = createInitialCaseEnvelopeV212(owner.control.case_id, initialRequirements);
+    collision = ceremonyV212(collision, TRUSTED_SYSTEM_AUTHORITY_V212, {
+      type: 'bind_party',
+      party_slot: 'party_a',
+      authenticated_subject_id: unique('different_start_owner'),
+      binding_event_id: unique('binding_party_a'),
+    });
+    await expect(formation.createDispute(collision)).rejects.toThrow(
+      /different V2\.1\.2 creation identity/u,
+    );
+  });
+
   it('atomically creates, relays both independent formations, and opens disclosure exactly once', async () => {
     const subjects = { party_a: unique('relay_subject_a'), party_b: unique('relay_subject_b') };
     let envelope = createInitialCaseEnvelopeV212(unique('dispute_relay'), {

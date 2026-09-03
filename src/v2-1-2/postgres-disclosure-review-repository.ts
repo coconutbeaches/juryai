@@ -210,6 +210,27 @@ function encode(value: unknown): string {
   return canonicalSerialize(value as never);
 }
 
+function sameCreationIdentity(requested: CaseEnvelopeV212, stored: CaseEnvelopeV212): boolean {
+  const bindingIdentity = (envelope: CaseEnvelopeV212, party: PartyIdV212) => {
+    const binding = envelope.parties[party];
+    return {
+      party_id: binding.party_id,
+      role: binding.role,
+      authenticated_subject_id: binding.authenticated_subject_id,
+      identity_assurance: binding.identity_assurance,
+      binding_event_id: binding.binding_event_id,
+    };
+  };
+  const requestedPartyB = bindingIdentity(requested, 'party_b');
+  return (
+    requested.control.case_id === stored.control.case_id &&
+    encode(requested.requirements) === encode(stored.requirements) &&
+    encode(bindingIdentity(requested, 'party_a')) === encode(bindingIdentity(stored, 'party_a')) &&
+    (requestedPartyB.authenticated_subject_id === null ||
+      encode(requestedPartyB) === encode(bindingIdentity(stored, 'party_b')))
+  );
+}
+
 function decodeReplay(value: unknown): FormationReplayRecordV211 {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     throw new TypeError('Replay record is invalid.');
@@ -755,8 +776,8 @@ export class PostgresDisclosureReviewRepositoryV212 {
       const row = found.rows[0] as StoredFormationRow | undefined;
       if (!row) throw new TypeError('A different contract already uses this dispute id.');
       const stored = decodeStored(row);
-      if (encode(stored.envelope) !== encode(envelope)) {
-        throw new TypeError('A different V2.1.2 envelope already uses this dispute id.');
+      if (!sameCreationIdentity(envelope, stored.envelope)) {
+        throw new TypeError('A different V2.1.2 creation identity already uses this dispute id.');
       }
       return { created: false, stored };
     });
