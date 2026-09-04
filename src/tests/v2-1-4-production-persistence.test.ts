@@ -52,6 +52,12 @@ import {
 } from '../v2-1-4/production-case-service.js';
 import { ScriptedSemanticCompiler } from '../webmcp/runtime-v0-3/scripted-compiler.js';
 import { projectRoot } from './test-helpers.js';
+import {
+  sameOrBranchPatternV214,
+  V214_CONTRACT_PAIR_READINESS_PATTERN,
+  V214_EXTERNAL_SUBMISSION_READINESS_PATTERN,
+  V214_PROTECTED_ACTION_READINESS_PATTERN,
+} from '../v2-1-4/postgres-readiness-contract.js';
 import { createInitialProductionDisputeV212 } from '../v2-1-2/production-case-service.js';
 import { PostgresDisclosureReviewRepositoryV212 } from '../v2-1-2/postgres-disclosure-review-repository.js';
 import { createPartyReviewApplicationV212 } from '../v2-1-2/party-review-application.js';
@@ -275,63 +281,159 @@ afterAll(async () => {
   await Promise.all([formation.close(), legacyFormation.close(), invitations.close(), pool.end()]);
 });
 
-describe('V2.1.4 readiness probe validates its own contract pairing', () => {
+describe('V2.1.4 readiness probes validate their own contract pairings', () => {
   /**
-   * The payload-binding constraint permanently carries every historical
-   * branch. A readiness probe written as two independent substring searches
-   * therefore proves nothing: the V2.1.3 branch supplies
-   * protected-action-v1.2.0 and the V2.1.4 branch supplies
-   * envelope-command-v2.1.4, so the probe passes even when this generation's
-   * own v1.3.0 <-> v2.1.4 pairing is missing entirely.
+   * A contract-pair constraint keeps every historical branch forever, so
+   * readiness written as independent substring searches proves nothing: an
+   * older branch supplies one literal while the current branch supplies
+   * another. Each case below rebuilds a constraint that still CONTAINS every
+   * required literal, but cross-pairs the V2.1.4 values across branches, and
+   * requires readiness to fail closed.
    */
-  const PAIRED = String.raw`protected-action-v1\.3\.0(?:(?!OR).)*command-v2\.1\.4`;
-  const HISTORICAL_CROSS = String.raw`protected-action-v1\.2\.0(?:(?!OR).)*command-v2\.1\.4`;
-
-  it('does not accept the historical V1.2.0 branch as the V2.1.4 pairing', async () => {
-    const definition = await pool.query<{ def: string }>(
-      `select pg_get_constraintdef(oid) as def from pg_constraint
-        where conname = 'formation_assurance_challenges_payload_binding'`,
-    );
-    const def = definition.rows[0]!.def;
-
-    // Both literals really are present somewhere, which is exactly why the
-    // loose two-substring form is a false positive.
-    expect(def).toContain('juryai-party-review-protected-action-v1.2.0');
-    expect(def).toContain('juryai-envelope-command-v2.1.4');
-
-    const paired = await pool.query<{ ok: boolean }>(
-      `select pg_get_constraintdef(oid) ~ $1 as ok from pg_constraint
-        where conname = 'formation_assurance_challenges_payload_binding'`,
-      [PAIRED],
-    );
-    const crossed = await pool.query<{ ok: boolean }>(
-      `select pg_get_constraintdef(oid) ~ $1 as ok from pg_constraint
-        where conname = 'formation_assurance_challenges_payload_binding'`,
-      [HISTORICAL_CROSS],
-    );
-
-    // The authorized pairing shares one branch; the historical cross-pair does not.
-    expect(paired.rows[0]!.ok).toBe(true);
-    expect(crossed.rows[0]!.ok).toBe(false);
-  });
-
-  it("fails readiness when this generation's pairing is absent from the constraint", async () => {
-    const probe = new PostgresDisclosureReviewRepositoryV214({ pool });
-    const original = (
+  const constraintDef = async (name: string): Promise<string> =>
+    (
       await pool.query<{ def: string }>(
-        `select pg_get_constraintdef(oid) as def from pg_constraint
-          where conname = 'formation_assurance_challenges_payload_binding'`,
+        `select pg_get_constraintdef(oid) as def from pg_constraint where conname = $1`,
+        [name],
       )
     ).rows[0]!.def;
-    // Replace the constraint with one that still mentions both literals, but
-    // only ever pairs v2.1.4 with the HISTORICAL v1.2.0 action version.
+
+  const matches = async (name: string, pattern: string): Promise<boolean> =>
+    (
+      await pool.query<{ ok: boolean }>(
+        `select pg_get_constraintdef(oid) ~ $2 as ok from pg_constraint where conname = $1`,
+        [name, pattern],
+      )
+    ).rows[0]!.ok;
+
+  /** Swap in a deliberately cross-paired constraint, assert, always restore. */
+  async function withConstraint(
+    table: string,
+    name: string,
+    replacement: string,
+    assertion: () => Promise<void>,
+  ): Promise<void> {
+    const original = (await constraintDef(name)).replace(/^CHECK\s*/u, '');
+    await pool.query(
+      `alter table juryai_v21.${table} drop constraint ${name}, add constraint ${name} check ${replacement}`,
+    );
+    try {
+      await assertion();
+    } finally {
+      await pool.query(
+        `alter table juryai_v21.${table} drop constraint ${name}, add constraint ${name} check (${original})`,
+      );
+    }
+    // The restored constraint must satisfy readiness again, or the test has
+    // left the database worse than it found it.
+    const disclosure = new PostgresDisclosureReviewRepositoryV214({ pool });
+    const invitation = new PostgresFormationInvitationRepositoryV214({
+      pool,
+      account_commitment_secret: 'pr6-isolated-invitation-secret-with-32-bytes',
+    });
+    await expect(disclosure.assertReady()).resolves.toBeUndefined();
+    await expect(invitation.assertReady()).resolves.toBeUndefined();
+    await Promise.all([disclosure.close(), invitation.close()]);
+  }
+
+  const expectBothUnready = async (): Promise<void> => {
+    const disclosure = new PostgresDisclosureReviewRepositoryV214({ pool });
+    const invitation = new PostgresFormationInvitationRepositoryV214({
+      pool,
+      account_commitment_secret: 'pr6-isolated-invitation-secret-with-32-bytes',
+    });
+    try {
+      await expect(disclosure.assertReady()).rejects.toThrow(
+        /V2\.1\.4 disclosure-review persistence migration is incomplete/u,
+      );
+      await expect(invitation.assertReady()).rejects.toThrow(
+        /V2\.1\.4 invitation persistence is unavailable/u,
+      );
+    } finally {
+      await Promise.all([disclosure.close(), invitation.close()]);
+    }
+  };
+
+  it('accepts only same-branch V2.1.4 pairings in the authorized constraints', async () => {
+    // Every literal is present somewhere, which is why loose searches pass.
+    const pair = await constraintDef('formation_disputes_contract_pair_v212');
+    expect(pair).toContain('juryai-case-envelope-v2.1.3');
+    expect(pair).toContain('juryai-formation-protocol-v2.1.4');
+    // The authorized combinations share one branch.
+    expect(
+      await matches('formation_disputes_contract_pair_v212', V214_CONTRACT_PAIR_READINESS_PATTERN),
+    ).toBe(true);
+    expect(
+      await matches(
+        'formation_disputes_external_submission_v211',
+        V214_EXTERNAL_SUBMISSION_READINESS_PATTERN,
+      ),
+    ).toBe(true);
+    expect(
+      await matches(
+        'formation_assurance_challenges_payload_binding',
+        V214_PROTECTED_ACTION_READINESS_PATTERN,
+      ),
+    ).toBe(true);
+    // Historical cross-pairs do not.
+    expect(
+      await matches(
+        'formation_assurance_challenges_payload_binding',
+        sameOrBranchPatternV214([
+          'juryai-party-review-protected-action-v1.2.0',
+          'juryai-envelope-command-v2.1.4',
+        ]),
+      ),
+    ).toBe(false);
+  });
+
+  it('fails when the contract pair splits V2.1.4 values across branches', async () => {
+    // Both branches mention v2.1.4 literals; neither is the authorized combination.
+    await withConstraint(
+      'formation_disputes',
+      'formation_disputes_contract_pair_v212',
+      `(
+         (schema_version = 'juryai-case-envelope-v2.1.4'
+           and protocol_version = 'juryai-formation-protocol-v2.1.3'
+           and envelope #>> '{control,command_contract_version}' is not distinct from 'juryai-envelope-command-v2.1.4'
+           and envelope #>> '{control,readiness_contract_version}' is not distinct from 'juryai-formation-readiness-v2.1.4')
+         or
+         (schema_version = 'juryai-case-envelope-v2.1.3'
+           and protocol_version = 'juryai-formation-protocol-v2.1.4'
+           and envelope #>> '{control,projection_contract_version}' is not distinct from 'juryai-party-formation-projection-v2.1.4'
+           and envelope #>> '{control,external_submission_contract_version}' is not distinct from 'juryai-external-relay-submission-v2.1.4')
+       )`,
+      expectBothUnready,
+    );
+  });
+
+  it('fails when the external-submission pair is cross-paired across branches', async () => {
+    await withConstraint(
+      'formation_disputes',
+      'formation_disputes_external_submission_v211',
+      `(
+         (schema_version = 'juryai-case-envelope-v2.1.4'
+           and external_submission_contract_version = 'juryai-external-relay-submission-v2.1.3')
+         or
+         (schema_version = 'juryai-case-envelope-v2.1.3'
+           and external_submission_contract_version = 'juryai-external-relay-submission-v2.1.4')
+       )`,
+      expectBothUnready,
+    );
+  });
+
+  it('fails when the protected action is paired with a historical command version', async () => {
+    const disclosure = new PostgresDisclosureReviewRepositoryV214({ pool });
+    const original = (
+      await constraintDef('formation_assurance_challenges_payload_binding')
+    ).replace(/^CHECK\s*/u, '');
     await pool.query(
       `alter table juryai_v21.formation_assurance_challenges
          drop constraint formation_assurance_challenges_payload_binding,
          add constraint formation_assurance_challenges_payload_binding check (
            action_payload ->> 'review_state_hash' is not distinct from review_state_hash
            and (
-             (action_payload ->> 'protected_action_version' is not distinct from 'juryai-party-review-protected-action-v1.2.0'
+             (action_payload ->> 'protected_action_version' is not distinct from 'juryai-party-review-protected-action-v1.3.0'
                and action_payload #>> '{ceremony_command,command_version}' is not distinct from 'juryai-envelope-command-v2.1.3')
              or
              (action_payload ->> 'protected_action_version' is not distinct from 'juryai-party-review-protected-action-v1.2.0'
@@ -340,18 +442,17 @@ describe('V2.1.4 readiness probe validates its own contract pairing', () => {
          )`,
     );
     try {
-      await expect(probe.assertReady()).rejects.toThrow(
+      await expect(disclosure.assertReady()).rejects.toThrow(
         /V2\.1\.4 disclosure-review persistence migration is incomplete/u,
       );
     } finally {
       await pool.query(
         `alter table juryai_v21.formation_assurance_challenges
            drop constraint formation_assurance_challenges_payload_binding,
-           add constraint formation_assurance_challenges_payload_binding check (${original.replace(/^CHECK\s*/u, '')})`,
+           add constraint formation_assurance_challenges_payload_binding check (${original})`,
       );
-      await probe.close();
+      await disclosure.close();
     }
-    // The restored constraint must satisfy readiness again.
     const restored = new PostgresDisclosureReviewRepositoryV214({ pool });
     await expect(restored.assertReady()).resolves.toBeUndefined();
     await restored.close();

@@ -56,6 +56,11 @@ import {
   type PartyReviewProtectedActionPayloadV214,
 } from './party-review-application.js';
 import { derivePartyReviewStateV214 } from './party-review-state.js';
+import {
+  V214_CONTRACT_PAIR_READINESS_PATTERN,
+  V214_EXTERNAL_SUBMISSION_READINESS_PATTERN,
+  V214_PROTECTED_ACTION_READINESS_PATTERN,
+} from './postgres-readiness-contract.js';
 
 const SCHEMA = FORMATION_PERSISTENCE_SCHEMA_V214;
 
@@ -411,30 +416,39 @@ export class PostgresDisclosureReviewRepositoryV214 {
     }
   }
 
+  /**
+   * Every probe here proves a WHOLE current-generation pairing inside one
+   * OR-branch. A constraint keeps all its historical branches forever, so
+   * independent substring searches can be satisfied by different branches and
+   * pass while this generation's own pairing is missing or cross-paired.
+   */
   async assertReady(): Promise<void> {
     const result = await this.#pool.query<{ ready: boolean }>(
       `select to_regclass($1 || '.formation_disputes') is not null
               and exists (
                 select 1 from pg_constraint
                  where conname = 'formation_disputes_contract_pair_v212'
-                   and pg_get_constraintdef(oid) like '%juryai-case-envelope-v2.1.4%'
                    and conrelid = to_regclass($1 || '.formation_disputes')
+                   and pg_get_constraintdef(oid) ~ $2
+              )
+              and exists (
+                select 1 from pg_constraint
+                 where conname = 'formation_disputes_external_submission_v211'
+                   and conrelid = to_regclass($1 || '.formation_disputes')
+                   and pg_get_constraintdef(oid) ~ $3
               )
               and exists (
                 select 1 from pg_constraint
                  where conname = 'formation_assurance_challenges_payload_binding'
                    and conrelid = to_regclass($1 || '.formation_assurance_challenges')
-                   -- The constraint permanently carries every historical branch,
-                   -- so two independent substring probes prove nothing: the
-                   -- V2.1.3 branch supplies one half and the V2.1.4 branch the
-                   -- other, and a readiness check written that way passes even
-                   -- when this generation's own pairing is absent. Require the
-                   -- two literals inside ONE branch instead, by forbidding an
-                   -- intervening OR.
-                   and pg_get_constraintdef(oid) ~
-                       'protected-action-v1\\.3\\.0(?:(?!OR).)*command-v2\\.1\\.4'
+                   and pg_get_constraintdef(oid) ~ $4
               ) as ready`,
-      [SCHEMA],
+      [
+        SCHEMA,
+        V214_CONTRACT_PAIR_READINESS_PATTERN,
+        V214_EXTERNAL_SUBMISSION_READINESS_PATTERN,
+        V214_PROTECTED_ACTION_READINESS_PATTERN,
+      ],
     );
     if (result.rows[0]?.ready !== true) {
       throw new Error('V2.1.4 disclosure-review persistence migration is incomplete.');

@@ -24,6 +24,11 @@ import {
 import { assertValidCaseEnvelopeV214 } from './contract-validator.js';
 import { applyEnvelopeCeremonyCommandV214, ceremonyCommandForV214 } from './envelope-ceremony.js';
 
+import {
+  V214_CONTRACT_PAIR_READINESS_PATTERN,
+  V214_EXTERNAL_SUBMISSION_READINESS_PATTERN,
+} from './postgres-readiness-contract.js';
+
 const SCHEMA = 'juryai_v21';
 const DEFAULT_INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1_000;
 const MAX_INVITATION_TTL_MS = 30 * 24 * 60 * 60 * 1_000;
@@ -186,10 +191,16 @@ export class PostgresFormationInvitationRepositoryV214 {
               and exists (
                 select 1 from pg_constraint
                  where conname = 'formation_disputes_contract_pair_v212'
-                   and pg_get_constraintdef(oid) like '%juryai-case-envelope-v2.1.4%'
                    and conrelid = to_regclass($1 || '.formation_disputes')
+                   and pg_get_constraintdef(oid) ~ $2
+              )
+              and exists (
+                select 1 from pg_constraint
+                 where conname = 'formation_disputes_external_submission_v211'
+                   and conrelid = to_regclass($1 || '.formation_disputes')
+                   and pg_get_constraintdef(oid) ~ $3
               ) as ready`,
-      [SCHEMA],
+      [SCHEMA, V214_CONTRACT_PAIR_READINESS_PATTERN, V214_EXTERNAL_SUBMISSION_READINESS_PATTERN],
     );
     if (result.rows[0]?.ready !== true) {
       throw new Error('V2.1.4 invitation persistence is unavailable.');
