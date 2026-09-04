@@ -62,6 +62,12 @@ jobs:
           - src/tests/v2-1-3-party-review.test.ts
           - src/tests/v2-1-3-production-routing.test.ts
           - src/tests/v2-1-3-zero-effect-submit.test.ts
+          - src/tests/v2-1-4-explicit-absence.test.ts
+          - src/tests/v2-1-4-disclosure-review-closure.test.ts
+          - src/tests/v2-1-4-party-review.test.ts
+          - src/tests/v2-1-4-production-routing.test.ts
+          - src/tests/v2-1-4-zero-effect-submit.test.ts
+          - src/tests/v2-1-4-performance-formation.test.ts
           - src/tests/v2-1-persistence-boundary.test.ts
           - src/tests/v2-1-invitation.test.ts
           - src/tests/gate-zero-coverage-matrix.test.ts
@@ -112,6 +118,7 @@ jobs:
           - src/tests/v2-1-2-disclosure-review-persistence.test.ts
           - src/tests/v2-1-2-production-persistence.test.ts
           - src/tests/v2-1-3-production-persistence.test.ts
+          - src/tests/v2-1-4-production-persistence.test.ts
     services:
       postgres:
         image: postgres:16-alpine
@@ -165,30 +172,35 @@ jobs:
           psql "$JURYAI_TEST_DATABASE_URL" -v ON_ERROR_STOP=1
           -f supabase/migrations/20260902054913_v21_formation_invitations.sql
       - name: Apply guarded V2.1.1 external-relay migration
-        if: startsWith(matrix.test_file, 'src/tests/v2-1-1-') || startsWith(matrix.test_file, 'src/tests/v2-1-2-') || startsWith(matrix.test_file, 'src/tests/v2-1-3-')
+        if: startsWith(matrix.test_file, 'src/tests/v2-1-1-') || startsWith(matrix.test_file, 'src/tests/v2-1-2-') || startsWith(matrix.test_file, 'src/tests/v2-1-3-') || startsWith(matrix.test_file, 'src/tests/v2-1-4-')
         run: >-
           psql "$JURYAI_TEST_DATABASE_URL" -v ON_ERROR_STOP=1
           -f supabase/migrations/20260902091449_v211_external_relay_submission.sql
       - name: Apply private V2.1.1 party-review assurance migration
-        if: matrix.test_file == 'src/tests/v2-1-1-party-review-persistence.test.ts' || startsWith(matrix.test_file, 'src/tests/v2-1-2-') || startsWith(matrix.test_file, 'src/tests/v2-1-3-')
+        if: matrix.test_file == 'src/tests/v2-1-1-party-review-persistence.test.ts' || startsWith(matrix.test_file, 'src/tests/v2-1-2-') || startsWith(matrix.test_file, 'src/tests/v2-1-3-') || startsWith(matrix.test_file, 'src/tests/v2-1-4-')
         run: >-
           psql "$JURYAI_TEST_DATABASE_URL" -v ON_ERROR_STOP=1
           -f supabase/migrations/20260903022149_v211_party_review_intent_assurance.sql
       - name: Apply V2.1.2 disclosure-review closure migration
-        if: startsWith(matrix.test_file, 'src/tests/v2-1-1-') || startsWith(matrix.test_file, 'src/tests/v2-1-2-') || startsWith(matrix.test_file, 'src/tests/v2-1-3-')
+        if: startsWith(matrix.test_file, 'src/tests/v2-1-1-') || startsWith(matrix.test_file, 'src/tests/v2-1-2-') || startsWith(matrix.test_file, 'src/tests/v2-1-3-') || startsWith(matrix.test_file, 'src/tests/v2-1-4-')
         run: >-
           psql "$JURYAI_TEST_DATABASE_URL" -v ON_ERROR_STOP=1
           -f supabase/migrations/20260903043758_v212_disclosure_review_closure.sql
       - name: Apply additive V2.1.2 protected-action pairing migration
-        if: startsWith(matrix.test_file, 'src/tests/v2-1-2-') || startsWith(matrix.test_file, 'src/tests/v2-1-3-')
+        if: startsWith(matrix.test_file, 'src/tests/v2-1-2-') || startsWith(matrix.test_file, 'src/tests/v2-1-3-') || startsWith(matrix.test_file, 'src/tests/v2-1-4-')
         run: >-
           psql "$JURYAI_TEST_DATABASE_URL" -v ON_ERROR_STOP=1
           -f supabase/migrations/20260903074232_v212_party_review_protected_action.sql
       - name: Apply additive V2.1.3 explicit-absence contract pairs
-        if: startsWith(matrix.test_file, 'src/tests/v2-1-3-')
+        if: startsWith(matrix.test_file, 'src/tests/v2-1-3-') || startsWith(matrix.test_file, 'src/tests/v2-1-4-')
         run: >-
           psql "$JURYAI_TEST_DATABASE_URL" -v ON_ERROR_STOP=1
           -f supabase/migrations/20260904010302_v213_explicit_absence_contract_pairs.sql
+      - name: Apply additive V2.1.4 performance-formation contract pairs
+        if: startsWith(matrix.test_file, 'src/tests/v2-1-4-')
+        run: >-
+          psql "$JURYAI_TEST_DATABASE_URL" -v ON_ERROR_STOP=1
+          -f supabase/migrations/20260904120000_v214_performance_formation_contract_pairs.sql
       - name: Run persistent integration test
         run: npx --no-install vitest run "${{ matrix.test_file }}"
       - name: Prove V2.1.1 migration rejects populated dark state

@@ -45,7 +45,7 @@ import {
 import type { SupabaseAuthGateway } from './supabase-auth.js';
 import type { WebSessionPersistence, WebSessionRecord } from './web-session-store.js';
 import type { CaseServicePort } from '../supported-public-contract.js';
-import type { ProductionFirstPartyService } from '../../v2-1-3/production-routing.js';
+import type { ProductionFirstPartyService } from '../../v2-1-4/production-routing.js';
 import { reviewChallengeForPublicResponseV212 } from '../../v2-1-2/production-first-party.js';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;

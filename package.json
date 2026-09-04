@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build:web": "vite build",
-    "test": "vitest run --exclude src/tests/webmcp-persistence.test.ts --exclude src/tests/v2-1-persistence.test.ts --exclude src/tests/v2-1-invitation-persistence.test.ts --exclude src/tests/v2-1-1-persistence.test.ts --exclude src/tests/v2-1-1-invitation-persistence.test.ts --exclude src/tests/v2-1-1-party-review-persistence.test.ts --exclude src/tests/v2-1-2-disclosure-review-persistence.test.ts --exclude src/tests/v2-1-2-production-persistence.test.ts --exclude src/tests/v2-1-3-production-persistence.test.ts",
+    "test": "vitest run --exclude src/tests/webmcp-persistence.test.ts --exclude src/tests/v2-1-persistence.test.ts --exclude src/tests/v2-1-invitation-persistence.test.ts --exclude src/tests/v2-1-1-persistence.test.ts --exclude src/tests/v2-1-1-invitation-persistence.test.ts --exclude src/tests/v2-1-1-party-review-persistence.test.ts --exclude src/tests/v2-1-2-disclosure-review-persistence.test.ts --exclude src/tests/v2-1-2-production-persistence.test.ts --exclude src/tests/v2-1-3-production-persistence.test.ts --exclude src/tests/v2-1-4-production-persistence.test.ts",
     "test:persistence": "vitest run src/tests/webmcp-persistence.test.ts src/tests/v2-1-persistence.test.ts src/tests/v2-1-invitation-persistence.test.ts",
     "test:persistence:v211": "vitest run src/tests/v2-1-1-persistence.test.ts src/tests/v2-1-1-invitation-persistence.test.ts src/tests/v2-1-1-party-review-persistence.test.ts src/tests/v2-1-2-disclosure-review-persistence.test.ts src/tests/v2-1-2-production-persistence.test.ts",
     "test:person-a": "vitest run src/tests/person-a-validation.test.ts src/tests/person-a-evaluation.test.ts src/tests/openai-responses.test.ts",
@@ -36,6 +36,7 @@
     "resolve:person-a-challenges": "tsx src/commands/resolve-person-a-challenges.ts",
     "format:check": "prettier --check .",
     "test:persistence:v213": "vitest run src/tests/v2-1-3-production-persistence.test.ts",
+    "test:persistence:v214": "vitest run src/tests/v2-1-4-production-persistence.test.ts",
     "eval:compiler:absence": "vitest run src/tests/v2-1-3-explicit-absence.test.ts -t \"compiler replay corpus\""
   },
   "devDependencies": {
