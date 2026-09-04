@@ -275,6 +275,89 @@ afterAll(async () => {
   await Promise.all([formation.close(), legacyFormation.close(), invitations.close(), pool.end()]);
 });
 
+describe('V2.1.4 readiness probe validates its own contract pairing', () => {
+  /**
+   * The payload-binding constraint permanently carries every historical
+   * branch. A readiness probe written as two independent substring searches
+   * therefore proves nothing: the V2.1.3 branch supplies
+   * protected-action-v1.2.0 and the V2.1.4 branch supplies
+   * envelope-command-v2.1.4, so the probe passes even when this generation's
+   * own v1.3.0 <-> v2.1.4 pairing is missing entirely.
+   */
+  const PAIRED = String.raw`protected-action-v1\.3\.0(?:(?!OR).)*command-v2\.1\.4`;
+  const HISTORICAL_CROSS = String.raw`protected-action-v1\.2\.0(?:(?!OR).)*command-v2\.1\.4`;
+
+  it('does not accept the historical V1.2.0 branch as the V2.1.4 pairing', async () => {
+    const definition = await pool.query<{ def: string }>(
+      `select pg_get_constraintdef(oid) as def from pg_constraint
+        where conname = 'formation_assurance_challenges_payload_binding'`,
+    );
+    const def = definition.rows[0]!.def;
+
+    // Both literals really are present somewhere, which is exactly why the
+    // loose two-substring form is a false positive.
+    expect(def).toContain('juryai-party-review-protected-action-v1.2.0');
+    expect(def).toContain('juryai-envelope-command-v2.1.4');
+
+    const paired = await pool.query<{ ok: boolean }>(
+      `select pg_get_constraintdef(oid) ~ $1 as ok from pg_constraint
+        where conname = 'formation_assurance_challenges_payload_binding'`,
+      [PAIRED],
+    );
+    const crossed = await pool.query<{ ok: boolean }>(
+      `select pg_get_constraintdef(oid) ~ $1 as ok from pg_constraint
+        where conname = 'formation_assurance_challenges_payload_binding'`,
+      [HISTORICAL_CROSS],
+    );
+
+    // The authorized pairing shares one branch; the historical cross-pair does not.
+    expect(paired.rows[0]!.ok).toBe(true);
+    expect(crossed.rows[0]!.ok).toBe(false);
+  });
+
+  it("fails readiness when this generation's pairing is absent from the constraint", async () => {
+    const probe = new PostgresDisclosureReviewRepositoryV214({ pool });
+    const original = (
+      await pool.query<{ def: string }>(
+        `select pg_get_constraintdef(oid) as def from pg_constraint
+          where conname = 'formation_assurance_challenges_payload_binding'`,
+      )
+    ).rows[0]!.def;
+    // Replace the constraint with one that still mentions both literals, but
+    // only ever pairs v2.1.4 with the HISTORICAL v1.2.0 action version.
+    await pool.query(
+      `alter table juryai_v21.formation_assurance_challenges
+         drop constraint formation_assurance_challenges_payload_binding,
+         add constraint formation_assurance_challenges_payload_binding check (
+           action_payload ->> 'review_state_hash' is not distinct from review_state_hash
+           and (
+             (action_payload ->> 'protected_action_version' is not distinct from 'juryai-party-review-protected-action-v1.2.0'
+               and action_payload #>> '{ceremony_command,command_version}' is not distinct from 'juryai-envelope-command-v2.1.3')
+             or
+             (action_payload ->> 'protected_action_version' is not distinct from 'juryai-party-review-protected-action-v1.2.0'
+               and action_payload #>> '{ceremony_command,command_version}' is not distinct from 'juryai-envelope-command-v2.1.4')
+           )
+         )`,
+    );
+    try {
+      await expect(probe.assertReady()).rejects.toThrow(
+        /V2\.1\.4 disclosure-review persistence migration is incomplete/u,
+      );
+    } finally {
+      await pool.query(
+        `alter table juryai_v21.formation_assurance_challenges
+           drop constraint formation_assurance_challenges_payload_binding,
+           add constraint formation_assurance_challenges_payload_binding check (${original.replace(/^CHECK\s*/u, '')})`,
+      );
+      await probe.close();
+    }
+    // The restored constraint must satisfy readiness again.
+    const restored = new PostgresDisclosureReviewRepositoryV214({ pool });
+    await expect(restored.assertReady()).resolves.toBeUndefined();
+    await restored.close();
+  });
+});
+
 describe('authorized V2.1.4 assurance migration', () => {
   it('preserves historical V2.1.2 row identity and rejects new schema cross-pairs', async () => {
     const historical = new PostgresDisclosureReviewRepositoryV212({ pool });

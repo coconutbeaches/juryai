@@ -424,8 +424,15 @@ export class PostgresDisclosureReviewRepositoryV214 {
                 select 1 from pg_constraint
                  where conname = 'formation_assurance_challenges_payload_binding'
                    and conrelid = to_regclass($1 || '.formation_assurance_challenges')
-                   and pg_get_constraintdef(oid) like '%juryai-party-review-protected-action-v1.2.0%'
-                   and pg_get_constraintdef(oid) like '%juryai-envelope-command-v2.1.4%'
+                   -- The constraint permanently carries every historical branch,
+                   -- so two independent substring probes prove nothing: the
+                   -- V2.1.3 branch supplies one half and the V2.1.4 branch the
+                   -- other, and a readiness check written that way passes even
+                   -- when this generation's own pairing is absent. Require the
+                   -- two literals inside ONE branch instead, by forbidding an
+                   -- intervening OR.
+                   and pg_get_constraintdef(oid) ~
+                       'protected-action-v1\\.3\\.0(?:(?!OR).)*command-v2\\.1\\.4'
               ) as ready`,
       [SCHEMA],
     );
