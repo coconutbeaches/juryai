@@ -21,7 +21,7 @@ import {
   decodeCaseServiceHttpRequest,
   decodeCaseServiceResult,
   type CaseServiceHttpRequest,
-} from '../public-contract.js';
+} from '../supported-public-contract.js';
 import type { JuryAiWebServerConfig } from './config.js';
 import { JURYAI_P2_DISCLOSURE_COPY, JURYAI_P2_DISCLOSURE_VERSION } from './disclosure.js';
 import {
@@ -44,8 +44,8 @@ import {
 } from './session.js';
 import type { SupabaseAuthGateway } from './supabase-auth.js';
 import type { WebSessionPersistence, WebSessionRecord } from './web-session-store.js';
-import type { CaseServicePort } from '../public-contract.js';
-import type { ProductionFirstPartyServiceV212 } from '../../v2-1-2/production-first-party.js';
+import type { CaseServicePort } from '../supported-public-contract.js';
+import type { ProductionFirstPartyService } from '../../v2-1-3/production-routing.js';
 import { reviewChallengeForPublicResponseV212 } from '../../v2-1-2/production-first-party.js';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
@@ -66,7 +66,7 @@ export interface JuryAiWebServerDependencies {
   caseServiceForSession?: (session: WebSessionRecord) => CaseServicePort | Promise<CaseServicePort>;
   v212FirstPartyForSubject?: (
     authenticatedSubjectId: string,
-  ) => ProductionFirstPartyServiceV212 | Promise<ProductionFirstPartyServiceV212>;
+  ) => ProductionFirstPartyService | Promise<ProductionFirstPartyService>;
 }
 
 const CORRECTION_DISPOSITIONS = [
@@ -317,7 +317,7 @@ export class JuryAiWebServer {
 
   async #v212FirstParty(
     authenticatedSubjectId: string,
-  ): Promise<ProductionFirstPartyServiceV212 | null> {
+  ): Promise<ProductionFirstPartyService | null> {
     return this.#dependencies.v212FirstPartyForSubject
       ? this.#dependencies.v212FirstPartyForSubject(authenticatedSubjectId)
       : null;

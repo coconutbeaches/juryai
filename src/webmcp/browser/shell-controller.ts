@@ -1,4 +1,4 @@
-import type { CaseServicePort } from '../public-contract.js';
+import type { CaseServicePort } from '../supported-public-contract.js';
 import {
   registerJuryAiWebMcpTools,
   type JuryAiToolRegistration,
@@ -6,10 +6,7 @@ import {
 } from '../tools/register.js';
 import { createHttpCaseService, HttpCaseServiceError } from './http-case-service.js';
 import { decodeFirstPartyReview, type ParsedFirstPartyReview } from './review-contract.js';
-import {
-  decodeFirstPartyReviewV212,
-  type ParsedFirstPartyReviewV212,
-} from './v2-1-2-review-contract.js';
+import { decodeFormationReview, type ParsedFormationReview } from './supported-review-contract.js';
 
 type WebMcpAvailability = 'available' | 'unavailable' | 'registration_failed';
 
@@ -40,7 +37,7 @@ export type BrowserShellState =
   | {
       phase: 'v212_review';
       webMcp: WebMcpAvailability;
-      v212Review: ParsedFirstPartyReviewV212;
+      v212Review: ParsedFormationReview;
       message?: string;
     }
   | { phase: 'review_error'; webMcp: WebMcpAvailability; message: string }
@@ -205,7 +202,7 @@ export class BrowserShellController {
         this.#options.view.render({
           phase: 'v212_review',
           webMcp,
-          v212Review: decodeFirstPartyReviewV212(rawReview),
+          v212Review: decodeFormationReview(rawReview),
           message,
         });
         return;

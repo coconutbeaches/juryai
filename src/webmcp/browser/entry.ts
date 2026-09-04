@@ -1,10 +1,8 @@
 import './styles.css';
+import type { ParsedFormationReview } from './supported-review-contract.js';
 import type { ModelContextLike } from '../tools/register.js';
 import type { ParsedFirstPartyReview } from './review-contract.js';
-import {
-  decodeInvitationRedemptionV212,
-  type ParsedFirstPartyReviewV212,
-} from './v2-1-2-review-contract.js';
+import { decodeInvitationRedemptionV212 } from './v2-1-2-review-contract.js';
 import {
   BrowserShellController,
   type BrowserShellState,
@@ -76,7 +74,7 @@ const v212ReadyPanel = element<HTMLElement>('v212-ready-panel');
 const reviewPath = /^\/cases\/([^/]+)\/review$/u.exec(window.location.pathname);
 const invitationJoinPath = /^\/join\/[^/]+$/u.test(window.location.pathname);
 let currentReview: ParsedFirstPartyReview | null = null;
-let currentV212Review: ParsedFirstPartyReviewV212 | null = null;
+let currentV212Review: ParsedFormationReview | null = null;
 let currentWebMcp: 'available' | 'unavailable' | 'registration_failed' = 'unavailable';
 let currentCorrectionTarget: { propositionId: string; requirementId: string } | null = null;
 let controller: BrowserShellController;
