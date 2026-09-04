@@ -36,13 +36,13 @@ const MAX_OPAQUE_TOKEN_INPUT_LENGTH = 512;
 const AUTHORITY_BRAND: unique symbol = Symbol('juryai-v2.1.4-production-invitation');
 
 export interface TrustedProductionInvitationAuthorityV214 {
-  readonly authority_kind: 'trusted_v2_1_3_production_invitation';
+  readonly authority_kind: 'trusted_v2_1_4_production_invitation';
   readonly [AUTHORITY_BRAND]: true;
 }
 
 const TRUSTED_PRODUCTION_INVITATION_AUTHORITY_V214: TrustedProductionInvitationAuthorityV214 =
   Object.freeze({
-    authority_kind: 'trusted_v2_1_3_production_invitation',
+    authority_kind: 'trusted_v2_1_4_production_invitation',
     [AUTHORITY_BRAND]: true as const,
   });
 
@@ -393,7 +393,7 @@ export class PostgresFormationInvitationRepositoryV214 {
             base_envelope_hash: envelope.control.envelope_hash,
             resulting_envelope_version: applied.envelope.control.envelope_version,
             resulting_envelope_hash: applied.envelope.control.envelope_hash,
-            authority_type: 'trusted_domain_system_v2_1_3',
+            authority_type: 'trusted_domain_system_v2_1_4',
             command: cloneCanonical(command),
             recorded_at_ms: nowMs,
           } as never),

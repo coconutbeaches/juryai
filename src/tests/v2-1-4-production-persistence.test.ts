@@ -380,8 +380,8 @@ describe('V2.1.4 readiness probes validate their own contract pairings', () => {
       await matches(
         'formation_assurance_challenges_payload_binding',
         sameOrBranchPatternV214([
-          'juryai-party-review-protected-action-v1.2.0',
-          'juryai-envelope-command-v2.1.4',
+          ['protected_action_version', 'juryai-party-review-protected-action-v1.2.0'],
+          ['ceremony_command,command_version', 'juryai-envelope-command-v2.1.4'],
         ]),
       ),
     ).toBe(false);
@@ -400,6 +400,25 @@ describe('V2.1.4 readiness probes validate their own contract pairings', () => {
          or
          (schema_version = 'juryai-case-envelope-v2.1.3'
            and protocol_version = 'juryai-formation-protocol-v2.1.4'
+           and envelope #>> '{control,projection_contract_version}' is not distinct from 'juryai-party-formation-projection-v2.1.4'
+           and envelope #>> '{control,external_submission_contract_version}' is not distinct from 'juryai-external-relay-submission-v2.1.4')
+       )`,
+      expectBothUnready,
+    );
+  });
+
+  it('fails when V2.1.4 literals are bound to the wrong columns in one branch', async () => {
+    // Same branch, same literal ORDER, but each literal compared to the wrong
+    // column. Matching literals alone would accept this, while every V2.1.4
+    // write would violate it.
+    await withConstraint(
+      'formation_disputes',
+      'formation_disputes_contract_pair_v212',
+      `(
+         (schema_version = 'juryai-case-envelope-v2.1.4'
+           and envelope #>> '{control,command_contract_version}' is not distinct from 'juryai-formation-protocol-v2.1.4'
+           and protocol_version = 'juryai-envelope-command-v2.1.4'
+           and envelope #>> '{control,readiness_contract_version}' is not distinct from 'juryai-formation-readiness-v2.1.4'
            and envelope #>> '{control,projection_contract_version}' is not distinct from 'juryai-party-formation-projection-v2.1.4'
            and envelope #>> '{control,external_submission_contract_version}' is not distinct from 'juryai-external-relay-submission-v2.1.4')
        )`,

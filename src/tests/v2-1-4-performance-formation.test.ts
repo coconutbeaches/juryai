@@ -94,19 +94,40 @@ const PERSON_A: Record<string, { text: string; type: PropositionType }> = {
   },
 };
 
-/** Records the answer under the role it was submitted against, citing it exactly. */
-function roleScript(type: PropositionType = 'narrative_fact'): CompilerScript {
+/**
+ * Records the answer under the role it was submitted against, citing it
+ * exactly. `overrides` must win over the Person A defaults: a case exercising a
+ * non-answer type for a role that also appears in PERSON_A would otherwise
+ * silently record narrative_fact and prove nothing.
+ */
+function roleScript(overrides: Readonly<Record<string, PropositionType>> = {}): CompilerScript {
+  const strength = (type: PropositionType) =>
+    type === 'non_recollection'
+      ? ('non_recollection' as const)
+      : type === 'declined_to_answer'
+        ? ('declined' as const)
+        : ('asserted_confident' as const);
   return (input) => ({
     verdict: 'accepted_candidates',
-    assertions: input.turn.in_reply_to.map((requirementId) => ({
-      quote: input.turn.payload.answer.text,
-      requirement_id: requirementId,
-      type: PERSON_A[requirementId]?.type ?? type,
-      epistemic_strength: 'asserted_confident' as const,
-      statement: input.turn.payload.answer.text,
-      supersedes_candidate: null,
-    })),
+    assertions: input.turn.in_reply_to.map((requirementId) => {
+      const type = overrides[requirementId] ?? PERSON_A[requirementId]?.type ?? 'narrative_fact';
+      return {
+        quote: input.turn.payload.answer.text,
+        requirement_id: requirementId,
+        type,
+        epistemic_strength: strength(type),
+        statement: input.turn.payload.answer.text,
+        supersedes_candidate: null,
+      };
+    }),
   });
+}
+
+/** The proposition type actually recorded against a role. */
+function recordedType(h: ReturnType<typeof harness>, requirementId: string): string | undefined {
+  return projectPartyFormationV214(h.repository.envelope, 'party_a').own_material.positions.find(
+    (p) => p.requirement_id === requirementId,
+  )?.proposition_type;
 }
 
 function harness(script: CompilerScript = roleScript()) {
@@ -223,18 +244,48 @@ describe('PR 8B: formation completeness blocks on the new roles', () => {
     expect(complete(h)).toBe(true);
   });
 
+  it('marks both new roles required on the created envelope', () => {
+    // Ordering alone cannot prove this: answering the two roles in sequence
+    // stays blocked by whichever is answered last even if the other were
+    // optional. Assert the persisted flag directly.
+    const envelope = createInitialProductionDisputeV214(START);
+    for (const id of [PERFORMANCE, NONPERFORMANCE]) {
+      const requirement = envelope.requirements[id]!;
+      expect(requirement, `${id} missing from envelope`).toBeDefined();
+      expect(requirement.required).toBe(true);
+      expect(requirement.party_id).toBe('party_a');
+    }
+  });
+
+  it.each([
+    [PERFORMANCE, NONPERFORMANCE],
+    [NONPERFORMANCE, PERFORMANCE],
+  ])('stays incomplete while %s is unanswered, in either order', async (held, answeredLast) => {
+    const h = harness();
+    for (const id of Object.keys(PERSON_A)) {
+      if (id === held) continue;
+      await answer(h, id, PERSON_A[id]!.text);
+    }
+    // Everything except `held` is answered, including the other new role.
+    expect(recordedType(h, answeredLast)).toBeDefined();
+    expect(complete(h)).toBe(false);
+    expect(await answer(h, held, PERSON_A[held]!.text)).toMatchObject({ ok: true });
+    expect(complete(h)).toBe(true);
+  });
+
   it.each([
     ['explicit_absence', 'They never delivered anything.'],
     ['non_recollection', 'I do not remember whether they delivered anything.'],
     ['declined_to_answer', 'I decline to answer that.'],
   ] as const)('accepts %s for the performance role', async (type, text) => {
-    const h = harness(roleScript(type));
+    const h = harness(roleScript({ [PERFORMANCE]: type }));
     for (const id of Object.keys(PERSON_A)) {
       if (id === PERFORMANCE) continue;
       await answer(h, id, PERSON_A[id]!.text);
     }
     expect(complete(h)).toBe(false);
     expect(await answer(h, PERFORMANCE, text)).toMatchObject({ ok: true });
+    expect(recordedType(h, PERFORMANCE)).toBe(type);
     expect(complete(h)).toBe(true);
   });
 
@@ -246,13 +297,14 @@ describe('PR 8B: formation completeness blocks on the new roles', () => {
     ['non_recollection', 'I do not remember whether anything was incomplete.'],
     ['declined_to_answer', 'I will not answer that.'],
   ] as const)('accepts %s for the nonperformance role', async (type, text) => {
-    const h = harness(roleScript(type));
+    const h = harness(roleScript({ [NONPERFORMANCE]: type }));
     for (const id of Object.keys(PERSON_A)) {
       if (id === NONPERFORMANCE) continue;
       await answer(h, id, PERSON_A[id]!.text);
     }
     expect(complete(h)).toBe(false);
     expect(await answer(h, NONPERFORMANCE, text)).toMatchObject({ ok: true });
+    expect(recordedType(h, NONPERFORMANCE)).toBe(type);
     expect(complete(h)).toBe(true);
   });
 

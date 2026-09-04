@@ -49,13 +49,13 @@ const SYSTEM_AUTHORITY_BRAND_V214: unique symbol = Symbol('juryai-system-authori
 
 export interface TrustedSystemAuthorityV214 {
   readonly actor_type: 'system';
-  readonly authority_kind: 'trusted_domain_system_v2_1_3';
+  readonly authority_kind: 'trusted_domain_system_v2_1_4';
   readonly [SYSTEM_AUTHORITY_BRAND_V214]: true;
 }
 
 export const TRUSTED_SYSTEM_AUTHORITY_V214: TrustedSystemAuthorityV214 = Object.freeze({
   actor_type: 'system',
-  authority_kind: 'trusted_domain_system_v2_1_3',
+  authority_kind: 'trusted_domain_system_v2_1_4',
   [SYSTEM_AUTHORITY_BRAND_V214]: true as const,
 });
 

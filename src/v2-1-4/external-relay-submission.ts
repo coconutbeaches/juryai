@@ -167,7 +167,7 @@ export interface TrustedExternalRelayRuntimeV214 {
 }
 
 export const TRUSTED_EXTERNAL_RELAY_BRIDGE_V214 = Object.freeze({
-  authority_kind: 'trusted_external_relay_bridge_v2_1_3' as const,
+  authority_kind: 'trusted_external_relay_bridge_v2_1_4' as const,
 });
 
 export function trustedExternalRelayRuntimeV214(
