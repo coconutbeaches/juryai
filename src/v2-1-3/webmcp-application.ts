@@ -852,6 +852,30 @@ export function createV213PartyCaseService(
         );
         if (!effects)
           return serviceError('INTERNAL_ERROR', 'That answer could not be processed.', false);
+        /**
+         * A structurally valid answer can still carry nothing this case can
+         * record: the formation branch above yields no candidate when the
+         * compiler returns neither an assertion nor a clarification request.
+         *
+         * Committing that is worse than refusing it. It persists a source turn
+         * and a replay record for a write that changes no canonical material,
+         * and answers `ok: true` with an empty `recorded` array — which a
+         * caller reasonably reads as "the information was recorded" when
+         * JuryAI in fact discarded the substance. For an evidence system that
+         * silent discard is the dangerous outcome, so fail before persistence.
+         *
+         * Only formation can reach zero. The challenge and challenge-response
+         * branches synthesize a candidate from the answer when the compiler
+         * returns no assertions, so their intentional effects are unaffected;
+         * the guard stays general so a future branch cannot regress into a
+         * silent no-op.
+         */
+        if (effects.length === 0)
+          return serviceError(
+            'INVALID_INPUT',
+            'The answer produced no recordable change to this case.',
+            false,
+          );
 
         const positionCount = effects.reduce(
           (count, effect) =>

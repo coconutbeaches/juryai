@@ -61,6 +61,7 @@ jobs:
           - src/tests/v2-1-3-disclosure-review-closure.test.ts
           - src/tests/v2-1-3-party-review.test.ts
           - src/tests/v2-1-3-production-routing.test.ts
+          - src/tests/v2-1-3-zero-effect-submit.test.ts
           - src/tests/v2-1-persistence-boundary.test.ts
           - src/tests/v2-1-invitation.test.ts
           - src/tests/gate-zero-coverage-matrix.test.ts
