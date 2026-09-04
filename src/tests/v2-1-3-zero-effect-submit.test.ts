@@ -197,6 +197,49 @@ describe('PR 8A: a zero-effect formation submission is refused before persistenc
     expect(repository.replays.size).toBe(0);
   });
 
+  it('allocates no submission or effect-scoped identifier for a refused turn', async () => {
+    // The guard cannot precede every allocation: `run`, `turn` and `source`
+    // ids and the payload salt are drawn before compiling because the compiler
+    // input embeds the source turn and its spans cite that turn_id. What the
+    // guard must protect is everything downstream of the compile — the
+    // submission id and every canonical effect id — since those name material
+    // that will never exist. Production injects neither provider and uses
+    // randomUUID/randomBytes, so the pre-compile draws reserve nothing.
+    const repository = new MemoryFormationRepository(baseEnvelope());
+    const kinds: string[] = [];
+    const service = createV213PartyCaseService({
+      authenticated_subject_id: SUBJECT_A,
+      repository,
+      compiler: new ScriptedSemanticCompiler(zeroEffectScript()),
+      review_url: (id) => `https://juryai.test/cases/${id}/review`,
+      ids: {
+        next: (kind, party) => {
+          kinds.push(kind);
+          return unique(`${kind}_${party}`);
+        },
+      },
+      clock: { now: () => 1_788_336_000_000 + sequence++ },
+      salts: { next: () => `0123456789abcdef${unique('salt')}` },
+    });
+    const id = repository.envelope.control.case_id;
+
+    expect(await submit(service, id, ['req_a'], 'Nothing recordable.')).toMatchObject({
+      ok: false,
+      error: { code: 'INVALID_INPUT' },
+    });
+
+    expect(kinds).toEqual(['run', 'turn', 'source']);
+    for (const kind of [
+      'submission',
+      'position',
+      'clarification',
+      'challenge',
+      'challenge_response',
+    ]) {
+      expect(kinds).not.toContain(kind);
+    }
+  });
+
   it('does not consume the client_turn_id, so a corrected answer can be resubmitted', async () => {
     const repository = new MemoryFormationRepository(baseEnvelope());
     const compiler = new ScriptedSemanticCompiler(zeroEffectScript());
