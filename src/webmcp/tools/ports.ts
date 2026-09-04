@@ -18,4 +18,4 @@ export type {
   SubmitTurnResult,
   SubmitTurnSuccess,
   VersionConflictResult,
-} from '../public-contract.js';
+} from '../supported-public-contract.js';

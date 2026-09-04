@@ -10,7 +10,7 @@ import {
   type StartCaseResult,
   type SubmitTurnCommand,
   type SubmitTurnResult,
-} from '../public-contract.js';
+} from '../supported-public-contract.js';
 
 export interface HttpCaseServiceOptions {
   endpoint?: string;
