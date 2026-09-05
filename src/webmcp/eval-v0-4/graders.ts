@@ -48,6 +48,7 @@ const HARD_BLOCKER_RULES: ReadonlySet<string> = new Set([
   'fail_closed.ambiguous_with_assertions',
   'fail_closed.no_assertions_with_assertions',
   'assertions.undeclared_extra',
+  'assertions.duplicate_payload',
   'assertions.wrong_supersession_target',
   'assertions.forbidden_supersession',
   'assertions.forbidden_type',
@@ -191,6 +192,36 @@ function gradeAssertionSetV04(
    * vertex once matched, so processing required first makes required
    * satisfaction take precedence, deterministically.
    */
+  /**
+   * EXACT-DUPLICATE assertions are rejected BEFORE matching.
+   *
+   * Two assertions identical in every canonical field, differing only by the
+   * model-chosen `assertion_id`, cannot be two distinct facts — they carry the
+   * same content. Without this the oracle reports a FALSE GREEN on its own
+   * primary question: given two same-slot expectations requiring different
+   * literals, a model that merges both propositions AND duplicates the merge
+   * emits two identical assertions, each compatible with both expectations.
+   * The matcher then finds a perfect assignment — no missing expectation and no
+   * extra assertion — and the run passes while the model did exactly the
+   * dangerous thing.
+   *
+   * This is NOT semantic deduplication. No similarity, no threshold, no
+   * paraphrase equivalence: it is byte equality of the canonical payload with
+   * the id removed. Two genuinely distinct propositions differ somewhere, or
+   * they are not distinct.
+   */
+  const payloadKey = (assertion: Assertion): string => {
+    const copy = { ...(assertion as unknown as Record<string, unknown>) };
+    delete copy.assertion_id;
+    return canonicalSerialize(copy as never);
+  };
+  const seenPayloads = new Set<string>();
+  for (const assertion of output.assertions) {
+    const key = payloadKey(assertion);
+    if (seenPayloads.has(key)) failures.push(failure('assertions.duplicate_payload'));
+    seenPayloads.add(key);
+  }
+
   const expectedOrder = canonicalOrder(
     expected,
     (item) => `${(item.optional ?? false) ? '1' : '0'}|${item.expectation_id}`,
@@ -228,6 +259,13 @@ function gradeAssertionSetV04(
   // would be reported as an ordinary one.
   for (const expectedSlot of result.unmatchedExpected) {
     const item = expected[expectedOrder[expectedSlot]!]!;
+    // An OPTIONAL expectation may be legitimately absent, so it produces no
+    // missing failure — and must produce no mismatch diagnosis either. An
+    // optional variant differing from a required one only in strength or
+    // supersession target would otherwise emit a HARD BLOCKER precisely when
+    // the model got the required reading right and correctly omitted the
+    // alternative.
+    if (item.optional ?? false) continue;
     // Report the reason by finding an assertion that satisfies EVERY constraint
     // except one. "No same-slot assertion carries the expected target" is too
     // weak: when two assertions swap their supersession targets, one of them

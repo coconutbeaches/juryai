@@ -832,3 +832,91 @@ describe('the oracle does not inflate severity or lose valid outputs', () => {
     expect(result.ok).toBe(true);
   });
 });
+
+describe('the oracle cannot be fooled by a duplicated merge', () => {
+  /**
+   * Regressions for the bounded review at `d651336`. The first is a direct hit
+   * on this PR's primary question — the oracle reported GREEN while the model
+   * merged two propositions and duplicated the merge.
+   */
+
+  it('two IDENTICAL merged assertions do not produce a perfect matching', () => {
+    // Each copy is compatible with both expectations, so an unguarded matcher
+    // assigns one copy per expectation: no missing, no extra, ok = true. The
+    // model merged AND duplicated, and the oracle would have said nothing.
+    const evalCase = caseWith(TWO_SAME_SLOT);
+    const merged = `${FACT_A} and ${FACT_B}`;
+    const result = grade(
+      evalCase,
+      output('oracle_fixture', [
+        assertion('oracle_fixture', { id: 'a1', statement: merged, quote: merged }),
+        assertion('oracle_fixture', { id: 'a2', statement: merged, quote: merged }),
+      ]),
+    );
+    expect(result.ok).toBe(false);
+    expect(rules(result)).toContain('assertions.duplicate_payload');
+    expect(result.hard_blockers.some((f) => f.rule === 'assertions.duplicate_payload')).toBe(true);
+  });
+
+  it('two genuinely DIFFERENT same-slot assertions are still accepted', () => {
+    // The counterpart: duplicate rejection must not become "one per slot",
+    // which would reinstate the single-live rule inside the oracle.
+    expect(
+      grade(
+        caseWith(TWO_SAME_SLOT),
+        output('oracle_fixture', [
+          assertion('oracle_fixture', { id: 'a1', statement: FACT_A }),
+          assertion('oracle_fixture', { id: 'a2', statement: FACT_B }),
+        ]),
+      ).ok,
+    ).toBe(true);
+  });
+
+  it('assertions differing ONLY by id are duplicates; differing by strength are not', () => {
+    const evalCase = caseWith([
+      { expectation_id: 'e_one', requirement_id: REQ, type: 'narrative_fact' },
+      { expectation_id: 'e_two', requirement_id: REQ, type: 'narrative_fact' },
+    ]);
+    const differing = grade(
+      evalCase,
+      output('oracle_fixture', [
+        assertion('oracle_fixture', { id: 'a1', statement: FACT_A }),
+        assertion('oracle_fixture', {
+          id: 'a2',
+          statement: FACT_A,
+          strength: 'asserted_qualified',
+        }),
+      ]),
+    );
+    expect(rules(differing)).not.toContain('assertions.duplicate_payload');
+  });
+
+  it('an omitted optional expectation produces no mismatch diagnosis', () => {
+    // An optional variant differing from a required one only in strength would
+    // otherwise emit a HARD BLOCKER exactly when the model got the required
+    // reading right and correctly omitted the alternative.
+    const evalCase = caseWith([
+      {
+        expectation_id: 'e_required',
+        requirement_id: REQ,
+        type: 'narrative_fact',
+        epistemic_strengths: ['asserted_confident'],
+        statement_mentions: ['15 July'],
+      },
+      {
+        expectation_id: 'e_optional',
+        requirement_id: REQ,
+        type: 'narrative_fact',
+        epistemic_strengths: ['recalled_uncertain'],
+        statement_mentions: ['15 July'],
+        optional: true,
+      },
+    ]);
+    const result = grade(
+      evalCase,
+      output('oracle_fixture', [assertion('oracle_fixture', { id: 'a1', statement: FACT_A })]),
+    );
+    expect(result.ok).toBe(true);
+    expect(result.hard_blockers).toEqual([]);
+  });
+});
