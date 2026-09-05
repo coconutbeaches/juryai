@@ -1,5 +1,5 @@
 import { cloneCanonical } from '../v2/case-envelope.js';
-import type { GenerationSpec } from './generation-spec.js';
+import type { ValidatedGenerationSpec } from './generation-spec.js';
 import {
   HASH_PATTERN,
   hashDisclosureReviewAcknowledgmentStatement,
@@ -10,7 +10,7 @@ import {
 import { hashPartyFormationProjection, renderPartyFormationReadback } from './projection.js';
 
 export function currentDisclosureReviewAcknowledgment(
-  spec: GenerationSpec,
+  spec: ValidatedGenerationSpec,
   envelope: CaseEnvelope,
   partyId: PartyId,
 ): DisclosureReviewAcknowledgment | null {
@@ -53,7 +53,7 @@ export function currentDisclosureReviewAcknowledgment(
 }
 
 export function disclosureReviewClosureCurrent(
-  spec: GenerationSpec,
+  spec: ValidatedGenerationSpec,
   envelope: CaseEnvelope,
 ): boolean {
   return (

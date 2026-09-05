@@ -1,5 +1,5 @@
 import { cloneCanonical } from '../v2/case-envelope.js';
-import type { GenerationSpec } from './generation-spec.js';
+import type { ValidatedGenerationSpec } from './generation-spec.js';
 import {
   PARTY_IDS,
   type CaseEnvelope,
@@ -32,7 +32,7 @@ function sortedUnique(values: readonly string[]): string[] {
   return [...new Set(values)].sort();
 }
 
-function authoritativeReadinessParts(spec: GenerationSpec, envelope: CaseEnvelope) {
+function authoritativeReadinessParts(spec: ValidatedGenerationSpec, envelope: CaseEnvelope) {
   const openRequiredFields = Object.values(envelope.requirements)
     .filter(
       (requirement) =>
@@ -107,7 +107,7 @@ function authoritativeReadinessParts(spec: GenerationSpec, envelope: CaseEnvelop
 }
 
 export function authoritativeFormationExplanatoryState(
-  spec: GenerationSpec,
+  spec: ValidatedGenerationSpec,
   envelope: CaseEnvelope,
 ): FormationExplanatoryState {
   const parts = authoritativeReadinessParts(spec, envelope);
@@ -131,7 +131,7 @@ function sameStrings(left: readonly string[], right: readonly string[]): boolean
 }
 
 export function deriveFormationReadiness(
-  spec: GenerationSpec,
+  spec: ValidatedGenerationSpec,
   envelope: CaseEnvelope,
 ): FormationReadiness {
   const parts = authoritativeReadinessParts(spec, envelope);

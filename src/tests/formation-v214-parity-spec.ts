@@ -32,7 +32,7 @@ import { assertValidGenerationSpec, type GenerationSpec } from '../formation/gen
  * up as a parity failure; importing the constants would hide exactly the class
  * of mistake this PR exists to catch.
  */
-export const V214_PARITY_SPEC: GenerationSpec = assertValidGenerationSpec({
+const V214_RAW: GenerationSpec = {
   identity: {
     generation_id: 'v2.1.4',
     envelope_schema_version: 'juryai-case-envelope-v2.1.4',
@@ -87,7 +87,15 @@ export const V214_PARITY_SPEC: GenerationSpec = assertValidGenerationSpec({
   decoding: {
     review_page_version: 'juryai-v2.1.4-first-party-review-page-v1.0.0',
   },
-});
+};
+
+/** Validated, defensively copied and deeply frozen at module load. */
+export const V214_PARITY_SPEC = assertValidGenerationSpec(V214_RAW);
+
+/** A fresh mutable copy, for tests that need raw input to tamper with. */
+export function rawV214Spec(): GenerationSpec {
+  return structuredClone(V214_RAW);
+}
 
 /**
  * Adapts the frozen V2.1.4 validator to the engine's port. The structural cast

@@ -114,6 +114,29 @@ export interface GenerationSpec {
  */
 const FORBIDDEN_SPEC_VALUES: readonly string[] = FORMATION_COMPATIBILITY_CONSTANTS;
 
+/**
+ * A spec that has been validated, defensively copied, and deeply frozen.
+ *
+ * The brand is phantom — declared, never assigned — so a validated spec stays
+ * ordinary JSON at runtime while being unforgeable in the type system. The only
+ * way to obtain one is `assertValidGenerationSpec`, which is what makes
+ * "validated once, immutable thereafter" an invariant the compiler enforces
+ * rather than a convention the caller is trusted to follow.
+ */
+declare const VALIDATED_GENERATION_SPEC: unique symbol;
+export type ValidatedGenerationSpec = GenerationSpec & {
+  readonly [VALIDATED_GENERATION_SPEC]: true;
+};
+
+/** Recursively freezes in place. Applied to a copy, never to caller input. */
+function deepFreeze<T>(value: T): T {
+  if (typeof value === 'object' && value !== null && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const nested of Object.values(value)) deepFreeze(nested);
+  }
+  return value;
+}
+
 export interface GenerationSpecIssue {
   readonly path: string;
   readonly message: string;
@@ -187,12 +210,21 @@ export function validateGenerationSpec(spec: GenerationSpec): GenerationSpecIssu
   return issues;
 }
 
-export function assertValidGenerationSpec(spec: GenerationSpec): GenerationSpec {
+/**
+ * Validate, defensively copy, then deeply freeze.
+ *
+ * The copy matters as much as the freeze: freezing the caller's own object
+ * would still leave the engine holding a reference the caller can reason about
+ * and, worse, would mutate the caller's input as a side effect of validation.
+ * Copying first means a later mutation of the original cannot reach anything
+ * the engine closed over.
+ */
+export function assertValidGenerationSpec(spec: GenerationSpec): ValidatedGenerationSpec {
   const issues = validateGenerationSpec(spec);
   if (issues.length > 0) {
     throw new TypeError(
       `GenerationSpec is invalid: ${issues.map((i) => `${i.path}: ${i.message}`).join('; ')}`,
     );
   }
-  return spec;
+  return deepFreeze(structuredClone(spec)) as ValidatedGenerationSpec;
 }

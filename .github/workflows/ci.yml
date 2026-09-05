@@ -70,6 +70,7 @@ jobs:
           - src/tests/v2-1-4-performance-formation.test.ts
           - src/tests/formation-engine-parity.test.ts
           - src/tests/formation-engine-isolation.test.ts
+          - src/tests/formation-generation-spec.test.ts
           - src/tests/v2-1-persistence-boundary.test.ts
           - src/tests/v2-1-invitation.test.ts
           - src/tests/gate-zero-coverage-matrix.test.ts

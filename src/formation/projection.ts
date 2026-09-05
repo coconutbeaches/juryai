@@ -1,5 +1,5 @@
 import { canonicalSerialize, cloneCanonical, sha256 } from '../v2/case-envelope.js';
-import type { GenerationSpec } from './generation-spec.js';
+import type { ValidatedGenerationSpec } from './generation-spec.js';
 import type { EpistemicStrength, PropositionType } from '../webmcp/core-v0-3/types.js';
 import {
   otherParty,
@@ -222,7 +222,7 @@ function projectionWarnings(
 
 /** Internal envelope versions and hidden-party activity never enter this projection. */
 export function projectPartyFormation(
-  spec: GenerationSpec,
+  spec: ValidatedGenerationSpec,
   envelope: CaseEnvelope,
   partyId: PartyId,
 ): PartyScopedFormationProjection {
@@ -275,7 +275,7 @@ export function projectPartyFormation(
 }
 
 export function serializePartyFormationProjection(
-  spec: GenerationSpec,
+  spec: ValidatedGenerationSpec,
   envelope: CaseEnvelope,
   partyId: PartyId,
 ): string {
@@ -283,7 +283,7 @@ export function serializePartyFormationProjection(
 }
 
 export function hashPartyFormationProjection(
-  spec: GenerationSpec,
+  spec: ValidatedGenerationSpec,
   envelope: CaseEnvelope,
   partyId: PartyId,
 ): string {
@@ -291,7 +291,7 @@ export function hashPartyFormationProjection(
 }
 
 export function renderPartyFormationReadback(
-  spec: GenerationSpec,
+  spec: ValidatedGenerationSpec,
   envelope: CaseEnvelope,
   partyId: PartyId,
 ): PartyFormationReadback {
@@ -312,7 +312,7 @@ export function renderPartyFormationReadback(
 }
 
 export function currentPartyConfirmation(
-  spec: GenerationSpec,
+  spec: ValidatedGenerationSpec,
   envelope: CaseEnvelope,
   partyId: PartyId,
 ): PartyConfirmationReceipt | null {

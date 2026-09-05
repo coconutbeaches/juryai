@@ -27,7 +27,11 @@ import {
   type FormationRequirement,
   type PartyId,
 } from './envelope.js';
-import { assertValidGenerationSpec, type GenerationSpec } from './generation-spec.js';
+import {
+  assertValidGenerationSpec,
+  type GenerationSpec,
+  type ValidatedGenerationSpec,
+} from './generation-spec.js';
 import type { FormationEnvelopeValidator } from './validator-port.js';
 import {
   currentDisclosureReviewAcknowledgment,
