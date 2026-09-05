@@ -67,6 +67,9 @@ const V214_RAW: GenerationSpec = {
   },
   policy: {
     proposition_cardinality: 'single_live_per_slot',
+    // V2.1.4 records only what the turn claimed to answer. 8C1a introduces the
+    // future `all_own_requirements` scope; this generation keeps the frozen one.
+    assertion_requirement_scope: 'in_reply_to_only',
   },
   compiler: {
     contract_version: 'juryai-webmcp-compiler-contract-v0.3.0',

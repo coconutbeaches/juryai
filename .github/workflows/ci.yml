@@ -79,6 +79,9 @@ jobs:
           - src/tests/formation-relay-adversarial.test.ts
           - src/tests/formation-relay-opponent-allowlist.test.ts
           - src/tests/formation-relay-canary-slot.test.ts
+          - src/tests/formation-8c1a-guards.test.ts
+          - src/tests/formation-policy-matrix.test.ts
+          - src/tests/compiler-v0-4-contract.test.ts
           - src/tests/v2-1-persistence-boundary.test.ts
           - src/tests/v2-1-invitation.test.ts
           - src/tests/gate-zero-coverage-matrix.test.ts

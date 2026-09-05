@@ -17,6 +17,7 @@ import { createFormationRelay } from '../formation/relay-submission.js';
 import type { CaseEnvelope } from '../formation/envelope.js';
 import type { CaseEnvelopeV214 } from '../v2-1-4/case-envelope.js';
 import { rawV214Spec } from './formation-v214-parity-spec.js';
+import { rawFutureSpec } from './formation-future-policy-spec.js';
 
 /** Builds an independent relay instance from the V2.1.4-compatible spec. */
 export function buildV214Relay() {
@@ -29,8 +30,26 @@ export function buildV214Relay() {
   });
 }
 
+/** Builds an independent relay instance from the TEST-ONLY future spec. */
+export function buildFutureRelay() {
+  const validator = createFormationValidator({ spec: rawFutureSpec() });
+  const ceremony = createFormationCeremony({ spec: rawFutureSpec(), validator });
+  return createFormationRelay({
+    spec: rawFutureSpec(),
+    validator,
+    cursors: ceremony.refreshPartyViewCursors,
+  });
+}
+
 /** The instance every parity suite shares. */
 export const V214_RELAY = buildV214Relay();
+
+/**
+ * The future-policy instance the A/B matrix drives. Same wiring, same
+ * collaborators, different policy — so a difference in outcome can only come
+ * from the policy.
+ */
+export const FUTURE_RELAY = buildFutureRelay();
 
 /**
  * The engine's `CaseEnvelope` differs from `CaseEnvelopeV214` only in that

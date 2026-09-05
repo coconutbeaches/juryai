@@ -91,6 +91,13 @@ export const VALIDATOR_ISSUE_CODE_SUFFIXES = [
   'reopen_object',
   'reopen_shape',
   'requirement_cardinality',
+  // PR 8C1a. Emitted ONLY under `multi_live`, where `max_propositions` becomes
+  // the sole cardinality bound. The relay does not emit it: the relay already
+  // validates its post-application candidate through this validator, so a
+  // second effect-local implementation would mean two subtly different
+  // meanings of `max_propositions`. The inventory describes reality, so this
+  // suffix belongs to the validator scope only.
+  'requirement_live_cardinality_exceeded',
   'requirement_object',
   'requirement_reopen_link',
   'requirement_shape',

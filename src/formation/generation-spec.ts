@@ -74,8 +74,30 @@ export interface GenerationRequirements {
   readonly initial_requirement_set_version: string;
 }
 
+/**
+ * Which of a party's own requirements a semantic assertion may target.
+ *
+ * This is interview PACING versus PARSING SCOPE. `in_reply_to_only` ties what
+ * can be recorded to what was explicitly asked. `all_own_requirements` lets a
+ * volunteered answer land in any own requirement the compiler was given
+ * context for — "ask narrowly, listen broadly" — while `in_reply_to` keeps its
+ * meaning as what the turn claims to answer, so the provenance distinction
+ * between a solicited and a volunteered statement survives.
+ *
+ * It is NOT derived from the compiler contract version. A generation may
+ * legitimately run V0.4's cardinality while keeping strict targeting during a
+ * staged rollout, and deriving one policy from another is the silent-inherit
+ * pattern this spec design exists to prevent.
+ */
+export type AssertionRequirementScope =
+  /** A requirement may be asserted into only if the source turn named it. */
+  | 'in_reply_to_only'
+  /** Any own requirement in the compiler-supplied context may be asserted into. */
+  | 'all_own_requirements';
+
 export interface GenerationPolicy {
   readonly proposition_cardinality: PropositionCardinalityPolicy;
+  readonly assertion_requirement_scope: AssertionRequirementScope;
 }
 
 export interface GenerationCompiler {
@@ -132,10 +154,67 @@ export interface GenerationSpec {
  * behaviour here, which is the point — the alternative lets a typo in a
  * version string silently buy an unverified `multi_live` claim.
  */
+/**
+ * The closed policy vocabularies, as VALUES.
+ *
+ * The TypeScript unions above are compile-time only. A spec that arrives as
+ * decoded JSON — which is exactly how 8C2 will load a generation manifest —
+ * carries whatever string it carries, and an unrecognised value must never
+ * reach a component that selects behaviour with an equality test: every
+ * consumer computes `x === 'single_live_per_slot'`, so a typo would silently
+ * choose the PERMISSIVE branch and disable live-slot uniqueness. Unknown must
+ * fail closed, not fall through to the newer semantics.
+ */
+const PROPOSITION_CARDINALITY_POLICIES: readonly PropositionCardinalityPolicy[] = Object.freeze([
+  'single_live_per_slot',
+  'multi_live',
+]);
+
+const ASSERTION_CARDINALITY_POLICIES: readonly AssertionCardinalityPolicy[] = Object.freeze([
+  'single_live_per_slot',
+  'multi_live',
+]);
+
+const ASSERTION_REQUIREMENT_SCOPES: readonly AssertionRequirementScope[] = Object.freeze([
+  'in_reply_to_only',
+  'all_own_requirements',
+]);
+
+/** Every closed policy vocabulary, for the runtime membership checks below. */
+export const GENERATION_POLICY_VOCABULARIES = Object.freeze({
+  'spec.policy.proposition_cardinality': PROPOSITION_CARDINALITY_POLICIES,
+  'spec.policy.assertion_requirement_scope': ASSERTION_REQUIREMENT_SCOPES,
+  'spec.compiler.assertion_cardinality_policy': ASSERTION_CARDINALITY_POLICIES,
+} as const);
+
 const COMPILER_CONTRACT_ASSERTION_CARDINALITY: Readonly<
   Record<string, AssertionCardinalityPolicy>
 > = Object.freeze({
   'juryai-webmcp-compiler-contract-v0.3.0': 'single_live_per_slot',
+  'juryai-webmcp-compiler-contract-v0.4.0': 'multi_live',
+});
+
+/**
+ * Which requirement scopes each compiler contract can actually serve.
+ *
+ * V0.3 emits `compiler_requirement_not_answered` whenever an assertion targets
+ * a requirement outside `turn.in_reply_to`, so a generation pairing V0.3 with
+ * `all_own_requirements` states a policy its compiler refuses to produce. V0.4
+ * drops that admission rule, so it can serve either scope — the narrower
+ * restriction then comes from the generation policy and the relay, not from
+ * the contract.
+ *
+ * Closed, like the cardinality table: an unrecorded contract cannot be
+ * verified and is rejected rather than assumed compatible.
+ */
+const COMPILER_CONTRACT_REQUIREMENT_SCOPES: Readonly<
+  Record<string, readonly AssertionRequirementScope[]>
+> = Object.freeze({
+  'juryai-webmcp-compiler-contract-v0.3.0': Object.freeze(['in_reply_to_only'] as const),
+  'juryai-webmcp-compiler-contract-v0.4.0': Object.freeze([
+    'in_reply_to_only',
+    'all_own_requirements',
+  ] as const),
 });
 
 /**
@@ -236,6 +315,24 @@ export function validateGenerationSpec(spec: GenerationSpec): GenerationSpecIssu
     }
   }
 
+  // Enum membership FIRST. Every later rule reads these fields, and an
+  // unrecognised value would otherwise be compared for equality and quietly
+  // resolve to the permissive side.
+  const declared: [keyof typeof GENERATION_POLICY_VOCABULARIES, string][] = [
+    ['spec.policy.proposition_cardinality', spec.policy.proposition_cardinality],
+    ['spec.policy.assertion_requirement_scope', spec.policy.assertion_requirement_scope],
+    ['spec.compiler.assertion_cardinality_policy', spec.compiler.assertion_cardinality_policy],
+  ];
+  for (const [path, value] of declared) {
+    const vocabulary = GENERATION_POLICY_VOCABULARIES[path] as readonly string[];
+    if (!vocabulary.includes(value)) {
+      issues.push({
+        path,
+        message: `"${value}" is not a recognised policy; expected one of ${vocabulary.join(', ')}.`,
+      });
+    }
+  }
+
   const implemented = COMPILER_CONTRACT_ASSERTION_CARDINALITY[spec.compiler.contract_version];
   if (implemented === undefined) {
     issues.push({
@@ -246,6 +343,33 @@ export function validateGenerationSpec(spec: GenerationSpec): GenerationSpecIssu
     issues.push({
       path: 'spec.compiler.assertion_cardinality_policy',
       message: `Compiler contract "${spec.compiler.contract_version}" implements "${implemented}"; a spec cannot declare "${spec.compiler.assertion_cardinality_policy}".`,
+    });
+  }
+
+  const scopes = COMPILER_CONTRACT_REQUIREMENT_SCOPES[spec.compiler.contract_version];
+  if (scopes === undefined) {
+    issues.push({
+      path: 'spec.compiler.contract_version',
+      message: `Compiler contract "${spec.compiler.contract_version}" has no recorded requirement-scope support, so the declared policy cannot be verified.`,
+    });
+  } else if (!scopes.includes(spec.policy.assertion_requirement_scope)) {
+    issues.push({
+      path: 'spec.policy.assertion_requirement_scope',
+      message: `Compiler contract "${spec.compiler.contract_version}" cannot serve requirement scope "${spec.policy.assertion_requirement_scope}".`,
+    });
+  }
+
+  if (
+    spec.policy.proposition_cardinality === 'multi_live' &&
+    spec.compiler.assertion_cardinality_policy !== 'multi_live'
+  ) {
+    // A generation that admits multiple live propositions but runs a compiler
+    // that may emit only one per slot cannot represent the material it claims
+    // to accept. The mismatch is silent at runtime, so it is rejected here.
+    issues.push({
+      path: 'spec.policy.proposition_cardinality',
+      message:
+        'A multi_live generation requires a compiler whose assertion cardinality is also multi_live.',
     });
   }
 
@@ -280,4 +404,29 @@ export function assertValidGenerationSpec(spec: GenerationSpec): ValidatedGenera
     );
   }
   return deepFreeze(copy) as unknown as ValidatedGenerationSpec;
+}
+
+/**
+ * Refuses an unrecognised cardinality policy at a component boundary.
+ *
+ * A component selects behaviour with an equality test, so an unknown value
+ * would resolve to the permissive branch. Failing to construct is the only
+ * outcome that cannot end with a permissive component wired into something —
+ * the same reasoning 8C0b-1 used, applied to the case that still needs it.
+ */
+export function assertKnownCardinality(value: string, component: string): void {
+  if (!(PROPOSITION_CARDINALITY_POLICIES as readonly string[]).includes(value)) {
+    throw new TypeError(
+      `Proposition cardinality policy "${value}" is not recognised by the ${component}.`,
+    );
+  }
+}
+
+/** The same refusal for the requirement-scope policy. */
+export function assertKnownRequirementScope(value: string, component: string): void {
+  if (!(ASSERTION_REQUIREMENT_SCOPES as readonly string[]).includes(value)) {
+    throw new TypeError(
+      `Assertion requirement scope "${value}" is not recognised by the ${component}.`,
+    );
+  }
 }

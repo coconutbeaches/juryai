@@ -23,6 +23,7 @@ import {
 import { createFormationValidator } from '../formation/validator.js';
 import type { CaseEnvelope } from '../formation/envelope.js';
 import { V214_PARITY_SPEC, rawV214Spec } from './formation-v214-parity-spec.js';
+import { rawFutureSpec } from './formation-future-policy-spec.js';
 import { independentFormationFixture, mutate, unique } from './formation-validator-fixtures.js';
 
 const shared = createFormationValidator({ spec: rawV214Spec() });
@@ -130,31 +131,78 @@ describe('PR 8C0b-1: duplicate live slot, canary-shaped fixture', () => {
   });
 });
 
-describe('PR 8C0b-1: the slot rule is policy-gated and fails closed', () => {
-  it('the parity spec declares the frozen single-live policy', () => {
+describe('PR 8C1a: the slot rule is policy-gated, and the gate now has two sides', () => {
+  it('the parity spec declares the frozen single-live policy and strict scope', () => {
     expect(V214_PARITY_SPEC.policy.proposition_cardinality).toBe('single_live_per_slot');
+    expect(V214_PARITY_SPEC.policy.assertion_requirement_scope).toBe('in_reply_to_only');
   });
 
-  it('a multi_live spec yields no validator at all', () => {
-    // Fail closed at construction: refusing to build is the only outcome that
-    // cannot end with a permissive validator wired into something.
-    expect(() =>
-      createFormationValidator({
-        spec: { ...rawV214Spec(), policy: { proposition_cardinality: 'multi_live' } },
-      }),
-    ).toThrow(/not implemented/u);
+  /**
+   * DELIBERATE REVERSAL of an 8C0b-1 decision, recorded rather than deleted.
+   *
+   * While `multi_live` was unimplemented, 8C0b-1 refused to CONSTRUCT a
+   * validator for it — the only outcome that could not end with a permissive
+   * validator wired into something. 8C1a implements it, so the refusal is
+   * replaced by a real implementation and by evidence that the two policies
+   * differ by exactly the intended rule.
+   *
+   * The danger the old test guarded against has not gone away; it has moved.
+   * "Supporting multi_live" by making the block a no-op would look identical
+   * from outside, so the replacement below asserts the DIFFERENCE rather than
+   * the absence: same envelope, two policies, exactly one code apart.
+   */
+  it('a multi_live validator now builds', () => {
+    expect(() => createFormationValidator({ spec: rawFutureSpec() })).not.toThrow();
   });
 
-  it('multi_live is refused rather than silently skipping the slot rule', () => {
-    let built = false;
-    try {
-      createFormationValidator({
-        spec: { ...rawV214Spec(), policy: { proposition_cardinality: 'multi_live' } },
-      });
-      built = true;
-    } catch {
-      built = false;
-    }
-    expect(built).toBe(false);
+  it('the two policies differ by exactly the live-slot uniqueness code', () => {
+    const { envelope, requirementA: requirementId } = independentFormationFixture();
+    const duplicated = mutate(envelope, (draft) => {
+      const original = Object.values(draft.positions).find(
+        (position) =>
+          position.attributed_party_id === 'party_a' && position.requirement_id === requirementId,
+      )!;
+      const secondId = unique('position_party_a');
+      draft.positions[secondId] = {
+        ...structuredClone(original),
+        position_id: secondId,
+        statement: 'A second, independent fact about the same requirement.',
+      };
+      // One unrelated defect both policies report, so the late consistency
+      // block is skipped on BOTH sides. Without it the strict policy stops at
+      // the slot issue while the permissive one runs on to report a stale
+      // projection hash, and the comparison would measure the fixture's
+      // derived state instead of the rule difference under test.
+      draft.evidence.evidence_probe = {
+        evidence_id: 'evidence_probe',
+        attributed_party_id: 'party_a',
+        description: 'Delivery emails.',
+        required_for_readiness: false,
+        eligibility: 'maybe' as never,
+      };
+    });
+    const future = createFormationValidator({ spec: rawFutureSpec() });
+    const strictCodes = new Set(shared.validate(duplicated).map((entry) => entry.code));
+    const futureCodes = new Set(future.validate(duplicated).map((entry) => entry.code));
+    const removed = [...strictCodes].filter((code) => !futureCodes.has(code));
+    const added = [...futureCodes].filter((code) => !strictCodes.has(code));
+    expect(removed).toEqual(['v214_live_position_slot_duplicate']);
+    expect(added).toEqual([]);
+  });
+
+  it('multi_live keeps the supersession integrity rules that share its loop', () => {
+    // The loop carrying the slot test also enforces forward and reverse
+    // supersession linkage. Conditioning the LOOP instead of the BLOCK would
+    // silently drop those, and this envelope is the proof that it did not.
+    const { envelope, requirementA: requirementId } = independentFormationFixture();
+    const broken = mutate(envelope, (draft) => {
+      const original = Object.values(draft.positions).find(
+        (position) =>
+          position.attributed_party_id === 'party_a' && position.requirement_id === requirementId,
+      )!;
+      original.supersedes = 'position_party_a_does_not_exist';
+    });
+    const future = createFormationValidator({ spec: rawFutureSpec() });
+    expect(future.validate(broken).map((entry) => entry.code)).toContain('v214_supersession_link');
   });
 });

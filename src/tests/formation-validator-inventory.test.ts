@@ -68,6 +68,36 @@ function sharedRelayCodes(prefix: string): Set<string> {
 
 const sorted = (values: Iterable<string>): string[] => [...values].sort();
 
+/**
+ * PR 8C1a adds exactly one code to the validator scope. It is declared here so
+ * the "shared validator emits exactly the frozen set" assertions below stay
+ * exact statements rather than being loosened into approximations.
+ */
+const V8C1A_NEW_VALIDATOR_CODES = ['v214_requirement_live_cardinality_exceeded'] as const;
+
+describe('PR 8C1a: the inventory delta is exactly one new code', () => {
+  it('the shared validator emits the frozen set plus the multi_live cardinality code', () => {
+    const shared = sharedCodes(PREFIX);
+    const added = sorted(shared).filter((code) => !frozenCodes().has(code));
+    expect(added).toEqual([...V8C1A_NEW_VALIDATOR_CODES]);
+  });
+
+  it('no frozen code disappeared', () => {
+    const missing = sorted(frozenCodes()).filter((code) => !sharedCodes(PREFIX).has(code));
+    expect(missing).toEqual([]);
+  });
+
+  it('the relay emits no new code, because it does not enforce cardinality', () => {
+    // The relay validates its post-application candidate through the shared
+    // validator, so a second effect-local implementation would create two
+    // subtly different meanings of `max_propositions`. The inventory describes
+    // reality: the new code belongs to the validator scope only.
+    const relay = sharedRelayCodes(PREFIX);
+    expect(sorted(relay).filter((code) => !frozenRelayCodes().has(code))).toEqual([]);
+    expect(relay.has('v214_requirement_live_cardinality_exceeded')).toBe(false);
+  });
+});
+
 describe('PR 8C0b-1: the shared validator emits exactly the frozen code set', () => {
   it('the frozen validator is the reference and is non-trivially large', () => {
     // A guard on the guard: if the extraction regex ever stopped matching, an
@@ -80,16 +110,22 @@ describe('PR 8C0b-1: the shared validator emits exactly the frozen code set', ()
     expect(missing).toEqual([]);
   });
 
-  it('the shared validator invents no code the frozen one cannot emit', () => {
-    const extra = sorted(sharedCodes(PREFIX)).filter((code) => !frozenCodes().has(code));
+  it('the shared validator invents no code beyond the declared 8C1a addition', () => {
+    const extra = sorted(sharedCodes(PREFIX)).filter(
+      (code) =>
+        !frozenCodes().has(code) &&
+        !(V8C1A_NEW_VALIDATOR_CODES as readonly string[]).includes(code),
+    );
     expect(extra).toEqual([]);
   });
 
-  it('the sets are equal', () => {
-    expect(sorted(sharedCodes(PREFIX))).toEqual(sorted(frozenCodes()));
+  it('the sets are equal once the declared addition is accounted for', () => {
+    expect(sorted(sharedCodes(PREFIX))).toEqual(
+      sorted([...frozenCodes(), ...V8C1A_NEW_VALIDATOR_CODES]),
+    );
   });
 
-  it('the declared validator vocabulary matches the frozen code set exactly', () => {
+  it('the declared validator vocabulary matches the frozen code set plus the addition', () => {
     // No unused suffix, and none missing: each scope is an inventory, not a
     // grab bag that silently accumulates dead entries. Scoped to the validator
     // because the relay contributes its own suffixes in 8C0b-2.
@@ -97,7 +133,7 @@ describe('PR 8C0b-1: the shared validator emits exactly the frozen code set', ()
       ...Object.keys(UNPREFIXED_ISSUE_CODES),
       ...VALIDATOR_ISSUE_CODE_SUFFIXES.map((suffix) => `${PREFIX}${suffix}`),
     ];
-    expect(sorted(declared)).toEqual(sorted(frozenCodes()));
+    expect(sorted(declared)).toEqual(sorted([...frozenCodes(), ...V8C1A_NEW_VALIDATOR_CODES]));
   });
 
   it('every declared validator suffix is actually used by the shared validator', () => {
@@ -116,7 +152,7 @@ describe('PR 8C0b-1: the issue-code prefix is a spec literal, never a derivation
 
   it('binding the vocabulary to the spec prefix reproduces the frozen codes', () => {
     const codes = createIssueCodes(V214_PARITY_SPEC.contracts.contract_issue_code_prefix);
-    const union = new Set([...frozenCodes(), ...frozenRelayCodes()]);
+    const union = new Set([...frozenCodes(), ...frozenRelayCodes(), ...V8C1A_NEW_VALIDATOR_CODES]);
     expect(sorted(Object.values(codes))).toEqual(sorted(union));
   });
 
@@ -163,7 +199,7 @@ describe('PR 8C0b-2: the shared relay emits exactly the frozen relay code set', 
   it('the combined vocabulary is the union of both frozen scopes, de-duplicated', () => {
     // `explicit_absence_source` is emitted by BOTH frozen modules with
     // different messages, so the union must contain it exactly once.
-    const union = new Set([...frozenCodes(), ...frozenRelayCodes()]);
+    const union = new Set([...frozenCodes(), ...frozenRelayCodes(), ...V8C1A_NEW_VALIDATOR_CODES]);
     const declared = [
       ...Object.keys(UNPREFIXED_ISSUE_CODES),
       ...PREFIXED_ISSUE_CODE_SUFFIXES.map((suffix) => `${PREFIX}${suffix}`),
