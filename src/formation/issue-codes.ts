@@ -19,13 +19,13 @@
  */
 
 /**
- * Generation-scoped suffixes, in the order a sorted listing produces so the
- * inventory is diffable. The set — not merely each member — is load-bearing:
- * `formation-validator-inventory.test.ts` proves the shared validator emits
- * exactly the frozen validator's codes, which is what catches a rule that was
- * dropped rather than mistranslated.
+ * Generation-scoped suffixes emitted by the shared VALIDATOR, in the order a
+ * sorted listing produces so the inventory is diffable. The set — not merely
+ * each member — is load-bearing: `formation-validator-inventory.test.ts`
+ * proves the shared validator emits exactly the frozen validator's codes,
+ * which is what catches a rule that was dropped rather than mistranslated.
  */
-export const PREFIXED_ISSUE_CODE_SUFFIXES = [
+export const VALIDATOR_ISSUE_CODE_SUFFIXES = [
   'case_id',
   'challenge_before_disclosure',
   'challenge_object',
@@ -134,7 +134,33 @@ export const PREFIXED_ISSUE_CODE_SUFFIXES = [
   'workflow',
 ] as const;
 
-export type PrefixedIssueCodeSuffix = (typeof PREFIXED_ISSUE_CODE_SUFFIXES)[number];
+/**
+ * Suffixes emitted by the shared RELAY. Listed separately from the validator's
+ * because each is checked against its own frozen module — a relay code that
+ * silently stopped being emitted must fail even though the validator's
+ * inventory is untouched. `explicit_absence_source` deliberately appears in
+ * both frozen files with different messages, so it is declared once here and
+ * the union below de-duplicates it.
+ */
+export const RELAY_ISSUE_CODE_SUFFIXES = [
+  'assertion_requirement',
+  'assertion_semantics',
+  'assertion_slot_duplicate',
+  'explicit_absence_source',
+  'live_position_slot_collision',
+  'position_id_collision',
+  'span_missing',
+  'span_turn_mismatch',
+  'supersession_target',
+] as const;
+
+/** Every generation-scoped suffix the engine can emit, de-duplicated. */
+export const PREFIXED_ISSUE_CODE_SUFFIXES = [
+  ...new Set<string>([...VALIDATOR_ISSUE_CODE_SUFFIXES, ...RELAY_ISSUE_CODE_SUFFIXES]),
+].sort() as readonly string[];
+
+export type PrefixedIssueCodeSuffix =
+  (typeof VALIDATOR_ISSUE_CODE_SUFFIXES)[number] | (typeof RELAY_ISSUE_CODE_SUFFIXES)[number];
 
 /**
  * Codes the frozen validator emits WITHOUT a generation prefix. Kept verbatim.
