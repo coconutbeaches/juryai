@@ -26,6 +26,11 @@ import { V214_PARITY_SPEC, rawV214Spec } from './formation-v214-parity-spec.js';
 import { independentFormationFixture, mutate, unique } from './formation-validator-fixtures.js';
 
 const shared = createFormationValidator({ spec: rawV214Spec() });
+/**
+ * `assertValid` keeps the frozen typed signature, so a V2.1.4 envelope needs a
+ * cast to reach it. `validate` does not — it accepts `unknown`, which is the
+ * whole point of the gate.
+ */
 const asEngineEnvelope = (envelope: unknown): CaseEnvelope => envelope as CaseEnvelope;
 
 describe('PR 8C0b-1: duplicate live slot, canary-shaped fixture', () => {
@@ -33,7 +38,7 @@ describe('PR 8C0b-1: duplicate live slot, canary-shaped fixture', () => {
 
   it('the base fixture is valid on both implementations', () => {
     expect(validateCaseEnvelopeV214(envelope)).toEqual([]);
-    expect(shared.validate(asEngineEnvelope(envelope))).toEqual([]);
+    expect(shared.validate(envelope)).toEqual([]);
   });
 
   /**
@@ -76,9 +81,7 @@ describe('PR 8C0b-1: duplicate live slot, canary-shaped fixture', () => {
   });
 
   it('the shared validator produces an identical ContractIssue array', () => {
-    expect(shared.validate(asEngineEnvelope(duplicated))).toEqual(
-      validateCaseEnvelopeV214(duplicated),
-    );
+    expect(shared.validate(duplicated)).toEqual(validateCaseEnvelopeV214(duplicated));
   });
 
   it('assertValid throws the identical message on both implementations', () => {
@@ -123,7 +126,7 @@ describe('PR 8C0b-1: duplicate live slot, canary-shaped fixture', () => {
     // and that they report exactly the same thing.
     const frozen = validateCaseEnvelopeV214(superseded);
     expect(frozen.map((entry) => entry.code)).not.toContain('v214_live_position_slot_duplicate');
-    expect(shared.validate(asEngineEnvelope(superseded))).toEqual(frozen);
+    expect(shared.validate(superseded)).toEqual(frozen);
   });
 });
 

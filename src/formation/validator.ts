@@ -24,7 +24,13 @@
  * The validator deliberately accepts `unknown`: the frozen entry point is a
  * gate over arbitrary decoded JSON, and narrowing its parameter to
  * `CaseEnvelope` would make every shape rule unreachable-by-construction in
- * the type system while remaining necessary at runtime.
+ * the type system while remaining necessary at runtime. That property has to
+ * reach the PUBLIC type, not just the implementation — a returned type of
+ * `FormationEnvelopeValidator<CaseEnvelope>` forces every caller holding
+ * decoded JSON to assert `as CaseEnvelope` before it can ask whether the value
+ * is a CaseEnvelope, and that assertion is precisely where an admission bypass
+ * gets introduced. `FormationValidator` therefore widens `validate` back to
+ * `unknown` while remaining assignable to the port the ceremony consumes.
  */
 
 import { canonicalSerialize, sha256, type ContractIssue } from '../v2/case-envelope.js';
@@ -112,9 +118,19 @@ function sortedUnique(values: readonly string[]): boolean {
  * silently skips a rule is far more dangerous than a constructor that throws,
  * because it will be wired in and trusted.
  */
-export function createFormationValidator(input: {
-  spec: GenerationSpec;
-}): FormationEnvelopeValidator<CaseEnvelope> {
+export interface FormationValidator extends FormationEnvelopeValidator<CaseEnvelope> {
+  /**
+   * Structural issues over ARBITRARY input, empty when the value satisfies the
+   * contract. Widened from the port on purpose: the caller with an untrusted
+   * value is the one that most needs this, and making it cast first defeats
+   * the gate.
+   */
+  validate(envelope: unknown): ContractIssue[];
+  /** Throws when an already-typed envelope is invalid, as the frozen one does. */
+  assertValid(envelope: CaseEnvelope): void;
+}
+
+export function createFormationValidator(input: { spec: GenerationSpec }): FormationValidator {
   // Validated, defensively copied and deeply frozen once, at construction.
   const spec = assertValidGenerationSpec(input.spec);
   const codes = createIssueCodes(spec.contracts.contract_issue_code_prefix);

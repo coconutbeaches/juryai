@@ -18,7 +18,6 @@ import { sha256 } from '../v2/case-envelope.js';
 import type { CaseEnvelopeV214 } from '../v2-1-4/case-envelope.js';
 import { validateCaseEnvelopeV214 } from '../v2-1-4/contract-validator.js';
 import { createFormationValidator } from '../formation/validator.js';
-import type { CaseEnvelope } from '../formation/envelope.js';
 import { rawV214Spec } from './formation-v214-parity-spec.js';
 import {
   acknowledgedFixture,
@@ -29,7 +28,6 @@ import {
 } from './formation-validator-fixtures.js';
 
 const shared = createFormationValidator({ spec: rawV214Spec() });
-const engine = (envelope: unknown): CaseEnvelope => envelope as CaseEnvelope;
 
 const base = independentFormationFixture();
 const disclosed = disclosedChallengeFixture();
@@ -538,7 +536,7 @@ describe('PR 8C0b-1: shared validator reproduces frozen V2.1.4 issue for issue',
   it('both implementations accept every unmutated fixture', () => {
     for (const fixture of [base.envelope, disclosed.envelope, acknowledged.envelope]) {
       expect(validateCaseEnvelopeV214(fixture)).toEqual([]);
-      expect(shared.validate(engine(fixture))).toEqual([]);
+      expect(shared.validate(fixture)).toEqual([]);
     }
   });
 
@@ -550,17 +548,21 @@ describe('PR 8C0b-1: shared validator reproduces frozen V2.1.4 issue for issue',
       // The mutation must actually provoke its rule, or "parity" would only be
       // two validators agreeing that a no-op envelope is fine.
       expect(frozen.map((raised) => raised.code)).toContain(entry.code);
-      expect(shared.validate(engine(entry.envelope))).toEqual(frozen);
+      expect(shared.validate(entry.envelope)).toEqual(frozen);
     },
   );
 
-  it('rejects non-envelope input identically', () => {
+  it('rejects non-envelope input identically, with no cast at the boundary', () => {
+    // These calls compile because `validate` accepts `unknown`. If the public
+    // signature ever narrows to `CaseEnvelope`, this test stops compiling —
+    // which is the point: a caller forced to assert `as CaseEnvelope` before
+    // asking whether the value IS one has already bypassed the gate.
     for (const value of [null, 'envelope', 42, []]) {
-      expect(shared.validate(engine(value))).toEqual(validateCaseEnvelopeV214(value as never));
+      expect(shared.validate(value)).toEqual(validateCaseEnvelopeV214(value as never));
     }
     // A value canonical JSON cannot represent at all.
     const unserializable = { control: 1n } as unknown;
-    expect(shared.validate(engine(unserializable))).toEqual(
+    expect(shared.validate(unserializable)).toEqual(
       validateCaseEnvelopeV214(unserializable as never),
     );
   });
@@ -571,7 +573,7 @@ describe('PR 8C0b-1: shared validator reproduces frozen V2.1.4 issue for issue',
     });
     const frozen = validateCaseEnvelopeV214(broken);
     expect(frozen.map((raised) => raised.code)).toContain('v214_control_object');
-    expect(shared.validate(engine(broken))).toEqual(frozen);
+    expect(shared.validate(broken)).toEqual(frozen);
   });
 
   it('drives 90 of the 107 frozen rules through a targeted mutation', () => {
@@ -656,7 +658,7 @@ describe('PR 8C0b-1: non-total inputs throw identically rather than diverging', 
         }
         throw new Error('Expected this input to throw.');
       };
-      expect(thrown(() => shared.validate(engine(envelope)))).toBe(
+      expect(thrown(() => shared.validate(envelope))).toBe(
         thrown(() => validateCaseEnvelopeV214(envelope)),
       );
     },
