@@ -16,7 +16,9 @@ import {
   PRODUCTION_ENABLED_ENV_VAR,
   PRODUCTION_START_IDENTITY_DOMAIN,
 } from '../compatibility/formation-constants.js';
-import { V214_PARITY_SPEC } from './formation-v214-parity-spec.js';
+import { V214_PARITY_SPEC, rawV214Spec } from './formation-v214-parity-spec.js';
+import { createFormationValidator } from '../formation/validator.js';
+import { createIssueCodes } from '../formation/issue-codes.js';
 
 /** Every `.ts` file under a directory, recursively, as repo-relative paths. */
 function sourceFiles(relativeDirectory: string): string[] {
@@ -125,6 +127,86 @@ describe('PR 8C0a: compatibility constants stay outside the engine', () => {
         !allowed.has(file) &&
         FORMATION_COMPATIBILITY_CONSTANTS.some((constant) => read(file).includes(constant)),
     );
+    expect(offenders).toEqual([]);
+  });
+});
+
+/**
+ * Strips line and block comments so a guard reads what the code DOES, not what
+ * its documentation says about it. Several engine files legitimately mention
+ * `V2.1.4` while explaining why they must not contain it.
+ */
+function executableSource(file: string): string {
+  return read(file)
+    .replace(/\/\*[\s\S]*?\*\//gu, '')
+    .replace(/(^|[^:])\/\/.*$/gmu, '$1');
+}
+
+describe('PR 8C0b-1: the issue-code prefix is never derived', () => {
+  it('no engine file hardcodes a generation prefix or label', () => {
+    const offenders = sourceFiles('src/formation').filter((file) =>
+      /v2[._]?1[._]?4/iu.test(executableSource(file)),
+    );
+    expect(offenders).toEqual([]);
+  });
+
+  it('no engine file reads generation_id at all', () => {
+    // The only safe relationship between the generation id and the issue-code
+    // prefix is none. If nothing reads the id, nothing can transform it.
+    const offenders = sourceFiles('src/formation').filter(
+      (file) =>
+        file !== 'src/formation/generation-spec.ts' &&
+        executableSource(file).includes('generation_id'),
+    );
+    expect(offenders).toEqual([]);
+  });
+
+  it('generation-spec.ts only declares generation_id, never transforms it', () => {
+    const source = executableSource('src/formation/generation-spec.ts');
+    for (const line of source.split('\n').filter((entry) => entry.includes('generation_id'))) {
+      expect(line).not.toMatch(/\.(replace|replaceAll|split|slice|substring|match|concat)\(/u);
+      expect(line).not.toMatch(/`/u);
+    }
+  });
+
+  it('the vocabulary factory cannot see anything but the prefix', () => {
+    // Structural, not incidental: `createIssueCodes` takes one parameter, so
+    // there is no spec, identity or generation id in scope for it to transform.
+    expect(createIssueCodes.length).toBe(1);
+    const baseline = createIssueCodes(V214_PARITY_SPEC.contracts.contract_issue_code_prefix);
+    const reprefixed = createIssueCodes('v299_');
+    expect(baseline.envelope_hash_mismatch).toBe('v214_envelope_hash_mismatch');
+    expect(reprefixed.envelope_hash_mismatch).toBe('v299_envelope_hash_mismatch');
+  });
+
+  it('a spec whose generation id changes still emits the frozen codes', () => {
+    const spec = rawV214Spec();
+    const validator = createFormationValidator({
+      spec: { ...spec, identity: { ...spec.identity, generation_id: 'something-else-entirely' } },
+    });
+    const issues = validator.validate(null as never);
+    expect(issues.map((entry) => entry.code)).toEqual(['v214_envelope_object']);
+  });
+});
+
+describe('PR 8C0b-1: the shared validator stays out of production', () => {
+  it.each(PRODUCTION_TREES)('no file under %s imports the shared validator', (tree) => {
+    const offenders = sourceFiles(tree).filter((file) =>
+      /from\s+['"][^'"]*\/formation\/(validator|issue-codes)\.js['"]/u.test(read(file)),
+    );
+    expect(offenders).toEqual([]);
+  });
+
+  it('the shared validator imports no frozen generation', () => {
+    expect(
+      /from\s+['"][^'"]*\/v2-1-[1-9][^'"]*['"]/u.test(read('src/formation/validator.ts')),
+    ).toBe(false);
+  });
+
+  it('the validator fixtures are test-only', () => {
+    const offenders = [...PRODUCTION_TREES, 'src/formation', 'src/compatibility']
+      .flatMap((tree) => sourceFiles(tree))
+      .filter((file) => read(file).includes('formation-validator-fixtures'));
     expect(offenders).toEqual([]);
   });
 });
