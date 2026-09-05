@@ -62,7 +62,11 @@ import {
   type SourceTurn,
 } from './envelope.js';
 import { createIssueCodes } from './issue-codes.js';
-import { assertValidGenerationSpec, type GenerationSpec } from './generation-spec.js';
+import {
+  assertKnownCardinality,
+  assertValidGenerationSpec,
+  type GenerationSpec,
+} from './generation-spec.js';
 import { hashPartyFormationProjection } from './projection.js';
 import { authoritativeFormationExplanatoryState } from './readiness.js';
 import { withinMaxPropositions } from './requirements.js';
@@ -140,8 +144,15 @@ export function createFormationValidator(input: { spec: GenerationSpec }): Forma
   // refusal 8C0b-1 used while `multi_live` was unimplemented is deliberately
   // gone — its replacement is a real implementation, not a silent skip, and
   // the A/B matrix proves the two policies differ by exactly the intended
-  // rules. An unrecognised value cannot reach here: the type is a closed union
-  // and the spec is validated above.
+  // rules.
+  //
+  // The refusal for an UNRECOGNISED policy remains, and must. Behaviour is
+  // selected below by `=== 'single_live_per_slot'`, so a value this component
+  // does not know would resolve to the permissive branch and silently disable
+  // live-slot uniqueness. `validateGenerationSpec` rejects unknown values too;
+  // this is the second lock, because a component that defaults to the looser
+  // semantics is exactly the failure mode that must never exist.
+  assertKnownCardinality(spec.policy.proposition_cardinality, 'shared validator');
   const singleLivePerSlot = spec.policy.proposition_cardinality === 'single_live_per_slot';
 
   function exactKeys(

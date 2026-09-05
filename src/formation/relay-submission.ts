@@ -67,7 +67,12 @@ import {
   type SourceTurn,
 } from './envelope.js';
 import { createIssueCodes } from './issue-codes.js';
-import { assertValidGenerationSpec, type GenerationSpec } from './generation-spec.js';
+import {
+  assertKnownCardinality,
+  assertKnownRequirementScope,
+  assertValidGenerationSpec,
+  type GenerationSpec,
+} from './generation-spec.js';
 import { authoritativeFormationExplanatoryState } from './readiness.js';
 import {
   createRelayRuntimeMinter,
@@ -216,6 +221,13 @@ export function createFormationRelay(input: {
    * visibility, workflow state — is unconditional under both policies. A
    * widened parsing scope must never become a widened authority.
    */
+  //
+  // Both are selected by equality, so an unrecognised value would resolve to
+  // the permissive side — multi-live admission, or broad requirement scope.
+  // Refuse to construct instead. `validateGenerationSpec` also rejects unknown
+  // values; this is the second lock at the component boundary.
+  assertKnownCardinality(spec.policy.proposition_cardinality, 'shared relay');
+  assertKnownRequirementScope(spec.policy.assertion_requirement_scope, 'shared relay');
   const singleLivePerSlot = spec.policy.proposition_cardinality === 'single_live_per_slot';
   const requireReplyTarget = spec.policy.assertion_requirement_scope === 'in_reply_to_only';
 

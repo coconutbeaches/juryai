@@ -11,11 +11,15 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  assertKnownCardinality,
+  assertKnownRequirementScope,
   assertValidGenerationSpec,
   validateGenerationSpec,
   type GenerationSpec,
 } from '../formation/generation-spec.js';
 import { createFormationCeremony } from '../formation/ceremony.js';
+import { createFormationValidator } from '../formation/validator.js';
+import { createFormationRelay } from '../formation/relay-submission.js';
 import { projectPartyFormation } from '../formation/projection.js';
 import { deriveFormationReadiness } from '../formation/readiness.js';
 import { trustedSystemAuthority } from '../formation/envelope.js';
@@ -499,5 +503,102 @@ describe('PR 8C1a: assertion_requirement_scope is stated, never inferred', () =>
     });
     expect(narrow.policy.assertion_requirement_scope).toBe('in_reply_to_only');
     expect(narrow.compiler.contract_version).toBe(FUTURE_POLICY_SPEC.compiler.contract_version);
+  });
+});
+
+/**
+ * PR 8C1a — unknown policy values must FAIL CLOSED.
+ *
+ * Regression for a P2 found by the bounded review at `1fd4eea`. Every consumer
+ * selects behaviour with `x === 'single_live_per_slot'`, so a value nothing
+ * recognised resolved to the PERMISSIVE branch: `validateGenerationSpec`
+ * accepted a typo, the validator built, and live-slot uniqueness silently
+ * stopped firing. The TypeScript union is compile-time only, and a spec loaded
+ * from a manifest as decoded JSON carries whatever string it carries — so a
+ * comment claiming the union prevented this was asserting an invariant nothing
+ * enforced.
+ */
+describe('PR 8C1a: an unrecognised policy value fails closed', () => {
+  const TYPO = 'single_live_per_slot_typo' as never;
+
+  it('the spec validator rejects an unknown proposition cardinality', () => {
+    const spec = rawV214Spec();
+    expect(
+      validateGenerationSpec({
+        ...spec,
+        policy: { ...spec.policy, proposition_cardinality: TYPO },
+      }).map((entry) => entry.path),
+    ).toContain('spec.policy.proposition_cardinality');
+  });
+
+  it('the spec validator rejects an unknown requirement scope', () => {
+    const spec = rawV214Spec();
+    expect(
+      validateGenerationSpec({
+        ...spec,
+        policy: { ...spec.policy, assertion_requirement_scope: 'in_reply_to_maybe' as never },
+      }).map((entry) => entry.path),
+    ).toContain('spec.policy.assertion_requirement_scope');
+  });
+
+  it('the spec validator rejects an unknown compiler cardinality', () => {
+    const spec = rawV214Spec();
+    expect(
+      validateGenerationSpec({
+        ...spec,
+        compiler: { ...spec.compiler, assertion_cardinality_policy: TYPO },
+      }).map((entry) => entry.path),
+    ).toContain('spec.compiler.assertion_cardinality_policy');
+  });
+
+  it('the validator refuses to construct on an unknown policy', () => {
+    // The spec validator rejects first, so THAT is the message a caller sees.
+    // Asserting the component's own wording here would be asserting a path the
+    // caller cannot reach — the component check is the second lock, exercised
+    // directly below.
+    const spec = rawV214Spec();
+    expect(() =>
+      createFormationValidator({
+        spec: { ...spec, policy: { ...spec.policy, proposition_cardinality: TYPO } },
+      }),
+    ).toThrow(/is not a recognised policy/u);
+  });
+
+  it('the relay refuses to construct on an unknown policy or scope', () => {
+    const spec = rawV214Spec();
+    const validator = createFormationValidator({ spec: rawV214Spec() });
+    const ceremony = createFormationCeremony({ spec: rawV214Spec(), validator });
+    for (const policy of [
+      { proposition_cardinality: TYPO },
+      { assertion_requirement_scope: 'anything_else' as never },
+    ]) {
+      expect(() =>
+        createFormationRelay({
+          spec: { ...spec, policy: { ...spec.policy, ...policy } },
+          validator,
+          cursors: ceremony.refreshPartyViewCursors,
+        }),
+      ).toThrow(/is not a recognised policy/u);
+    }
+  });
+
+  it('the component-level lock refuses independently of the spec validator', () => {
+    // Proves the second lock is real rather than decorative: if a spec ever
+    // reached a component unvalidated, the component still refuses instead of
+    // defaulting to the permissive branch.
+    expect(() => assertKnownCardinality('single_live_per_slot_typo', 'shared validator')).toThrow(
+      /not recognised by the shared validator/u,
+    );
+    expect(() => assertKnownRequirementScope('in_reply_to_maybe', 'shared relay')).toThrow(
+      /not recognised by the shared relay/u,
+    );
+    // And accepts both known values.
+    expect(() => assertKnownCardinality('multi_live', 'shared validator')).not.toThrow();
+    expect(() => assertKnownRequirementScope('all_own_requirements', 'shared relay')).not.toThrow();
+  });
+
+  it('both known policies still construct', () => {
+    expect(() => createFormationValidator({ spec: rawV214Spec() })).not.toThrow();
+    expect(() => createFormationValidator({ spec: rawFutureSpec() })).not.toThrow();
   });
 });

@@ -154,6 +154,39 @@ export interface GenerationSpec {
  * behaviour here, which is the point — the alternative lets a typo in a
  * version string silently buy an unverified `multi_live` claim.
  */
+/**
+ * The closed policy vocabularies, as VALUES.
+ *
+ * The TypeScript unions above are compile-time only. A spec that arrives as
+ * decoded JSON — which is exactly how 8C2 will load a generation manifest —
+ * carries whatever string it carries, and an unrecognised value must never
+ * reach a component that selects behaviour with an equality test: every
+ * consumer computes `x === 'single_live_per_slot'`, so a typo would silently
+ * choose the PERMISSIVE branch and disable live-slot uniqueness. Unknown must
+ * fail closed, not fall through to the newer semantics.
+ */
+const PROPOSITION_CARDINALITY_POLICIES: readonly PropositionCardinalityPolicy[] = Object.freeze([
+  'single_live_per_slot',
+  'multi_live',
+]);
+
+const ASSERTION_CARDINALITY_POLICIES: readonly AssertionCardinalityPolicy[] = Object.freeze([
+  'single_live_per_slot',
+  'multi_live',
+]);
+
+const ASSERTION_REQUIREMENT_SCOPES: readonly AssertionRequirementScope[] = Object.freeze([
+  'in_reply_to_only',
+  'all_own_requirements',
+]);
+
+/** Every closed policy vocabulary, for the runtime membership checks below. */
+export const GENERATION_POLICY_VOCABULARIES = Object.freeze({
+  'spec.policy.proposition_cardinality': PROPOSITION_CARDINALITY_POLICIES,
+  'spec.policy.assertion_requirement_scope': ASSERTION_REQUIREMENT_SCOPES,
+  'spec.compiler.assertion_cardinality_policy': ASSERTION_CARDINALITY_POLICIES,
+} as const);
+
 const COMPILER_CONTRACT_ASSERTION_CARDINALITY: Readonly<
   Record<string, AssertionCardinalityPolicy>
 > = Object.freeze({
@@ -282,6 +315,24 @@ export function validateGenerationSpec(spec: GenerationSpec): GenerationSpecIssu
     }
   }
 
+  // Enum membership FIRST. Every later rule reads these fields, and an
+  // unrecognised value would otherwise be compared for equality and quietly
+  // resolve to the permissive side.
+  const declared: [keyof typeof GENERATION_POLICY_VOCABULARIES, string][] = [
+    ['spec.policy.proposition_cardinality', spec.policy.proposition_cardinality],
+    ['spec.policy.assertion_requirement_scope', spec.policy.assertion_requirement_scope],
+    ['spec.compiler.assertion_cardinality_policy', spec.compiler.assertion_cardinality_policy],
+  ];
+  for (const [path, value] of declared) {
+    const vocabulary = GENERATION_POLICY_VOCABULARIES[path] as readonly string[];
+    if (!vocabulary.includes(value)) {
+      issues.push({
+        path,
+        message: `"${value}" is not a recognised policy; expected one of ${vocabulary.join(', ')}.`,
+      });
+    }
+  }
+
   const implemented = COMPILER_CONTRACT_ASSERTION_CARDINALITY[spec.compiler.contract_version];
   if (implemented === undefined) {
     issues.push({
@@ -353,4 +404,29 @@ export function assertValidGenerationSpec(spec: GenerationSpec): ValidatedGenera
     );
   }
   return deepFreeze(copy) as unknown as ValidatedGenerationSpec;
+}
+
+/**
+ * Refuses an unrecognised cardinality policy at a component boundary.
+ *
+ * A component selects behaviour with an equality test, so an unknown value
+ * would resolve to the permissive branch. Failing to construct is the only
+ * outcome that cannot end with a permissive component wired into something —
+ * the same reasoning 8C0b-1 used, applied to the case that still needs it.
+ */
+export function assertKnownCardinality(value: string, component: string): void {
+  if (!(PROPOSITION_CARDINALITY_POLICIES as readonly string[]).includes(value)) {
+    throw new TypeError(
+      `Proposition cardinality policy "${value}" is not recognised by the ${component}.`,
+    );
+  }
+}
+
+/** The same refusal for the requirement-scope policy. */
+export function assertKnownRequirementScope(value: string, component: string): void {
+  if (!(ASSERTION_REQUIREMENT_SCOPES as readonly string[]).includes(value)) {
+    throw new TypeError(
+      `Assertion requirement scope "${value}" is not recognised by the ${component}.`,
+    );
+  }
 }
