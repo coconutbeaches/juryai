@@ -688,3 +688,147 @@ describe('the oracle speaks the V0.4 vocabulary, not the V0.2 one', () => {
     expect(rules(result)).toContain('contract');
   });
 });
+
+describe('the oracle does not inflate severity or lose valid outputs', () => {
+  /**
+   * Regressions for three findings from the automatic review at `a98fd2b`.
+   * Each was reproduced before fixing, and each test was checked to fail
+   * against the pre-fix implementation.
+   */
+
+  it('a merged assertion with the CORRECT strength is not a strength blocker', () => {
+    // P1. When several expectations are compatible with one assertion, one goes
+    // unmatched purely because one-to-one already assigned it. The assertion
+    // still carries the expected strength, so reporting `strength_flattened`
+    // would escalate an ordinary "merged or missing" failure into a HARD
+    // BLOCKER — and a blocker that fires on correct-but-unassigned output stops
+    // meaning anything.
+    const evalCase = caseWith([
+      {
+        expectation_id: 'e_delivery',
+        requirement_id: REQ,
+        type: 'narrative_fact',
+        epistemic_strengths: ['asserted_confident'],
+        statement_mentions: ['15 July'],
+      },
+      {
+        expectation_id: 'e_form',
+        requirement_id: REQ,
+        type: 'narrative_fact',
+        epistemic_strengths: ['asserted_confident'],
+        statement_mentions: ['contact form'],
+      },
+    ]);
+    const merged = `${FACT_A} and ${FACT_B}`;
+    const result = grade(
+      evalCase,
+      output('oracle_fixture', [
+        assertion('oracle_fixture', { id: 'a1', statement: merged, quote: merged }),
+      ]),
+    );
+    expect(result.ok).toBe(false);
+    expect(rules(result)).toContain('assertions.required_missing');
+    // The merge is still caught — as an ordinary failure, which is what it is.
+    expect(rules(result)).not.toContain('assertions.strength_flattened');
+    expect(rules(result)).not.toContain('assertions.literal_missing');
+    expect(result.hard_blockers).toEqual([]);
+  });
+
+  it('a genuinely flattened strength IS still a blocker', () => {
+    // The counterpart: the fix must not have disarmed the diagnosis.
+    const evalCase = caseWith([
+      {
+        expectation_id: 'e_fact',
+        requirement_id: REQ,
+        type: 'narrative_fact',
+        epistemic_strengths: ['asserted_confident'],
+        statement_mentions: ['15 July'],
+      },
+      {
+        expectation_id: 'e_assessment',
+        requirement_id: REQ,
+        type: 'narrative_fact',
+        epistemic_strengths: ['asserted_qualified'],
+        statement_mentions: ['contact form'],
+      },
+    ]);
+    const result = grade(
+      evalCase,
+      output('oracle_fixture', [
+        assertion('oracle_fixture', { id: 'a1', statement: FACT_A }),
+        assertion('oracle_fixture', { id: 'a2', statement: FACT_B }),
+      ]),
+    );
+    expect(rules(result)).toContain('assertions.strength_flattened');
+    expect(result.hard_blockers.length).toBeGreaterThan(0);
+  });
+
+  it('an optional expectation never steals the assertion a required one needs', () => {
+    // P2. Maximum matching maximises COUNT, so both assignments tie and the
+    // winner was decided by which expectation_id sorted first. Named so the
+    // optional one sorts FIRST, which is the failing order.
+    const evalCase = caseWith([
+      { expectation_id: 'a_optional', requirement_id: REQ, type: 'narrative_fact', optional: true },
+      { expectation_id: 'z_required', requirement_id: REQ, type: 'narrative_fact' },
+    ]);
+    const result = grade(
+      evalCase,
+      output('oracle_fixture', [assertion('oracle_fixture', { id: 'a1', statement: FACT_A })]),
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it('required-before-optional holds in both id orders', () => {
+    for (const ids of [
+      ['a_optional', 'z_required'],
+      ['z_optional', 'a_required'],
+    ]) {
+      const evalCase = caseWith([
+        { expectation_id: ids[0]!, requirement_id: REQ, type: 'narrative_fact', optional: true },
+        { expectation_id: ids[1]!, requirement_id: REQ, type: 'narrative_fact' },
+      ]);
+      expect(
+        grade(
+          evalCase,
+          output('oracle_fixture', [assertion('oracle_fixture', { id: 'a1', statement: FACT_A })]),
+        ).ok,
+      ).toBe(true);
+    }
+  });
+
+  it('the eval turn stores the NORMALISED payload, as production does', () => {
+    // P3. The relay normalises an intent payload before committing it, and
+    // every span offset addresses that stored form. A fixture with repeated
+    // whitespace would otherwise be graded against a document production could
+    // never produce.
+    const evalCase = caseWith([], {
+      answer: 'They  delivered\ton 15 July',
+      expect: { verdict: 'no_assertions', assertions: [], clarifications: [] },
+    });
+    const input = buildEvalInputV04(evalCase);
+    expect(input.turn.payload.answer.text).toBe('They delivered on 15 July');
+    expect(input.turn.payload.answer.text).not.toBe(evalCase.answer);
+  });
+
+  it('a span into the normalised text verifies', () => {
+    // The consequence that matters: offsets index the stored form, so a quote
+    // taken from the normalised text grounds correctly.
+    const evalCase = caseWith(
+      [{ expectation_id: 'e_norm', requirement_id: REQ, type: 'narrative_fact' }],
+      { answer: 'They  delivered\ton 15 July' },
+    );
+    const normalised = buildEvalInputV04(evalCase).turn.payload.answer.text;
+    const result = grade(
+      evalCase,
+      output('oracle_fixture', [
+        assertion('oracle_fixture', {
+          id: 'a1',
+          statement: normalised,
+          quote: normalised,
+          haystack: normalised,
+        }),
+      ]),
+    );
+    expect(result.ok).toBe(true);
+  });
+});

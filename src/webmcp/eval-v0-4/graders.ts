@@ -180,7 +180,21 @@ function gradeAssertionSetV04(
   output: CompilerOutput,
   failures: EvalFailureV04[],
 ): void {
-  const expectedOrder = canonicalOrder(expected, (item) => item.expectation_id);
+  /**
+   * Required expectations are offered an assertion BEFORE optional ones.
+   *
+   * Maximum matching maximises the COUNT of matches, and both assignments have
+   * the same count when a required and an optional expectation compete for one
+   * assertion — so an unweighted matcher could satisfy the optional one and
+   * report the required one missing, with the winner decided by which
+   * `expectation_id` happened to sort first. Augmenting paths never unmatch a
+   * vertex once matched, so processing required first makes required
+   * satisfaction take precedence, deterministically.
+   */
+  const expectedOrder = canonicalOrder(
+    expected,
+    (item) => `${(item.optional ?? false) ? '1' : '0'}|${item.expectation_id}`,
+  );
   const actualOrder = canonicalOrder(output.assertions, (item) => canonicalSerialize(item));
 
   const result = matchOneToOne(expectedOrder.length, actualOrder.length, (e, a) =>
@@ -219,30 +233,58 @@ function gradeAssertionSetV04(
     // weak: when two assertions swap their supersession targets, one of them
     // DOES carry it, and the swap would be reported only as a generic miss —
     // downgrading a hard blocker to an ordinary failure.
-    const matchesExcept = (skip: 'strength' | 'supersedes' | 'literals'): boolean =>
+    const strengthOk = (assertion: Assertion): boolean =>
+      item.epistemic_strengths === undefined ||
+      item.epistemic_strengths.includes(assertion.epistemic_strength);
+    const supersedesOk = (assertion: Assertion): boolean =>
+      item.supersedes === undefined || assertion.supersedes_candidate === item.supersedes;
+    const literalsOk = (assertion: Assertion): boolean =>
+      (item.statement_mentions ?? []).every((literal) =>
+        fold(assertion.statement).includes(fold(literal)),
+      );
+
+    /**
+     * Diagnose only when the skipped constraint ACTUALLY DIFFERS.
+     *
+     * "Matches everything except X" is not enough on its own: when several
+     * expectations are compatible with one assertion, an expectation can go
+     * unmatched purely because one-to-one already assigned that assertion
+     * elsewhere. The assertion then still satisfies X, and reporting a
+     * mismatch on X would escalate an ordinary "merged or missing" failure
+     * into a HARD BLOCKER. Severity inflation defeats the whole point of
+     * separating blockers from ordinary failures — a blocker that fires on
+     * correct-but-unassigned output stops meaning anything.
+     */
+    const differsOn = (
+      skip: 'strength' | 'supersedes' | 'literals',
+      violated: (assertion: Assertion) => boolean,
+    ): boolean =>
       output.assertions.some(
         (assertion) =>
           assertion.requirement_id === item.requirement_id &&
           assertion.proposed_type === item.type &&
-          (skip === 'strength' ||
-            item.epistemic_strengths === undefined ||
-            item.epistemic_strengths.includes(assertion.epistemic_strength)) &&
-          (skip === 'supersedes' ||
-            item.supersedes === undefined ||
-            assertion.supersedes_candidate === item.supersedes) &&
-          (skip === 'literals' ||
-            (item.statement_mentions ?? []).every((literal) =>
-              fold(assertion.statement).includes(fold(literal)),
-            )),
+          (skip === 'strength' || strengthOk(assertion)) &&
+          (skip === 'supersedes' || supersedesOk(assertion)) &&
+          (skip === 'literals' || literalsOk(assertion)) &&
+          violated(assertion),
       );
 
-    if (item.epistemic_strengths !== undefined && matchesExcept('strength')) {
+    if (
+      item.epistemic_strengths !== undefined &&
+      differsOn('strength', (assertion) => !strengthOk(assertion))
+    ) {
       failures.push(failure('assertions.strength_flattened', item.expectation_id));
     }
-    if (item.supersedes !== undefined && matchesExcept('supersedes')) {
+    if (
+      item.supersedes !== undefined &&
+      differsOn('supersedes', (assertion) => !supersedesOk(assertion))
+    ) {
       failures.push(failure('assertions.wrong_supersession_target', item.expectation_id));
     }
-    if ((item.statement_mentions ?? []).length > 0 && matchesExcept('literals')) {
+    if (
+      (item.statement_mentions ?? []).length > 0 &&
+      differsOn('literals', (assertion) => !literalsOk(assertion))
+    ) {
       failures.push(failure('assertions.literal_missing', item.expectation_id));
     }
   }

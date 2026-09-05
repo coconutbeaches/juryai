@@ -22,6 +22,7 @@
 import { computeRequestFingerprint } from '../core/idempotency.js';
 import {
   computePayloadCommitment,
+  normalizePayload,
   type SourceTurnPayload,
   type SourceTurnRecord,
 } from '../core/turns.js';
@@ -76,10 +77,19 @@ function existingProposition(
 }
 
 export function buildEvalInputV04(evalCase: SemanticEvalCaseV04): CompilerInput {
-  const payload: SourceTurnPayload = {
+  /**
+   * NORMALISED, exactly as production stores it.
+   *
+   * The relay normalises an intent payload before committing it, and every span
+   * offset addresses that stored form. Building the eval turn from raw fixture
+   * strings would show the model — and the span verifier — text production
+   * would never compile, so any corpus case with repeated whitespace, tabs or
+   * non-NFC characters would grade against a document that cannot exist.
+   */
+  const payload: SourceTurnPayload = normalizePayload({
     context: (evalCase.context ?? []).map((text) => ({ role: 'assistant', text })),
     answer: { role: 'user', text: evalCase.answer },
-  };
+  });
   const inReplyTo = [...new Set(evalCase.in_reply_to)].sort();
   const turn: SourceTurnRecord = {
     turn_id: turnId(evalCase.id),
