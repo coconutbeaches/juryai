@@ -56,6 +56,9 @@ const V214_RAW: GenerationSpec = {
     review_page_version: 'juryai-v2.1.4-first-party-review-page-v1.0.0',
     protected_action_version: 'juryai-party-review-protected-action-v1.3.0',
     party_review_state_version: 'juryai-party-review-state-v1.2.0',
+    // Written as the literal the frozen validator emits. Deriving `v214_` from
+    // `v2.1.4` is precisely what this field exists to prevent.
+    contract_issue_code_prefix: 'v214_',
   },
   requirements: {
     // Unchanged from V2.1.4: the multi-proposition work is generation and

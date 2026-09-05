@@ -315,3 +315,88 @@ describe('PR 8C0a: engine helpers consume the validated boundary', () => {
     deriveFormationReadiness(raw, envelope);
   });
 });
+
+/**
+ * PR 8C0b-1 — the compiler-policy claim becomes load-bearing.
+ *
+ * `compiler.assertion_cardinality_policy` was documentation until now: nothing
+ * checked it against the contract version the generation actually runs.
+ * `juryai-webmcp-compiler-contract-v0.3.0` hardcodes single-slot cardinality
+ * and refuses to validate any other contract version, so a spec pairing V0.3
+ * with `multi_live` states something the running code contradicts — and the
+ * spec is what a future generation would be built from.
+ */
+describe('PR 8C0b-1: a spec cannot claim compiler behaviour the contract does not implement', () => {
+  it('the V2.1.4 parity spec pairs compiler V0.3 with single_live_per_slot', () => {
+    expect(V214_PARITY_SPEC.compiler.contract_version).toBe(
+      'juryai-webmcp-compiler-contract-v0.3.0',
+    );
+    expect(V214_PARITY_SPEC.compiler.assertion_cardinality_policy).toBe('single_live_per_slot');
+  });
+
+  it('rejects compiler V0.3 declared as multi_live', () => {
+    const spec = rawV214Spec();
+    const raw: GenerationSpec = {
+      ...spec,
+      compiler: { ...spec.compiler, assertion_cardinality_policy: 'multi_live' },
+    };
+    expect(validateGenerationSpec(raw)).toEqual([
+      {
+        path: 'spec.compiler.assertion_cardinality_policy',
+        message:
+          'Compiler contract "juryai-webmcp-compiler-contract-v0.3.0" implements "single_live_per_slot"; a spec cannot declare "multi_live".',
+      },
+    ]);
+    expect(() => assertValidGenerationSpec(raw)).toThrow(/cannot declare "multi_live"/u);
+  });
+
+  it('rejects an unrecorded compiler contract rather than assuming it is compatible', () => {
+    // Fail closed. Allowing unknown versions would let a typo in a contract
+    // string buy an entirely unverified cardinality claim, which is exactly the
+    // silent-inherit failure this spec design exists to prevent. 8C1's V0.4
+    // must state its own behaviour to be usable.
+    const spec = rawV214Spec();
+    const raw: GenerationSpec = {
+      ...spec,
+      compiler: { ...spec.compiler, contract_version: 'juryai-webmcp-compiler-contract-v0.4.0' },
+    };
+    expect(validateGenerationSpec(raw)).toEqual([
+      {
+        path: 'spec.compiler.contract_version',
+        message:
+          'Compiler contract "juryai-webmcp-compiler-contract-v0.4.0" has no recorded assertion-cardinality behaviour, so the declared policy cannot be verified.',
+      },
+    ]);
+  });
+
+  it('a near-miss contract version is refused, not silently accepted', () => {
+    const spec = rawV214Spec();
+    expect(
+      validateGenerationSpec({
+        ...spec,
+        compiler: {
+          ...spec.compiler,
+          contract_version: 'juryai-webmcp-compiler-contract-v0.3.0 ',
+        },
+      }),
+    ).toHaveLength(1);
+  });
+});
+
+describe('PR 8C0b-1: the issue-code prefix is part of the spec contract', () => {
+  it('a spec missing the prefix does not compile, and an empty one is rejected', () => {
+    const spec = rawV214Spec();
+    expect(
+      validateGenerationSpec({
+        ...spec,
+        contracts: { ...spec.contracts, contract_issue_code_prefix: '   ' },
+      }),
+    ).toEqual([{ path: 'spec.contracts.contract_issue_code_prefix', message: 'Value is empty.' }]);
+  });
+
+  it('the prefix survives the validated-copy boundary unchanged', () => {
+    const validated = assertValidGenerationSpec(rawV214Spec());
+    expect(validated.contracts.contract_issue_code_prefix).toBe('v214_');
+    expect(Object.isFrozen(validated.contracts)).toBe(true);
+  });
+});

@@ -60,6 +60,14 @@ export interface GenerationContracts {
   readonly review_page_version: string;
   readonly protected_action_version: string;
   readonly party_review_state_version: string;
+  /**
+   * Literal prefix on this generation's contract-issue codes, e.g. `v214_`.
+   *
+   * Stated, never computed. Deriving it from `identity.generation_id` would
+   * make every diagnostic code depend on a string transformation, which is the
+   * defect class this whole architecture exists to remove.
+   */
+  readonly contract_issue_code_prefix: string;
 }
 
 export interface GenerationRequirements {
@@ -108,6 +116,27 @@ export interface GenerationSpec {
   readonly persistence: GenerationPersistence;
   readonly decoding: GenerationDecoding;
 }
+
+/**
+ * What each compiler contract ACTUALLY implements, as opposed to what a spec
+ * claims about it.
+ *
+ * `juryai-webmcp-compiler-contract-v0.3.0` hardcodes
+ * `enforceAssertionSlotCardinality = true` and refuses to validate any other
+ * contract version, so a spec pairing V0.3 with `multi_live` would be a
+ * statement the running code contradicts. Without this table
+ * `compiler.assertion_cardinality_policy` is documentation, not a constraint.
+ *
+ * The map is CLOSED: an unrecognised contract version is rejected rather than
+ * assumed compatible. A future contract (8C1's V0.4) must declare its own
+ * behaviour here, which is the point — the alternative lets a typo in a
+ * version string silently buy an unverified `multi_live` claim.
+ */
+const COMPILER_CONTRACT_ASSERTION_CARDINALITY: Readonly<
+  Record<string, AssertionCardinalityPolicy>
+> = Object.freeze({
+  'juryai-webmcp-compiler-contract-v0.3.0': 'single_live_per_slot',
+});
 
 /**
  * Values a spec must never contain, sourced from the single declaration site.
@@ -205,6 +234,19 @@ export function validateGenerationSpec(spec: GenerationSpec): GenerationSpecIssu
         message: `Persisted pairing "${actual}" disagrees with the contract this generation writes ("${expected}").`,
       });
     }
+  }
+
+  const implemented = COMPILER_CONTRACT_ASSERTION_CARDINALITY[spec.compiler.contract_version];
+  if (implemented === undefined) {
+    issues.push({
+      path: 'spec.compiler.contract_version',
+      message: `Compiler contract "${spec.compiler.contract_version}" has no recorded assertion-cardinality behaviour, so the declared policy cannot be verified.`,
+    });
+  } else if (implemented !== spec.compiler.assertion_cardinality_policy) {
+    issues.push({
+      path: 'spec.compiler.assertion_cardinality_policy',
+      message: `Compiler contract "${spec.compiler.contract_version}" implements "${implemented}"; a spec cannot declare "${spec.compiler.assertion_cardinality_policy}".`,
+    });
   }
 
   if (spec.decoding.review_page_version !== spec.contracts.review_page_version) {
