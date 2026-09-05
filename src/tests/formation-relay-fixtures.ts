@@ -18,6 +18,7 @@ import {
   TRUSTED_SYSTEM_AUTHORITY_V214,
   partyAuthorityV214,
   type CaseEnvelopeV214,
+  type FormationRequirementV214,
   type PartyIdV214,
 } from '../v2-1-4/case-envelope.js';
 import { createInitialCaseEnvelopeV214 } from '../v2-1-4/envelope-ceremony.js';
@@ -32,7 +33,7 @@ import {
 import { partyAuthority, type CaseEnvelope } from '../formation/envelope.js';
 import type { SourceTurnPayload, TurnSpan } from '../webmcp/core/turns.js';
 import { answerSpan, bindBoth, ceremony, requirement, unique } from './v2-1-4-test-helpers.js';
-import { V214_RELAY, asEngine } from './formation-relay-wiring.js';
+import { FUTURE_RELAY, V214_RELAY, asEngine } from './formation-relay-wiring.js';
 
 const NOW = '2026-09-05T04:00:00.000Z';
 
@@ -91,14 +92,30 @@ export function RUNTIME_INPUT(turnId: string): {
   };
 }
 
+/**
+ * A TEST-ONLY requirement with a finite `max_propositions`.
+ *
+ * The shipped V2.1.4 set uses `max_propositions: null` throughout, so finite
+ * cardinality is unreachable there and must NOT be introduced by editing those
+ * definitions — requirement definitions belong to a generation, which is 8C2.
+ */
+export function finiteRequirement(
+  id: string,
+  max: number,
+): Omit<FormationRequirementV214, 'party_id'> {
+  return { ...requirement(id), max_propositions: max };
+}
+
 export function boundEnvelope(requirementIds: {
-  party_a?: string[];
-  party_b?: string[];
+  party_a?: (string | Omit<FormationRequirementV214, 'party_id'>)[];
+  party_b?: (string | Omit<FormationRequirementV214, 'party_id'>)[];
 }): CaseEnvelopeV214 {
+  const build = (entry: string | Omit<FormationRequirementV214, 'party_id'>) =>
+    typeof entry === 'string' ? requirement(entry) : entry;
   return bindBoth(
     createInitialCaseEnvelopeV214(unique('dispute_relay_parity'), {
-      party_a: (requirementIds.party_a ?? []).map((id) => requirement(id)),
-      party_b: (requirementIds.party_b ?? []).map((id) => requirement(id)),
+      party_a: (requirementIds.party_a ?? []).map(build),
+      party_b: (requirementIds.party_b ?? []).map(build),
     }),
   );
 }
@@ -283,6 +300,101 @@ export function bothRebase(scenario: RelayScenario, current: CaseEnvelopeV214) {
       asEngine(current) as never,
     ),
   };
+}
+
+/**
+ * Applies one prepared submission to BOTH policies, so an A/B row differs only
+ * in the policy under test. The submission is prepared under the FUTURE policy
+ * because the strict policy would refuse to prepare volunteered targets — the
+ * comparison is about what each policy ADMITS, not what each will prepare.
+ */
+export function bothPolicies(
+  scenario: RelayScenario,
+  options: { prepareUnder?: 'strict' | 'future' } = {},
+) {
+  const prepared =
+    options.prepareUnder === 'strict' ? frozenPrepare(scenario) : futurePrepare(scenario);
+  if (prepared.status !== 'prepared') throw new Error(`prepare failed: ${prepared.message}`);
+  const submission = cloneCanonical(prepared.submission) as unknown as Record<string, unknown>;
+  const strict = applyExternalRelaySubmissionV214({
+    envelope: scenario.envelope,
+    submission: cloneCanonical(submission) as never,
+    execution_authority: partyAuthorityV214(scenario.envelope, scenario.partyId, 'external_relay'),
+  });
+  const future = FUTURE_RELAY.applyExternalRelaySubmission({
+    envelope: asEngine(scenario.envelope),
+    submission: cloneCanonical(submission) as never,
+    execution_authority: partyAuthority(
+      asEngine(scenario.envelope),
+      scenario.partyId,
+      'external_relay',
+    ),
+  });
+  return { strict, future, submission };
+}
+
+/** Prepares under the future policy. */
+export function futurePrepare(scenario: RelayScenario, tamper?: Tamper, patch?: IntentPatch) {
+  const minted = FUTURE_RELAY.mintRuntime(FUTURE_RELAY.bridge, runtimeInput(scenario));
+  return FUTURE_RELAY.prepareExternalRelaySubmission({
+    envelope: asEngine(scenario.envelope),
+    execution_authority: partyAuthority(
+      asEngine(scenario.envelope),
+      scenario.partyId,
+      'external_relay',
+    ),
+    intent: intentFor(scenario, patch) as never,
+    runtime: (tamper ? tamper(minted as never) : minted) as never,
+    compiler_run: scenario.compilerRun as never,
+    effects: cloneCanonical(scenario.effects) as never,
+  });
+}
+
+/** Applies an already-prepared submission under the future policy only. */
+export function futureApply(scenario: RelayScenario, submission: unknown) {
+  return FUTURE_RELAY.applyExternalRelaySubmission({
+    envelope: asEngine(scenario.envelope),
+    submission: cloneCanonical(submission) as never,
+    execution_authority: partyAuthority(
+      asEngine(scenario.envelope),
+      scenario.partyId,
+      'external_relay',
+    ),
+  });
+}
+
+/** Records a fact under the FUTURE policy, for building multi-live state. */
+export function recordFutureFact(
+  envelope: CaseEnvelopeV214,
+  partyId: PartyIdV214,
+  requirementId: string,
+  answer: string,
+  overrides: Record<string, unknown> = {},
+): CaseEnvelopeV214 {
+  const scenario = relayCase({
+    envelope,
+    requirementId,
+    partyId,
+    answer,
+    effects: (turnId) => [
+      {
+        type: 'semantic_assertion_candidate',
+        compiler_assertion_id: unique('compiler_assertion'),
+        requirement_id: requirementId,
+        proposed_type: 'narrative_fact',
+        epistemic_strength: 'asserted_confident',
+        statement: answer,
+        spans: [answerSpan(turnId, answer)],
+        supersedes_candidate: null,
+        ...overrides,
+      } as ExternalRelayEffectCandidateV214,
+    ],
+  });
+  const prepared = futurePrepare(scenario);
+  if (prepared.status !== 'prepared') throw new Error(prepared.message);
+  const applied = futureApply(scenario, prepared.submission);
+  if (applied.status !== 'applied') throw new Error(`${applied.reason_code}: ${applied.message}`);
+  return applied.envelope as unknown as CaseEnvelopeV214;
 }
 
 /** Canonical byte comparison, the only equality this PR trusts. */

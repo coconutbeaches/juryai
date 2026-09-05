@@ -24,6 +24,7 @@ import {
   rawV214Spec,
   v214ValidatorAdapter,
 } from './formation-v214-parity-spec.js';
+import { FUTURE_POLICY_SPEC, rawFutureSpec } from './formation-future-policy-spec.js';
 import {
   PRODUCTION_ENABLED_ENV_VAR,
   PRODUCTION_START_IDENTITY_DOMAIN,
@@ -358,13 +359,20 @@ describe('PR 8C0b-1: a spec cannot claim compiler behaviour the contract does no
     const spec = rawV214Spec();
     const raw: GenerationSpec = {
       ...spec,
-      compiler: { ...spec.compiler, contract_version: 'juryai-webmcp-compiler-contract-v0.4.0' },
+      // V0.4 is registered as of 8C1a, so the unrecorded example must be a
+      // version that genuinely has no entry in either closed table.
+      compiler: { ...spec.compiler, contract_version: 'juryai-webmcp-compiler-contract-v0.9.0' },
     };
     expect(validateGenerationSpec(raw)).toEqual([
       {
         path: 'spec.compiler.contract_version',
         message:
-          'Compiler contract "juryai-webmcp-compiler-contract-v0.4.0" has no recorded assertion-cardinality behaviour, so the declared policy cannot be verified.',
+          'Compiler contract "juryai-webmcp-compiler-contract-v0.9.0" has no recorded assertion-cardinality behaviour, so the declared policy cannot be verified.',
+      },
+      {
+        path: 'spec.compiler.contract_version',
+        message:
+          'Compiler contract "juryai-webmcp-compiler-contract-v0.9.0" has no recorded requirement-scope support, so the declared policy cannot be verified.',
       },
     ]);
   });
@@ -379,7 +387,8 @@ describe('PR 8C0b-1: a spec cannot claim compiler behaviour the contract does no
           contract_version: 'juryai-webmcp-compiler-contract-v0.3.0 ',
         },
       }),
-    ).toHaveLength(1);
+      // Both closed tables miss it: cardinality and requirement scope.
+    ).toHaveLength(2);
   });
 });
 
@@ -398,5 +407,97 @@ describe('PR 8C0b-1: the issue-code prefix is part of the spec contract', () => 
     const validated = assertValidGenerationSpec(rawV214Spec());
     expect(validated.contracts.contract_issue_code_prefix).toBe('v214_');
     expect(Object.isFrozen(validated.contracts)).toBe(true);
+  });
+});
+
+/**
+ * PR 8C1a — the requirement-scope seam and the extended compiler registry.
+ */
+describe('PR 8C1a: assertion_requirement_scope is stated, never inferred', () => {
+  it('the V2.1.4 parity spec keeps the frozen strict scope', () => {
+    expect(V214_PARITY_SPEC.policy.assertion_requirement_scope).toBe('in_reply_to_only');
+    expect(V214_PARITY_SPEC.policy.proposition_cardinality).toBe('single_live_per_slot');
+  });
+
+  it('the future test spec selects the broad scope and multi_live', () => {
+    expect(FUTURE_POLICY_SPEC.policy.assertion_requirement_scope).toBe('all_own_requirements');
+    expect(FUTURE_POLICY_SPEC.policy.proposition_cardinality).toBe('multi_live');
+    // Never routable. 8C2 owns the real generation manifest.
+    expect(FUTURE_POLICY_SPEC.identity.is_current_writer).toBe(false);
+  });
+
+  it('rejects compiler V0.3 paired with all_own_requirements', () => {
+    // V0.3 emits `compiler_requirement_not_answered` for any assertion outside
+    // `in_reply_to`, so this pairing states a policy its own compiler refuses
+    // to produce.
+    const spec = rawV214Spec();
+    expect(
+      validateGenerationSpec({
+        ...spec,
+        policy: { ...spec.policy, assertion_requirement_scope: 'all_own_requirements' },
+      }),
+    ).toEqual([
+      {
+        path: 'spec.policy.assertion_requirement_scope',
+        message:
+          'Compiler contract "juryai-webmcp-compiler-contract-v0.3.0" cannot serve requirement scope "all_own_requirements".',
+      },
+    ]);
+  });
+
+  it('accepts compiler V0.4 with either scope', () => {
+    const future = rawFutureSpec();
+    expect(validateGenerationSpec(future)).toEqual([]);
+    expect(
+      validateGenerationSpec({
+        ...future,
+        policy: { ...future.policy, assertion_requirement_scope: 'in_reply_to_only' },
+      }),
+    ).toEqual([]);
+  });
+
+  it('rejects a multi_live generation running a single-slot compiler', () => {
+    // A generation that admits several live propositions but runs a compiler
+    // that may emit one per slot cannot represent what it claims to accept.
+    const spec = rawV214Spec();
+    const issues = validateGenerationSpec({
+      ...spec,
+      policy: { ...spec.policy, proposition_cardinality: 'multi_live' },
+    });
+    expect(issues.map((entry) => entry.path)).toContain('spec.policy.proposition_cardinality');
+  });
+
+  it('V0.4 is registered in the closed cardinality table', () => {
+    const future = rawFutureSpec();
+    expect(future.compiler.contract_version).toBe('juryai-webmcp-compiler-contract-v0.4.0');
+    expect(
+      validateGenerationSpec({
+        ...future,
+        compiler: { ...future.compiler, assertion_cardinality_policy: 'single_live_per_slot' },
+      }).map((entry) => entry.path),
+    ).toContain('spec.compiler.assertion_cardinality_policy');
+  });
+
+  it('an unrecorded compiler contract still fails closed on BOTH tables', () => {
+    const future = rawFutureSpec();
+    const issues = validateGenerationSpec({
+      ...future,
+      compiler: { ...future.compiler, contract_version: 'juryai-webmcp-compiler-contract-v9.9.9' },
+    });
+    const messages = issues.map((entry) => entry.message).join(' | ');
+    expect(messages).toContain('no recorded assertion-cardinality behaviour');
+    expect(messages).toContain('no recorded requirement-scope support');
+  });
+
+  it('scope is not inferred from the compiler version', () => {
+    // The same contract serves both scopes, so nothing about the version
+    // determines the policy — it must be stated.
+    const future = rawFutureSpec();
+    const narrow = assertValidGenerationSpec({
+      ...future,
+      policy: { ...future.policy, assertion_requirement_scope: 'in_reply_to_only' },
+    });
+    expect(narrow.policy.assertion_requirement_scope).toBe('in_reply_to_only');
+    expect(narrow.compiler.contract_version).toBe(FUTURE_POLICY_SPEC.compiler.contract_version);
   });
 });

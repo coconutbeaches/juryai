@@ -65,6 +65,7 @@ import { createIssueCodes } from './issue-codes.js';
 import { assertValidGenerationSpec, type GenerationSpec } from './generation-spec.js';
 import { hashPartyFormationProjection } from './projection.js';
 import { authoritativeFormationExplanatoryState } from './readiness.js';
+import { withinMaxPropositions } from './requirements.js';
 import {
   currentDisclosureReviewAcknowledgment,
   disclosureReviewClosureCurrent,
@@ -135,11 +136,13 @@ export function createFormationValidator(input: { spec: GenerationSpec }): Forma
   const spec = assertValidGenerationSpec(input.spec);
   const codes = createIssueCodes(spec.contracts.contract_issue_code_prefix);
 
-  if (spec.policy.proposition_cardinality !== 'single_live_per_slot') {
-    throw new TypeError(
-      `Proposition cardinality policy "${spec.policy.proposition_cardinality}" is not implemented by the shared validator.`,
-    );
-  }
+  // Both cardinality policies are implemented as of PR 8C1a. The construction
+  // refusal 8C0b-1 used while `multi_live` was unimplemented is deliberately
+  // gone — its replacement is a real implementation, not a silent skip, and
+  // the A/B matrix proves the two policies differ by exactly the intended
+  // rules. An unrecognised value cannot reach here: the type is a closed union
+  // and the spec is validated above.
+  const singleLivePerSlot = spec.policy.proposition_cardinality === 'single_live_per_slot';
 
   function exactKeys(
     value: UnknownRecord,
@@ -988,22 +991,17 @@ export function createFormationValidator(input: { spec: GenerationSpec }): Forma
       /**
        * THE one generation-semantic seam in this validator.
        *
-       * `multi_live` is already refused when the validator is constructed; this
-       * second, redundant guard exists because the tempting way to "support"
-       * multi_live later is to make the block below conditional — which turns a
-       * refusal into a silent skip and leaves a validator that admits exactly
-       * the envelopes it exists to reject. Failing loudly here means a future
-       * mode can never be introduced by omission.
+       * Only the live-slot UNIQUENESS test below is policy-conditional. The
+       * loop carrying it also enforces supersession forward and reverse
+       * linkage, and those are integrity rules, not cardinality rules — they
+       * run under both policies. Making the LOOP conditional instead of the
+       * BLOCK is the obvious mistake here, so a guard pins that the two
+       * policies differ by exactly one emitted code.
        */
-      if (spec.policy.proposition_cardinality !== 'single_live_per_slot') {
-        throw new TypeError(
-          `Proposition cardinality policy "${spec.policy.proposition_cardinality}" is not implemented by the shared validator.`,
-        );
-      }
       const liveSlots = new Set<string>();
       for (const position of Object.values(envelope.positions)) {
         if (!object(position)) continue;
-        if (position.superseded_by === null) {
+        if (singleLivePerSlot && position.superseded_by === null) {
           const slot = `${position.attributed_party_id}|${position.requirement_id}|${position.proposition_type}`;
           if (liveSlots.has(slot))
             issues.push(
@@ -1562,6 +1560,41 @@ export function createFormationValidator(input: { spec: GenerationSpec }): Forma
           'Current bilateral disclosure review is required.',
         ),
       );
+    /**
+     * `multi_live` finite-cardinality admission.
+     *
+     * Under `single_live_per_slot` the slot rule caps live positions first, so
+     * this does not run — and must not: V2.1.4 requirements carry several
+     * satisfying types, so a finite maximum can already be exceeded there
+     * without rejection, and enforcing it retroactively would change frozen
+     * behaviour.
+     *
+     * Under `multi_live` the slot rule is gone and `max_propositions` becomes
+     * the ONLY cardinality bound. It is evaluated over the envelope in hand,
+     * which for a relay application is the POST-APPLICATION candidate — so a
+     * correction made while already at the maximum is accepted, because one
+     * position leaves the live set as another enters. A pre-check against the
+     * prior state would reject every correction at the maximum.
+     *
+     * The count comes from `satisfyingLivePositions`, the same helper readiness
+     * uses. Two definitions of "how full is this requirement" would let a
+     * submission be admitted and then leave the requirement unsatisfiable.
+     */
+    if (!singleLivePerSlot && object(value.requirements) && object(value.positions)) {
+      for (const definition of Object.values(envelope.requirements)) {
+        if (!object(definition) || definition.max_propositions === null) continue;
+        if (!withinMaxPropositions(envelope, definition)) {
+          issues.push(
+            issue(
+              codes.requirement_live_cardinality_exceeded,
+              `envelope.requirements.${definition.requirement_id}`,
+              `Requirement holds more than ${definition.max_propositions} live satisfying propositions.`,
+            ),
+          );
+        }
+      }
+    }
+
     if (issues.length === 0) {
       for (const partyId of PARTY_IDS) {
         if (

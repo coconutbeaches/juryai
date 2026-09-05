@@ -208,6 +208,16 @@ export function createFormationRelay(input: {
   const validator = input.validator;
   const cursors = input.cursors;
   const runtimes = createRelayRuntimeMinter(spec);
+  /**
+   * The two policy flags this relay branches on, and the ONLY two. Everything
+   * else in this module — party authority, subject binding, dispute identity,
+   * source channel, ID scoping, span fidelity, compile-run provenance, base
+   * version and hash, cursor freshness, challenge direction, reply-target
+   * visibility, workflow state — is unconditional under both policies. A
+   * widened parsing scope must never become a widened authority.
+   */
+  const singleLivePerSlot = spec.policy.proposition_cardinality === 'single_live_per_slot';
+  const requireReplyTarget = spec.policy.assertion_requirement_scope === 'in_reply_to_only';
 
   type PrepareExternalRelaySubmissionResult =
     | { status: 'prepared'; submission: ExternalRelaySubmission }
@@ -802,8 +812,15 @@ export function createFormationRelay(input: {
     const requirement = envelope.requirements[effect.requirement_id];
     if (
       !requirement ||
+      // UNCONDITIONAL. Ownership is the boundary that makes a wider parsing
+      // scope safe; it is never policy-conditional.
       requirement.party_id !== partyId ||
-      !source.in_reply_to.includes(effect.requirement_id)
+      // POLICY-CONDITIONAL, and the only `in_reply_to` use that is. Under
+      // `all_own_requirements` a volunteered answer may land in any own
+      // requirement the compiler was given; `in_reply_to` keeps its meaning as
+      // what the turn claimed to answer, so solicited and volunteered material
+      // stay distinguishable from the stored turn.
+      (requireReplyTarget && !source.in_reply_to.includes(effect.requirement_id))
     ) {
       return {
         issue: {
@@ -836,26 +853,37 @@ export function createFormationRelay(input: {
         commitments: [],
       };
     }
-    const slot = `${effect.requirement_id}|${effect.proposed_type}`;
-    if (claimedSlots.has(slot)) {
-      return {
-        issue: {
-          code: codes.assertion_slot_duplicate,
-          path,
-          message: 'Compiler assertion slot is duplicated.',
-        },
-        commitments: [],
-      };
+    if (singleLivePerSlot) {
+      // BRANCH 1 of 3. One compile run may emit at most one assertion per
+      // (requirement, type). Under `multi_live` two distinct facts are two
+      // propositions and this does not run.
+      const slot = `${effect.requirement_id}|${effect.proposed_type}`;
+      if (claimedSlots.has(slot)) {
+        return {
+          issue: {
+            code: codes.assertion_slot_duplicate,
+            path,
+            message: 'Compiler assertion slot is duplicated.',
+          },
+          commitments: [],
+        };
+      }
+      claimedSlots.add(slot);
     }
-    claimedSlots.add(slot);
-    const existing = Object.values(envelope.positions).find(
-      (position) =>
-        position.attributed_party_id === partyId &&
-        position.requirement_id === effect.requirement_id &&
-        position.proposition_type === effect.proposed_type &&
-        position.superseded_by === null,
-    );
+    const existing = singleLivePerSlot
+      ? Object.values(envelope.positions).find(
+          (position) =>
+            position.attributed_party_id === partyId &&
+            position.requirement_id === effect.requirement_id &&
+            position.proposition_type === effect.proposed_type &&
+            position.superseded_by === null,
+        )
+      : undefined;
     if (effect.supersedes_candidate === null) {
+      // BRANCH 2 of 3. Under `multi_live` an additive proposition never
+      // collides: `existing` is undefined, so this cannot fire. Finite
+      // cardinality is enforced instead by the validator over the
+      // post-application candidate, using the same helper readiness uses.
       if (existing) {
         return {
           issue: {
@@ -870,10 +898,28 @@ export function createFormationRelay(input: {
       const target = envelope.positions[effect.supersedes_candidate];
       if (
         !target ||
+        // Every clause below is UNCONDITIONAL: the target must exist, be the
+        // caller's own, sit under the same requirement, still be live, and not
+        // already have been consumed by an earlier effect in this submission.
+        // `claimedTargets` is what stops one proposition being superseded twice.
         target.attributed_party_id !== partyId ||
         target.requirement_id !== effect.requirement_id ||
         target.superseded_by !== null ||
         claimedTargets.has(target.position_id) ||
+        // BRANCH 3 of 3. Under `single_live_per_slot` the one live occupant of
+        // the slot must be exactly the target. Under `multi_live` there may be
+        // several live siblings and any one of them may be corrected, so this
+        // clause is dropped — `existing` is undefined and the term vanishes.
+        //
+        // DELIBERATE CONSEQUENCE: with that clause gone, and because the frozen
+        // check compares requirement but never proposition_type, a correction
+        // may change the type of the proposition it replaces. That is intended.
+        // A party correcting "no binding deadline was agreed" (explicit_absence)
+        // into "July 1 was the agreed deadline" (narrative_fact) is a genuine
+        // correction, and forbidding it would leave the original permanently
+        // uncorrectable. It is a decision, not a side effect of a deleted term,
+        // and it is tested in both directions. Correction is never INFERRED:
+        // `supersedes_candidate` must still name the exact target.
         (existing && existing.position_id !== target.position_id)
       ) {
         return {
