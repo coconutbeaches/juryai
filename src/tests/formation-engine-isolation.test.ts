@@ -210,3 +210,46 @@ describe('PR 8C0b-1: the shared validator stays out of production', () => {
     expect(offenders).toEqual([]);
   });
 });
+
+describe('PR 8C0b-2: the shared relay stays out of production', () => {
+  it.each(PRODUCTION_TREES)('no file under %s imports the shared relay', (tree) => {
+    const offenders = sourceFiles(tree).filter((file) =>
+      /from\s+['"][^'"]*\/formation\/relay-(submission|runtime)\.js['"]/u.test(read(file)),
+    );
+    expect(offenders).toEqual([]);
+  });
+
+  it('the shared relay imports no frozen generation and no concrete validator', () => {
+    for (const file of ['src/formation/relay-submission.ts', 'src/formation/relay-runtime.ts']) {
+      expect(/from\s+['"][^'"]*\/v2-1-[1-9][^'"]*['"]/u.test(read(file))).toBe(false);
+      expect(/from\s+['"][^'"]*contract-validator[^'"]*['"]/u.test(read(file))).toBe(false);
+    }
+  });
+
+  it('the relay test wiring and fixtures are test-only', () => {
+    const offenders = [...PRODUCTION_TREES, 'src/formation', 'src/compatibility']
+      .flatMap((tree) => sourceFiles(tree))
+      .filter(
+        (file) =>
+          read(file).includes('formation-relay-wiring') ||
+          read(file).includes('formation-relay-fixtures'),
+      );
+    expect(offenders).toEqual([]);
+  });
+
+  it('the relay bridge is compared by identity, never by authority_kind alone', () => {
+    // A structural guard on the highest-risk boundary in the engine. If the
+    // `!==` disappears, the trust gate has become a forgeable string check —
+    // the 8C0a regression, on the object that controls server-minted IDs.
+    const source = executableSource('src/formation/relay-runtime.ts');
+    expect(source).toMatch(/candidate\s*!==\s*bridge/u);
+  });
+
+  it('the runtime brand is a symbol, so it cannot be rebuilt from JSON', () => {
+    const source = executableSource('src/formation/relay-runtime.ts');
+    expect(source).toMatch(/Symbol\(/u);
+    // A string- or boolean-keyed brand would survive `JSON.parse`, which is
+    // exactly what must not happen across the untrusted agent boundary.
+    expect(source).not.toMatch(/['"]__brand['"]/u);
+  });
+});

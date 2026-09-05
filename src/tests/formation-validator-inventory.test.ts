@@ -18,7 +18,9 @@ import { describe, expect, it } from 'vitest';
 import { projectRoot } from './test-helpers.js';
 import {
   PREFIXED_ISSUE_CODE_SUFFIXES,
+  RELAY_ISSUE_CODE_SUFFIXES,
   UNPREFIXED_ISSUE_CODES,
+  VALIDATOR_ISSUE_CODE_SUFFIXES,
   createIssueCodes,
 } from '../formation/issue-codes.js';
 import { V214_PARITY_SPEC } from './formation-v214-parity-spec.js';
@@ -27,6 +29,8 @@ const read = (file: string): string => readFileSync(resolve(projectRoot, file), 
 
 const FROZEN = 'src/v2-1-4/contract-validator.ts';
 const SHARED = 'src/formation/validator.ts';
+const FROZEN_RELAY = 'src/v2-1-4/external-relay-submission.ts';
+const SHARED_RELAY = 'src/formation/relay-submission.ts';
 const PREFIX = 'v214_';
 
 /** Codes the frozen validator passes to `issue(...)` as a string literal. */
@@ -40,6 +44,24 @@ function sharedCodes(prefix: string): Set<string> {
   return new Set(
     [...read(SHARED).matchAll(/\bissue\(\s*codes\.([a-z0-9_]+)/gu)].map((m) =>
       unprefixed.has(m[1]!) ? m[1]! : `${prefix}${m[1]!}`,
+    ),
+  );
+}
+
+/**
+ * The relay writes its codes as an object literal `code:` field rather than
+ * through `issue(...)`, so it needs its own extractor.
+ */
+function frozenRelayCodes(): Set<string> {
+  return new Set(
+    [...read(FROZEN_RELAY).matchAll(/\bcode:\s*'(v214_[a-z0-9_]+)'/gu)].map((m) => m[1]!),
+  );
+}
+
+function sharedRelayCodes(prefix: string): Set<string> {
+  return new Set(
+    [...read(SHARED_RELAY).matchAll(/\bcode:\s*codes\.([a-z0-9_]+)/gu)].map(
+      (m) => `${prefix}${m[1]!}`,
     ),
   );
 }
@@ -67,19 +89,22 @@ describe('PR 8C0b-1: the shared validator emits exactly the frozen code set', ()
     expect(sorted(sharedCodes(PREFIX))).toEqual(sorted(frozenCodes()));
   });
 
-  it('the declared vocabulary matches the frozen code set exactly', () => {
-    // No unused suffix, and none missing: the vocabulary is an inventory, not
-    // a grab bag that silently accumulates dead entries.
+  it('the declared validator vocabulary matches the frozen code set exactly', () => {
+    // No unused suffix, and none missing: each scope is an inventory, not a
+    // grab bag that silently accumulates dead entries. Scoped to the validator
+    // because the relay contributes its own suffixes in 8C0b-2.
     const declared = [
       ...Object.keys(UNPREFIXED_ISSUE_CODES),
-      ...PREFIXED_ISSUE_CODE_SUFFIXES.map((suffix) => `${PREFIX}${suffix}`),
+      ...VALIDATOR_ISSUE_CODE_SUFFIXES.map((suffix) => `${PREFIX}${suffix}`),
     ];
     expect(sorted(declared)).toEqual(sorted(frozenCodes()));
   });
 
-  it('every declared suffix is actually used by the shared validator', () => {
+  it('every declared validator suffix is actually used by the shared validator', () => {
     const used = sharedCodes(PREFIX);
-    const unused = PREFIXED_ISSUE_CODE_SUFFIXES.filter((suffix) => !used.has(`${PREFIX}${suffix}`));
+    const unused = VALIDATOR_ISSUE_CODE_SUFFIXES.filter(
+      (suffix) => !used.has(`${PREFIX}${suffix}`),
+    );
     expect(unused).toEqual([]);
   });
 });
@@ -91,7 +116,8 @@ describe('PR 8C0b-1: the issue-code prefix is a spec literal, never a derivation
 
   it('binding the vocabulary to the spec prefix reproduces the frozen codes', () => {
     const codes = createIssueCodes(V214_PARITY_SPEC.contracts.contract_issue_code_prefix);
-    expect(sorted(Object.values(codes))).toEqual(sorted(frozenCodes()));
+    const union = new Set([...frozenCodes(), ...frozenRelayCodes()]);
+    expect(sorted(Object.values(codes))).toEqual(sorted(union));
   });
 
   it('a different prefix renames every generation-scoped code and nothing else', () => {
@@ -107,5 +133,50 @@ describe('PR 8C0b-1: the issue-code prefix is a spec literal, never a derivation
     expect(() => {
       (codes as unknown as Record<string, string>).envelope_hash_mismatch = 'anything';
     }).toThrow(TypeError);
+  });
+});
+
+describe('PR 8C0b-2: the shared relay emits exactly the frozen relay code set', () => {
+  it('the frozen relay is the reference and is non-trivially large', () => {
+    // A guard on the guard: an extractor that stopped matching would compare
+    // two empty sets and prove nothing.
+    expect(frozenRelayCodes().size).toBeGreaterThanOrEqual(9);
+  });
+
+  it('no frozen relay code is missing from the shared relay', () => {
+    const missing = sorted(frozenRelayCodes()).filter(
+      (code) => !sharedRelayCodes(PREFIX).has(code),
+    );
+    expect(missing).toEqual([]);
+  });
+
+  it('the shared relay invents no code the frozen one cannot emit', () => {
+    const extra = sorted(sharedRelayCodes(PREFIX)).filter((code) => !frozenRelayCodes().has(code));
+    expect(extra).toEqual([]);
+  });
+
+  it('the relay vocabulary matches the frozen relay code set exactly', () => {
+    const declared = RELAY_ISSUE_CODE_SUFFIXES.map((suffix) => `${PREFIX}${suffix}`);
+    expect(sorted(declared)).toEqual(sorted(frozenRelayCodes()));
+  });
+
+  it('the combined vocabulary is the union of both frozen scopes, de-duplicated', () => {
+    // `explicit_absence_source` is emitted by BOTH frozen modules with
+    // different messages, so the union must contain it exactly once.
+    const union = new Set([...frozenCodes(), ...frozenRelayCodes()]);
+    const declared = [
+      ...Object.keys(UNPREFIXED_ISSUE_CODES),
+      ...PREFIXED_ISSUE_CODE_SUFFIXES.map((suffix) => `${PREFIX}${suffix}`),
+    ];
+    expect(sorted(declared)).toEqual(sorted(union));
+    expect(new Set(declared).size).toBe(declared.length);
+    expect(VALIDATOR_ISSUE_CODE_SUFFIXES).toContain('explicit_absence_source');
+    expect(RELAY_ISSUE_CODE_SUFFIXES).toContain('explicit_absence_source');
+  });
+
+  it('every declared relay suffix is actually used by the shared relay', () => {
+    const used = sharedRelayCodes(PREFIX);
+    const unused = RELAY_ISSUE_CODE_SUFFIXES.filter((suffix) => !used.has(`${PREFIX}${suffix}`));
+    expect(unused).toEqual([]);
   });
 });
