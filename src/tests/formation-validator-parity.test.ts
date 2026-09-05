@@ -574,10 +574,13 @@ describe('PR 8C0b-1: shared validator reproduces frozen V2.1.4 issue for issue',
     expect(shared.validate(engine(broken))).toEqual(frozen);
   });
 
-  it('drives a broad share of the frozen rule set', () => {
-    // A floor, not a target: the exhaustive statement is made by the inventory
-    // suite, which compares emitted code SETS rather than counting.
-    expect(observedCodes.size).toBeGreaterThanOrEqual(70);
+  it('drives 90 of the 107 frozen rules through a targeted mutation', () => {
+    // A floor set just under what the cases actually reach (93 of 107), so it
+    // catches a case that stopped provoking its rule without breaking on a
+    // harmless addition. The EXHAUSTIVE statement is made by the inventory
+    // suite, which compares emitted code sets rather than counting — this
+    // number is about how much behaviour was compared, not how much survived.
+    expect(observedCodes.size).toBeGreaterThanOrEqual(90);
   });
 });
 
