@@ -20,6 +20,10 @@ import { partyAuthorityV214 } from '../v2-1-4/case-envelope.js';
 import { applyExternalRelaySubmissionV214 } from '../v2-1-4/external-relay-submission.js';
 import { partyAuthority } from '../formation/envelope.js';
 import { FUTURE_RELAY, asEngine } from './formation-relay-wiring.js';
+import { createFormationValidator } from '../formation/validator.js';
+import { rawV214Spec } from './formation-v214-parity-spec.js';
+import { rawFutureSpec } from './formation-future-policy-spec.js';
+import { mutate } from './formation-validator-fixtures.js';
 import {
   answerSpan,
   boundEnvelope,
@@ -606,5 +610,51 @@ describe('Row 14 — explicit absence and a target date in one answer', () => {
     expect(future.status).toBe('applied');
     if (future.status !== 'applied') throw new Error('expected applied');
     expect(liveOwn(future.envelope, requirementId)).toHaveLength(2);
+  });
+});
+
+describe('PR 8C1a: the two policies agree on TOTALITY, not just on verdicts', () => {
+  /**
+   * Regression for a P2 found by the automatic review at `38f3e71`.
+   *
+   * The finite-cardinality rule originally ran over the raw envelope. With a
+   * malformed position — `positions.foo = null` — and a finite requirement,
+   * the counting helper dereferenced `null.superseded_by` and THREW, while the
+   * strict policy returned issues for the same input. That is a totality
+   * divergence introduced by the new rule, not inherited from frozen V2.1.4,
+   * and it broke the `validate(unknown)` contract 8C0b-1 established.
+   *
+   * The rule now sits inside the validated block, alongside every other check
+   * that reads the envelope as typed data.
+   */
+  it('a malformed position is reported, not thrown, under BOTH policies', () => {
+    const requirementId = unique('req_finite_totality');
+    let envelope = boundEnvelope({ party_a: [finiteRequirement(requirementId, 2)] });
+    envelope = recordFutureFact(envelope, 'party_a', requirementId, 'A recorded fact.');
+    const broken = mutate(envelope, (draft) => {
+      (draft.positions as unknown as Record<string, unknown>).foo = null;
+    });
+
+    const strict = createFormationValidator({ spec: rawV214Spec() });
+    const future = createFormationValidator({ spec: rawFutureSpec() });
+    const outcome = (run: () => unknown): string => {
+      try {
+        run();
+        return 'ISSUES';
+      } catch (error) {
+        return `THREW: ${(error as Error).message}`;
+      }
+    };
+    expect(outcome(() => future.validate(broken))).toBe('ISSUES');
+    expect(outcome(() => future.validate(broken))).toBe(outcome(() => strict.validate(broken)));
+    expect(future.validate(broken).map((entry) => entry.code)).toContain('v214_position_object');
+  });
+
+  it('non-envelope input is still handled identically under both policies', () => {
+    const strict = createFormationValidator({ spec: rawV214Spec() });
+    const future = createFormationValidator({ spec: rawFutureSpec() });
+    for (const value of [null, 'envelope', 42, []]) {
+      expect(future.validate(value)).toEqual(strict.validate(value));
+    }
   });
 });

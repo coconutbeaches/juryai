@@ -1560,42 +1560,50 @@ export function createFormationValidator(input: { spec: GenerationSpec }): Forma
           'Current bilateral disclosure review is required.',
         ),
       );
-    /**
-     * `multi_live` finite-cardinality admission.
-     *
-     * Under `single_live_per_slot` the slot rule caps live positions first, so
-     * this does not run — and must not: V2.1.4 requirements carry several
-     * satisfying types, so a finite maximum can already be exceeded there
-     * without rejection, and enforcing it retroactively would change frozen
-     * behaviour.
-     *
-     * Under `multi_live` the slot rule is gone and `max_propositions` becomes
-     * the ONLY cardinality bound. It is evaluated over the envelope in hand,
-     * which for a relay application is the POST-APPLICATION candidate — so a
-     * correction made while already at the maximum is accepted, because one
-     * position leaves the live set as another enters. A pre-check against the
-     * prior state would reject every correction at the maximum.
-     *
-     * The count comes from `satisfyingLivePositions`, the same helper readiness
-     * uses. Two definitions of "how full is this requirement" would let a
-     * submission be admitted and then leave the requirement unsatisfiable.
-     */
-    if (!singleLivePerSlot && object(value.requirements) && object(value.positions)) {
-      for (const definition of Object.values(envelope.requirements)) {
-        if (!object(definition) || definition.max_propositions === null) continue;
-        if (!withinMaxPropositions(envelope, definition)) {
-          issues.push(
-            issue(
-              codes.requirement_live_cardinality_exceeded,
-              `envelope.requirements.${definition.requirement_id}`,
-              `Requirement holds more than ${definition.max_propositions} live satisfying propositions.`,
-            ),
-          );
+    if (issues.length === 0) {
+      /**
+       * `multi_live` finite-cardinality admission.
+       *
+       * Under `single_live_per_slot` the slot rule caps live positions first,
+       * so this does not run — and must not: V2.1.4 requirements carry several
+       * satisfying types, so a finite maximum can already be exceeded there
+       * without rejection, and enforcing it retroactively would change frozen
+       * behaviour.
+       *
+       * Under `multi_live` the slot rule is gone and `max_propositions` becomes
+       * the ONLY cardinality bound. It is evaluated over the envelope in hand,
+       * which for a relay application is the POST-APPLICATION candidate — so a
+       * correction made while already at the maximum is accepted, because one
+       * position leaves the live set as another enters. A pre-check against the
+       * prior state would reject every correction at the maximum.
+       *
+       * The count comes from `satisfyingLivePositions`, the same helper
+       * readiness uses. Two definitions of "how full is this requirement" would
+       * let a submission be admitted and then leave the requirement
+       * unsatisfiable.
+       *
+       * It sits INSIDE the `issues.length === 0` block for the same reason the
+       * projection-hash, explanatory and envelope-hash checks do: it reads the
+       * envelope as typed data. Running it over a structurally malformed
+       * envelope made `validate(unknown)` throw instead of returning issues —
+       * a totality divergence between the two policies, introduced here rather
+       * than inherited. Rejecting nothing extra: an envelope with earlier
+       * issues is already invalid.
+       */
+      if (!singleLivePerSlot) {
+        for (const definition of Object.values(envelope.requirements)) {
+          if (definition.max_propositions === null) continue;
+          if (!withinMaxPropositions(envelope, definition)) {
+            issues.push(
+              issue(
+                codes.requirement_live_cardinality_exceeded,
+                `envelope.requirements.${definition.requirement_id}`,
+                `Requirement holds more than ${definition.max_propositions} live satisfying propositions.`,
+              ),
+            );
+          }
         }
       }
-    }
-
-    if (issues.length === 0) {
       for (const partyId of PARTY_IDS) {
         if (
           envelope.control.party_views[partyId].party_projection_hash !==
