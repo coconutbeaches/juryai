@@ -33,12 +33,22 @@ import {
   createProductionCaseServiceV213,
 } from '../../v2-1-3/production-case-service.js';
 import { createProductionFirstPartyServiceV213 } from '../../v2-1-3/production-first-party.js';
+import { PostgresDisclosureReviewRepositoryV214 } from '../../v2-1-4/postgres-disclosure-review-repository.js';
 import {
-  createProductionVersionedCaseServiceV213,
+  PostgresFormationInvitationRepositoryV214,
+  productionInvitationAuthorityV214,
+} from '../../v2-1-4/postgres-formation-invitation-repository.js';
+import {
+  createInitialProductionDisputeV214,
+  createProductionCaseServiceV214,
+} from '../../v2-1-4/production-case-service.js';
+import { createProductionFirstPartyServiceV214 } from '../../v2-1-4/production-first-party.js';
+import {
+  createProductionVersionedCaseServiceV214,
   createVersionedFirstPartyService,
-} from '../../v2-1-3/production-routing.js';
+} from '../../v2-1-4/production-routing.js';
 import { createLiveSemanticCompiler as createAbsenceCompiler } from '../compiler-v0-3/config.js';
-import { postgresContractResolution } from '../../v2-1-3/postgres-contract-resolution.js';
+import { postgresContractResolution } from '../../v2-1-4/postgres-contract-resolution.js';
 
 let productionServer: Promise<JuryAiWebServer> | null = null;
 
@@ -52,12 +62,26 @@ async function buildProductionServer(): Promise<JuryAiWebServer> {
   const absenceCompiler = config.v212ProductionEnabled
     ? createAbsenceCompiler({ env: process.env })
     : null;
-  const currentFormationStore = config.v212ProductionEnabled
+  // V2.1.3 is no longer the current writer, but stays fully readable and
+  // writable for every dispute already persisted as V2.1.3.
+  const priorFormationStore = config.v212ProductionEnabled
     ? new PostgresDisclosureReviewRepositoryV213({ pool })
+    : null;
+  const priorInvitationStore =
+    config.v212ProductionEnabled && config.invitationAccountCommitmentSecret
+      ? new PostgresFormationInvitationRepositoryV213({
+          pool,
+          account_commitment_secret: config.invitationAccountCommitmentSecret,
+        })
+      : null;
+  if (priorFormationStore && priorInvitationStore)
+    await Promise.all([priorFormationStore.assertReady(), priorInvitationStore.assertReady()]);
+  const currentFormationStore = config.v212ProductionEnabled
+    ? new PostgresDisclosureReviewRepositoryV214({ pool })
     : null;
   const currentInvitationStore =
     config.v212ProductionEnabled && config.invitationAccountCommitmentSecret
-      ? new PostgresFormationInvitationRepositoryV213({
+      ? new PostgresFormationInvitationRepositoryV214({
           pool,
           account_commitment_secret: config.invitationAccountCommitmentSecret,
         })
@@ -121,10 +145,23 @@ async function buildProductionServer(): Promise<JuryAiWebServer> {
           : null;
       const v213 =
         config.v212ProductionEnabled &&
-        currentFormationStore &&
+        priorFormationStore &&
         absenceCompiler &&
         config.invitationAccountCommitmentSecret
           ? createProductionCaseServiceV213({
+              authenticated_subject_id: session.principal_id,
+              repository: priorFormationStore,
+              compiler: absenceCompiler,
+              review_url: (id) => `${config.publicOrigin}/cases/${encodeURIComponent(id)}/review`,
+              idempotency_secret: config.invitationAccountCommitmentSecret,
+            })
+          : null;
+      const v214 =
+        config.v212ProductionEnabled &&
+        currentFormationStore &&
+        absenceCompiler &&
+        config.invitationAccountCommitmentSecret
+          ? createProductionCaseServiceV214({
               authenticated_subject_id: session.principal_id,
               repository: currentFormationStore,
               compiler: absenceCompiler,
@@ -132,14 +169,18 @@ async function buildProductionServer(): Promise<JuryAiWebServer> {
               idempotency_secret: config.invitationAccountCommitmentSecret,
             })
           : null;
-      return createProductionVersionedCaseServiceV213({
+      return createProductionVersionedCaseServiceV214({
         enabled: config.v212ProductionEnabled === true,
         legacy,
         v212,
         v213,
+        v214,
         resolveVersion,
+        // The start identity is deliberately still derived by the V2.1.4
+        // service from the unchanged domain string, so a retry of a start that
+        // already produced a V2.1.2 or V2.1.3 dispute resolves to that dispute.
         startCaseId: (client_request_id) =>
-          createInitialProductionDisputeV213({
+          createInitialProductionDisputeV214({
             authenticated_subject_id: session.principal_id,
             client_request_id,
             idempotency_secret: config.invitationAccountCommitmentSecret!,
@@ -150,17 +191,26 @@ async function buildProductionServer(): Promise<JuryAiWebServer> {
       config.v212ProductionEnabled &&
       formationStore &&
       invitationStore &&
+      priorFormationStore &&
+      priorInvitationStore &&
       currentFormationStore &&
       currentInvitationStore
         ? (subject) =>
             createVersionedFirstPartyService({
               resolveVersion,
               resolveInvitationVersion,
-              v213: createProductionFirstPartyServiceV213({
+              v214: createProductionFirstPartyServiceV214({
                 enabled: true,
                 authenticated_subject_id: principalForSupabaseSubject(subject),
                 repository: currentFormationStore,
                 invitations: currentInvitationStore,
+                invitation_authority: productionInvitationAuthorityV214(true),
+              }),
+              v213: createProductionFirstPartyServiceV213({
+                enabled: true,
+                authenticated_subject_id: principalForSupabaseSubject(subject),
+                repository: priorFormationStore,
+                invitations: priorInvitationStore,
                 invitation_authority: productionInvitationAuthorityV213(true),
               }),
               v212: createProductionFirstPartyServiceV212({
