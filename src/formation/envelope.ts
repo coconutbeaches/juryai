@@ -316,11 +316,22 @@ export function cloneCaseEnvelope(envelope: CaseEnvelope): CaseEnvelope {
   return cloneCanonical(envelope);
 }
 
-/** The generation supplies `authority_kind`; the brand keeps it unforgeable. */
-export function trustedSystemAuthority(authorityKind: string): TrustedSystemAuthority {
+/**
+ * Mints the trusted system authority for one generation.
+ *
+ * The kind comes from a validated spec rather than an arbitrary caller string.
+ * The frozen V2.1.4 implementation exports a single authority singleton and
+ * authorises by identity, so it cannot be handed a different label; branding
+ * any caller-supplied string would silently weaken that. Ceremony additionally
+ * checks the kind against its own spec, so an authority minted for a different
+ * generation is refused rather than accepted on the brand alone.
+ */
+export function trustedSystemAuthority(spec: {
+  readonly authority: { readonly trusted_system_authority_kind: string };
+}): TrustedSystemAuthority {
   return Object.freeze({
     actor_type: 'system',
-    authority_kind: authorityKind,
+    authority_kind: spec.authority.trusted_system_authority_kind,
     [SYSTEM_AUTHORITY_BRAND]: true as const,
   });
 }

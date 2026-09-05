@@ -38,6 +38,8 @@ export type AssertionCardinalityPolicy =
 
 export interface GenerationIdentity {
   readonly generation_id: string;
+  /** Human-facing label used in caller-visible messages, e.g. `V2.1.4`. */
+  readonly display_label: string;
   readonly envelope_schema_version: string;
   readonly formation_protocol_version: string;
   /** True only for the generation that new starts are written as. */
@@ -123,10 +125,14 @@ const FORBIDDEN_SPEC_VALUES: readonly string[] = FORMATION_COMPATIBILITY_CONSTAN
  * "validated once, immutable thereafter" an invariant the compiler enforces
  * rather than a convention the caller is trusted to follow.
  */
-declare const VALIDATED_GENERATION_SPEC: unique symbol;
-export type ValidatedGenerationSpec = GenerationSpec & {
-  readonly [VALIDATED_GENERATION_SPEC]: true;
-};
+declare class ValidatedGenerationSpecBrand {
+  // A TypeScript private member is nominal: an object literal — including one
+  // produced by spreading a validated spec — can never satisfy it. A symbol-keyed
+  // structural brand would survive `{ ...validated, contracts: tampered }` and let
+  // an unvalidated, unfrozen object pass as validated.
+  declare private readonly validatedGenerationSpec: true;
+}
+export type ValidatedGenerationSpec = GenerationSpec & ValidatedGenerationSpecBrand;
 
 /** Recursively freezes in place. Applied to a copy, never to caller input. */
 function deepFreeze<T>(value: T): T {
@@ -220,11 +226,16 @@ export function validateGenerationSpec(spec: GenerationSpec): GenerationSpecIssu
  * the engine closed over.
  */
 export function assertValidGenerationSpec(spec: GenerationSpec): ValidatedGenerationSpec {
-  const issues = validateGenerationSpec(spec);
+  // Clone FIRST, then validate the clone, then freeze and return that same
+  // clone. Validating the caller's object and cloning afterwards reads it twice:
+  // a getter could return a valid value to the validator and a different value
+  // to structuredClone, yielding a frozen spec that was never actually valid.
+  const copy = structuredClone(spec);
+  const issues = validateGenerationSpec(copy);
   if (issues.length > 0) {
     throw new TypeError(
       `GenerationSpec is invalid: ${issues.map((i) => `${i.path}: ${i.message}`).join('; ')}`,
     );
   }
-  return deepFreeze(structuredClone(spec)) as ValidatedGenerationSpec;
+  return deepFreeze(copy) as unknown as ValidatedGenerationSpec;
 }

@@ -178,10 +178,116 @@ describe('PR 8C0a: the engine cannot be re-aimed after construction', () => {
   });
 
   it('a system authority built from a frozen spec still carries the right kind', () => {
-    const authority = trustedSystemAuthority(
-      V214_PARITY_SPEC.authority.trusted_system_authority_kind,
-    );
+    const authority = trustedSystemAuthority(V214_PARITY_SPEC);
     expect(authority.authority_kind).toBe('trusted_domain_system_v2_1_4');
+  });
+});
+
+describe('PR 8C0a: the trusted system authority is bound to its generation', () => {
+  const engine = createFormationCeremony({
+    spec: V214_PARITY_SPEC,
+    validator: v214ValidatorAdapter,
+  });
+  const bind = (authority: ReturnType<typeof trustedSystemAuthority>) => {
+    const envelope = engine.createInitialCaseEnvelope(CASE_ID, INITIAL as never);
+    return engine.applyEnvelopeCeremonyCommand({
+      envelope,
+      command: engine.ceremonyCommandFor(envelope, 'command_authority_check', {
+        type: 'bind_party',
+        party_slot: 'party_a',
+        authenticated_subject_id: 'subject_authority_check',
+        binding_event_id: 'binding_party_a_authority_check',
+      } as never),
+      execution_authority: authority,
+    });
+  };
+
+  it('accepts an authority minted from this generation spec', () => {
+    expect(bind(trustedSystemAuthority(V214_PARITY_SPEC)).status).toBe('applied');
+  });
+
+  it('refuses an authority carrying a different generation label', () => {
+    // The brand alone must not be sufficient. Frozen V2.1.4 authorises by
+    // singleton identity and so cannot be handed a foreign label at all; the
+    // engine must not be weaker than the implementation it replaces.
+    const foreign = trustedSystemAuthority({
+      authority: { trusted_system_authority_kind: 'trusted_domain_system_v0_0_0' },
+    });
+    const result = bind(foreign);
+    expect(result.status).toBe('rejected');
+    if (result.status !== 'rejected') throw new Error('expected rejection');
+    expect(result.message).toBe('Trusted system authority is required.');
+  });
+
+  it('refuses an unbranded look-alike object', () => {
+    const forged = {
+      actor_type: 'system',
+      authority_kind: 'trusted_domain_system_v2_1_4',
+    } as unknown as ReturnType<typeof trustedSystemAuthority>;
+    expect(bind(forged).status).toBe('rejected');
+  });
+});
+
+describe('PR 8C0a: validation cannot be skipped by reshaping a validated spec', () => {
+  const validEngine = createFormationCeremony({
+    spec: V214_PARITY_SPEC,
+    validator: v214ValidatorAdapter,
+  });
+  const validEnvelope = validEngine.createInitialCaseEnvelope(CASE_ID, INITIAL as never);
+
+  it('a spread of a validated spec is not itself validated', () => {
+    const tampered = {
+      ...V214_PARITY_SPEC,
+      contracts: { ...V214_PARITY_SPEC.contracts, command_version: 'tampered' },
+    };
+    // Runtime proof that the spread really is unvalidated and unfrozen...
+    expect(Object.isFrozen(tampered)).toBe(false);
+    expect(tampered.contracts.command_version).toBe('tampered');
+    // ...and the type system refuses to let it reach a helper. A structural
+    // symbol brand would survive the spread and let this compile.
+    // @ts-expect-error a spread of a validated spec loses the nominal brand
+    deriveFormationReadiness(tampered, validEnvelope);
+  });
+
+  it('rejects a spec whose accessors change between validation and copying', () => {
+    // Validating the caller's object and cloning afterwards reads it twice; a
+    // getter can answer the validator honestly and the clone dishonestly.
+    let reads = 0;
+    const raw = rawV214Spec();
+    const contracts = { ...raw.contracts };
+    Object.defineProperty(raw, 'contracts', {
+      configurable: true,
+      enumerable: true,
+      get() {
+        reads += 1;
+        return reads === 1
+          ? contracts
+          : { ...contracts, command_version: 'tampered-after-validation' };
+      },
+    });
+    const spec = assertValidGenerationSpec(raw);
+    // Whatever the accessor did, the returned spec must be internally consistent.
+    expect(spec.contracts.command_version).toBe(spec.persistence.contract_pair.command_version);
+    expect(spec.contracts.command_version).toBe('juryai-envelope-command-v2.1.4');
+  });
+});
+
+describe('PR 8C0a: caller-visible messages follow the generation', () => {
+  it('uses the spec display label rather than a hardcoded V2.1.4', () => {
+    const raw = rawV214Spec();
+    mutable(raw).identity.display_label = 'V9.9.9';
+    mutable(raw).identity.generation_id = 'v9.9.9';
+    const other = createFormationCeremony({ spec: raw, validator: v214ValidatorAdapter });
+    expect(() => other.createInitialCaseEnvelope('not_a_dispute', INITIAL as never)).toThrow(
+      /^V9\.9\.9 dispute id is invalid\.$/u,
+    );
+    const engine = createFormationCeremony({
+      spec: V214_PARITY_SPEC,
+      validator: v214ValidatorAdapter,
+    });
+    expect(() => engine.createInitialCaseEnvelope('not_a_dispute', INITIAL as never)).toThrow(
+      /^V2\.1\.4 dispute id is invalid\.$/u,
+    );
   });
 });
 

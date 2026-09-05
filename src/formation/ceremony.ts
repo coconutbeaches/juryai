@@ -165,6 +165,16 @@ export function createFormationCeremony(input: {
   const spec = assertValidGenerationSpec(input.spec);
   const validator = input.validator;
 
+  /**
+   * The brand proves the authority was minted by this engine; the kind proves it
+   * was minted for THIS generation. Checking only the brand would let an
+   * authority carrying a stale generation label execute every trusted-system
+   * transition.
+   */
+  const thisGenerationSystemAuthority = (authority: unknown): boolean =>
+    isTrustedSystemAuthority(authority) &&
+    authority.authority_kind === spec.authority.trusted_system_authority_kind;
+
   function validIso(value: string): boolean {
     const parsed = Date.parse(value);
     return Number.isFinite(parsed) && new Date(parsed).toISOString() === value;
@@ -312,7 +322,8 @@ export function createFormationCeremony(input: {
   ): string | null {
     switch (operation.type) {
       case 'bind_party': {
-        if (!isTrustedSystemAuthority(authority)) return 'Trusted system authority is required.';
+        if (!thisGenerationSystemAuthority(authority))
+          return 'Trusted system authority is required.';
         const target = envelope.parties[operation.party_slot];
         if (
           target.identity_assurance !== 'unbound' ||
@@ -334,7 +345,8 @@ export function createFormationCeremony(input: {
         return null;
       }
       case 'open_controlled_disclosure':
-        if (!isTrustedSystemAuthority(authority)) return 'Trusted system authority is required.';
+        if (!thisGenerationSystemAuthority(authority))
+          return 'Trusted system authority is required.';
         if (
           envelope.control.workflow_state !== 'independent_formation' ||
           envelope.control.disclosure_state !== 'embargoed' ||
@@ -370,7 +382,8 @@ export function createFormationCeremony(input: {
         }
         return null;
       case 'enter_final_confirmation':
-        if (!isTrustedSystemAuthority(authority)) return 'Trusted system authority is required.';
+        if (!thisGenerationSystemAuthority(authority))
+          return 'Trusted system authority is required.';
         if (
           envelope.control.workflow_state !== 'challenge_response' ||
           envelope.control.disclosure_state !== 'disclosed' ||
@@ -417,7 +430,8 @@ export function createFormationCeremony(input: {
         return null;
       }
       case 'redact_source_turn':
-        if (!isTrustedSystemAuthority(authority)) return 'Trusted system authority is required.';
+        if (!thisGenerationSystemAuthority(authority))
+          return 'Trusted system authority is required.';
         if (!envelope.source_turns[operation.turn_id] || !validIso(operation.redacted_at)) {
           return 'Source turn redaction target is invalid.';
         }
@@ -426,7 +440,8 @@ export function createFormationCeremony(input: {
         }
         return null;
       case 'set_evidence_eligibility':
-        if (!isTrustedSystemAuthority(authority)) return 'Trusted system authority is required.';
+        if (!thisGenerationSystemAuthority(authority))
+          return 'Trusted system authority is required.';
         if (
           !envelope.evidence[operation.evidence_id] ||
           !['eligible', 'ineligible', 'not_required'].includes(operation.eligibility)
@@ -435,7 +450,8 @@ export function createFormationCeremony(input: {
         }
         return null;
       case 'mark_ready_for_lock':
-        if (!isTrustedSystemAuthority(authority)) return 'Trusted system authority is required.';
+        if (!thisGenerationSystemAuthority(authority))
+          return 'Trusted system authority is required.';
         if (
           envelope.control.workflow_state !== 'final_confirmation' ||
           !deriveFormationReadiness(spec, envelope).ready_for_bilateral_lock
@@ -621,7 +637,7 @@ export function createFormationCeremony(input: {
     return {
       status: 'applied',
       reason_code: null,
-      message: 'V2.1.4 ceremony command applied atomically.',
+      message: `${spec.identity.display_label} ceremony command applied atomically.`,
       envelope: candidate,
       prior_envelope_version: envelope.control.envelope_version,
       resulting_envelope_version: candidate.control.envelope_version,
@@ -649,7 +665,7 @@ export function createFormationCeremony(input: {
     initialRequirements: InitialFormationRequirements = { party_a: [], party_b: [] },
   ): CaseEnvelope {
     if (!/^dispute_[A-Za-z0-9_.:-]+$/u.test(caseId) || caseId.length > 160) {
-      throw new TypeError('V2.1.4 dispute id is invalid.');
+      throw new TypeError(`${spec.identity.display_label} dispute id is invalid.`);
     }
     const requirements: Record<string, FormationRequirement> = {};
     for (const partyId of PARTY_IDS) {

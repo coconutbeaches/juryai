@@ -95,6 +95,8 @@ const IDS = {
   cmd_ack_b: 'command_parity_ack_b',
   cmd_final: 'command_parity_final',
   cmd_confirm_a: 'command_parity_confirm_a',
+  cmd_confirm_b: 'command_parity_confirm_b',
+  cmd_ready: 'command_parity_ready',
   cmd_reopen_a: 'command_parity_reopen_a',
   ack_a: 'disclosure_ack_party_a_parity_0001',
   ack_a_event: 'disclosure_ack_event_party_a_parity_0001',
@@ -102,6 +104,8 @@ const IDS = {
   ack_b_event: 'disclosure_ack_event_party_b_parity_0001',
   confirm_a: 'confirmation_party_a_parity_0001',
   confirm_a_event: 'confirmation_event_party_a_parity_0001',
+  confirm_b: 'confirmation_party_b_parity_0001',
+  confirm_b_event: 'confirmation_event_party_b_parity_0001',
   reopen_a_event: 'reopen_event_party_a_parity_0001',
 } as const;
 const ACKED_AT = '2026-09-05T00:00:00.000Z';
@@ -165,7 +169,7 @@ function engineApply(
 }
 
 const frozenSystem = TRUSTED_SYSTEM_AUTHORITY_V214;
-const engineSystem = trustedSystemAuthority(spec.authority.trusted_system_authority_kind);
+const engineSystem = trustedSystemAuthority(spec);
 
 /** Drives both implementations through the identical script, in lockstep. */
 function runBoth() {
@@ -265,6 +269,44 @@ function runBoth() {
   b = cb.envelope;
   record('party_a_confirmation');
 
+  // Party B confirms too, so the script reaches zero blockers and can exercise
+  // mark_ready_for_lock — the P2 endpoint — before anything is reopened.
+  const confirmB = {
+    type: 'record_party_confirmation' as const,
+    confirmation_id: IDS.confirm_b,
+    event_id: IDS.confirm_b_event,
+    adoption_statement: ADOPTION,
+    confirmed_at: CONFIRMED_AT,
+  };
+  const cba = frozenApply(
+    a,
+    IDS.cmd_confirm_b,
+    confirmB,
+    partyAuthorityV214(a, 'party_b', 'first_party_human'),
+  );
+  const cbb = engineApply(
+    b,
+    IDS.cmd_confirm_b,
+    confirmB as never,
+    partyAuthority(b, 'party_b', 'first_party_human'),
+  );
+  expect(cba.status).toBe('applied');
+  expect(cbb.status).toBe('applied');
+  if (cba.status !== 'applied' || cbb.status !== 'applied') throw new Error('confirm b failed');
+  a = cba.envelope;
+  b = cbb.envelope;
+  record('party_b_confirmation');
+
+  const ready = { type: 'mark_ready_for_lock' as const };
+  const rya = frozenApply(a, IDS.cmd_ready, ready, frozenSystem);
+  const ryb = engineApply(b, IDS.cmd_ready, ready as never, engineSystem);
+  expect(rya.status, JSON.stringify(rya)).toBe('applied');
+  expect(ryb.status, JSON.stringify(ryb)).toBe('applied');
+  if (rya.status !== 'applied' || ryb.status !== 'applied') throw new Error('ready failed');
+  a = rya.envelope;
+  b = ryb.envelope;
+  record('mark_ready_for_lock');
+
   const reopen = {
     type: 'reopen_own_formation' as const,
     event_id: IDS.reopen_a_event,
@@ -330,6 +372,11 @@ describe('PR 8C0a: shared engine reproduces frozen V2.1.4 byte-for-byte', () => 
     expect(derivePartyIndependentFormationComplete(b, party)).toBe(
       derivePartyIndependentFormationCompleteV214(a, party as PartyIdV214),
     );
+  });
+
+  it('reaches ready_for_lock identically on both implementations', () => {
+    // Recorded in lockstep above; the envelopes are already compared byte-for-byte.
+    expect(b.control.workflow_state).toBe(a.control.workflow_state);
   });
 
   it('derives identical readiness and explanatory state', () => {

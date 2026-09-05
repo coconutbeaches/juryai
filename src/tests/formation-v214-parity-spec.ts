@@ -35,6 +35,7 @@ import { assertValidGenerationSpec, type GenerationSpec } from '../formation/gen
 const V214_RAW: GenerationSpec = {
   identity: {
     generation_id: 'v2.1.4',
+    display_label: 'V2.1.4',
     envelope_schema_version: 'juryai-case-envelope-v2.1.4',
     formation_protocol_version: 'juryai-formation-protocol-v2.1.4',
     // The parity oracle never writes production cases.
