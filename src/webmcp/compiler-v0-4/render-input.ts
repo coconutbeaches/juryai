@@ -38,6 +38,7 @@
  */
 
 import type { CompilerInput } from '../core-v0-3/compiler-contract.js';
+import { sha256 } from '../core-v0-3/types.js';
 import {
   COMPILER_INPUT_RENDER_VERSION,
   renderCompilerInput,
@@ -105,17 +106,10 @@ function replaceExactlyOnce(
   return haystack.slice(0, first) + replacement + haystack.slice(first + needle.length);
 }
 
-/**
- * Renders the V0.4 model-facing input.
- *
- * Pure and deterministic, exactly as the V0.3 renderer is: the same
- * `CompilerInput` always produces byte-identical text, so a graded difference is
- * a difference in the model and never in the harness.
- */
-export function renderCompilerInputV04(input: CompilerInput): string {
-  const rendered = renderCompilerInput(input);
+/** The V0.4 delta, applied to whatever the frozen V0.3 renderer produced. */
+function applyV04RenderDelta(v03Rendered: string): string {
   const scoped = replaceExactlyOnce(
-    rendered,
+    v03Rendered,
     V03_REQUIREMENT_SCOPE_INSTRUCTION,
     V04_REQUIREMENT_SCOPE_INSTRUCTION,
     'V0.3 requirement-scope instruction',
@@ -126,4 +120,51 @@ export function renderCompilerInputV04(input: CompilerInput): string {
     V04_RENDER_VERSION_LINE,
     'V0.3 input_render_version line',
   );
+}
+
+/**
+ * Renders the V0.4 model-facing input.
+ *
+ * Pure and deterministic, exactly as the V0.3 renderer is: the same
+ * `CompilerInput` always produces byte-identical text, so a graded difference is
+ * a difference in the model and never in the harness.
+ */
+export function renderCompilerInputV04(input: CompilerInput): string {
+  return applyV04RenderDelta(renderCompilerInput(input));
+}
+
+/**
+ * A fixed probe carrying both substitution targets and nothing else.
+ *
+ * Deliberately built from the V0.3 constants rather than from a `CompilerInput`:
+ * the artefact hash must depend on the DELTA this module applies, and building
+ * a synthetic compiler input here would drag eval-shaped machinery into a module
+ * the production tree may one day import.
+ */
+const RENDER_ARTIFACT_PROBE = [V03_RENDER_VERSION_LINE, '', V03_REQUIREMENT_SCOPE_INSTRUCTION].join(
+  '\n',
+);
+
+/**
+ * The content hash of the V0.4 render ARTEFACT — the actual model-facing bytes
+ * this adapter produces, not the version label that claims to describe them.
+ *
+ * WHY THIS EXISTS. `input_render_version` is a hand-maintained string. Editing
+ * `V04_REQUIREMENT_SCOPE_INSTRUCTION` without bumping it changes what the model
+ * is told while `config_hash` and `compiler_version_id` stay identical — an
+ * identity collision, and precisely the provenance failure every other part of
+ * this slice is built to prevent. The adapter delta tests cannot catch it
+ * either, because they derive their expectations from the same constants.
+ *
+ * A structural guard pins this hash to a literal, so any change to the
+ * instruction text, the version line, or the substitution logic itself is a
+ * loud CI failure rather than a silent one. That mirrors how the frozen V0.3
+ * renderer is protected — by a hash manifest rather than by config content —
+ * and deliberately leaves `compiler_version_id` unchanged, so the artefact that
+ * was live-evaluated remains the artefact that ships. Folding this hash into
+ * `config_hash` instead would be stronger still, and is recorded as a follow-up
+ * because it would change an identity that has already been measured.
+ */
+export function compilerInputRenderArtifactHashV04(): string {
+  return sha256(applyV04RenderDelta(RENDER_ARTIFACT_PROBE));
 }

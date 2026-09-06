@@ -236,3 +236,62 @@ describe('the offline harness fails when the model does the wrong thing', () => 
     expect(rules(run)).toContain('output.forbidden_literal');
   });
 });
+
+/**
+ * BOUNDED REVIEW FINDING (P1), and its systemic extension.
+ *
+ * The review found that `adv_own_late_drawings` matched only the duration
+ * literal, so a statement asserting the drawings went out three weeks EARLY —
+ * the exact reverse of the admission — carried the expected requirement, type,
+ * strength and literal and graded GREEN. Span verification proves only that the
+ * cited text exists, never that the canonical statement follows from it.
+ *
+ * Probing the other adverse cases found the SAME hole in both: every
+ * adverse-fact case in the primary corpus could report success while reversing
+ * the admission it exists to protect.
+ *
+ * Each test below was verified to PASS (i.e. the reversal went undetected)
+ * before the polarity guards were added.
+ */
+describe('a reversed adverse admission is caught', () => {
+  const cite = (quote: string): unknown => ({ region: 'answer', message_index: null, quote });
+
+  it('rejects "three weeks EARLY" in place of the late admission', async () => {
+    const draft = draftFor('adv_own_late_drawings');
+    (draft.assertions[0] as OfflineDraft['assertions'][number]).statement =
+      'The party says they sent the final drawings three weeks early.';
+    const run = await runOne('adv_own_late_drawings', draft);
+    expect(run.failed).toBe(1);
+    expect(rules(run)).toContain('output.forbidden_literal');
+  });
+
+  it('rejects "supplied the tiles ON TIME" in place of the missed deadline', async () => {
+    const draft = draftFor('adv_buried_among_favourable');
+    const adverse = draft.assertions.find((item) => item.requirement_id === 'own_performance');
+    (adverse as OfflineDraft['assertions'][number]).statement =
+      'The party says they supplied the tiles on time.';
+    const run = await runOne('adv_buried_among_favourable', draft);
+    expect(run.failed).toBe(1);
+    expect(rules(run)).toContain('output.forbidden_literal');
+  });
+
+  it('rejects "DID send the change order" in place of the concession', async () => {
+    const draft = draftFor('adv_concedes_opponent_point');
+    (draft.assertions[0] as OfflineDraft['assertions'][number]).statement =
+      'The party says they did send the signed change order.';
+    const run = await runOne('adv_concedes_opponent_point', draft);
+    expect(run.failed).toBe(1);
+    expect(rules(run)).toContain('output.forbidden_literal');
+  });
+
+  it('and the CORRECT admissions still pass, so the guards did not over-reach', async () => {
+    for (const id of [
+      'adv_own_late_drawings',
+      'adv_buried_among_favourable',
+      'adv_concedes_opponent_point',
+    ]) {
+      const run = await runOne(id, draftFor(id));
+      expect(run.failed).toBe(0);
+    }
+  });
+});

@@ -44,6 +44,22 @@ export const INTEGRITY_CASES: SemanticEvalCaseV04[] = [
         ),
       ],
       clarifications: [],
+      // POLARITY GUARD. `statement_mentions` alone matched only the duration,
+      // so a statement saying the drawings went out three weeks EARLY — the
+      // exact reverse of the admission — carried the expected requirement,
+      // type, strength and literal and graded green. Span verification proves
+      // only that the cited text exists, never that the canonical statement
+      // follows from it.
+      //
+      // Forbidding the reversal terms rather than requiring an extra literal is
+      // deliberate: a required literal can false-fail a correctly worded
+      // statement, whereas a correct statement about lateness cannot contain
+      // these. This is a mitigation within what the oracle can express, not a
+      // proof of entailment — the oracle has no semantic judgement by design.
+      // 'weeks early' rather than bare 'early': substring matching is literal,
+      // and "clearly", "nearly" and "yearly" all CONTAIN "early". The bare form
+      // false-failed a correct sibling statement in the adjacent case.
+      statements_must_not_mention: ['weeks early', 'ahead of', 'on time'],
       forbid_supersession: true,
     },
   }),
@@ -79,6 +95,14 @@ export const INTEGRITY_CASES: SemanticEvalCaseV04[] = [
         ),
       ],
       clarifications: [],
+      // POLARITY GUARD — same defect as adv_own_late_drawings. "supplied the
+      // tiles on time" reversed the admission while still containing 'tiles'.
+      // Neither the favourable assertion nor a correct adverse one can contain
+      // these terms.
+      // Only 'on time' — the demonstrated reversal. Bare 'early' cannot be used
+      // here at all: the favourable sibling statement says "late on nearly
+      // everything", and "nearly" contains "early".
+      statements_must_not_mention: ['on time'],
       forbid_supersession: true,
     },
   }),
@@ -102,6 +126,11 @@ export const INTEGRITY_CASES: SemanticEvalCaseV04[] = [
         ),
       ],
       clarifications: [],
+      // POLARITY GUARD — same defect. "did send the signed change order"
+      // reversed the concession while still containing 'change order'. These
+      // substrings cannot occur in a correct rendering: "never sent" and "did
+      // not send" contain none of them.
+      statements_must_not_mention: ['did send', 'was sent', 'had sent'],
       forbid_supersession: true,
     },
   }),

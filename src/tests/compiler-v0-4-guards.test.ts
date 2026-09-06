@@ -41,7 +41,11 @@ import {
   SEMANTIC_COMPILER_PROMPT_VERSION_V04,
   SEMANTIC_COMPILER_SYSTEM_PROMPT_V04,
 } from '../webmcp/compiler-v0-4/prompt.js';
-import { COMPILER_INPUT_RENDER_VERSION_V04 } from '../webmcp/compiler-v0-4/render-input.js';
+import {
+  COMPILER_INPUT_RENDER_VERSION_V04,
+  V04_REQUIREMENT_SCOPE_INSTRUCTION,
+  compilerInputRenderArtifactHashV04,
+} from '../webmcp/compiler-v0-4/render-input.js';
 import {
   SEMANTIC_COMPILER_SCHEMA_NAME_V04,
   semanticCompilerSchemaHashV04,
@@ -159,6 +163,35 @@ describe('8C1b-1 guards: the V0.4 artefact identity is genuine', () => {
     expect(modelCompilerConfigOfV04(compilerFor().resolvedOptions).input_template_version).toBe(
       'juryai-compiler-input-v0.3.0',
     );
+  });
+
+  /**
+   * BOUNDED REVIEW FINDING (P1), reproduced before fixing: editing
+   * `V04_REQUIREMENT_SCOPE_INSTRUCTION` without bumping the render-version
+   * label changed the bytes sent to the model while `compiler_version_id`
+   * stayed byte-identical at 8261c097… — an identity collision. The adapter
+   * delta tests could not catch it, because they derive their expectations from
+   * the same constants.
+   *
+   * This pins the ARTEFACT rather than the label, so the drift is loud.
+   */
+  it('pins the V0.4 render ARTEFACT hash, not just its version label', () => {
+    expect(compilerInputRenderArtifactHashV04()).toBe(
+      '148af7019c827dfbf70c95bfe812837cade01bc3681f3e20338be43e8be3f52f',
+    );
+  });
+
+  it('the artefact hash genuinely depends on the instruction text', () => {
+    // Proves the guard above has teeth: the pinned value is a function of the
+    // model-facing instruction, so altering that instruction cannot leave the
+    // hash unchanged. Without this, the pin could be over a constant that never
+    // varies and would pass forever.
+    const tampered = createHash('sha256')
+      .update(
+        `${'input_render_version: ' + COMPILER_INPUT_RENDER_VERSION_V04}\n\nTAMPERED ${V04_REQUIREMENT_SCOPE_INSTRUCTION}`,
+      )
+      .digest('hex');
+    expect(tampered).not.toBe(compilerInputRenderArtifactHashV04());
   });
 
   it('moves the input RENDER version to V0.4, because the model-facing bytes moved', () => {
