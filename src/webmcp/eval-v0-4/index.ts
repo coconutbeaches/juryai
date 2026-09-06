@@ -8,5 +8,10 @@
 
 export * from './types.js';
 export { matchOneToOne, type Compatible, type MatchingResult } from './matching.js';
-export { gradeCompilerOutputV04, gradeUniversalV04, gradeExpectationV04 } from './graders.js';
+export {
+  gradeCompilerOutputV04,
+  gradeUniversalV04,
+  gradeExpectationV04,
+  gradeAgainstExpectationV04,
+} from './graders.js';
 export { buildEvalInputV04, compileRunId, compilerVersionId, turnId } from './scenario.js';

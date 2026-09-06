@@ -83,11 +83,60 @@ export interface ExpectedAssertionV04 {
   /** Any one of these is acceptable where the wording genuinely allows range. */
   epistemic_strengths?: EpistemicStrength[];
   /**
-   * Case-insensitive substrings the canonical statement must contain. Reserved
-   * for load-bearing VALUES — a date, an amount, a named obligation — never
-   * stylistic phrasing.
+   * Case-insensitive substrings the canonical statement must contain. ALL of
+   * them. Reserved for load-bearing VALUES — a date, an amount, a named
+   * obligation — never stylistic phrasing.
    */
   statement_mentions?: string[];
+  /**
+   * Finite ALTERNATIVE literal groups, for content with more than one
+   * legitimate surface form.
+   *
+   * Each inner array is an ALL-OF group; satisfying ANY ONE group satisfies
+   * this constraint. So `[['three weeks late'], ['missed', 'three weeks']]`
+   * accepts either rendering and rejects everything else.
+   *
+   * This exists because `statement_mentions` is AND-only, which forced an
+   * author to either pin one surface form — false-failing a correct statement
+   * that renders it differently — or drop the guard and admit a false green.
+   *
+   * It remains EXACT: fixture-authored substrings, case-folded, nothing more.
+   * No embeddings, no edit distance, no threshold, no model judge.
+   */
+  statement_mentions_any_of?: readonly (readonly string[])[];
+  /**
+   * Case-insensitive substrings this assertion's statement must NOT contain.
+   *
+   * Assertion-scoped, unlike the case-wide
+   * `SemanticExpectationV04.statements_must_not_mention`. It lets a material
+   * adverse expectation declare the reverse surface forms of ITS OWN
+   * admission without banning those strings from unrelated statements in the
+   * same case.
+   *
+   * A statement carrying one of these cannot satisfy this expectation, so a
+   * reversed admission leaves the expectation unmatched — which for a
+   * `material_adverse_fact` is a HARD blocker rather than a quiet miss.
+   *
+   * PREFER MULTI-TOKEN PHRASES. Bare fragments collide: "early" occurs inside
+   * "nearly" and "clearly". Tests pin exactly that.
+   *
+   * WHAT THIS DOES NOT DO — and the boundary matters more than the mechanism.
+   * It does NOT make this oracle a general English entailment checker, and no
+   * report should claim it does. The honest claim is:
+   *
+   *   "Fixture-authored positive and negative lexical constraints can prove
+   *    that DECLARED COUNTEREXAMPLE FAMILIES are rejected."
+   *
+   * NOT:
+   *
+   *   "The oracle can prove arbitrary semantic polarity."
+   *
+   * A reversal phrased outside the declared families — swapping the verb
+   * entirely, say — is not caught. The oracle remains exact fixture-authored
+   * matching, by design, and its coverage of polarity is exactly as wide as the
+   * counterexamples an author thought to enumerate.
+   */
+  statement_must_not_mention?: readonly string[];
   /** Exact proposition id this assertion must claim to supersede, or null. */
   supersedes?: string | null;
   /** The case may omit this reading. Default false. */
@@ -165,6 +214,37 @@ export interface SemanticExpectationV04 {
   forbid_supersession?: boolean;
 }
 
+/**
+ * What a case expects: ONE complete output shape, or a finite set of complete
+ * ALTERNATIVE shapes.
+ *
+ * WHY WHOLE SHAPES, AND NOT WIDER FIELDS. The doctrine sometimes licenses two
+ * correlated whole outputs for one input. A qualified denial, for instance,
+ * "retains qualification with asserted_qualified or recalled_uncertain, or
+ * requests clarification" — which is:
+ *
+ *   A) verdict accepted_candidates, one qualified assertion, no clarification
+ *   B) verdict ambiguous, no assertion, one clarification
+ *
+ * Widening the individual dimensions instead — an optional clarification, a
+ * set of permitted verdicts — would form a CROSS PRODUCT and silently admit
+ * combinations the doctrine forbids: `ambiguous` carrying an assertion, or
+ * `accepted_candidates` carrying a clarification neither branch permits. The
+ * alternatives have to stay CORRELATED, so the unit of alternation is the
+ * entire expectation.
+ *
+ * Each alternative is graded closed-world in full, exactly as a single
+ * expectation is, and the case passes iff at least one alternative passes
+ * COMPLETELY. Fields are never mixed across alternatives.
+ *
+ * This also gives mutual exclusivity for free. "One merged proposition" and
+ * "two split propositions" become two alternatives, and because each is
+ * closed-world, output containing BOTH shapes satisfies neither.
+ */
+export type CaseExpectationV04 =
+  | SemanticExpectationV04
+  | { any_of: readonly [SemanticExpectationV04, ...SemanticExpectationV04[]] };
+
 export interface SemanticEvalCaseV04 {
   id: string;
   category: EvalCategoryV04;
@@ -180,7 +260,27 @@ export interface SemanticEvalCaseV04 {
   answer: string;
   context?: string[];
   existing_propositions?: EvalExistingPropositionV04[];
-  expect: SemanticExpectationV04;
+  /** One shape, or a finite set of complete alternative shapes. */
+  expect: CaseExpectationV04;
+}
+
+/**
+ * The alternatives a case declares, always as a non-empty list.
+ *
+ * An EMPTY `any_of` is a fixture-authoring error, not a grading result: it
+ * could never be satisfied, so every output would fail for a reason that says
+ * nothing about the output.
+ */
+export function expectationAlternatives(
+  expect: CaseExpectationV04,
+): readonly SemanticExpectationV04[] {
+  if ('any_of' in expect) {
+    if (expect.any_of.length === 0) {
+      throw new TypeError('An `any_of` expectation must declare at least one alternative.');
+    }
+    return expect.any_of;
+  }
+  return [expect];
 }
 
 export interface GradeResultV04 {
