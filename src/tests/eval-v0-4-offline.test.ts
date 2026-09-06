@@ -21,6 +21,8 @@ import {
   casesByCategory,
 } from '../webmcp/eval-v0-4-corpus/index.js';
 import { createOfflineCompilerV04 } from '../webmcp/eval-v0-4-corpus/offline.js';
+import { HOLDOUT_CORPUS, HOLDOUT_CORPUS_FROZEN_HASH } from '../webmcp/eval-v0-4-corpus/holdout.js';
+import { SEMANTIC_COMPILER_SYSTEM_PROMPT_V04 } from '../webmcp/compiler-v0-4/prompt.js';
 import { OFFLINE_COMPLETIONS } from '../webmcp/eval-v0-4-corpus/offline-completions.js';
 import { runCorpusV04 } from '../webmcp/eval-v0-4-corpus/runner.js';
 import { COMPILER_CONTRACT_VERSION_V04 } from '../webmcp/core-v0-4/compiler-contract.js';
@@ -109,5 +111,53 @@ describe('offline replay through the real V0.4 compiler', () => {
 
   it('is deterministic: the same corpus yields the same hash', () => {
     expect(corpusHash(PRIMARY_CORPUS)).toBe(corpusHash([...PRIMARY_CORPUS]));
+  });
+});
+
+describe('the holdout corpus', () => {
+  it('is well formed, fresh, and frozen', () => {
+    expect(corpusWellFormednessErrors(HOLDOUT_CORPUS)).toEqual([]);
+    expect(HOLDOUT_CORPUS.length).toBeGreaterThanOrEqual(8);
+    expect(HOLDOUT_CORPUS_FROZEN_HASH).toBe(corpusHash(HOLDOUT_CORPUS));
+    // Distinct cases, and no id shared with the primary corpus.
+    const primary = new Set(PRIMARY_CORPUS.map((item) => item.id));
+    for (const item of HOLDOUT_CORPUS) expect(primary.has(item.id)).toBe(false);
+  });
+
+  it('shares no answer with the primary corpus', () => {
+    // Fresh fact patterns, not re-skinned primary cases: a holdout that reuses
+    // the primary's material measures nothing the primary did not already.
+    const primaryAnswers = new Set(PRIMARY_CORPUS.map((item) => item.answer));
+    for (const item of HOLDOUT_CORPUS) expect(primaryAnswers.has(item.answer)).toBe(false);
+  });
+
+  it('leaks nothing into the prompt', () => {
+    for (const item of HOLDOUT_CORPUS) {
+      expect(SEMANTIC_COMPILER_SYSTEM_PROMPT_V04).not.toContain(item.id);
+      expect(SEMANTIC_COMPILER_SYSTEM_PROMPT_V04).not.toContain(item.answer);
+      for (let start = 0; start + 48 <= item.answer.length; start += 8) {
+        expect(SEMANTIC_COMPILER_SYSTEM_PROMPT_V04).not.toContain(
+          item.answer.slice(start, start + 48),
+        );
+      }
+    }
+  });
+
+  it('replays green offline, so the single live run is not spent on a fixture bug', async () => {
+    const compiler = createOfflineCompilerV04(HOLDOUT_CORPUS);
+    const run = await runCorpusV04(compiler, HOLDOUT_CORPUS);
+    for (const result of run.results) {
+      if (!result.ok) {
+        console.error(
+          'HOLDOUT OFFLINE FAILURE',
+          result.case_id,
+          result.error ?? '',
+          JSON.stringify([...result.hard_blockers, ...result.ordinary_failures]),
+        );
+      }
+    }
+    expect(run.failed).toBe(0);
+    expect(run.hard_blocker_count).toBe(0);
+    expect(run.ordinary_failure_count).toBe(0);
   });
 });

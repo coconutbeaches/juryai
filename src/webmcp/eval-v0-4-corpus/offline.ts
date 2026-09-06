@@ -13,6 +13,10 @@ import { ModelSemanticCompilerV04 } from '../compiler-v0-4/model-compiler.js';
 import { compileRunId } from '../eval-v0-4/scenario.js';
 import type { SemanticEvalCaseV04 } from '../eval-v0-4/types.js';
 import { OFFLINE_COMPLETIONS } from './offline-completions.js';
+import { HOLDOUT_OFFLINE_COMPLETIONS } from './holdout-completions.js';
+
+/** Primary and holdout fixtures share one lookup; ids never collide. */
+const ALL_COMPLETIONS = { ...OFFLINE_COMPLETIONS, ...HOLDOUT_OFFLINE_COMPLETIONS };
 
 const RUN_ID = /^compile_run_id: (\S+)$/m;
 
@@ -21,7 +25,7 @@ export function offlineCompletionsFor(
 ): ReadonlyMap<string, string> {
   const completions = new Map<string, string>();
   for (const item of cases) {
-    const draft = OFFLINE_COMPLETIONS[item.id];
+    const draft = ALL_COMPLETIONS[item.id];
     if (draft === undefined) {
       throw new TypeError(`no offline completion scripted for corpus case '${item.id}'`);
     }
