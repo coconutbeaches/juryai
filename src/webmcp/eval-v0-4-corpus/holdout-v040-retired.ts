@@ -1,26 +1,41 @@
 /**
- * The V0.4 holdout corpus.
+ * RETIRED HOLDOUT — juryai-semantic-holdout-v0.4.0. FAILED. IMMUTABLE.
  *
- * Authored ONLY after the primary corpus was frozen, the prompt candidate was
- * final, and two consecutive full primary live runs came back clean. That
- * ordering is the whole value: had these cases existed while the prompt was
- * still moving, any prompt correction made after a failing primary run would
- * have been made with holdout knowledge, and the holdout would have quietly
- * become a second training set.
+ * Preserved verbatim as historical evidence. NOT run, not edited, not repaired,
+ * and never usable as holdout evidence again.
  *
- * The prompt is NOT edited after these results are seen, whatever they are.
- * This corpus is run ONCE.
+ * RESULT OF ITS SINGLE LIVE RUN
+ *   13 cases · 10 passed · 3 failed · 3 hard blockers · 0 ordinary failures
+ *   frozen hash 44cfb43a88d381828facc11d0cfc53e80a4982a7fddfe59c048561b2320bcbce
+ *   compiler_version_id 8261c09792232863ea2ccde9f442bbdf74890b16f720aaff838fc8a053068d04
+ *   prompt_hash 180f76e10c2899d6a931dc6964368d5802731c62f4933478092c2ca0760cf45a
+ *   config_hash fe0bbf1ed229931713736d11eea3be16833bde962509fe223c69652cce349398
+ *   model gpt-5.6-sol, provider-reported gpt-5.6-sol, model_snapshot null
  *
- * FRESH FACT PATTERNS. Every case here is built from subject matter that
- * appears nowhere in the primary corpus — vehicle repair, photography, plant
- * hire, printing — rather than the primary's kitchen refits, tenancies, roofs
- * and glazing. Re-skinning primary cases would measure how well the compiler
- * generalises across nouns, which is not the question.
+ *   FAILING CASES, all `assertions.undeclared_extra`:
+ *     ho_volunteered_two_more
+ *     ho_breadth_is_not_authority
+ *     ho_context_laundering
  *
- * Concentrated on the behaviours V0.4 actually changed: same-slot
- * decomposition, mixed epistemic strengths, volunteered requirements, bulk
- * testimony, supersession versus append, pure restatement, context laundering,
- * and target date versus contractual deadline.
+ * DIAGNOSIS — a FIXTURE defect, not a compiler defect. All three cases reuse
+ * the sentence "The hire was for three days at 90 euro a day". The compiler
+ * emitted two assertions for it, a duration and a unit rate, which are two
+ * independently material hire terms and exactly what the frozen V0.4
+ * decomposition doctrine requires. The fixtures declared ONE expectation, so
+ * correct output graded as a hard blocker under closed-world matching.
+ *
+ * The same under-decomposition appeared in the primary corpus at
+ * `bulk_ten_requirements`, where two independently grantable remedies were
+ * declared as one. The author systematically under-decomposed relative to the
+ * doctrine the prompt ships.
+ *
+ * CONTAMINATION. After the failure, the model outputs for two of the three
+ * failing cases were inspected to characterise the defect. Those cases — and
+ * this corpus as a whole — can therefore never serve as held-out evidence
+ * again, whatever their expectations are corrected to. That is why v0.4.1 is a
+ * NEW experiment rather than a repair of this one.
+ *
+ * Nothing in this file is imported by the live eval command.
  */
 
 import { canonicalSerialize, sha256 } from '../core-v0-3/types.js';
@@ -28,9 +43,9 @@ import type { JsonValue } from '../core-v0-3/types.js';
 import { evalCase, expectAssertion, req } from './authoring.js';
 import type { SemanticEvalCaseV04 } from '../eval-v0-4/types.js';
 
-export const HOLDOUT_CORPUS_VERSION = 'juryai-semantic-eval-holdout-v0.4.0';
+export const RETIRED_HOLDOUT_V040_VERSION = 'juryai-semantic-holdout-v0.4.0';
 
-export const HOLDOUT_CORPUS: readonly SemanticEvalCaseV04[] = Object.freeze([
+export const RETIRED_HOLDOUT_V040: readonly SemanticEvalCaseV04[] = Object.freeze([
   evalCase({
     id: 'ho_two_events_same_slot',
     category: 'same_type_multi_fact',
@@ -471,7 +486,31 @@ export const HOLDOUT_CORPUS: readonly SemanticEvalCaseV04[] = Object.freeze([
   }),
 ]);
 
-/** Frozen when authored, before the single holdout run. */
-export const HOLDOUT_CORPUS_FROZEN_HASH: string | null = sha256(
-  canonicalSerialize(HOLDOUT_CORPUS as unknown as JsonValue),
-);
+/**
+ * The hash recorded before its single live run. A test asserts the cases still
+ * hash to exactly this, so the historical record cannot drift.
+ */
+export const RETIRED_HOLDOUT_V040_FROZEN_HASH =
+  '44cfb43a88d381828facc11d0cfc53e80a4982a7fddfe59c048561b2320bcbce';
+
+/** The recorded outcome, kept beside the cases it describes. */
+export const RETIRED_HOLDOUT_V040_RESULT = Object.freeze({
+  status: 'FAILED',
+  case_count: 13,
+  passed: 10,
+  failed: 3,
+  hard_blockers: 3,
+  ordinary_failures: 0,
+  failing_case_ids: Object.freeze([
+    'ho_volunteered_two_more',
+    'ho_breadth_is_not_authority',
+    'ho_context_laundering',
+  ]),
+  invalidated_because:
+    'fixture under-decomposition discovered on first live use; model outputs were then inspected',
+  reusable_as_holdout_evidence: false,
+});
+
+/** Recomputed only to prove the preserved cases are unchanged. */
+export const retiredHoldoutV040Hash = (): string =>
+  sha256(canonicalSerialize(RETIRED_HOLDOUT_V040 as unknown as JsonValue));

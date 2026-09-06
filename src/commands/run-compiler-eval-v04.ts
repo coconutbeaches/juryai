@@ -44,7 +44,10 @@ import {
   corpusHash,
   corpusWellFormednessErrors,
 } from '../webmcp/eval-v0-4-corpus/index.js';
-import { HOLDOUT_CORPUS, HOLDOUT_CORPUS_FROZEN_HASH } from '../webmcp/eval-v0-4-corpus/holdout.js';
+// The ACTIVE holdout. The retired v0.4.0 holdout is deliberately NOT imported
+// here: that corpus failed, its model outputs were then inspected, and it must
+// never be runnable again. A test asserts this file cannot reach it.
+import { HOLDOUT_V041, HOLDOUT_V041_FROZEN_HASH } from '../webmcp/eval-v0-4-corpus/holdout-v041.js';
 import { createOfflineCompilerV04 } from '../webmcp/eval-v0-4-corpus/offline.js';
 import { runCorpusV04 } from '../webmcp/eval-v0-4-corpus/runner.js';
 // Reused, not reimplemented. The historical evaluator already solved this and
@@ -132,10 +135,10 @@ async function main(): Promise<void> {
   const holdout = args.has('--holdout');
   const offline = args.has('--offline');
 
-  const corpus = holdout ? HOLDOUT_CORPUS : PRIMARY_CORPUS;
+  const corpus = holdout ? HOLDOUT_V041 : PRIMARY_CORPUS;
   const label = `${holdout ? 'HOLDOUT' : 'PRIMARY'} · ${offline ? 'OFFLINE REPLAY' : 'LIVE MODEL'}`;
 
-  if (holdout && (corpus.length === 0 || HOLDOUT_CORPUS_FROZEN_HASH === null)) {
+  if (holdout && corpus.length === 0) {
     console.error(
       'The holdout corpus has not been authored yet. It is written only after the primary',
     );
@@ -157,7 +160,7 @@ async function main(): Promise<void> {
   // FREEZE CHECK. A corpus that no longer hashes to its frozen value has been
   // edited, and an edited corpus after first live observation is exactly the
   // failure the freeze exists to make visible.
-  const frozen = holdout ? (HOLDOUT_CORPUS_FROZEN_HASH as string) : PRIMARY_CORPUS_FROZEN_HASH;
+  const frozen = holdout ? HOLDOUT_V041_FROZEN_HASH : PRIMARY_CORPUS_FROZEN_HASH;
   const actual = corpusHash(corpus);
   if (actual !== frozen) {
     console.error('CORPUS FREEZE VIOLATION');

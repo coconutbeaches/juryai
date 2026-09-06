@@ -358,9 +358,19 @@ describe('8C1b-1 guards: CI never calls a model', () => {
   it('the live eval lives behind an explicit command, not a test', () => {
     const liveCommand = 'src/commands/run-compiler-eval-v04.ts';
     expect(existsSync(resolve(projectRoot, liveCommand))).toBe(true);
-    // Nothing under src/tests may import it, so `vitest run` can never call out.
+    // Nothing under src/tests may IMPORT it, so `vitest run` can never call out.
+    //
+    // Matched on the import form rather than on any textual mention: a test may
+    // legitimately read the command's source as a STRING to assert something
+    // about it — the retired-holdout unreachability guard does exactly that —
+    // and a mention-based scan would forbid the very checks that make the
+    // command safe.
+    const importsCommand = (file: string): boolean =>
+      /from\s+['"][^'"]*run-compiler-eval-v04[^'"]*['"]/u.test(executableSource(file)) ||
+      /import\s*\(\s*['"][^'"]*run-compiler-eval-v04/u.test(executableSource(file)) ||
+      /require\s*\(\s*['"][^'"]*run-compiler-eval-v04/u.test(executableSource(file));
     const offenders = sourceFiles('src/tests').filter(
-      (file) => file !== SELF && /run-compiler-eval-v04/u.test(executableSource(file)),
+      (file) => file !== SELF && importsCommand(file),
     );
     expect(offenders).toEqual([]);
   });

@@ -11,7 +11,10 @@
  * for, and the distinction is stated wherever these numbers are reported.
  */
 
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { projectRoot } from './test-helpers.js';
 
 import {
   PRIMARY_CORPUS,
@@ -21,7 +24,13 @@ import {
   casesByCategory,
 } from '../webmcp/eval-v0-4-corpus/index.js';
 import { createOfflineCompilerV04 } from '../webmcp/eval-v0-4-corpus/offline.js';
-import { HOLDOUT_CORPUS, HOLDOUT_CORPUS_FROZEN_HASH } from '../webmcp/eval-v0-4-corpus/holdout.js';
+import { HOLDOUT_V041, HOLDOUT_V041_FROZEN_HASH } from '../webmcp/eval-v0-4-corpus/holdout-v041.js';
+import {
+  RETIRED_HOLDOUT_V040,
+  RETIRED_HOLDOUT_V040_FROZEN_HASH,
+  RETIRED_HOLDOUT_V040_RESULT,
+  retiredHoldoutV040Hash,
+} from '../webmcp/eval-v0-4-corpus/holdout-v040-retired.js';
 import { SEMANTIC_COMPILER_SYSTEM_PROMPT_V04 } from '../webmcp/compiler-v0-4/prompt.js';
 import { OFFLINE_COMPLETIONS } from '../webmcp/eval-v0-4-corpus/offline-completions.js';
 import { runCorpusV04 } from '../webmcp/eval-v0-4-corpus/runner.js';
@@ -114,25 +123,25 @@ describe('offline replay through the real V0.4 compiler', () => {
   });
 });
 
-describe('the holdout corpus', () => {
+describe('holdout v0.4.1', () => {
   it('is well formed, fresh, and frozen', () => {
-    expect(corpusWellFormednessErrors(HOLDOUT_CORPUS)).toEqual([]);
-    expect(HOLDOUT_CORPUS.length).toBeGreaterThanOrEqual(8);
-    expect(HOLDOUT_CORPUS_FROZEN_HASH).toBe(corpusHash(HOLDOUT_CORPUS));
+    expect(corpusWellFormednessErrors(HOLDOUT_V041)).toEqual([]);
+    expect(HOLDOUT_V041.length).toBeGreaterThanOrEqual(8);
+    expect(HOLDOUT_V041_FROZEN_HASH).toBe(corpusHash(HOLDOUT_V041));
     // Distinct cases, and no id shared with the primary corpus.
     const primary = new Set(PRIMARY_CORPUS.map((item) => item.id));
-    for (const item of HOLDOUT_CORPUS) expect(primary.has(item.id)).toBe(false);
+    for (const item of HOLDOUT_V041) expect(primary.has(item.id)).toBe(false);
   });
 
   it('shares no answer with the primary corpus', () => {
     // Fresh fact patterns, not re-skinned primary cases: a holdout that reuses
     // the primary's material measures nothing the primary did not already.
     const primaryAnswers = new Set(PRIMARY_CORPUS.map((item) => item.answer));
-    for (const item of HOLDOUT_CORPUS) expect(primaryAnswers.has(item.answer)).toBe(false);
+    for (const item of HOLDOUT_V041) expect(primaryAnswers.has(item.answer)).toBe(false);
   });
 
   it('leaks nothing into the prompt', () => {
-    for (const item of HOLDOUT_CORPUS) {
+    for (const item of HOLDOUT_V041) {
       expect(SEMANTIC_COMPILER_SYSTEM_PROMPT_V04).not.toContain(item.id);
       expect(SEMANTIC_COMPILER_SYSTEM_PROMPT_V04).not.toContain(item.answer);
       for (let start = 0; start + 48 <= item.answer.length; start += 8) {
@@ -144,8 +153,8 @@ describe('the holdout corpus', () => {
   });
 
   it('replays green offline, so the single live run is not spent on a fixture bug', async () => {
-    const compiler = createOfflineCompilerV04(HOLDOUT_CORPUS);
-    const run = await runCorpusV04(compiler, HOLDOUT_CORPUS);
+    const compiler = createOfflineCompilerV04(HOLDOUT_V041);
+    const run = await runCorpusV04(compiler, HOLDOUT_V041);
     for (const result of run.results) {
       if (!result.ok) {
         console.error(
@@ -159,5 +168,58 @@ describe('the holdout corpus', () => {
     expect(run.failed).toBe(0);
     expect(run.hard_blocker_count).toBe(0);
     expect(run.ordinary_failure_count).toBe(0);
+  });
+});
+
+describe('the retired holdout v0.4.0 is preserved, immutable, and unreachable', () => {
+  it('still hashes to exactly what was frozen before its single live run', () => {
+    // The historical record cannot drift. If these cases are ever edited, this
+    // fails — which is the point of keeping a failed experiment at all.
+    expect(retiredHoldoutV040Hash()).toBe(RETIRED_HOLDOUT_V040_FROZEN_HASH);
+    expect(RETIRED_HOLDOUT_V040_FROZEN_HASH).toBe(
+      '44cfb43a88d381828facc11d0cfc53e80a4982a7fddfe59c048561b2320bcbce',
+    );
+    expect(RETIRED_HOLDOUT_V040).toHaveLength(13);
+  });
+
+  it('records its failure faithfully rather than quietly becoming a pass', () => {
+    expect(RETIRED_HOLDOUT_V040_RESULT.status).toBe('FAILED');
+    expect(RETIRED_HOLDOUT_V040_RESULT.passed).toBe(10);
+    expect(RETIRED_HOLDOUT_V040_RESULT.hard_blockers).toBe(3);
+    expect(RETIRED_HOLDOUT_V040_RESULT.reusable_as_holdout_evidence).toBe(false);
+    expect([...RETIRED_HOLDOUT_V040_RESULT.failing_case_ids]).toEqual([
+      'ho_volunteered_two_more',
+      'ho_breadth_is_not_authority',
+      'ho_context_laundering',
+    ]);
+  });
+
+  it('shares no case id, answer or fact pattern with the fresh holdout', () => {
+    const retiredIds = new Set(RETIRED_HOLDOUT_V040.map((item) => item.id));
+    const retiredAnswers = new Set(RETIRED_HOLDOUT_V040.map((item) => item.answer));
+    for (const item of HOLDOUT_V041) {
+      expect(retiredIds.has(item.id)).toBe(false);
+      expect(retiredAnswers.has(item.answer)).toBe(false);
+    }
+    // No expectation id is reused either.
+    const retiredExpectationIds = new Set(
+      RETIRED_HOLDOUT_V040.flatMap((item) =>
+        item.expect.assertions.map((expectation) => expectation.expectation_id),
+      ),
+    );
+    for (const item of HOLDOUT_V041) {
+      for (const expectation of item.expect.assertions) {
+        expect(retiredExpectationIds.has(expectation.expectation_id)).toBe(false);
+      }
+    }
+  });
+
+  it('is not reachable from the live eval command', () => {
+    const command = readFileSync(
+      resolve(projectRoot, 'src/commands/run-compiler-eval-v04.ts'),
+      'utf8',
+    );
+    expect(command).not.toMatch(/holdout-v040-retired/u);
+    expect(command).toMatch(/holdout-v041/u);
   });
 });
