@@ -90,6 +90,7 @@ jobs:
           - src/tests/compiler-v0-4-guards.test.ts
           - src/tests/eval-v0-4-offline.test.ts
           - src/tests/eval-v0-4-offline-negative-controls.test.ts
+          - src/tests/eval-v0-4-report.test.ts
           - src/tests/v2-1-persistence-boundary.test.ts
           - src/tests/v2-1-invitation.test.ts
           - src/tests/gate-zero-coverage-matrix.test.ts

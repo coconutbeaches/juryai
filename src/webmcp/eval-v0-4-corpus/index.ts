@@ -49,7 +49,7 @@ export const PRIMARY_CORPUS: readonly SemanticEvalCaseV04[] = Object.freeze([
  * corpus is indistinguishable from a corpus tuned to the model.
  */
 export const PRIMARY_CORPUS_FROZEN_HASH =
-  '2f912f3baa2ad03a4caa2c53a61b90d23d956534d0b8d512f9e5f69b8fa73f9e';
+  '71f5711183ffab9ea2d856a12b26ff9316ed092834000de0441846c3475010fc';
 
 /**
  * The content hash of a corpus.

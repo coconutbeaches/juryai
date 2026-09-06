@@ -41,15 +41,36 @@ import { ModelSemanticCompilerV04 } from '../webmcp/compiler-v0-4/model-compiler
 import {
   PRIMARY_CORPUS,
   PRIMARY_CORPUS_FROZEN_HASH,
-  SEMANTIC_EVAL_CORPUS_VERSION,
   corpusHash,
   corpusWellFormednessErrors,
-  casesByCategory,
 } from '../webmcp/eval-v0-4-corpus/index.js';
 import { HOLDOUT_CORPUS, HOLDOUT_CORPUS_FROZEN_HASH } from '../webmcp/eval-v0-4-corpus/holdout.js';
 import { createOfflineCompilerV04 } from '../webmcp/eval-v0-4-corpus/offline.js';
-import { runCorpusV04, type CorpusRunResult } from '../webmcp/eval-v0-4-corpus/runner.js';
-import type { SemanticEvalCaseV04 } from '../webmcp/eval-v0-4/types.js';
+import { runCorpusV04 } from '../webmcp/eval-v0-4-corpus/runner.js';
+// Reused, not reimplemented. The historical evaluator already solved this and
+// its module is byte-frozen, so importing keeps one definition of what is
+// printable rather than a second that can drift.
+import { formatEvalReportV04 } from '../webmcp/eval-v0-4-corpus/report.js';
+
+/**
+ * A positive integer, or a loud configuration error.
+ *
+ * Without this a `0`, negative, fractional or non-numeric value is accepted and
+ * then fails on EVERY corpus case as a provider request, turning one
+ * configuration mistake into 48 failed paid calls and a misleading run report.
+ * Non-numeric values fail even later, during artefact hashing, as an unrelated
+ * finite-number error. The V0.3 live factory already validates this; the V0.4
+ * construction path must not be the one that forgot.
+ */
+function positiveIntegerEnv(name: string, fallback: number | null): number | null {
+  const value = process.env[name];
+  if (value === undefined || value.length === 0) return fallback;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`${name} must be a positive integer.`);
+  }
+  return parsed;
+}
 
 function requireEnv(names: readonly string[], what: string): string {
   for (const name of names) {
@@ -81,7 +102,6 @@ function createLiveCompilerV04(): ModelSemanticCompilerV04 {
   );
   const modelId = requireEnv([COMPILER_ENV.model], 'A semantic-compiler model id');
   const snapshot = process.env[COMPILER_ENV.snapshot];
-  const maxOutput = process.env[COMPILER_ENV.maxOutputTokens];
 
   const options: ModelSemanticCompilerOptions = {
     client: new OpenAiResponsesSemanticModelClient({
@@ -92,10 +112,10 @@ function createLiveCompilerV04(): ModelSemanticCompilerV04 {
     model_snapshot: snapshot !== undefined && snapshot.length > 0 ? snapshot : null,
     decoding: {
       ...DEFAULT_COMPILER_DECODING,
-      max_output_tokens:
-        maxOutput !== undefined && maxOutput.length > 0
-          ? Number(maxOutput)
-          : DEFAULT_COMPILER_DECODING.max_output_tokens,
+      max_output_tokens: positiveIntegerEnv(
+        COMPILER_ENV.maxOutputTokens,
+        DEFAULT_COMPILER_DECODING.max_output_tokens,
+      ),
     },
     omit_sampling_params: flag(COMPILER_ENV.omitSampling),
     retain_raw_output: false,
@@ -105,53 +125,6 @@ function createLiveCompilerV04(): ModelSemanticCompilerV04 {
     retry_backoff_ms: 2000,
   };
   return new ModelSemanticCompilerV04(options);
-}
-
-function report(label: string, corpus: readonly SemanticEvalCaseV04[], run: CorpusRunResult): void {
-  const byCategory = casesByCategory(corpus);
-  console.log('');
-  console.log(`=== V0.4 SEMANTIC EVAL — ${label} ===`);
-  console.log(`corpus_version        ${SEMANTIC_EVAL_CORPUS_VERSION}`);
-  console.log(`corpus_hash           ${corpusHash(corpus)}`);
-  console.log(`compiler_version_id   ${run.compiler_version_id}`);
-  console.log(`prompt_version        ${run.prompt_version}`);
-  console.log(`prompt_hash           ${run.prompt_hash}`);
-  console.log(`config_hash           ${run.config_hash}`);
-  console.log(`contract_version      ${run.contract_version}`);
-  console.log(`model_id              ${run.model_id}`);
-  console.log(`model_snapshot        ${run.model_snapshot ?? 'null (moving alias, not pinned)'}`);
-  console.log(`provider_reported     ${run.reported_models.join(', ') || '(none reported)'}`);
-  console.log('');
-  console.log(`cases                 ${String(run.case_count)}`);
-  console.log(`passed                ${String(run.passed)}`);
-  console.log(`failed                ${String(run.failed)}`);
-  console.log(`hard_blockers         ${String(run.hard_blocker_count)}`);
-  console.log(`ordinary_failures     ${String(run.ordinary_failure_count)}`);
-  console.log(`provider_calls        ${String(run.provider_calls)}`);
-  console.log(
-    `input_tokens          ${run.input_tokens === null ? 'n/a' : String(run.input_tokens)}`,
-  );
-  console.log(
-    `output_tokens         ${run.output_tokens === null ? 'n/a' : String(run.output_tokens)}`,
-  );
-  console.log(`elapsed_ms            ${String(run.elapsed_ms)}`);
-  console.log('');
-  console.log('cases by category:');
-  for (const [category, list] of [...byCategory].sort(([a], [b]) => a.localeCompare(b))) {
-    console.log(`  ${category.padEnd(34)} ${String(list.length)}`);
-  }
-
-  const failures = run.results.filter((entry) => !entry.ok);
-  if (failures.length > 0) {
-    console.log('');
-    console.log('FAILURES (case id and machine rule only — no case or model text):');
-    for (const entry of failures) {
-      const blockers = entry.hard_blockers.map((f) => `HARD:${f.rule}`);
-      const ordinary = entry.ordinary_failures.map((f) => `ord:${f.rule}`);
-      const reason = entry.error === null ? '' : ` threw:${entry.error}`;
-      console.log(`  ${entry.case_id.padEnd(40)} ${[...blockers, ...ordinary].join(' ')}${reason}`);
-    }
-  }
 }
 
 async function main(): Promise<void> {
@@ -197,7 +170,7 @@ async function main(): Promise<void> {
 
   const compiler = offline ? createOfflineCompilerV04(corpus) : createLiveCompilerV04();
   const run = await runCorpusV04(compiler, corpus);
-  report(label, corpus, run);
+  console.log(formatEvalReportV04(label, corpus, run));
 
   if (offline) {
     console.log('');

@@ -258,12 +258,34 @@ export const DECOMPOSITION_CASES: SemanticEvalCaseV04[] = [
           ['asserted_qualified'],
           { statement_mentions: ['3,000'] },
         ),
+        // "I remember someone from the agency visiting, but I could not say
+        // when" admits TWO legitimate readings under V0.4, and the corpus must
+        // not pick one arbitrarily:
+        //
+        //   (a) one recalled_uncertain proposition covering the whole clause;
+        //   (b) a confidently remembered visit PLUS a separate non_recollection
+        //       about its timing — which the decomposition doctrine licenses,
+        //       since "I could not say when" is an independently meaningful
+        //       epistemic claim, and which `scenario.ts` permits because it adds
+        //       non_recollection to every requirement's satisfying types.
+        //
+        // So the visit accepts either strength, and the timing non-recollection
+        // is OPTIONAL: present under (b), absent under (a), and an undeclared
+        // extra under neither. What this case tests — that distinct strengths
+        // are not flattened into one — holds in both readings.
         expectAssertion(
           'agency_visit',
           'property_condition',
           'narrative_fact',
-          ['recalled_uncertain'],
+          ['recalled_uncertain', 'asserted_confident'],
           { statement_mentions: ['agency'] },
+        ),
+        expectAssertion(
+          'agency_timing_unrecalled',
+          'property_condition',
+          'non_recollection',
+          ['non_recollection'],
+          { optional: true },
         ),
       ],
       clarifications: [],
