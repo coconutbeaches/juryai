@@ -328,23 +328,88 @@ function gradeAssertionSetV04(
   }
 }
 
+/** The reasons a fixture declares acceptable for one expected clarification. */
+function acceptableReasons(expected: ExpectedClarificationV04): readonly string[] {
+  const declared = expected.reasons ?? [expected.reason];
+  if (declared.length === 0) {
+    // An empty set accepts nothing, so the expectation could only ever be
+    // reported missing. That is an authoring mistake, not a grading result.
+    throw new TypeError('An expected clarification must declare at least one acceptable reason.');
+  }
+  return declared;
+}
+
+/**
+ * Grades clarifications closed-world and ONE-TO-ONE.
+ *
+ * Previously this compared a Set of `requirement|reason` keys. That could not
+ * express a doctrinally equivalent pair of reasons, and it also COLLAPSED two
+ * identical expectations into one key — so a single clarification satisfied
+ * both, which is the same false-green shape the assertion matcher was rebuilt
+ * to prevent in 8C1b-0. Both are fixed here by matching the two sides the way
+ * assertions are matched.
+ *
+ * Behaviour for single-reason fixtures is otherwise unchanged: an unaccepted
+ * clarification is `undeclared` once per occurrence, a repeated accepted pair
+ * is `duplicated` once, and an expectation nothing satisfies is
+ * `required_missing`.
+ */
 function gradeClarificationSetV04(
   expected: readonly ExpectedClarificationV04[],
   output: CompilerOutput,
   failures: EvalFailureV04[],
 ): void {
-  const key = (requirementId: string, reason: string): string => `${requirementId}|${reason}`;
-  const expectedKeys = new Set(expected.map((item) => key(item.requirement_id, item.reason)));
-  const counts = new Map<string, number>();
+  type Clarification = CompilerOutput['clarifications_requested'][number];
+  const accepts = (item: ExpectedClarificationV04, actual: Clarification): boolean =>
+    actual.requirement_id === item.requirement_id &&
+    acceptableReasons(item).includes(actual.reason);
+
+  // Collapse exact repeats so a duplicate cannot occupy a second matching slot.
+  const seen = new Map<string, { clarification: Clarification; count: number }>();
   for (const clarification of output.clarifications_requested) {
-    const id = key(clarification.requirement_id, clarification.reason);
-    counts.set(id, (counts.get(id) ?? 0) + 1);
-    if (!expectedKeys.has(id)) failures.push(failure('clarifications.undeclared'));
+    const id = `${clarification.requirement_id}|${clarification.reason}`;
+    const entry = seen.get(id);
+    if (entry === undefined) seen.set(id, { clarification, count: 1 });
+    else entry.count += 1;
   }
-  for (const id of expectedKeys) {
-    const count = counts.get(id) ?? 0;
-    if (count === 0) failures.push(failure('clarifications.required_missing'));
-    else if (count > 1) failures.push(failure('clarifications.duplicated'));
+  const distinct = [...seen.values()];
+
+  const acceptedBySome = (clarification: Clarification): boolean =>
+    expected.some((item) => accepts(item, clarification));
+
+  for (const entry of distinct) {
+    if (!acceptedBySome(entry.clarification)) {
+      // Reported per occurrence, as before.
+      for (let index = 0; index < entry.count; index += 1) {
+        failures.push(failure('clarifications.undeclared'));
+      }
+    } else if (entry.count > 1) {
+      failures.push(failure('clarifications.duplicated'));
+    }
+  }
+
+  const candidates = distinct.filter((entry) => acceptedBySome(entry.clarification));
+  const expectedOrder = canonicalOrder(
+    expected,
+    (item) => `${item.requirement_id}|${[...acceptableReasons(item)].sort().join(',')}`,
+  );
+  const actualOrder = canonicalOrder(
+    candidates,
+    (entry) => `${entry.clarification.requirement_id}|${entry.clarification.reason}`,
+  );
+  const result = matchOneToOne(expectedOrder.length, actualOrder.length, (e, a) =>
+    accepts(expected[expectedOrder[e]!]!, candidates[actualOrder[a]!]!.clarification),
+  );
+
+  for (const _ of result.unmatchedExpected) {
+    failures.push(failure('clarifications.required_missing'));
+    void _;
+  }
+  // An accepted clarification no expectation could claim is still over-asking.
+  // Unreachable for single-reason fixtures, where only one pair can match.
+  for (const _ of result.unmatchedActual) {
+    failures.push(failure('clarifications.undeclared'));
+    void _;
   }
 }
 
