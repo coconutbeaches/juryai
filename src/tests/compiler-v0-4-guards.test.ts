@@ -36,7 +36,12 @@ import {
   COMPILER_CONTRACT_VERSION_V04,
   V04_SUPPRESSED_V03_ISSUE_CODES,
 } from '../webmcp/core-v0-4/compiler-contract.js';
-import { COMPILER_CONTRACT_VERSION } from '../webmcp/core-v0-3/compiler-contract.js';
+import {
+  COMPILER_CONTRACT_VERSION,
+  compilerVersionId,
+  type CompilerVersion,
+} from '../webmcp/core-v0-3/compiler-contract.js';
+import { canonicalSerialize, sha256, type JsonValue } from '../webmcp/core-v0-3/types.js';
 import {
   SEMANTIC_COMPILER_PROMPT_VERSION_V04,
   SEMANTIC_COMPILER_SYSTEM_PROMPT_V04,
@@ -45,6 +50,7 @@ import {
   COMPILER_INPUT_RENDER_VERSION_V04,
   V04_REQUIREMENT_SCOPE_INSTRUCTION,
   compilerInputRenderArtifactHashV04,
+  renderArtifactHashForInstruction,
 } from '../webmcp/compiler-v0-4/render-input.js';
 import {
   SEMANTIC_COMPILER_SCHEMA_NAME_V04,
@@ -182,16 +188,53 @@ describe('8C1b-1 guards: the V0.4 artefact identity is genuine', () => {
   });
 
   it('the artefact hash genuinely depends on the instruction text', () => {
-    // Proves the guard above has teeth: the pinned value is a function of the
-    // model-facing instruction, so altering that instruction cannot leave the
-    // hash unchanged. Without this, the pin could be over a constant that never
-    // varies and would pass forever.
-    const tampered = createHash('sha256')
-      .update(
-        `${'input_render_version: ' + COMPILER_INPUT_RENDER_VERSION_V04}\n\nTAMPERED ${V04_REQUIREMENT_SCOPE_INSTRUCTION}`,
-      )
-      .digest('hex');
-    expect(tampered).not.toBe(compilerInputRenderArtifactHashV04());
+    // Proves the pin has teeth: the value is a function of the model-facing
+    // instruction, so altering that instruction cannot leave it unchanged.
+    // Without this, the pin could be over a constant that never varies.
+    expect(
+      renderArtifactHashForInstruction(`TAMPERED ${V04_REQUIREMENT_SCOPE_INSTRUCTION}`),
+    ).not.toBe(compilerInputRenderArtifactHashV04());
+  });
+
+  /**
+   * THE BOUNDED-REVIEW FIX, end to end.
+   *
+   * Before it, mutating the model-facing instruction left `compiler_version_id`
+   * byte-identical. Now the artefact hash is part of `config_hash`, so mutating
+   * those bytes necessarily moves the identity.
+   *
+   * The changed id is DERIVED, never hardcoded: the test recomputes it through
+   * the real `compilerVersionId` over a config whose artefact hash is the one
+   * the tampered instruction actually produces. A hardcoded second id would
+   * prove only that two literals differ.
+   */
+  it('mutating the render instruction MOVES compiler_version_id', () => {
+    const resolved = compilerFor().resolvedOptions;
+    const config = modelCompilerConfigOfV04(resolved);
+    expect(config.input_render_artifact_hash).toBe(compilerInputRenderArtifactHashV04());
+
+    const versionFor = (artifactHash: string): CompilerVersion => ({
+      prompt_hash: sha256(SEMANTIC_COMPILER_SYSTEM_PROMPT_V04),
+      config_hash: sha256(
+        canonicalSerialize({
+          ...config,
+          input_render_artifact_hash: artifactHash,
+        } as unknown as JsonValue),
+      ),
+      model_id: resolved.model_id,
+      model_snapshot: resolved.model_snapshot,
+      decoding: { ...resolved.decoding },
+      taxonomy_version: resolved.taxonomy_version,
+      schema_version: COMPILER_CONTRACT_VERSION_V04,
+    });
+
+    const asShipped = compilerVersionId(versionFor(config.input_render_artifact_hash));
+    const asTampered = compilerVersionId(
+      versionFor(renderArtifactHashForInstruction(`TAMPERED ${V04_REQUIREMENT_SCOPE_INSTRUCTION}`)),
+    );
+
+    expect(asShipped).toBe(compilerFor().registryEntry.compiler_version_id);
+    expect(asTampered).not.toBe(asShipped);
   });
 
   it('moves the input RENDER version to V0.4, because the model-facing bytes moved', () => {
@@ -214,6 +257,52 @@ describe('8C1b-1 guards: the V0.4 artefact identity is genuine', () => {
       DEFAULT_COMPILER_TAXONOMY_VERSION,
     );
     expect(DEFAULT_COMPILER_TAXONOMY_VERSION).toBe('juryai-p2-v0.3.0');
+  });
+
+  /**
+   * THE EXACT SHIPPED IDENTITY.
+   *
+   * Built through a STUB carrying the production provider's identity strings
+   * rather than by importing the network client, because a separate guard keeps
+   * every CI-run V0.4 test away from that module — construction makes no call,
+   * but a blanket import ban is the cheaper thing to keep true. `provider_id`
+   * and `endpoint_sha256` are the only client-derived values that enter
+   * `config_hash`, and neither is a secret: the endpoint hash is over the
+   * public API URL.
+   *
+   * This pins the identity the live eval actually reports, so a silent artefact
+   * change cannot pass CI while the PR record names a different compiler.
+   */
+  it('pins the FINAL compiler_version_id for the shipped artefact', () => {
+    const productionLike = new ModelSemanticCompilerV04({
+      client: {
+        provider_id: 'openai.responses',
+        endpoint_sha256: 'ee0291cefbb5b6136483fb38ba9efe9264f9b685d5006c273e293a54b43a1883',
+        generate: () => {
+          throw new Error('identity-only stub: never called');
+        },
+      } as never,
+      model_id: 'gpt-5.6-sol',
+      model_snapshot: null,
+      decoding: { temperature: 0, top_p: null, max_output_tokens: 8192, seed: null },
+      omit_sampling_params: true,
+      retain_raw_output: false,
+    });
+    expect(productionLike.registryEntry.compiler_version_id).toBe(
+      '7734c54aa9c85d0bde119db2be79f698416e120566d9186744c070582a76d71c',
+    );
+    expect(productionLike.registryEntry.version.config_hash).toBe(
+      'e1de565b0bf05d4ca3f089fe6e142ca89607e158a28d2bc295eccb266415e9f7',
+    );
+    // Prompt doctrine did NOT move; only the render artefact entered identity.
+    expect(productionLike.registryEntry.version.prompt_hash).toBe(
+      '180f76e10c2899d6a931dc6964368d5802731c62f4933478092c2ca0760cf45a',
+    );
+    expect(productionLike.registryEntry.version.model_snapshot).toBeNull();
+    expect(
+      (productionLike.registryEntry.config as unknown as Record<string, unknown>)
+        .sampling_params_sent,
+    ).toBe(false);
   });
 
   it('records the prompt hash of the V0.4 prompt actually shipped', () => {

@@ -60,7 +60,11 @@ import {
   SEMANTIC_COMPILER_PROMPT_VERSION_V04,
   SEMANTIC_COMPILER_SYSTEM_PROMPT_V04,
 } from './prompt.js';
-import { COMPILER_INPUT_RENDER_VERSION_V04, renderCompilerInputV04 } from './render-input.js';
+import {
+  COMPILER_INPUT_RENDER_VERSION_V04,
+  compilerInputRenderArtifactHashV04,
+  renderCompilerInputV04,
+} from './render-input.js';
 import {
   SEMANTIC_COMPILER_SCHEMA_NAME_V04,
   buildSemanticCompilerJsonSchemaV04,
@@ -89,6 +93,20 @@ export interface ModelCompilerConfigV04 {
   output_schema_hash: string;
   input_template_version: string;
   input_render_version: string;
+  /**
+   * The CONTENT hash of the model-facing render artefact.
+   *
+   * `input_render_version` above is a hand-maintained LABEL. Editing
+   * `V04_REQUIREMENT_SCOPE_INSTRUCTION` without bumping it changed what the
+   * model is told while `compiler_version_id` stayed byte-identical — an
+   * identity collision found by bounded review and reproduced before this fix.
+   *
+   * Binding the artefact hash here makes the identity cryptographically commit
+   * to the bytes rather than to a claim about them: any change to the
+   * instruction text, the version line, or the substitution logic necessarily
+   * moves `config_hash` and therefore `compiler_version_id`.
+   */
+  input_render_artifact_hash: string;
   sampling_params_sent: boolean;
   retains_raw_model_output: boolean;
 }
@@ -106,6 +124,7 @@ export function modelCompilerConfigOfV04(
     output_schema_hash: semanticCompilerSchemaHashV04(),
     input_template_version: COMPILER_INPUT_TEMPLATE_VERSION_V04,
     input_render_version: COMPILER_INPUT_RENDER_VERSION_V04,
+    input_render_artifact_hash: compilerInputRenderArtifactHashV04(),
     sampling_params_sent: !resolved.omit_sampling_params,
     retains_raw_model_output: resolved.retain_raw_output,
   };

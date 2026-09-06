@@ -166,5 +166,30 @@ const RENDER_ARTIFACT_PROBE = [V03_RENDER_VERSION_LINE, '', V03_REQUIREMENT_SCOP
  * because it would change an identity that has already been measured.
  */
 export function compilerInputRenderArtifactHashV04(): string {
-  return sha256(applyV04RenderDelta(RENDER_ARTIFACT_PROBE));
+  return renderArtifactHashForInstruction(V04_REQUIREMENT_SCOPE_INSTRUCTION);
+}
+
+/**
+ * The artefact hash the compiler WOULD have if the scope instruction were
+ * different. Exported so an identity test can mutate the model-facing bytes and
+ * observe `compiler_version_id` move, without editing this module and without
+ * putting an injection seam into the production identity path — the shipped
+ * compiler always hashes `V04_REQUIREMENT_SCOPE_INSTRUCTION` itself.
+ */
+export function renderArtifactHashForInstruction(instruction: string): string {
+  const probe = [V03_RENDER_VERSION_LINE, '', V03_REQUIREMENT_SCOPE_INSTRUCTION].join('\n');
+  const scoped = replaceExactlyOnce(
+    probe,
+    V03_REQUIREMENT_SCOPE_INSTRUCTION,
+    instruction,
+    'V0.3 requirement-scope instruction',
+  );
+  return sha256(
+    replaceExactlyOnce(
+      scoped,
+      V03_RENDER_VERSION_LINE,
+      V04_RENDER_VERSION_LINE,
+      'V0.3 input_render_version line',
+    ),
+  );
 }

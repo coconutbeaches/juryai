@@ -8,6 +8,11 @@
  *   13 cases · 10 passed · 3 failed · 3 hard blockers · 0 ordinary failures
  *   frozen hash 44cfb43a88d381828facc11d0cfc53e80a4982a7fddfe59c048561b2320bcbce
  *   compiler_version_id 8261c09792232863ea2ccde9f442bbdf74890b16f720aaff838fc8a053068d04
+ *     — the PRE-REVIEW artefact. The bounded review later found that identity
+ *     did not commit to the model-facing render bytes, so the shipped compiler
+ *     is now 7734c54aa9c85d0bde119db2be79f698416e120566d9186744c070582a76d71c.
+ *     Every result recorded in this file is evidence for the pre-review
+ *     artefact only, and is not claimed as evidence for the final one.
  *   prompt_hash 180f76e10c2899d6a931dc6964368d5802731c62f4933478092c2ca0760cf45a
  *   config_hash fe0bbf1ed229931713736d11eea3be16833bde962509fe223c69652cce349398
  *   model gpt-5.6-sol, provider-reported gpt-5.6-sol, model_snapshot null
