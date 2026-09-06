@@ -59,20 +59,45 @@ export const DATES_AND_NONANSWERS_CASES: SemanticEvalCaseV04[] = [
       req('invoices_received', 'What invoices did you receive?', ['invoice', 'explicit_absence']),
     ],
     answer: 'As far as I am aware, they never issued an invoice.',
+    // TWO doctrinally licensed whole shapes, not one. The EXPLICIT ABSENCE
+    // section states without condition: "Qualified denial retains qualification
+    // with asserted_qualified or recalled_uncertain, OR REQUESTS CLARIFICATION;
+    // never promote it to certainty." That is a disjunction over complete
+    // outputs, and pinning either branch hard-fails a compiler taking the other.
+    // This case is why 8C1b-0.2 exists.
+    //
+    // The invariants are unioned across both branches and enforced once, so
+    // neither shape can be used to escape them.
     expect: {
-      verdict: 'accepted_candidates',
-      assertions: [
-        expectAssertion(
-          'no_invoice_qualified',
-          'invoices_received',
-          'explicit_absence',
-          ['asserted_qualified', 'recalled_uncertain'],
-          { statement_mentions: ['invoice'] },
-        ),
+      any_of: [
+        {
+          verdict: 'accepted_candidates',
+          assertions: [
+            expectAssertion(
+              'no_invoice_qualified',
+              'invoices_received',
+              'explicit_absence',
+              ['asserted_qualified', 'recalled_uncertain'],
+              { statement_mentions: ['invoice'] },
+            ),
+          ],
+          clarifications: [],
+          forbidden_types: ['invoice'],
+          forbid_supersession: true,
+        },
+        {
+          verdict: 'ambiguous',
+          assertions: [],
+          clarifications: [
+            {
+              requirement_id: 'invoices_received',
+              reasons: ['epistemic_strength_indeterminate', 'multiple_incompatible_readings'],
+            },
+          ],
+          forbidden_types: ['invoice'],
+          forbid_supersession: true,
+        },
       ],
-      clarifications: [],
-      forbidden_types: ['invoice'],
-      forbid_supersession: true,
     },
   }),
 
@@ -109,23 +134,36 @@ export const DATES_AND_NONANSWERS_CASES: SemanticEvalCaseV04[] = [
     ],
     answer:
       'They keep saying they never agreed to any deadline, but that is their position, not mine.',
+    // TWO doctrinally defensible whole shapes. The clarification REASON set
+    // came from 8C1b-0.1; the blind audit then found the VERDICT is equally
+    // undetermined, which only 8C1b-0.2 can express.
     expect: {
-      verdict: 'ambiguous',
-      assertions: [],
-      // BOTH labels are doctrinally correct here, and the corpus must not pick
-      // one arbitrarily. The rule that applies — "Ask for clarification if
-      // polarity/adoption is unclear" — names no adoption-specific reason, and
-      // the speaker's missing position is described honestly either as two
-      // incompatible readings or as an answer that does not address the
-      // requirement. 8C1b-0.1 added the acceptable-set form for exactly this;
-      // a reason outside the set still fails.
-      clarifications: [
+      any_of: [
+        // The speaker expressly does NOT adopt the other side's denial, so
+        // adoption is settled and nothing canonical remains for the
+        // requirement — AUTHORITY RULE 13's "no_assertions is a legitimate,
+        // complete result".
         {
-          requirement_id: 'binding_deadline',
-          reasons: ['multiple_incompatible_readings', 'answer_does_not_address_requirement'],
+          verdict: 'no_assertions',
+          assertions: [],
+          clarifications: [],
+          forbidden_types: ['explicit_absence', 'contractual_deadline'],
+        },
+        // Equally, the speaker's OWN position is never stated and the
+        // requirement WAS asked — the doctrine's named trigger for failing
+        // closed and asking. Either reason label describes that honestly.
+        {
+          verdict: 'ambiguous',
+          assertions: [],
+          clarifications: [
+            {
+              requirement_id: 'binding_deadline',
+              reasons: ['multiple_incompatible_readings', 'answer_does_not_address_requirement'],
+            },
+          ],
+          forbidden_types: ['explicit_absence', 'contractual_deadline'],
         },
       ],
-      forbidden_types: ['explicit_absence', 'contractual_deadline'],
     },
   }),
 
@@ -246,9 +284,15 @@ export const DATES_AND_NONANSWERS_CASES: SemanticEvalCaseV04[] = [
       'Wording that determines neither reading fails closed rather than resolving to the likelier one.',
     in_reply_to: ['binding_deadline'],
     requirement_context: [
+      // NO `target_date` here, unlike every other binding_deadline requirement.
+      // Declaring it destroyed the ambiguity this case exists to create:
+      // AUTHORITY RULE 8 removes the deadline reading ("the mere presence of a
+      // specific date is never evidence of agreement") while licensing the
+      // target reading, so one output would be determinate and `ambiguous`
+      // would be wrong. With only contractual_deadline and explicit_absence
+      // available, neither is licensed and failing closed is forced.
       req('binding_deadline', 'Was a binding completion deadline agreed?', [
         'contractual_deadline',
-        'target_date',
         'explicit_absence',
       ]),
     ],

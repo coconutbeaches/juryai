@@ -18,6 +18,65 @@
 import { evalCase, expectAssertion, req } from './authoring.js';
 import type { SemanticEvalCaseV04 } from '../eval-v0-4/types.js';
 
+/**
+ * The ten expectations `bulk_ten_requirements` shares across both of its
+ * licensed payment-terms shapes. Hoisted so the two alternatives differ in
+ * exactly the payment_terms expectation and nothing else.
+ */
+const BULK_TEN_SHARED = [
+  expectAssertion('engaged_feb', 'engagement_start', 'narrative_fact', ['asserted_confident'], {
+    statement_mentions: ['3 February'],
+  }),
+  expectAssertion('scope_refit', 'agreed_scope', 'accepted_scope', ['asserted_confident'], {
+    statement_mentions: ['kitchen'],
+  }),
+  expectAssertion('price_12000', 'agreed_price', 'narrative_fact', ['asserted_confident'], {
+    statement_mentions: ['12,000'],
+  }),
+  expectAssertion('target_july', 'target_completion', 'target_date', ['asserted_confident'], {
+    statement_mentions: ['1 July'],
+  }),
+  expectAssertion(
+    'fitted_units',
+    'other_party_performance',
+    'narrative_fact',
+    ['asserted_confident'],
+    { statement_mentions: ['15 July'] },
+  ),
+  expectAssertion(
+    'contact_form_broken',
+    'other_party_nonperformance',
+    'narrative_fact',
+    ['asserted_confident'],
+    { statement_mentions: ['contact form'] },
+  ),
+  expectAssertion('own_materials', 'own_performance', 'narrative_fact', ['asserted_confident'], {
+    statement_mentions: ['materials'],
+  }),
+  expectAssertion('paid_6000', 'payments_made', 'payment', ['asserted_confident'], {
+    statement_mentions: ['6,000'],
+  }),
+  // TWO remedies, not one. "the remaining work finished" and "2,000 euro
+  // back" can be independently granted or refused, so the decomposition
+  // doctrine makes them two propositions. The original single expectation
+  // contradicted that doctrine; see the PR body for the disclosed
+  // post-freeze correction.
+  expectAssertion(
+    'remedy_work_finished',
+    'remedy_sought',
+    'requested_remedy',
+    ['asserted_confident'],
+    { statement_mentions: ['remaining work'] },
+  ),
+  expectAssertion(
+    'remedy_money_back',
+    'remedy_sought',
+    'requested_remedy',
+    ['asserted_confident'],
+    { statement_mentions: ['2,000'] },
+  ),
+];
+
 export const SCOPE_CASES: SemanticEvalCaseV04[] = [
   evalCase({
     id: 'vol_asked_one_volunteered_two',
@@ -150,88 +209,69 @@ export const SCOPE_CASES: SemanticEvalCaseV04[] = [
       req('agreed_scope', 'What work was agreed?', ['accepted_scope', 'narrative_fact']),
       req('agreed_price', 'What price was agreed?', ['narrative_fact']),
       req('payment_terms', 'What were the payment terms?'),
-      req('target_completion', 'What completion date were you aiming for?', [
-        'target_date',
-        'narrative_fact',
-      ]),
+      // ['target_date'] only, matching every other target_completion
+      // requirement in the corpus.
+      req('target_completion', 'What completion date were you aiming for?', ['target_date']),
       req('other_party_performance', 'What did the other side actually do?'),
       req('other_party_nonperformance', 'What did the other side fail to do?'),
       req('own_performance', 'What did you do or fail to do?'),
       req('payments_made', 'What payments have you made?', ['payment', 'explicit_absence']),
-      req('remedy_sought', 'What outcome are you seeking?', ['requested_remedy', 'narrative_fact']),
+      req('remedy_sought', 'What outcome are you seeking?', ['requested_remedy']),
     ],
     answer:
       'We engaged them on 3 February. The agreed scope was a full kitchen refit. The agreed price was 12,000 euro. Payment was due half up front and half on completion. We were aiming to finish by 1 July. They fitted the units on 15 July. The contact form on the new site still did not work. I supplied the materials on time as I had agreed. I paid 6,000 euro on 5 February. I want the remaining work finished and 2,000 euro back.',
+    // MERGED or SPLIT payment terms, never both.
+    //
+    // "Payment was due half up front and half on completion" carries two
+    // clauses that can be independently true or false and describe two
+    // independently material obligations — the same independence test this
+    // case already applies to the two remedies one sentence later. So both a
+    // single combined proposition and two separate ones are doctrinally
+    // licensed, and pinning either would hard-fail a compliant compiler.
+    //
+    // Expressed as whole-output alternatives rather than an optional extra
+    // expectation, because each branch is closed-world: output carrying BOTH
+    // shapes satisfies neither.
     expect: {
-      verdict: 'accepted_candidates',
-      assertions: [
-        expectAssertion(
-          'engaged_feb',
-          'engagement_start',
-          'narrative_fact',
-          ['asserted_confident'],
-          {
-            statement_mentions: ['3 February'],
-          },
-        ),
-        expectAssertion('scope_refit', 'agreed_scope', 'accepted_scope', ['asserted_confident'], {
-          statement_mentions: ['kitchen'],
-        }),
-        expectAssertion('price_12000', 'agreed_price', 'narrative_fact', ['asserted_confident'], {
-          statement_mentions: ['12,000'],
-        }),
-        expectAssertion('terms_half', 'payment_terms', 'narrative_fact', ['asserted_confident'], {
-          statement_mentions: ['half'],
-        }),
-        expectAssertion('target_july', 'target_completion', 'target_date', ['asserted_confident'], {
-          statement_mentions: ['1 July'],
-        }),
-        expectAssertion(
-          'fitted_units',
-          'other_party_performance',
-          'narrative_fact',
-          ['asserted_confident'],
-          { statement_mentions: ['15 July'] },
-        ),
-        expectAssertion(
-          'contact_form_broken',
-          'other_party_nonperformance',
-          'narrative_fact',
-          ['asserted_confident'],
-          { statement_mentions: ['contact form'] },
-        ),
-        expectAssertion(
-          'own_materials',
-          'own_performance',
-          'narrative_fact',
-          ['asserted_confident'],
-          { statement_mentions: ['materials'] },
-        ),
-        expectAssertion('paid_6000', 'payments_made', 'payment', ['asserted_confident'], {
-          statement_mentions: ['6,000'],
-        }),
-        // TWO remedies, not one. "the remaining work finished" and "2,000 euro
-        // back" can be independently granted or refused, so the decomposition
-        // doctrine makes them two propositions. The original single expectation
-        // contradicted that doctrine; see the PR body for the disclosed
-        // post-freeze correction.
-        expectAssertion(
-          'remedy_work_finished',
-          'remedy_sought',
-          'requested_remedy',
-          ['asserted_confident'],
-          { statement_mentions: ['remaining work'] },
-        ),
-        expectAssertion(
-          'remedy_money_back',
-          'remedy_sought',
-          'requested_remedy',
-          ['asserted_confident'],
-          { statement_mentions: ['2,000'] },
-        ),
+      any_of: [
+        {
+          verdict: 'accepted_candidates',
+          assertions: [
+            ...BULK_TEN_SHARED,
+            expectAssertion(
+              'terms_half',
+              'payment_terms',
+              'narrative_fact',
+              ['asserted_confident'],
+              { statement_mentions: ['half'] },
+            ),
+          ],
+          clarifications: [],
+          forbid_supersession: true,
+        },
+        {
+          verdict: 'accepted_candidates',
+          assertions: [
+            ...BULK_TEN_SHARED,
+            expectAssertion(
+              'terms_up_front',
+              'payment_terms',
+              'narrative_fact',
+              ['asserted_confident'],
+              { statement_mentions: ['up front'] },
+            ),
+            expectAssertion(
+              'terms_on_completion',
+              'payment_terms',
+              'narrative_fact',
+              ['asserted_confident'],
+              { statement_mentions: ['completion'] },
+            ),
+          ],
+          clarifications: [],
+          forbid_supersession: true,
+        },
       ],
-      clarifications: [],
-      forbid_supersession: true,
     },
   }),
 
@@ -249,7 +289,7 @@ export const SCOPE_CASES: SemanticEvalCaseV04[] = [
       req('other_party_nonperformance', 'What did the other side fail to do?'),
       req('own_performance', 'What did you do or fail to do?'),
       req('communications', 'What communications passed between you?'),
-      req('remedy_sought', 'What outcome are you seeking?', ['requested_remedy', 'narrative_fact']),
+      req('remedy_sought', 'What outcome are you seeking?', ['requested_remedy']),
     ],
     answer:
       'We started in April. The price was 8,000 euro. I paid 4,000 euro at the start. They put the frames in during June. They never finished the glazing. I was three weeks late sending the survey, which I accept. I think I emailed them about it around the middle of June. I want the glazing finished.',
@@ -288,7 +328,14 @@ export const SCOPE_CASES: SemanticEvalCaseV04[] = [
           'own_performance',
           'narrative_fact',
           ['asserted_confident'],
-          { statement_mentions: ['three weeks'], material_adverse_fact: true },
+          {
+            statement_mentions: ['three weeks'],
+            // This adverse expectation had NO polarity guard at all: a
+            // statement saying the survey went out three weeks EARLY carried
+            // the requirement, type, strength and literal and graded green.
+            statement_must_not_mention: ['weeks early', 'weeks before', 'ahead of', 'on time'],
+            material_adverse_fact: true,
+          },
         ),
         expectAssertion(
           'emailed_june',

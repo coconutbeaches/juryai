@@ -29,10 +29,9 @@ export const SUPERSESSION_CASES: SemanticEvalCaseV04[] = [
       'One exact correction among three live same-requirement propositions; siblings must not be named.',
     in_reply_to: ['tenancy_money'],
     requirement_context: [
-      req('tenancy_money', 'What money changed hands under the tenancy?', [
-        'payment',
-        'narrative_fact',
-      ]),
+      // ['payment'] only, matching add_related_new_fact. The same requirement
+      // id was previously graded against two different taxonomies in two cases.
+      req('tenancy_money', 'What money changed hands under the tenancy?', ['payment']),
     ],
     existing_propositions: [
       {
@@ -331,7 +330,11 @@ export const SUPERSESSION_CASES: SemanticEvalCaseV04[] = [
       'Answering one requirement while restating a live proposition under another yields only the new fact.',
     in_reply_to: ['rent_amount'],
     requirement_context: [
-      req('rent_amount', 'What was the monthly rent?', ['payment', 'narrative_fact']),
+      // ONE admissible factual type. The answer states a RATE, not a payment
+      // event, and with both declared the doctrine gives no rule preferring
+      // one — so a compliant narrative_fact typing would have scored a hard
+      // blocker against a fixture that itself declared it valid.
+      req('rent_amount', 'What was the monthly rent?', ['payment']),
       req('deposit_amount', 'What deposit was paid?', ['payment', 'explicit_absence']),
     ],
     existing_propositions: [

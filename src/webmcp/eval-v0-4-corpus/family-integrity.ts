@@ -40,7 +40,11 @@ export const INTEGRITY_CASES: SemanticEvalCaseV04[] = [
           'own_performance',
           'narrative_fact',
           ['asserted_confident'],
-          { statement_mentions: ['three weeks'], material_adverse_fact: true },
+          {
+            statement_mentions: ['three weeks'],
+            statement_must_not_mention: ['weeks before', 'weeks early', 'ahead of'],
+            material_adverse_fact: true,
+          },
         ),
       ],
       clarifications: [],
@@ -59,6 +63,11 @@ export const INTEGRITY_CASES: SemanticEvalCaseV04[] = [
       // 'weeks early' rather than bare 'early': substring matching is literal,
       // and "clearly", "nearly" and "yearly" all CONTAIN "early". The bare form
       // false-failed a correct sibling statement in the adjacent case.
+      // Case-wide guards stay, and the ADVERSE expectation now also carries
+      // ASSERTION-SCOPED reversals. 'weeks before' was the gap: the most direct
+      // reversal of "three weeks after I said I would" is "three weeks BEFORE",
+      // which contains the required 'three weeks' and none of the case-wide
+      // terms. A correct rendering cannot contain it.
       statements_must_not_mention: ['weeks early', 'ahead of', 'on time'],
       forbid_supersession: true,
     },
@@ -79,11 +88,15 @@ export const INTEGRITY_CASES: SemanticEvalCaseV04[] = [
     expect: {
       verdict: 'accepted_candidates',
       assertions: [
+        // "nearly everything" is an explicit APPROXIMATOR over the extent of
+        // the claim, the same species as the doctrine's own asserted_qualified
+        // exemplars "about" and "roughly". Pinning one strength would make a
+        // compliant qualified rendering a HARD blocker.
         expectAssertion(
           'other_side_late',
           'other_party_nonperformance',
           'narrative_fact',
-          ['asserted_confident'],
+          ['asserted_confident', 'asserted_qualified'],
           { statement_mentions: ['late'] },
         ),
         expectAssertion(
@@ -91,7 +104,14 @@ export const INTEGRITY_CASES: SemanticEvalCaseV04[] = [
           'own_performance',
           'narrative_fact',
           ['asserted_confident'],
-          { statement_mentions: ['tiles'], material_adverse_fact: true },
+          {
+            statement_mentions: ['tiles'],
+            // 'met the deadline' was the gap: it reverses the admission while
+            // still containing 'tiles'. "missed the deadline" does not contain
+            // "met the deadline".
+            statement_must_not_mention: ['met the deadline', 'on time', 'supplied the tiles on'],
+            material_adverse_fact: true,
+          },
         ),
       ],
       clarifications: [],
@@ -122,7 +142,21 @@ export const INTEGRITY_CASES: SemanticEvalCaseV04[] = [
           'own_performance',
           'narrative_fact',
           ['asserted_confident'],
-          { statement_mentions: ['change order'], material_adverse_fact: true },
+          {
+            statement_mentions: ['change order'],
+            // The bare forms 'he sent' / 'party sent' / 'they sent' reversed
+            // the concession while containing 'change order'. A correct
+            // rendering — "never sent", "did not send" — contains none of them.
+            statement_must_not_mention: [
+              'did send',
+              'was sent',
+              'had sent',
+              'he sent',
+              'party sent',
+              'they sent',
+            ],
+            material_adverse_fact: true,
+          },
         ),
       ],
       clarifications: [],
@@ -156,7 +190,13 @@ export const INTEGRITY_CASES: SemanticEvalCaseV04[] = [
         ),
       ],
       clarifications: [],
-      statements_must_not_mention: ['March', 'April', 'May'],
+      // 'in March' / 'in April' / 'in May' rather than bare month names.
+      // Case-insensitive substring matching made bare 'May' collide with the
+      // ordinary modal "may have" — and this case explicitly licenses hedged
+      // strengths, so a compliant "may have invoiced them" statement would have
+      // tripped a HARD blocker on an innocent auxiliary verb. Same class as the
+      // "early" inside "nearly"/"clearly" collision.
+      statements_must_not_mention: ['in March', 'in April', 'in May'],
       forbid_supersession: true,
     },
   }),
