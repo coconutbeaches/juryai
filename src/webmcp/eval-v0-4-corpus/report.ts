@@ -21,7 +21,7 @@
 
 import { formatProviderModelIdentifier } from '../eval/report.js';
 import type { SemanticEvalCaseV04 } from '../eval-v0-4/types.js';
-import { SEMANTIC_EVAL_CORPUS_VERSION, casesByCategory, corpusHash } from './index.js';
+import { casesByCategory, corpusHash } from './index.js';
 import type { CorpusRunResult } from './runner.js';
 
 const line = (label: string, value: string): string => `${label.padEnd(22)}${value}`;
@@ -32,15 +32,25 @@ export function formatReportedModels(reportedModels: readonly string[]): string 
   return formatted.join(', ') || '(none reported)';
 }
 
+/**
+ * The corpus VERSION is passed in rather than read from a module constant.
+ *
+ * It used to be read from `SEMANTIC_EVAL_CORPUS_VERSION`, which is the PRIMARY
+ * corpus's version — so a holdout run printed the primary corpus's label beside
+ * the holdout's hash. The hash made the run identifiable, but a report that
+ * mislabels which corpus was measured is exactly the kind of quiet provenance
+ * error this whole slice exists to avoid.
+ */
 export function formatEvalReportV04(
   label: string,
   corpus: readonly SemanticEvalCaseV04[],
   run: CorpusRunResult,
+  corpusVersion: string,
 ): string {
   const out: string[] = [
     '',
     `=== V0.4 SEMANTIC EVAL — ${label} ===`,
-    line('corpus_version', SEMANTIC_EVAL_CORPUS_VERSION),
+    line('corpus_version', corpusVersion),
     line('corpus_hash', corpusHash(corpus)),
     line('compiler_version_id', run.compiler_version_id),
     line('prompt_version', run.prompt_version),

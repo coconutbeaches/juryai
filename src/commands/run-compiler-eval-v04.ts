@@ -41,13 +41,18 @@ import { ModelSemanticCompilerV04 } from '../webmcp/compiler-v0-4/model-compiler
 import {
   PRIMARY_CORPUS,
   PRIMARY_CORPUS_FROZEN_HASH,
+  SEMANTIC_EVAL_CORPUS_VERSION,
   corpusHash,
   corpusWellFormednessErrors,
 } from '../webmcp/eval-v0-4-corpus/index.js';
 // The ACTIVE holdout. The retired v0.4.0 holdout is deliberately NOT imported
 // here: that corpus failed, its model outputs were then inspected, and it must
 // never be runnable again. A test asserts this file cannot reach it.
-import { HOLDOUT_V041, HOLDOUT_V041_FROZEN_HASH } from '../webmcp/eval-v0-4-corpus/holdout-v041.js';
+import {
+  HOLDOUT_V041,
+  HOLDOUT_V041_FROZEN_HASH,
+  HOLDOUT_V041_VERSION,
+} from '../webmcp/eval-v0-4-corpus/holdout-v041.js';
 import { createOfflineCompilerV04 } from '../webmcp/eval-v0-4-corpus/offline.js';
 import { runCorpusV04 } from '../webmcp/eval-v0-4-corpus/runner.js';
 // Reused, not reimplemented. The historical evaluator already solved this and
@@ -136,6 +141,7 @@ async function main(): Promise<void> {
   const offline = args.has('--offline');
 
   const corpus = holdout ? HOLDOUT_V041 : PRIMARY_CORPUS;
+  const corpusVersion = holdout ? HOLDOUT_V041_VERSION : SEMANTIC_EVAL_CORPUS_VERSION;
   const label = `${holdout ? 'HOLDOUT' : 'PRIMARY'} · ${offline ? 'OFFLINE REPLAY' : 'LIVE MODEL'}`;
 
   if (holdout && corpus.length === 0) {
@@ -173,7 +179,7 @@ async function main(): Promise<void> {
 
   const compiler = offline ? createOfflineCompilerV04(corpus) : createLiveCompilerV04();
   const run = await runCorpusV04(compiler, corpus);
-  console.log(formatEvalReportV04(label, corpus, run));
+  console.log(formatEvalReportV04(label, corpus, run, corpusVersion));
 
   if (offline) {
     console.log('');

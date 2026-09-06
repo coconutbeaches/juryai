@@ -65,6 +65,7 @@ describe('provider-reported model identity is sanitized', () => {
       runResult({
         reported_models: [hostile],
       }),
+      'test-corpus-version',
     );
     expect(rendered).not.toContain('RESULT: PASS');
     expect(rendered).toContain('(invalid provider identifier)');
@@ -79,7 +80,12 @@ describe('provider-reported model identity is sanitized', () => {
 
 describe('the report carries identities and counts, never case material', () => {
   it('prints no corpus answer text', () => {
-    const rendered = formatEvalReportV04('PRIMARY', PRIMARY_CORPUS, runResult());
+    const rendered = formatEvalReportV04(
+      'PRIMARY',
+      PRIMARY_CORPUS,
+      runResult(),
+      'test-corpus-version',
+    );
     for (const item of PRIMARY_CORPUS) {
       expect(rendered).not.toContain(item.answer);
     }
@@ -104,13 +110,36 @@ describe('the report carries identities and counts, never case material', () => 
           },
         ],
       }),
+      'test-corpus-version',
     );
     expect(rendered).toContain('some_case');
     expect(rendered).toContain('HARD:assertions.undeclared_extra');
   });
 
   it('records an unpinned alias honestly rather than inventing a snapshot', () => {
-    const rendered = formatEvalReportV04('PRIMARY', PRIMARY_CORPUS.slice(0, 1), runResult());
+    const rendered = formatEvalReportV04(
+      'PRIMARY',
+      PRIMARY_CORPUS.slice(0, 1),
+      runResult(),
+      'test-corpus-version',
+    );
     expect(rendered).toContain('null (moving alias, not pinned)');
+  });
+});
+
+describe('the report labels the corpus that actually ran', () => {
+  it('prints the version it was given, not a module default', () => {
+    // Regression: the version used to be read from the PRIMARY corpus constant,
+    // so a holdout run printed the primary corpus's label beside the holdout's
+    // hash. The hash still identified the run, but a report that mislabels
+    // which corpus was measured is a provenance error.
+    const rendered = formatEvalReportV04(
+      'HOLDOUT',
+      PRIMARY_CORPUS.slice(0, 1),
+      runResult(),
+      'juryai-semantic-holdout-v0.4.1',
+    );
+    expect(rendered).toContain('juryai-semantic-holdout-v0.4.1');
+    expect(rendered).not.toContain('juryai-semantic-eval-v0.4.2');
   });
 });
