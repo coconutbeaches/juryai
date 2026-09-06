@@ -216,12 +216,17 @@ describe('the retired holdout v0.4.0 is preserved, immutable, and unreachable', 
     }
   });
 
-  it('is not reachable from the live eval command', () => {
+  it('neither retired holdout is reachable from the live eval command', () => {
+    // v0.4.0 FAILED and its outputs were then inspected; v0.4.1 was CONSUMED by
+    // its single run. Both are permanently unusable as holdout evidence, so the
+    // live command must be unable to reach either. Only the active holdout may
+    // be imported.
     const command = readFileSync(
       resolve(projectRoot, 'src/commands/run-compiler-eval-v04.ts'),
       'utf8',
     );
     expect(command).not.toMatch(/holdout-v040-retired/u);
-    expect(command).toMatch(/holdout-v041/u);
+    expect(command).not.toMatch(/holdout-v041/u);
+    expect(command).toMatch(/holdout-v042/u);
   });
 });
