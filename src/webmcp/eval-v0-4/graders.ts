@@ -18,12 +18,14 @@ import { validateCompilerOutputV04 } from '../core-v0-4/compiler-contract.js';
 import { isPropositionType, propositionTypeDescriptor } from '../core-v0-3/types.js';
 import { verifyTurnSpan } from '../core/turns.js';
 import { matchOneToOne } from './matching.js';
+import { expectationAlternatives } from './types.js';
 import type {
   EvalFailureV04,
   ExpectedAssertionV04,
   ExpectedClarificationV04,
   GradeResultV04,
   SemanticEvalCaseV04,
+  SemanticExpectationV04,
 } from './types.js';
 
 type Assertion = CompilerOutput['assertions'][number];
@@ -157,8 +159,35 @@ function compatible(expected: ExpectedAssertionV04, actual: Assertion): boolean 
   if (expected.supersedes !== undefined && actual.supersedes_candidate !== expected.supersedes) {
     return false;
   }
+  return statementLiteralsOk(expected, actual);
+}
+
+/**
+ * Every literal constraint on one assertion's statement.
+ *
+ * Three exact, fixture-authored checks and nothing else — no similarity, no
+ * threshold, no paraphrase judgement:
+ *
+ *  - `statement_mentions`: ALL must appear.
+ *  - `statement_mentions_any_of`: ANY ONE all-of group must be satisfied,
+ *    which is how a value with several legitimate surface forms is expressed
+ *    without pinning one arbitrarily.
+ *  - `statement_must_not_mention`: NONE may appear, scoped to this assertion.
+ */
+function statementLiteralsOk(expected: ExpectedAssertionV04, actual: Assertion): boolean {
+  const statement = fold(actual.statement);
   for (const literal of expected.statement_mentions ?? []) {
-    if (!fold(actual.statement).includes(fold(literal))) return false;
+    if (!statement.includes(fold(literal))) return false;
+  }
+  const groups = expected.statement_mentions_any_of;
+  if (groups !== undefined && groups.length > 0) {
+    const anyGroupSatisfied = groups.some((group) =>
+      group.every((literal) => statement.includes(fold(literal))),
+    );
+    if (!anyGroupSatisfied) return false;
+  }
+  for (const forbidden of expected.statement_must_not_mention ?? []) {
+    if (statement.includes(fold(forbidden))) return false;
   }
   return true;
 }
@@ -276,10 +305,7 @@ function gradeAssertionSetV04(
       item.epistemic_strengths.includes(assertion.epistemic_strength);
     const supersedesOk = (assertion: Assertion): boolean =>
       item.supersedes === undefined || assertion.supersedes_candidate === item.supersedes;
-    const literalsOk = (assertion: Assertion): boolean =>
-      (item.statement_mentions ?? []).every((literal) =>
-        fold(assertion.statement).includes(fold(literal)),
-      );
+    const literalsOk = (assertion: Assertion): boolean => statementLiteralsOk(item, assertion);
 
     /**
      * Diagnose only when the skipped constraint ACTUALLY DIFFERS.
@@ -319,10 +345,11 @@ function gradeAssertionSetV04(
     ) {
       failures.push(failure('assertions.wrong_supersession_target', item.expectation_id));
     }
-    if (
-      (item.statement_mentions ?? []).length > 0 &&
-      differsOn('literals', (assertion) => !literalsOk(assertion))
-    ) {
+    const hasLiteralConstraint =
+      (item.statement_mentions ?? []).length > 0 ||
+      (item.statement_mentions_any_of ?? []).length > 0 ||
+      (item.statement_must_not_mention ?? []).length > 0;
+    if (hasLiteralConstraint && differsOn('literals', (assertion) => !literalsOk(assertion))) {
       failures.push(failure('assertions.literal_missing', item.expectation_id));
     }
   }
@@ -413,12 +440,17 @@ function gradeClarificationSetV04(
   }
 }
 
-export function gradeExpectationV04(
-  evalCase: SemanticEvalCaseV04,
+/**
+ * Grades output against ONE complete expectation shape, closed-world.
+ *
+ * Exported so a caller can grade a single alternative in isolation; nothing
+ * here knows that alternatives exist.
+ */
+export function gradeAgainstExpectationV04(
+  expected: SemanticExpectationV04,
   output: CompilerOutput,
   failures: EvalFailureV04[],
 ): void {
-  const expected = evalCase.expect;
   if (output.verdict !== expected.verdict) failures.push(failure('verdict.mismatch'));
 
   gradeAssertionSetV04(expected.assertions, output, failures);
@@ -444,6 +476,86 @@ export function gradeExpectationV04(
     if (surfaces.some((surface) => fold(surface).includes(fold(literal)))) {
       failures.push(failure('output.forbidden_literal'));
     }
+  }
+}
+
+/**
+ * Grades output against a case's expectation, which may declare ALTERNATIVES.
+ *
+ * The case passes iff at least one COMPLETE alternative passes. Fields are
+ * never mixed across alternatives, so a hybrid the doctrine does not license —
+ * `ambiguous` carrying an assertion, or a verdict from one branch with a
+ * clarification from another — satisfies no branch and fails.
+ *
+ * DIAGNOSTICS WHEN NOTHING PASSES. Concatenating every branch's failures would
+ * manufacture hard blockers from branches the output was never trying to
+ * satisfy. So:
+ *
+ *  - A failure is reported as a HARD BLOCKER only when that rule fires under
+ *    EVERY declared alternative. Such a failure is branch-independent: no
+ *    permitted shape excuses it, which is exactly what "safety" should mean
+ *    here. Fabrication, foreign-scope writes, laundering, invalid supersession
+ *    and forbidden types therefore cannot be washed out by adding a branch that
+ *    happens not to check them — they are only excused if a branch genuinely
+ *    permits the output, and then that branch passes outright.
+ *  - Remaining detail comes from ONE deterministically chosen best-matching
+ *    alternative: fewest hard failures, then fewest total, then declaration
+ *    order. Those are branch-contingent, so they are reported at ordinary
+ *    severity with their rule names preserved.
+ *
+ * Universal checks are not run here at all; they run once, in
+ * `gradeCompilerOutputV04`, and always apply.
+ */
+export function gradeExpectationV04(
+  evalCase: SemanticEvalCaseV04,
+  output: CompilerOutput,
+  failures: EvalFailureV04[],
+): void {
+  const alternatives = expectationAlternatives(evalCase.expect);
+  const graded = alternatives.map((alternative) => {
+    const branch: EvalFailureV04[] = [];
+    gradeAgainstExpectationV04(alternative, output, branch);
+    return branch;
+  });
+
+  // Any alternative satisfied completely means the semantic expectation is met.
+  if (graded.some((branch) => branch.length === 0)) return;
+
+  const hardRulesIn = (branch: readonly EvalFailureV04[]): Set<string> =>
+    new Set(branch.filter((entry) => entry.severity === 'hard_blocker').map((entry) => entry.rule));
+
+  // Branch-independent hard failures: fire under EVERY permitted shape.
+  let universalHardRules = hardRulesIn(graded[0] as EvalFailureV04[]);
+  for (const branch of graded.slice(1)) {
+    const rules = hardRulesIn(branch);
+    universalHardRules = new Set([...universalHardRules].filter((rule) => rules.has(rule)));
+  }
+
+  const best = graded.reduce((chosen, branch) => {
+    const hard = (entries: readonly EvalFailureV04[]): number =>
+      entries.filter((entry) => entry.severity === 'hard_blocker').length;
+    if (hard(branch) !== hard(chosen)) return hard(branch) < hard(chosen) ? branch : chosen;
+    return branch.length < chosen.length ? branch : chosen;
+  }, graded[0] as EvalFailureV04[]);
+
+  const reportedHard = new Set<string>();
+  for (const entry of best) {
+    if (entry.severity === 'hard_blocker' && universalHardRules.has(entry.rule)) {
+      failures.push(entry);
+      reportedHard.add(entry.rule);
+    }
+  }
+  // A hard rule that holds under every alternative but did not surface in the
+  // chosen branch is still branch-independent, so it is still reported.
+  for (const rule of universalHardRules) {
+    if (!reportedHard.has(rule)) failures.push(failure(rule));
+  }
+  for (const entry of best) {
+    if (entry.severity === 'hard_blocker' && universalHardRules.has(entry.rule)) continue;
+    // Branch-contingent: another declared shape does not object to it, so it
+    // is a semantic miss rather than a safety violation. The rule name is
+    // preserved; only the severity reflects that contingency.
+    failures.push({ ...entry, severity: 'ordinary' });
   }
 }
 
