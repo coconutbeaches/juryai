@@ -24,6 +24,7 @@ import {
   casesByCategory,
 } from '../webmcp/eval-v0-4-corpus/index.js';
 import { createOfflineCompilerV04 } from '../webmcp/eval-v0-4-corpus/offline.js';
+import { expectationAlternatives } from '../webmcp/eval-v0-4/types.js';
 import { HOLDOUT_V041, HOLDOUT_V041_FROZEN_HASH } from '../webmcp/eval-v0-4-corpus/holdout-v041.js';
 import {
   RETIRED_HOLDOUT_V040,
@@ -201,15 +202,16 @@ describe('the retired holdout v0.4.0 is preserved, immutable, and unreachable', 
       expect(retiredIds.has(item.id)).toBe(false);
       expect(retiredAnswers.has(item.answer)).toBe(false);
     }
-    // No expectation id is reused either.
-    const retiredExpectationIds = new Set(
-      RETIRED_HOLDOUT_V040.flatMap((item) =>
-        item.expect.assertions.map((expectation) => expectation.expectation_id),
-      ),
-    );
+    // No expectation id is reused either. Walks every ALTERNATIVE, since after
+    // 8C1b-0.2 a case may declare several complete shapes.
+    const expectationIds = (item: (typeof HOLDOUT_V041)[number]): string[] =>
+      expectationAlternatives(item.expect).flatMap((alternative) =>
+        alternative.assertions.map((expectation) => expectation.expectation_id),
+      );
+    const retiredExpectationIds = new Set(RETIRED_HOLDOUT_V040.flatMap(expectationIds));
     for (const item of HOLDOUT_V041) {
-      for (const expectation of item.expect.assertions) {
-        expect(retiredExpectationIds.has(expectation.expectation_id)).toBe(false);
+      for (const id of expectationIds(item)) {
+        expect(retiredExpectationIds.has(id)).toBe(false);
       }
     }
   });

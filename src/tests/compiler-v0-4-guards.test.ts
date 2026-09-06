@@ -60,6 +60,7 @@ import { semanticCompilerSchemaHash } from '../webmcp/compiler-v0-3/response-sch
 import { DEFAULT_COMPILER_TAXONOMY_VERSION } from '../webmcp/compiler-v0-3/model-compiler.js';
 import { fixedModelClient } from '../webmcp/compiler/replay-client.js';
 import { buildEvalInputV04 } from '../webmcp/eval-v0-4/scenario.js';
+import { expectationAlternatives } from '../webmcp/eval-v0-4/types.js';
 
 const read = (file: string): string => readFileSync(resolve(projectRoot, file), 'utf8');
 
@@ -389,12 +390,17 @@ describe('8C1b-1 guards: the corpus is frozen and carries no answer key', () => 
   });
 
   it('leaks no expectation id into the prompt', () => {
+    // Walks every ALTERNATIVE, not just a single expectation: after 8C1b-0.2 a
+    // case may declare several complete shapes, and an id hidden in a
+    // non-primary alternative would leak just as effectively.
     const leaked = PRIMARY_CORPUS.flatMap((item) =>
-      item.expect.assertions
-        .filter((expectation) =>
-          SEMANTIC_COMPILER_SYSTEM_PROMPT_V04.includes(expectation.expectation_id),
-        )
-        .map((expectation) => expectation.expectation_id),
+      expectationAlternatives(item.expect).flatMap((alternative) =>
+        alternative.assertions
+          .filter((expectation) =>
+            SEMANTIC_COMPILER_SYSTEM_PROMPT_V04.includes(expectation.expectation_id),
+          )
+          .map((expectation) => expectation.expectation_id),
+      ),
     );
     expect(leaked).toEqual([]);
   });

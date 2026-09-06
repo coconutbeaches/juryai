@@ -22,6 +22,7 @@
 import { canonicalSerialize, sha256 } from '../core-v0-3/types.js';
 import type { JsonValue } from '../core-v0-3/types.js';
 import { normalizeForStorage } from '../core/turns.js';
+import { expectationAlternatives } from '../eval-v0-4/types.js';
 import type { EvalCategoryV04, SemanticEvalCaseV04 } from '../eval-v0-4/types.js';
 import { DECOMPOSITION_CASES } from './family-decomposition.js';
 import { SUPERSESSION_CASES } from './family-supersession.js';
@@ -107,41 +108,51 @@ export function corpusWellFormednessErrors(cases: readonly SemanticEvalCaseV04[]
       }
     }
 
-    const seenExpectationIds = new Set<string>();
-    for (const expectation of item.expect.assertions) {
-      if (seenExpectationIds.has(expectation.expectation_id)) {
-        errors.push(`${item.id}: duplicate expectation_id ${expectation.expectation_id}`);
+    // EVERY alternative is checked, not just the first. A case may declare
+    // several complete shapes, and a malformed one that is never selected is
+    // still a malformed fixture.
+    const alternatives = expectationAlternatives(item.expect);
+    for (const [index, alternative] of alternatives.entries()) {
+      const where = alternatives.length === 1 ? '' : ` (alternative ${String(index)})`;
+      const seenExpectationIds = new Set<string>();
+      for (const expectation of alternative.assertions) {
+        if (seenExpectationIds.has(expectation.expectation_id)) {
+          errors.push(`${item.id}${where}: duplicate expectation_id ${expectation.expectation_id}`);
+        }
+        seenExpectationIds.add(expectation.expectation_id);
+        if (!requirementIds.has(expectation.requirement_id)) {
+          // An expectation outside the supplied context could never be
+          // satisfied: the contract rejects such an assertion as
+          // `compiler_requirement_unknown`.
+          errors.push(
+            `${item.id}${where}: expectation ${expectation.expectation_id} targets unsupplied requirement`,
+          );
+        }
       }
-      seenExpectationIds.add(expectation.expectation_id);
-      if (!requirementIds.has(expectation.requirement_id)) {
-        // An expectation outside the supplied context could never be satisfied:
-        // the contract rejects such an assertion as `compiler_requirement_unknown`.
+      for (const clarification of alternative.clarifications) {
+        if (!requirementIds.has(clarification.requirement_id)) {
+          errors.push(`${item.id}${where}: clarification targets unsupplied requirement`);
+        }
+      }
+
+      // The oracle's universal gate fails an ambiguous verdict that carries
+      // assertions, and one that carries no clarification.
+      if (alternative.verdict === 'ambiguous') {
+        if (alternative.assertions.length > 0) {
+          errors.push(`${item.id}${where}: ambiguous verdict cannot expect assertions`);
+        }
+        if (alternative.clarifications.length === 0) {
+          errors.push(`${item.id}${where}: ambiguous verdict must expect a clarification`);
+        }
+      }
+      if (alternative.verdict === 'no_assertions' && alternative.assertions.length > 0) {
+        errors.push(`${item.id}${where}: no_assertions verdict cannot expect assertions`);
+      }
+      if (alternative.verdict === 'accepted_candidates' && alternative.assertions.length === 0) {
         errors.push(
-          `${item.id}: expectation ${expectation.expectation_id} targets unsupplied requirement`,
+          `${item.id}${where}: accepted_candidates verdict must expect at least one assertion`,
         );
       }
-    }
-    for (const clarification of item.expect.clarifications) {
-      if (!requirementIds.has(clarification.requirement_id)) {
-        errors.push(`${item.id}: clarification targets unsupplied requirement`);
-      }
-    }
-
-    // The oracle's universal gate fails an ambiguous verdict that carries
-    // assertions, and one that carries no clarification.
-    if (item.expect.verdict === 'ambiguous') {
-      if (item.expect.assertions.length > 0) {
-        errors.push(`${item.id}: ambiguous verdict cannot expect assertions`);
-      }
-      if (item.expect.clarifications.length === 0) {
-        errors.push(`${item.id}: ambiguous verdict must expect a clarification`);
-      }
-    }
-    if (item.expect.verdict === 'no_assertions' && item.expect.assertions.length > 0) {
-      errors.push(`${item.id}: no_assertions verdict cannot expect assertions`);
-    }
-    if (item.expect.verdict === 'accepted_candidates' && item.expect.assertions.length === 0) {
-      errors.push(`${item.id}: accepted_candidates verdict must expect at least one assertion`);
     }
   }
   return errors;
