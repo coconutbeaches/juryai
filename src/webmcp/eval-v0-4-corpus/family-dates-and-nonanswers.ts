@@ -112,8 +112,18 @@ export const DATES_AND_NONANSWERS_CASES: SemanticEvalCaseV04[] = [
     expect: {
       verdict: 'ambiguous',
       assertions: [],
+      // BOTH labels are doctrinally correct here, and the corpus must not pick
+      // one arbitrarily. The rule that applies — "Ask for clarification if
+      // polarity/adoption is unclear" — names no adoption-specific reason, and
+      // the speaker's missing position is described honestly either as two
+      // incompatible readings or as an answer that does not address the
+      // requirement. 8C1b-0.1 added the acceptable-set form for exactly this;
+      // a reason outside the set still fails.
       clarifications: [
-        { requirement_id: 'binding_deadline', reason: 'multiple_incompatible_readings' },
+        {
+          requirement_id: 'binding_deadline',
+          reasons: ['multiple_incompatible_readings', 'answer_does_not_address_requirement'],
+        },
       ],
       forbidden_types: ['explicit_absence', 'contractual_deadline'],
     },

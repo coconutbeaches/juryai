@@ -29,7 +29,15 @@ import { SCOPE_CASES } from './family-scope.js';
 import { DATES_AND_NONANSWERS_CASES } from './family-dates-and-nonanswers.js';
 import { INTEGRITY_CASES } from './family-integrity.js';
 
-export const SEMANTIC_EVAL_CORPUS_VERSION = 'juryai-semantic-eval-v0.4.0';
+/**
+ * Bumped from v0.4.0 after the disclosed post-freeze corrections.
+ *
+ * A new version rather than a re-frozen hash under the old one, so the three
+ * earlier live runs stay readable as history without inviting a numeric
+ * comparison against a corpus they were never graded on. Runs against
+ * different corpus versions are different experiments.
+ */
+export const SEMANTIC_EVAL_CORPUS_VERSION = 'juryai-semantic-eval-v0.4.1';
 
 export const PRIMARY_CORPUS: readonly SemanticEvalCaseV04[] = Object.freeze([
   ...DECOMPOSITION_CASES,
@@ -49,7 +57,7 @@ export const PRIMARY_CORPUS: readonly SemanticEvalCaseV04[] = Object.freeze([
  * corpus is indistinguishable from a corpus tuned to the model.
  */
 export const PRIMARY_CORPUS_FROZEN_HASH =
-  '71f5711183ffab9ea2d856a12b26ff9316ed092834000de0441846c3475010fc';
+  '23c232fae1a0925e38fd4bdd4a76d6dbae45fcbd7d39d47fa17bc15a229f6d2d';
 
 /**
  * The content hash of a corpus.
