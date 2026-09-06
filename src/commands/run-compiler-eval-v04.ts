@@ -59,6 +59,14 @@ import { runCorpusV04 } from '../webmcp/eval-v0-4-corpus/runner.js';
 // its module is byte-frozen, so importing keeps one definition of what is
 // printable rather than a second that can drift.
 import { formatEvalReportV04 } from '../webmcp/eval-v0-4-corpus/report.js';
+import {
+  RELIABILITY_PROTOCOL,
+  countNonSafety,
+  countSafety,
+  evaluateReliability,
+  summariseRun,
+} from '../webmcp/eval-v0-4-corpus/reliability.js';
+import type { CaseRunResult } from '../webmcp/eval-v0-4-corpus/runner.js';
 
 /**
  * A positive integer, or a loud configuration error.
@@ -174,6 +182,85 @@ async function main(): Promise<void> {
     console.error(`  actual ${actual}`);
     console.error('  Refusing to run. A corpus change after freezing must be recorded explicitly.');
     process.exitCode = 1;
+    return;
+  }
+
+  /**
+   * REPEATED-RUN RELIABILITY PROTOCOL.
+   *
+   * Predeclared and frozen in `reliability.ts` before the first live call. The
+   * budget is fixed, every run counts, and nothing is inspected or edited
+   * between runs. A single SAFETY-critical violation stops the series
+   * immediately — safety is never averaged into a rate.
+   */
+  if (args.has('--reliability')) {
+    const total = RELIABILITY_PROTOCOL.runs;
+    console.log('');
+    console.log(`=== REPEATED-RUN RELIABILITY PROTOCOL — ${label} ===`);
+    console.log(`declared budget       ${String(total)} complete runs`);
+    console.log(`safety tolerance      ${String(RELIABILITY_PROTOCOL.max_safety_violations)}`);
+    console.log(`pass-rate floor       ${(RELIABILITY_PROTOCOL.min_pass_rate * 100).toFixed(1)}%`);
+    console.log(
+      `max failures per case ${String(RELIABILITY_PROTOCOL.max_failures_per_case)} of ${String(total)}`,
+    );
+    console.log(
+      `anchor                ${RELIABILITY_PROTOCOL.anchor_case_id} >= ${String(RELIABILITY_PROTOCOL.anchor_min_passes)}`,
+    );
+
+    const allRuns: CaseRunResult[][] = [];
+    for (let index = 1; index <= total; index += 1) {
+      const perRunCompiler = offline ? createOfflineCompilerV04(corpus) : createLiveCompilerV04();
+      const outcome = await runCorpusV04(perRunCompiler, corpus);
+      allRuns.push([...outcome.results]);
+      const safety = countSafety(outcome.results);
+      const ordinary = countNonSafety(outcome.results);
+      console.log('');
+      console.log(`--- run ${String(index)}/${String(total)} ---`);
+      console.log(`compiler_version_id   ${outcome.compiler_version_id}`);
+      console.log(`corpus_hash           ${corpusHash(corpus)}`);
+      console.log(`passed                ${String(outcome.passed)}/${String(outcome.case_count)}`);
+      console.log(`safety_violations     ${String(safety)}`);
+      console.log(`non_safety_failures   ${String(ordinary)}`);
+      console.log(`provider_calls        ${String(outcome.provider_calls)}`);
+      console.log(
+        `tokens in/out         ${String(outcome.input_tokens ?? 0)}/${String(outcome.output_tokens ?? 0)}`,
+      );
+      console.log(`elapsed_ms            ${String(outcome.elapsed_ms)}`);
+      for (const entry of summariseRun(index, outcome.results)) {
+        console.log(
+          `  ${entry.safety ? 'SAFETY' : 'ordinary'}  ${entry.case_id.padEnd(38)} ${entry.rules.join(' ')}`,
+        );
+      }
+      if (safety > 0) {
+        console.log('');
+        console.log('SAFETY-CRITICAL VIOLATION — stopping the series immediately.');
+        console.log('RESULT: FAIL');
+        process.exitCode = 1;
+        return;
+      }
+    }
+
+    const verdict = evaluateReliability(allRuns);
+    console.log('');
+    console.log('=== RELIABILITY VERDICT ===');
+    console.log(
+      `green case-runs       ${String(verdict.green_case_runs)}/${String(verdict.total_case_runs)} = ${(verdict.pass_rate * 100).toFixed(2)}%`,
+    );
+    console.log(`safety_violations     ${String(verdict.safety_violations)}`);
+    console.log(
+      `anchor passes         ${String(verdict.anchor_passes)}/${String(RELIABILITY_PROTOCOL.runs)}`,
+    );
+    console.log('per-case failure counts (failing cases only):');
+    for (const entry of verdict.per_case_failures) {
+      console.log(`  ${entry.case_id.padEnd(38)} ${String(entry.failures)}`);
+    }
+    console.log('acceptance clauses:');
+    for (const clause of verdict.clauses) {
+      console.log(`  [${clause.ok ? 'PASS' : 'FAIL'}] ${clause.name} — ${clause.detail}`);
+    }
+    console.log('');
+    console.log(verdict.accepted ? 'RESULT: PASS' : 'RESULT: FAIL');
+    process.exitCode = verdict.accepted ? 0 : 1;
     return;
   }
 
