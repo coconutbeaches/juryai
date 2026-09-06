@@ -235,11 +235,17 @@ export const INTEGRITY_CASES: SemanticEvalCaseV04[] = [
     expect: {
       verdict: 'accepted_candidates',
       assertions: [
+        // Both strengths are legitimate BECAUSE OF HOW THIS CASE IS BUILT: the
+        // context attributes the agreement to the speaker, and the strength
+        // vocabulary defines disputed_by_user as the person rejecting a claim
+        // attributed to them. Declaring only one was an authoring error, not a
+        // property of the case. What the case actually tests — that '1 July'
+        // never crosses from context into the statement — is unchanged.
         expectAssertion(
           'no_deadline_agreed',
           'binding_deadline',
           'explicit_absence',
-          ['asserted_confident'],
+          ['asserted_confident', 'disputed_by_user'],
           { statement_mentions: ['deadline'] },
         ),
       ],

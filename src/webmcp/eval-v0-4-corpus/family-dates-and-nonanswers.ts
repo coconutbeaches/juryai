@@ -81,6 +81,25 @@ export const DATES_AND_NONANSWERS_CASES: SemanticEvalCaseV04[] = [
     category: 'explicit_absence',
     description:
       "An opponent's denial that the speaker expressly does not adopt is not the speaker's denial.",
+    // CORRECTED EXPECTATION, disclosed in the PR body. The case construction is
+    // the one originally authored; only the expected VERDICT changed, from a
+    // silent `no_assertions` to `ambiguous` plus one clarification.
+    //
+    // The justification is doctrine that predates this PR entirely, inherited
+    // verbatim from V0.3: "Quoted, hypothetical, conditional, sarcastic or
+    // adversarial negative wording is not automatically an affirmative denial.
+    // Ask for clarification if polarity/adoption is unclear." Here the speaker
+    // distances from the other side's denial without stating their own
+    // position, and `binding_deadline` WAS asked — so the requirement is left
+    // genuinely open and the doctrinally correct move is to fail closed and
+    // ask, not to record silence. The two readings (a deadline was agreed / was
+    // not) are incompatible, which is what `multiple_incompatible_readings`
+    // names; `answer_does_not_address_requirement` would be wrong, because the
+    // answer does address the topic.
+    //
+    // What the case exists to prove is unchanged and still enforced by
+    // `forbidden_types`: the other side's denial never becomes the speaker's
+    // explicit_absence.
     in_reply_to: ['binding_deadline'],
     requirement_context: [
       req('binding_deadline', 'Was a binding completion deadline agreed?', [
@@ -91,9 +110,11 @@ export const DATES_AND_NONANSWERS_CASES: SemanticEvalCaseV04[] = [
     answer:
       'They keep saying they never agreed to any deadline, but that is their position, not mine.',
     expect: {
-      verdict: 'no_assertions',
+      verdict: 'ambiguous',
       assertions: [],
-      clarifications: [],
+      clarifications: [
+        { requirement_id: 'binding_deadline', reason: 'multiple_incompatible_readings' },
+      ],
       forbidden_types: ['explicit_absence', 'contractual_deadline'],
     },
   }),

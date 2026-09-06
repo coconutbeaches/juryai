@@ -210,9 +210,25 @@ export const SCOPE_CASES: SemanticEvalCaseV04[] = [
         expectAssertion('paid_6000', 'payments_made', 'payment', ['asserted_confident'], {
           statement_mentions: ['6,000'],
         }),
-        expectAssertion('remedy', 'remedy_sought', 'requested_remedy', ['asserted_confident'], {
-          statement_mentions: ['2,000'],
-        }),
+        // TWO remedies, not one. "the remaining work finished" and "2,000 euro
+        // back" can be independently granted or refused, so the decomposition
+        // doctrine makes them two propositions. The original single expectation
+        // contradicted that doctrine; see the PR body for the disclosed
+        // post-freeze correction.
+        expectAssertion(
+          'remedy_work_finished',
+          'remedy_sought',
+          'requested_remedy',
+          ['asserted_confident'],
+          { statement_mentions: ['remaining work'] },
+        ),
+        expectAssertion(
+          'remedy_money_back',
+          'remedy_sought',
+          'requested_remedy',
+          ['asserted_confident'],
+          { statement_mentions: ['2,000'] },
+        ),
       ],
       clarifications: [],
       forbid_supersession: true,

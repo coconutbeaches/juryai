@@ -492,8 +492,15 @@ export const OFFLINE_COMPLETIONS: Record<string, OfflineDraft> = {
       'remedy_sought',
       'requested_remedy',
       'asserted_confident',
-      'The party says they want the remaining work finished and 2,000 euro back.',
-      [q('I want the remaining work finished and 2,000 euro back')],
+      'The party says they want the remaining work finished.',
+      [q('I want the remaining work finished')],
+    ),
+    a(
+      'remedy_sought',
+      'requested_remedy',
+      'asserted_confident',
+      'The party says they want 2,000 euro back.',
+      [q('2,000 euro back')],
     ),
   ]),
 
@@ -578,7 +585,13 @@ export const OFFLINE_COMPLETIONS: Record<string, OfflineDraft> = {
     ),
   ]),
 
-  ea_opponent_denial_not_adopted: none(),
+  ea_opponent_denial_not_adopted: ambiguous([
+    {
+      requirement_id: 'binding_deadline',
+      reason: 'multiple_incompatible_readings',
+      prompt: 'What is your own position: was a binding completion deadline agreed between you?',
+    },
+  ]),
 
   date_target_only: accepted([
     a(
