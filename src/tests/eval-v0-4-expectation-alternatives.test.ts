@@ -124,6 +124,24 @@ const CLARIFICATION_BRANCH: SemanticExpectationV04 = {
 };
 const EITHER = caseWith({ any_of: [ASSERTION_BRANCH, CLARIFICATION_BRANCH] });
 
+/**
+ * Supplies a live proposition so a `supersedes_candidate` names a real target.
+ * Without it the CONTRACT rejects the run for an unknown target, which would
+ * mask whether `forbid_supersession` itself fired.
+ */
+const withLiveProposition = (base: SemanticEvalCaseV04): SemanticEvalCaseV04 => ({
+  ...base,
+  existing_propositions: [
+    {
+      proposition_id: 'prop_live',
+      requirement_id: REQ,
+      type: 'invoice',
+      epistemic_strength: 'asserted_confident',
+      statement: 'The party says an invoice existed.',
+    },
+  ],
+});
+
 const goodAssertion = () =>
   assertion({
     id: 'a1',
@@ -232,29 +250,54 @@ describe('alternatives cannot wash out safety', () => {
     expect(result.hard_blockers.map((f) => f.rule)).toContain('assertions.forbidden_type');
   });
 
-  it('but a constraint only ONE branch declares is branch-contingent, not hard', () => {
-    // Branch B genuinely permits an output branch A forbids. Reporting that as
-    // a safety violation would be false: a declared shape allows it.
-    const asymmetric = caseWith({
+  /**
+   * THE BOUNDED-REVIEW FINDING, and the test that previously encoded the bug.
+   *
+   * This assertion used to claim the opposite — that a guard declared by only
+   * one branch was "branch-contingent" and therefore not hard. It passed only
+   * because the second branch happened to fail for an unrelated reason, so it
+   * gave false confidence. When a strict-subset branch genuinely PERMITS the
+   * output, the guard was washed out completely and the case reported GREEN.
+   *
+   * Case-wide invariants are now unioned across alternatives and evaluated
+   * once, outside the alternation. A branch can only add to them.
+   */
+  it('a guard declared by ONE branch still applies — a subset branch cannot wash it out', () => {
+    const guardedOnly = caseWith({
+      any_of: [{ ...ASSERTION_BRANCH, forbid_supersession: true }, ASSERTION_BRANCH],
+    });
+    const superseding = { ...goodAssertion(), supersedes_candidate: 'prop_live' };
+    const result = grade(withLiveProposition(guardedOnly), output([superseding]));
+    expect(result.ok).toBe(false);
+    expect(result.hard_blockers.map((f) => f.rule)).toContain('assertions.forbidden_supersession');
+  });
+
+  it('a forbidden LITERAL declared by one branch also survives a subset branch', () => {
+    const guardedOnly = caseWith({
       any_of: [
-        { ...ASSERTION_BRANCH, forbidden_types: ['invoice'] },
-        { ...ASSERTION_BRANCH, statements_must_not_mention: ['nothing-matches-this'] },
+        { ...ASSERTION_BRANCH, statements_must_not_mention: ['liability'] },
+        ASSERTION_BRANCH,
       ],
     });
     const result = grade(
-      asymmetric,
+      guardedOnly,
       output([
         assertion({
           id: 'a1',
-          type: 'invoice',
-          strength: 'asserted_confident',
-          statement: 'The party says an invoice was issued.',
-          quote: 'they never issued an invoice',
+          statement: 'The party says no invoice was issued and admits liability.',
         }),
       ]),
     );
     expect(result.ok).toBe(false);
-    expect(result.hard_blockers.map((f) => f.rule)).not.toContain('assertions.forbidden_type');
+    expect(result.hard_blockers.map((f) => f.rule)).toContain('output.forbidden_literal');
+  });
+
+  it('refuses INCOHERENT alternatives, where one forbids what another requires', () => {
+    // Unioning invariants would silently make the second branch unsatisfiable.
+    const incoherent = caseWith({
+      any_of: [{ ...ASSERTION_BRANCH, forbidden_types: ['explicit_absence'] }, ASSERTION_BRANCH],
+    });
+    expect(() => grade(incoherent, output([goodAssertion()]))).toThrow(/forbids it/u);
   });
 
   it('universal grounding checks still run once and always apply', () => {
@@ -484,5 +527,63 @@ describe('AUDIT GAP 3 — declared adverse-polarity counterexamples', () => {
       expect(collide('early', 'The party clearly says no invoice was issued.').ok).toBe(false);
       expect(collide('weeks early', 'The party clearly says no invoice was issued.').ok).toBe(true);
     });
+  });
+});
+
+describe('degenerate literal-alternative groups are refused, not silently satisfied', () => {
+  const withGroups = (groups: unknown): SemanticEvalCaseV04 =>
+    caseWith({
+      verdict: 'accepted_candidates',
+      assertions: [
+        {
+          expectation_id: 'x',
+          requirement_id: REQ,
+          type: 'explicit_absence',
+          statement_mentions_any_of: groups,
+        } as never,
+      ],
+      clarifications: [],
+    });
+
+  it('an EMPTY group list throws instead of skipping the constraint', () => {
+    // Previously this returned GREEN for an arbitrary statement, because the
+    // constraint was skipped entirely.
+    expect(() =>
+      grade(withGroups([]), output([assertion({ id: 'a', statement: 'Totally unrelated.' })])),
+    ).toThrow(/at least one alternative literal group/u);
+  });
+
+  it('an EMPTY inner group throws instead of succeeding vacuously', () => {
+    // `[[]]` satisfied `every` vacuously, so any statement passed.
+    expect(() =>
+      grade(withGroups([[]]), output([assertion({ id: 'a', statement: 'Totally unrelated.' })])),
+    ).toThrow(/at least one literal/u);
+  });
+});
+
+describe('single-expectation failure ORDER is byte-identical to the legacy path', () => {
+  it('reports failures in check order, not partitioned by severity', () => {
+    // Legacy order is verdict, then assertions, then clarifications, then the
+    // case-wide guards. Routing single expectations through the alternation
+    // machinery put every hard failure first, silently changing reported output
+    // for mixed-severity cases.
+    const single = caseWith({ ...ASSERTION_BRANCH, verdict: 'ambiguous' });
+    const result = grade(
+      single,
+      output([
+        assertion({
+          id: 'a1',
+          type: 'invoice',
+          strength: 'asserted_confident',
+          statement: 'The party says an invoice was issued.',
+          quote: 'they never issued an invoice',
+        }),
+      ]),
+    );
+    const semantic = result.failures
+      .map((f) => f.rule)
+      .filter((rule) => rule !== 'contract' && !rule.startsWith('fail_closed'));
+    expect(semantic[0]).toBe('verdict.mismatch');
+    expect(semantic).toContain('assertions.undeclared_extra');
   });
 });

@@ -16,6 +16,7 @@ import { canonicalSerialize } from '../../v2/case-envelope.js';
 import type { CompilerInput, CompilerOutput } from '../core-v0-3/compiler-contract.js';
 import { validateCompilerOutputV04 } from '../core-v0-4/compiler-contract.js';
 import { isPropositionType, propositionTypeDescriptor } from '../core-v0-3/types.js';
+import type { PropositionType } from '../core-v0-3/types.js';
 import { verifyTurnSpan } from '../core/turns.js';
 import { matchOneToOne } from './matching.js';
 import { expectationAlternatives } from './types.js';
@@ -180,7 +181,25 @@ function statementLiteralsOk(expected: ExpectedAssertionV04, actual: Assertion):
     if (!statement.includes(fold(literal))) return false;
   }
   const groups = expected.statement_mentions_any_of;
-  if (groups !== undefined && groups.length > 0) {
+  if (groups !== undefined) {
+    // BOTH degenerate forms are fixture-authoring errors that would otherwise
+    // produce a FALSE GREEN: `[]` skips the constraint entirely, and `[[]]`
+    // succeeds vacuously because `every` on an empty array is true. Either way
+    // an arbitrary statement satisfies an expectation that claims to declare a
+    // finite set of permitted forms. Refused loudly, exactly as an empty
+    // `any_of` and an empty clarification reason set are.
+    if (groups.length === 0) {
+      throw new TypeError(
+        'statement_mentions_any_of must declare at least one alternative literal group.',
+      );
+    }
+    for (const group of groups) {
+      if (group.length === 0) {
+        throw new TypeError(
+          'A statement_mentions_any_of group must declare at least one literal; an empty group is satisfied by any statement.',
+        );
+      }
+    }
     const anyGroupSatisfied = groups.some((group) =>
       group.every((literal) => statement.includes(fold(literal))),
     );
@@ -446,37 +465,70 @@ function gradeClarificationSetV04(
  * Exported so a caller can grade a single alternative in isolation; nothing
  * here knows that alternatives exist.
  */
-export function gradeAgainstExpectationV04(
+/** The SHAPE half: verdict, assertions, clarifications. */
+function gradeOutputShapeV04(
   expected: SemanticExpectationV04,
   output: CompilerOutput,
   failures: EvalFailureV04[],
 ): void {
   if (output.verdict !== expected.verdict) failures.push(failure('verdict.mismatch'));
-
   gradeAssertionSetV04(expected.assertions, output, failures);
   gradeClarificationSetV04(expected.clarifications, output, failures);
+}
 
-  for (const forbiddenType of expected.forbidden_types ?? []) {
+/**
+ * The CASE-WIDE INVARIANT half: forbidden types, forbidden supersession,
+ * forbidden literals.
+ *
+ * These are not descriptions of a particular output shape. They say "whatever
+ * shape the output takes, it must not do this" — so under alternatives they are
+ * evaluated ONCE over the union, never per branch. A branch that merely omits
+ * one must not be able to excuse it.
+ */
+function gradeCaseInvariantsV04(
+  invariants: {
+    forbidden_types?: readonly PropositionType[];
+    forbid_supersession?: boolean;
+    statements_must_not_mention?: readonly string[];
+  },
+  output: CompilerOutput,
+  failures: EvalFailureV04[],
+): void {
+  for (const forbiddenType of invariants.forbidden_types ?? []) {
     if (output.assertions.some((assertion) => assertion.proposed_type === forbiddenType)) {
       failures.push(failure('assertions.forbidden_type'));
     }
   }
   if (
-    (expected.forbid_supersession ?? false) &&
+    (invariants.forbid_supersession ?? false) &&
     output.assertions.some((assertion) => assertion.supersedes_candidate !== null)
   ) {
     failures.push(failure('assertions.forbidden_supersession'));
   }
-
   const surfaces = [
     ...output.assertions.map((assertion) => assertion.statement),
     ...output.clarifications_requested.map((clarification) => clarification.prompt),
   ];
-  for (const literal of expected.statements_must_not_mention ?? []) {
+  for (const literal of invariants.statements_must_not_mention ?? []) {
     if (surfaces.some((surface) => fold(surface).includes(fold(literal)))) {
       failures.push(failure('output.forbidden_literal'));
     }
   }
+}
+
+/**
+ * Grades output against ONE complete expectation shape, closed-world.
+ *
+ * Shape first, then invariants — the original check order, preserved exactly so
+ * single-expectation fixtures report failures in the sequence they always did.
+ */
+export function gradeAgainstExpectationV04(
+  expected: SemanticExpectationV04,
+  output: CompilerOutput,
+  failures: EvalFailureV04[],
+): void {
+  gradeOutputShapeV04(expected, output, failures);
+  gradeCaseInvariantsV04(expected, output, failures);
 }
 
 /**
@@ -506,25 +558,80 @@ export function gradeAgainstExpectationV04(
  * Universal checks are not run here at all; they run once, in
  * `gradeCompilerOutputV04`, and always apply.
  */
+/**
+ * Grades output against a case's expectation, which may declare ALTERNATIVES.
+ *
+ * The case passes iff at least one COMPLETE alternative shape passes AND the
+ * case-wide invariants hold. Fields are never mixed across alternatives, so a
+ * hybrid the doctrine does not license satisfies no branch and fails.
+ *
+ * CASE-WIDE INVARIANTS ARE NOT PART OF THE ALTERNATION, and that is the
+ * correction a bounded review forced. Previously each branch carried its own
+ * `forbidden_types` / `forbid_supersession` / `statements_must_not_mention`, so
+ * adding a STRICT SUBSET branch — one permitting the same shape but declaring
+ * no guard — let an output violating that guard satisfy the unguarded branch
+ * completely and return GREEN. An invalid supersession or a declared
+ * counterexample could be washed all the way out by a branch that simply did
+ * not look. Reproduced before fixing: a single guarded expectation correctly
+ * failed, and the same expectation plus an unguarded twin passed with zero
+ * failures.
+ *
+ * So the invariants are UNIONED across every alternative and evaluated ONCE,
+ * outside the alternation. A branch can never weaken them, only add to them.
+ *
+ * DIAGNOSTICS WHEN NO SHAPE MATCHES. Concatenating every branch's failures
+ * would manufacture hard blockers from branches the output never tried to
+ * satisfy. So a shape failure is HARD only when its rule fires under EVERY
+ * alternative — branch-independent — and the remaining detail comes from one
+ * deterministically chosen best-matching alternative, reported at ordinary
+ * severity because another declared shape does not object to it.
+ *
+ * Universal, contract and grounding checks are not run here at all; they run
+ * once in `gradeCompilerOutputV04` and always apply.
+ */
 export function gradeExpectationV04(
   evalCase: SemanticEvalCaseV04,
   output: CompilerOutput,
   failures: EvalFailureV04[],
 ): void {
   const alternatives = expectationAlternatives(evalCase.expect);
+
+  // SINGLE EXPECTATION: the original path, byte for byte. Routing it through
+  // the alternation machinery re-ordered failures by severity, which changed
+  // reported output for mixed-severity cases even though `ok` was unaffected.
+  if (alternatives.length === 1) {
+    gradeAgainstExpectationV04(alternatives[0] as SemanticExpectationV04, output, failures);
+    return;
+  }
+
+  assertAlternativesCoherent(alternatives);
+
+  // Union of the case-wide invariants, applied once and unconditionally.
+  gradeCaseInvariantsV04(
+    {
+      forbidden_types: [...new Set(alternatives.flatMap((item) => item.forbidden_types ?? []))],
+      forbid_supersession: alternatives.some((item) => item.forbid_supersession ?? false),
+      statements_must_not_mention: [
+        ...new Set(alternatives.flatMap((item) => item.statements_must_not_mention ?? [])),
+      ],
+    },
+    output,
+    failures,
+  );
+
   const graded = alternatives.map((alternative) => {
     const branch: EvalFailureV04[] = [];
-    gradeAgainstExpectationV04(alternative, output, branch);
+    gradeOutputShapeV04(alternative, output, branch);
     return branch;
   });
 
-  // Any alternative satisfied completely means the semantic expectation is met.
+  // Any alternative shape satisfied completely means the shape expectation is
+  // met. Invariant failures above still stand on their own.
   if (graded.some((branch) => branch.length === 0)) return;
 
   const hardRulesIn = (branch: readonly EvalFailureV04[]): Set<string> =>
     new Set(branch.filter((entry) => entry.severity === 'hard_blocker').map((entry) => entry.rule));
 
-  // Branch-independent hard failures: fire under EVERY permitted shape.
   let universalHardRules = hardRulesIn(graded[0] as EvalFailureV04[]);
   for (const branch of graded.slice(1)) {
     const rules = hardRulesIn(branch);
@@ -545,17 +652,41 @@ export function gradeExpectationV04(
       reportedHard.add(entry.rule);
     }
   }
-  // A hard rule that holds under every alternative but did not surface in the
-  // chosen branch is still branch-independent, so it is still reported.
   for (const rule of universalHardRules) {
     if (!reportedHard.has(rule)) failures.push(failure(rule));
   }
   for (const entry of best) {
     if (entry.severity === 'hard_blocker' && universalHardRules.has(entry.rule)) continue;
-    // Branch-contingent: another declared shape does not object to it, so it
-    // is a semantic miss rather than a safety violation. The rule name is
-    // preserved; only the severity reflects that contingency.
     failures.push({ ...entry, severity: 'ordinary' });
+  }
+}
+
+/**
+ * Refuses incoherent alternatives.
+ *
+ * Because invariants are unioned, an alternative that FORBIDS what another
+ * alternative REQUIRES would make that second branch unsatisfiable — silently,
+ * and for a reason no failure message would explain. That is a fixture-authoring
+ * error, so it is refused rather than graded.
+ */
+function assertAlternativesCoherent(alternatives: readonly SemanticExpectationV04[]): void {
+  const forbiddenTypes = new Set(alternatives.flatMap((item) => item.forbidden_types ?? []));
+  const forbiddenLiterals = alternatives.flatMap((item) => item.statements_must_not_mention ?? []);
+  for (const alternative of alternatives) {
+    for (const expectation of alternative.assertions) {
+      if (forbiddenTypes.has(expectation.type)) {
+        throw new TypeError(
+          `Alternative expects proposition type '${expectation.type}' while another alternative forbids it.`,
+        );
+      }
+      for (const literal of expectation.statement_mentions ?? []) {
+        if (forbiddenLiterals.some((forbidden) => fold(forbidden) === fold(literal))) {
+          throw new TypeError(
+            `Alternative requires the literal '${literal}' while another alternative forbids it.`,
+          );
+        }
+      }
+    }
   }
 }
 
