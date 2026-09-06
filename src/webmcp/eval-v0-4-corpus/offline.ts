@@ -14,9 +14,14 @@ import { compileRunId } from '../eval-v0-4/scenario.js';
 import type { SemanticEvalCaseV04 } from '../eval-v0-4/types.js';
 import { OFFLINE_COMPLETIONS } from './offline-completions.js';
 import { HOLDOUT_V041_COMPLETIONS } from './holdout-v041-completions.js';
+import { HOLDOUT_V042_COMPLETIONS } from './holdout-v042-completions.js';
 
 /** Primary and holdout fixtures share one lookup; ids never collide. */
-const ALL_COMPLETIONS = { ...OFFLINE_COMPLETIONS, ...HOLDOUT_V041_COMPLETIONS };
+const ALL_COMPLETIONS = {
+  ...OFFLINE_COMPLETIONS,
+  ...HOLDOUT_V041_COMPLETIONS,
+  ...HOLDOUT_V042_COMPLETIONS,
+};
 
 const RUN_ID = /^compile_run_id: (\S+)$/m;
 

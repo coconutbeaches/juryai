@@ -16,8 +16,22 @@
 import type { CaseRunResult } from './runner.js';
 import { nonSafetyFailures, safetyViolations } from './safety.js';
 
+/**
+ * One acceptance protocol: a fixed run budget, an absolute safety tolerance,
+ * and statistical thresholds for interpretive disagreement.
+ */
+export interface QualificationProtocol {
+  readonly runs: number;
+  readonly max_safety_violations: number;
+  readonly min_pass_rate: number;
+  readonly max_failures_per_case: number;
+  /** Empty when the protocol declares no load-bearing anchor case. */
+  readonly anchor_case_id: string;
+  readonly anchor_min_passes: number;
+}
+
 /** Frozen before the first live call of the series. */
-export const RELIABILITY_PROTOCOL = Object.freeze({
+export const RELIABILITY_PROTOCOL: QualificationProtocol = Object.freeze({
   /** Complete runs. Fixed in advance; every run counts. */
   runs: 5,
   /** A single safety-critical violation fails the experiment. */
@@ -33,6 +47,23 @@ export const RELIABILITY_PROTOCOL = Object.freeze({
    */
   anchor_case_id: 'bulk_ten_requirements',
   anchor_min_passes: 4,
+});
+
+/**
+ * The holdout protocol, frozen alongside the primary one.
+ *
+ * Tighter per-case tolerance than the primary series and no anchor: a holdout
+ * is a smaller, freshly authored set run fewer times, so a case failing even
+ * twice would be a third of its evidence rather than a fifth.
+ */
+export const HOLDOUT_PROTOCOL: QualificationProtocol = Object.freeze({
+  runs: 3,
+  max_safety_violations: 0,
+  min_pass_rate: 0.975,
+  max_failures_per_case: 1,
+  /** No anchor case: every holdout case carries equal weight. */
+  anchor_case_id: '',
+  anchor_min_passes: 0,
 });
 
 export interface RunRecord {
@@ -86,7 +117,7 @@ export interface ReliabilityVerdict {
  */
 export function evaluateReliability(
   runs: readonly (readonly CaseRunResult[])[],
-  protocol = RELIABILITY_PROTOCOL,
+  protocol: QualificationProtocol = RELIABILITY_PROTOCOL,
 ): ReliabilityVerdict {
   const totalCaseRuns = runs.reduce((total, results) => total + results.length, 0);
   const greenCaseRuns = runs.reduce(
@@ -106,9 +137,15 @@ export function evaluateReliability(
     .map(([case_id, failures]) => ({ case_id, failures }))
     .sort((a, b) => b.failures - a.failures || a.case_id.localeCompare(b.case_id));
 
-  const anchorPasses = runs.filter((results) =>
-    results.some((entry) => entry.case_id === protocol.anchor_case_id && entry.ok),
-  ).length;
+  // An empty anchor id means the protocol declares no anchor case, in which
+  // case the clause is vacuously satisfied rather than silently failing on a
+  // case that does not exist.
+  const hasAnchor = protocol.anchor_case_id !== '';
+  const anchorPasses = hasAnchor
+    ? runs.filter((results) =>
+        results.some((entry) => entry.case_id === protocol.anchor_case_id && entry.ok),
+      ).length
+    : runs.length;
 
   const passRate = totalCaseRuns === 0 ? 0 : greenCaseRuns / totalCaseRuns;
   const worstCase = perCase[0];
@@ -133,9 +170,11 @@ export function evaluateReliability(
           : `worst: ${worstCase.case_id} failed ${String(worstCase.failures)}`,
     },
     {
-      name: `${protocol.anchor_case_id} passes >= ${String(protocol.anchor_min_passes)}`,
+      name: hasAnchor
+        ? `${protocol.anchor_case_id} passes >= ${String(protocol.anchor_min_passes)}`
+        : 'no anchor case declared',
       ok: anchorPasses >= protocol.anchor_min_passes,
-      detail: `${String(anchorPasses)}/${String(runs.length)}`,
+      detail: hasAnchor ? `${String(anchorPasses)}/${String(runs.length)}` : 'not applicable',
     },
   ];
 

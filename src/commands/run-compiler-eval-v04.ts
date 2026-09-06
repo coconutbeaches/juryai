@@ -48,11 +48,14 @@ import {
 // The ACTIVE holdout. The retired v0.4.0 holdout is deliberately NOT imported
 // here: that corpus failed, its model outputs were then inspected, and it must
 // never be runnable again. A test asserts this file cannot reach it.
+// The ACTIVE holdout is v0.4.2. Neither retired predecessor is imported here:
+// v0.4.0 failed and its outputs were inspected, v0.4.1 was consumed by its
+// single run, and neither may ever be runnable again.
 import {
-  HOLDOUT_V041,
-  HOLDOUT_V041_FROZEN_HASH,
-  HOLDOUT_V041_VERSION,
-} from '../webmcp/eval-v0-4-corpus/holdout-v041.js';
+  HOLDOUT_V042,
+  HOLDOUT_V042_FROZEN_HASH,
+  HOLDOUT_V042_VERSION,
+} from '../webmcp/eval-v0-4-corpus/holdout-v042.js';
 import { createOfflineCompilerV04 } from '../webmcp/eval-v0-4-corpus/offline.js';
 import { runCorpusV04 } from '../webmcp/eval-v0-4-corpus/runner.js';
 // Reused, not reimplemented. The historical evaluator already solved this and
@@ -60,6 +63,7 @@ import { runCorpusV04 } from '../webmcp/eval-v0-4-corpus/runner.js';
 // printable rather than a second that can drift.
 import { formatEvalReportV04 } from '../webmcp/eval-v0-4-corpus/report.js';
 import {
+  HOLDOUT_PROTOCOL,
   RELIABILITY_PROTOCOL,
   countNonSafety,
   countSafety,
@@ -148,8 +152,8 @@ async function main(): Promise<void> {
   const holdout = args.has('--holdout');
   const offline = args.has('--offline');
 
-  const corpus = holdout ? HOLDOUT_V041 : PRIMARY_CORPUS;
-  const corpusVersion = holdout ? HOLDOUT_V041_VERSION : SEMANTIC_EVAL_CORPUS_VERSION;
+  const corpus = holdout ? HOLDOUT_V042 : PRIMARY_CORPUS;
+  const corpusVersion = holdout ? HOLDOUT_V042_VERSION : SEMANTIC_EVAL_CORPUS_VERSION;
   const label = `${holdout ? 'HOLDOUT' : 'PRIMARY'} · ${offline ? 'OFFLINE REPLAY' : 'LIVE MODEL'}`;
 
   if (holdout && corpus.length === 0) {
@@ -174,7 +178,7 @@ async function main(): Promise<void> {
   // FREEZE CHECK. A corpus that no longer hashes to its frozen value has been
   // edited, and an edited corpus after first live observation is exactly the
   // failure the freeze exists to make visible.
-  const frozen = holdout ? HOLDOUT_V041_FROZEN_HASH : PRIMARY_CORPUS_FROZEN_HASH;
+  const frozen = holdout ? HOLDOUT_V042_FROZEN_HASH : PRIMARY_CORPUS_FROZEN_HASH;
   const actual = corpusHash(corpus);
   if (actual !== frozen) {
     console.error('CORPUS FREEZE VIOLATION');
@@ -194,17 +198,18 @@ async function main(): Promise<void> {
    * immediately — safety is never averaged into a rate.
    */
   if (args.has('--reliability')) {
-    const total = RELIABILITY_PROTOCOL.runs;
+    const protocol = holdout ? HOLDOUT_PROTOCOL : RELIABILITY_PROTOCOL;
+    const total = protocol.runs;
     console.log('');
     console.log(`=== REPEATED-RUN RELIABILITY PROTOCOL — ${label} ===`);
     console.log(`declared budget       ${String(total)} complete runs`);
-    console.log(`safety tolerance      ${String(RELIABILITY_PROTOCOL.max_safety_violations)}`);
-    console.log(`pass-rate floor       ${(RELIABILITY_PROTOCOL.min_pass_rate * 100).toFixed(1)}%`);
+    console.log(`safety tolerance      ${String(protocol.max_safety_violations)}`);
+    console.log(`pass-rate floor       ${(protocol.min_pass_rate * 100).toFixed(1)}%`);
     console.log(
-      `max failures per case ${String(RELIABILITY_PROTOCOL.max_failures_per_case)} of ${String(total)}`,
+      `max failures per case ${String(protocol.max_failures_per_case)} of ${String(total)}`,
     );
     console.log(
-      `anchor                ${RELIABILITY_PROTOCOL.anchor_case_id} >= ${String(RELIABILITY_PROTOCOL.anchor_min_passes)}`,
+      `anchor                ${protocol.anchor_case_id === '' ? '(none)' : `${protocol.anchor_case_id} >= ${String(protocol.anchor_min_passes)}`}`,
     );
 
     const allRuns: CaseRunResult[][] = [];
@@ -240,7 +245,7 @@ async function main(): Promise<void> {
       }
     }
 
-    const verdict = evaluateReliability(allRuns);
+    const verdict = evaluateReliability(allRuns, protocol);
     console.log('');
     console.log('=== RELIABILITY VERDICT ===');
     console.log(
@@ -248,7 +253,7 @@ async function main(): Promise<void> {
     );
     console.log(`safety_violations     ${String(verdict.safety_violations)}`);
     console.log(
-      `anchor passes         ${String(verdict.anchor_passes)}/${String(RELIABILITY_PROTOCOL.runs)}`,
+      `anchor passes         ${protocol.anchor_case_id === '' ? 'n/a' : `${String(verdict.anchor_passes)}/${String(protocol.runs)}`}`,
     );
     console.log('per-case failure counts (failing cases only):');
     for (const entry of verdict.per_case_failures) {
