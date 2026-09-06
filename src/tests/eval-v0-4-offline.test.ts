@@ -69,7 +69,7 @@ describe('V0.4 primary corpus shape', () => {
   });
 
   it('declares the corpus version', () => {
-    expect(SEMANTIC_EVAL_CORPUS_VERSION).toBe('juryai-semantic-eval-v0.4.1');
+    expect(SEMANTIC_EVAL_CORPUS_VERSION).toBe('juryai-semantic-eval-v0.4.2');
   });
 });
 

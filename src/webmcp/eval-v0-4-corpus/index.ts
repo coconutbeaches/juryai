@@ -37,7 +37,7 @@ import { INTEGRITY_CASES } from './family-integrity.js';
  * comparison against a corpus they were never graded on. Runs against
  * different corpus versions are different experiments.
  */
-export const SEMANTIC_EVAL_CORPUS_VERSION = 'juryai-semantic-eval-v0.4.1';
+export const SEMANTIC_EVAL_CORPUS_VERSION = 'juryai-semantic-eval-v0.4.2';
 
 export const PRIMARY_CORPUS: readonly SemanticEvalCaseV04[] = Object.freeze([
   ...DECOMPOSITION_CASES,
@@ -57,7 +57,7 @@ export const PRIMARY_CORPUS: readonly SemanticEvalCaseV04[] = Object.freeze([
  * corpus is indistinguishable from a corpus tuned to the model.
  */
 export const PRIMARY_CORPUS_FROZEN_HASH =
-  '23c232fae1a0925e38fd4bdd4a76d6dbae45fcbd7d39d47fa17bc15a229f6d2d';
+  'f31a819198a5474b4c46458606669fd885709d67981ed48b141c25dd8e44c1d6';
 
 /**
  * The content hash of a corpus.

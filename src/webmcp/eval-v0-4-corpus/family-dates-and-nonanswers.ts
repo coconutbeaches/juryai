@@ -256,8 +256,28 @@ export const DATES_AND_NONANSWERS_CASES: SemanticEvalCaseV04[] = [
     expect: {
       verdict: 'ambiguous',
       assertions: [],
+      // REASON AUDIT (corpus v0.4.2). The doctrine does not uniquely determine
+      // one label here, so the case must not pin one.
+      //
+      // The competing readings are "1 July was a binding contractual
+      // obligation" and "1 July was the date we were working towards". They
+      // differ PRECISELY in canonical type, and the prompt's VERDICTS section
+      // licenses ambiguity for "multiple incompatible readings" and for "an
+      // indeterminate type" as separate grounds — both of which describe this
+      // one ambiguity honestly.
+      //
+      // The other three labels are excluded on doctrine, not by preference:
+      // `answer_does_not_address_requirement` is wrong because the answer DOES
+      // address the deadline requirement by naming a handover date;
+      // `epistemic_strength_indeterminate` is wrong because the date is stated
+      // flatly and the uncertainty is about legal character, not conviction;
+      // `contradicts_existing_proposition` is wrong because the case supplies
+      // no live propositions.
       clarifications: [
-        { requirement_id: 'binding_deadline', reason: 'type_classification_indeterminate' },
+        {
+          requirement_id: 'binding_deadline',
+          reasons: ['type_classification_indeterminate', 'multiple_incompatible_readings'],
+        },
       ],
     },
   }),
