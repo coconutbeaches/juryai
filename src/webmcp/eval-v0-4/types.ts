@@ -100,11 +100,35 @@ export interface ExpectedAssertionV04 {
   material_adverse_fact?: boolean;
 }
 
-/** One expected clarification, as an ATOMIC pair — unchanged from V0.3. */
-export interface ExpectedClarificationV04 {
-  requirement_id: string;
-  reason: AmbiguityReason;
-}
+/**
+ * One expected clarification.
+ *
+ * The requirement is always fixed. The REASON may be pinned to exactly one
+ * value, or — where the doctrine genuinely licenses more than one label for the
+ * same ambiguity — to an explicit, fixture-authored set of reasons any one of
+ * which satisfies the expectation.
+ *
+ * WHY THE SET EXISTS. The compiler doctrine can require a clarification without
+ * naming which enum member describes it. "Ask for clarification if
+ * polarity/adoption is unclear" is such a rule: a speaker who reports someone
+ * else's denial without stating their own position leaves the requirement open,
+ * and both `multiple_incompatible_readings` and
+ * `answer_does_not_address_requirement` describe that honestly. Matching the
+ * pair exactly then makes a case turn on an arbitrary enum choice rather than
+ * on the behaviour under test, and a compliant compiler fails for picking the
+ * other applicable label.
+ *
+ * WHAT THIS IS NOT. It is not fuzzy matching and not a similarity threshold.
+ * The acceptable set is written out by the case author, member by member, and a
+ * reason outside it still fails. Grading stays closed-world in both directions
+ * and one clarification still satisfies at most one expectation.
+ *
+ * Exactly one of `reason` or `reasons` is supplied; the union makes supplying
+ * both a compile error.
+ */
+export type ExpectedClarificationV04 =
+  | { requirement_id: string; reason: AmbiguityReason; reasons?: never }
+  | { requirement_id: string; reasons: readonly AmbiguityReason[]; reason?: never };
 
 /** A requirement the compiler is given context for. */
 export interface EvalRequirementV04 {
