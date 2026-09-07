@@ -124,3 +124,11 @@ typecheck, formatting and browser build pass. No server/domain/persistence behav
 changed in this repair. The affected browser/workflow surface is rerun at the new
 stable head before official review. This was an implementation-team review, not an
 official Codex review round.
+
+The affected rerun also exercised a click made after logout began. Immediate
+rotation allowed that click to acquire a fresh live signal; the parent reproduced
+this variant with the actual listener and extended the same regression. Page
+controls now retain the aborted signal throughout logout and rotate only when it
+settles. Repeated logout is ignored while that signal is aborted. Both timing
+regressions pass; the full suite now passes 3,415 non-PostgreSQL tests. This is the
+same lifecycle failure surface and repair, not a new official review generation.

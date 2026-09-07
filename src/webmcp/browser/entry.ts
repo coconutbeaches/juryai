@@ -618,9 +618,12 @@ v212Reopen.addEventListener('click', () => {
 });
 
 logoutButton.addEventListener('click', () => {
-  pageActionController.abort();
-  pageActionController = new AbortController();
-  void controller.logout();
+  if (pageActionController.signal.aborted) return;
+  const actionsAtLogout = pageActionController;
+  actionsAtLogout.abort();
+  void controller.logout().finally(() => {
+    if (pageActionController === actionsAtLogout) pageActionController = new AbortController();
+  });
 });
 
 routeNotice.hidden = true;

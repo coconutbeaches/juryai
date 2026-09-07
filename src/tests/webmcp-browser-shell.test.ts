@@ -59,56 +59,64 @@ function deferred<T>(): {
 }
 
 describe('frameworkless browser shell lifecycle', () => {
-  it('invalidates pending first-party page actions before logout can race their refresh', async () => {
-    const states: BrowserShellState[] = [];
-    const logoutResponse = deferred<Response>();
-    const logoutStarted = deferred<void>();
-    let loggedOut = false;
-    let registrations = 0;
-    const controller = new BrowserShellController({
-      view: view(states),
-      fetchImpl: async (input) => {
-        if (String(input) === '/api/juryai/bootstrap')
-          return Response.json(loggedOut ? { authenticated: false } : ACCEPTED);
-        logoutStarted.resolve();
-        await logoutResponse.promise;
-        loggedOut = true;
-        return Response.json({});
-      },
-      getModelContext: () => ({ registerTool: () => undefined }),
-      createCaseService: () => service(),
-      registerTools: async () => {
-        registrations += 1;
-        return {
-          tool_names: ['start_case', 'get_case_state', 'submit_turn'],
-          unregister: () => {},
-        };
-      },
-    });
-    await controller.initialize();
-    const pageActions = new AbortController();
-    const pendingReturnSignal = pageActions.signal;
-    let pendingLogout: Promise<void> | undefined;
-    // Execute the actual entry-point listener, not a separately copied cancellation.
-    const entry = readFileSync(new URL('../webmcp/browser/entry.ts', import.meta.url), 'utf8');
-    const body = entry.match(
-      /logoutButton\.addEventListener\('click', \(\) => \{([\s\S]*?)\n\}\);/u,
-    )![1]!;
-    new Function('controller', 'pageActionController', body)(
-      {
-        logout: () => (pendingLogout = controller.logout()),
-      },
-      pageActions,
-    );
-    await logoutStarted.promise;
-    // A POST may already have committed and deliver its response despite abort.
-    if (!pendingReturnSignal.aborted) await controller.initialize();
-    logoutResponse.resolve(Response.json({}));
-    await pendingLogout;
-    expect(pendingReturnSignal.aborted).toBe(true);
-    expect(registrations).toBe(1);
-    expect(states.at(-1)?.phase).toBe('signed_out');
-  });
+  it.each(['before', 'during'])(
+    'invalidates first-party actions started %s logout before their refresh',
+    async (timing) => {
+      const states: BrowserShellState[] = [];
+      const logoutResponse = deferred<Response>();
+      const logoutStarted = deferred<void>();
+      let loggedOut = false;
+      let registrations = 0;
+      const controller = new BrowserShellController({
+        view: view(states),
+        fetchImpl: async (input) => {
+          if (String(input) === '/api/juryai/bootstrap')
+            return Response.json(loggedOut ? { authenticated: false } : ACCEPTED);
+          logoutStarted.resolve();
+          await logoutResponse.promise;
+          loggedOut = true;
+          return Response.json({});
+        },
+        getModelContext: () => ({ registerTool: () => undefined }),
+        createCaseService: () => service(),
+        registerTools: async () => {
+          registrations += 1;
+          return {
+            tool_names: ['start_case', 'get_case_state', 'submit_turn'],
+            unregister: () => {},
+          };
+        },
+      });
+      await controller.initialize();
+      const pageActions = new AbortController();
+      let pendingReturnSignal = pageActions.signal;
+      let pendingLogout: Promise<void> | undefined;
+      // Execute the actual entry-point listener, not a separately copied cancellation.
+      const entry = readFileSync(new URL('../webmcp/browser/entry.ts', import.meta.url), 'utf8');
+      const body = entry.match(
+        /logoutButton\.addEventListener\('click', \(\) => \{([\s\S]*?)\n\}\);/u,
+      )![1]!;
+      const currentActionSignal = new Function(
+        'controller',
+        'pageActionController',
+        `${body}\nreturn () => pageActionController.signal;`,
+      )(
+        {
+          logout: () => (pendingLogout = controller.logout()),
+        },
+        pageActions,
+      );
+      await logoutStarted.promise;
+      if (timing === 'during') pendingReturnSignal = currentActionSignal();
+      // A POST may already have committed and deliver its response despite abort.
+      if (!pendingReturnSignal.aborted) await controller.initialize();
+      logoutResponse.resolve(Response.json({}));
+      await pendingLogout;
+      expect(pendingReturnSignal.aborted).toBe(true);
+      expect(registrations).toBe(1);
+      expect(states.at(-1)?.phase).toBe('signed_out');
+    },
+  );
 
   it('runtime-decodes minimal bootstrap identity and rejects principal leakage', () => {
     expect(decodeBootstrapResponse({ authenticated: false })).toEqual({ authenticated: false });
