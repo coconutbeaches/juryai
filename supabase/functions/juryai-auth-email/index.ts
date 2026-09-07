@@ -1,8 +1,11 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { Webhook } from "https://esm.sh/standardwebhooks@1.0.0";
 
+// Sender policy:
+// - Authentication / verification email: JuryAI <welcome@juryai.org>
+// - All non-auth transactional email: JuryAI <notice@juryai.org>
 const RESEND_API_URL = "https://api.resend.com/emails";
-const AUTH_FROM = "JuryAI <auth@juryai.org>";
+const AUTH_FROM = "JuryAI <welcome@juryai.org>";
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
