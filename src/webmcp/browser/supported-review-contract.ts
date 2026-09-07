@@ -1,4 +1,8 @@
 import {
+  decodeFirstPartyReviewV215,
+  type ParsedFirstPartyReviewV215,
+} from './v2-1-5-review-contract.js';
+import {
   decodeFirstPartyReviewV212,
   type ParsedFirstPartyReviewV212,
 } from './v2-1-2-review-contract.js';
@@ -11,7 +15,10 @@ import {
   type ParsedFirstPartyReviewV214,
 } from './v2-1-4-review-contract.js';
 export type ParsedFormationReview =
-  ParsedFirstPartyReviewV212 | ParsedFirstPartyReviewV213 | ParsedFirstPartyReviewV214;
+  | ParsedFirstPartyReviewV212
+  | ParsedFirstPartyReviewV213
+  | ParsedFirstPartyReviewV214
+  | ParsedFirstPartyReviewV215;
 
 /**
  * Decoding dispatches on the page's own declared contract version, never on a
@@ -21,6 +28,8 @@ export type ParsedFormationReview =
  */
 export function decodeFormationReview(value: unknown): ParsedFormationReview {
   if (typeof value === 'object' && value !== null && 'review_page_version' in value) {
+    if (value.review_page_version === 'juryai-v2.1.5-first-party-review-page-v1.0.0')
+      return decodeFirstPartyReviewV215(value);
     if (value.review_page_version === 'juryai-v2.1.4-first-party-review-page-v1.0.0')
       return decodeFirstPartyReviewV214(value);
     if (value.review_page_version === 'juryai-v2.1.3-first-party-review-page-v1.0.0')

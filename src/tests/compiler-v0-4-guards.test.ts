@@ -147,8 +147,9 @@ describe('8C1b-1 guards: frozen generations did not move', () => {
     expect(scenario).toMatch(/overrideCompilerVersionId \?\? compilerVersionId\(evalCase\.id\)/u);
   });
 
-  it('no V2.1.5 generation directory exists', () => {
-    expect(existsSync(resolve(projectRoot, 'src/v2-1-5'))).toBe(false);
+  it('V2.1.5 activation is isolated in its own generation directory', () => {
+    // 8C2 activates the qualified artifact; historical behavioral parity remains unchanged.
+    expect(existsSync(resolve(projectRoot, 'src/v2-1-5/generation-spec.ts'))).toBe(true);
   });
 });
 

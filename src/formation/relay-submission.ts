@@ -202,17 +202,20 @@ function hasExactKeys(value: unknown, expected: readonly string[]): boolean {
  * is the ceremony's party-view refresh, injected rather than re-extracted so
  * there is exactly one implementation of that rule in the engine.
  */
-export function createFormationRelay(input: {
-  spec: GenerationSpec;
-  validator: FormationEnvelopeValidator<CaseEnvelope>;
-  cursors: PartyViewCursorRefresh;
-}) {
+export function createFormationRelay(
+  input: {
+    spec: GenerationSpec;
+    validator: FormationEnvelopeValidator<CaseEnvelope>;
+    cursors: PartyViewCursorRefresh;
+  },
+  runtimeIntegrity: import('./relay-runtime.js').RelayRuntimeIntegrity = 'legacy_brand',
+) {
   // Validated, defensively copied and deeply frozen once, at construction.
   const spec = assertValidGenerationSpec(input.spec);
   const codes = createIssueCodes(spec.contracts.contract_issue_code_prefix);
   const validator = input.validator;
   const cursors = input.cursors;
-  const runtimes = createRelayRuntimeMinter(spec);
+  const runtimes = createRelayRuntimeMinter(spec, runtimeIntegrity);
   /**
    * The two policy flags this relay branches on, and the ONLY two. Everything
    * else in this module — party authority, subject binding, dispute identity,
