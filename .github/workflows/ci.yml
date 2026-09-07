@@ -86,6 +86,13 @@ jobs:
           - src/tests/eval-v0-4-guards.test.ts
           - src/tests/eval-v0-4-clarification-reasons.test.ts
           - src/tests/eval-v0-4-expectation-alternatives.test.ts
+          - src/tests/compiler-v0-4-adapters.test.ts
+          - src/tests/compiler-v0-4-guards.test.ts
+          - src/tests/eval-v0-4-offline.test.ts
+          - src/tests/eval-v0-4-offline-negative-controls.test.ts
+          - src/tests/eval-v0-4-report.test.ts
+          - src/tests/eval-v0-4-safety-protocol.test.ts
+          - src/tests/eval-v0-4-holdout-v042.test.ts
           - src/tests/v2-1-persistence-boundary.test.ts
           - src/tests/v2-1-invitation.test.ts
           - src/tests/gate-zero-coverage-matrix.test.ts

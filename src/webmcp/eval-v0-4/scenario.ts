@@ -76,7 +76,25 @@ function existingProposition(
   } as unknown as Proposition;
 }
 
-export function buildEvalInputV04(evalCase: SemanticEvalCaseV04): CompilerInput {
+/**
+ * HARNESS SEAM — added by 8C1b-1, the only change to the 8C1b-0 oracle tree.
+ *
+ * The deterministic oracle mints a synthetic per-case `compiler_version_id`, so
+ * that two cases never share a run identity. A LIVE compiler cannot accept
+ * that: `ModelSemanticCompilerV04.compile` refuses any input whose
+ * `compiler_version_id` is not its own registry entry's, which is what stops an
+ * eval reporting a green run against an artefact that never executed.
+ *
+ * The seam is an OPTIONAL override rather than a cast or a weakened compiler.
+ * Casting the input would defeat the binding check; relaxing the compiler would
+ * remove the property the live eval exists to rely on. Omitting the argument
+ * preserves the deterministic default exactly, so every 8C1b-0 oracle test is
+ * unaffected — and nothing about grading changes either way.
+ */
+export function buildEvalInputV04(
+  evalCase: SemanticEvalCaseV04,
+  overrideCompilerVersionId?: string,
+): CompilerInput {
   /**
    * NORMALISED, exactly as production stores it.
    *
@@ -118,7 +136,7 @@ export function buildEvalInputV04(evalCase: SemanticEvalCaseV04): CompilerInput 
   };
   return buildCompilerInput({
     compile_run_id: compileRunId(evalCase.id),
-    compiler_version_id: compilerVersionId(evalCase.id),
+    compiler_version_id: overrideCompilerVersionId ?? compilerVersionId(evalCase.id),
     state: { case_id: CASE_ID, case_version: 0 },
     turn,
     requirements: evalCase.requirement_context.map(requirementDefinition),
