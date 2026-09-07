@@ -21,6 +21,67 @@ function fixture() {
 }
 
 describe('V2.1.5 production application: broad listening, narrow authority', () => {
+  it('records a determinate fact despite remaining ambiguity under the same asked requirement', async () => {
+    const f = fixture();
+    f.compiler.script = () => ({
+      verdict: 'accepted_candidates',
+      assertions: [
+        assertion(req('other_party_performance'), 'The first parcel arrived on July 15.'),
+      ],
+      clarifications: [
+        {
+          requirement_id: req('other_party_performance'),
+          reason: 'multiple_incompatible_readings',
+          prompt: 'Which second parcel do you mean?',
+        },
+      ],
+    });
+    const command = await commandFor(
+      f.service,
+      f.id,
+      'The first parcel arrived on July 15. The second one arrived then, or maybe later.',
+    );
+    const result = await f.service.submitTurn(command);
+    expect(result.ok, JSON.stringify(result)).toBe(true);
+    expect(Object.values(f.repository.envelope.positions).map((p) => p.statement)).toEqual([
+      'The first parcel arrived on July 15.',
+    ]);
+    expect(Object.values(f.repository.envelope.clarifications)).toHaveLength(0);
+    expect(f.repository.lastCommit!.compiler_artifact.run.contract_issues).toEqual([]);
+    expect(
+      f.repository.lastCommit!.compiler_artifact.run.output.clarifications_requested,
+    ).toHaveLength(1);
+    expect(await f.service.submitTurn(command)).toEqual({ ...result, replayed: true });
+  });
+
+  it('keeps same-requirement clarification when the accepted fact does not supply coverage', async () => {
+    const f = fixture();
+    expect(f.repository.envelope.requirements[req('paid')]!.satisfying_types).not.toContain(
+      'narrative_fact',
+    );
+    f.compiler.script = () => ({
+      verdict: 'accepted_candidates',
+      assertions: [assertion(req('paid'), 'I visited the bank.')],
+      clarifications: [
+        {
+          requirement_id: req('paid'),
+          reason: 'multiple_incompatible_readings',
+          prompt: 'What did you pay?',
+        },
+      ],
+    });
+    const result = await f.service.submitTurn(
+      await commandFor(f.service, f.id, 'I visited the bank. I may have paid something.', [
+        req('paid'),
+      ]),
+    );
+    expect(result.ok, JSON.stringify(result)).toBe(true);
+    expect(Object.values(f.repository.envelope.positions)).toHaveLength(1);
+    expect(
+      Object.values(f.repository.envelope.clarifications).map((c) => c.requirement_id),
+    ).toEqual([req('paid')]);
+  });
+
   it('keeps directly authorized clarifications without extending their reply targets', async () => {
     const f = fixture();
     f.compiler.script = () => ({

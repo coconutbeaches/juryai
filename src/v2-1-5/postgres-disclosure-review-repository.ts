@@ -23,6 +23,7 @@ import {
   type PartyIdV215,
 } from './case-envelope.js';
 import { assertValidCaseEnvelopeV215 } from './contract-validator.js';
+import { disclosureReviewClosureCurrentV215 } from './disclosure-review.js';
 import { applyEnvelopeCeremonyCommandV215, ceremonyCommandForV215 } from './envelope-ceremony.js';
 import {
   type FormationCompilerRunAuditRecordV215,
@@ -1096,6 +1097,29 @@ export class PostgresDisclosureReviewRepositoryV215 {
           message: applied.message,
         };
       }
+      // Compose both domain transitions before the single CAS write. A process
+      // failure or failed UPDATE must not leave two acknowledgments stranded in
+      // challenge_response with no available first-party action.
+      let resultingEnvelope = applied.envelope;
+      if (disclosureReviewClosureCurrentV215(resultingEnvelope)) {
+        const finalized = applyEnvelopeCeremonyCommandV215({
+          envelope: resultingEnvelope,
+          command: ceremonyCommandForV215(
+            resultingEnvelope,
+            `command_final_confirmation_${randomUUID()}`,
+            { type: 'enter_final_confirmation' },
+          ),
+          execution_authority: TRUSTED_SYSTEM_AUTHORITY_V215,
+        });
+        if (finalized.status === 'rejected') {
+          return {
+            status: 'domain_rejected',
+            reason_code: finalized.reason_code,
+            message: finalized.message,
+          };
+        }
+        resultingEnvelope = finalized.envelope;
+      }
       const updated = await client.query(
         `update ${SCHEMA}.formation_disputes
             set envelope = $1::jsonb, updated_at = clock_timestamp()
@@ -1104,7 +1128,7 @@ export class PostgresDisclosureReviewRepositoryV215 {
             and internal_envelope_hash = $4
           returning ${selectedFormationColumns()}`,
         [
-          encode(applied.envelope),
+          encode(resultingEnvelope),
           id,
           current.internal_envelope_version,
           current.internal_envelope_hash,

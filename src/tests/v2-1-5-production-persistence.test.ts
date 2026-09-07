@@ -86,33 +86,36 @@ async function counts(id: string) {
 }
 
 describe('V2.1.5 production application and PostgreSQL boundary', () => {
-  it('persists supported assertions when broad compiler output includes a volunteered clarification', async () => {
-    const f = await fixture();
-    f.compiler.script = () => ({
-      verdict: 'accepted_candidates',
-      assertions: [assertion(req('other_party_performance'), 'They delivered late.')],
-      clarifications: [
-        {
-          requirement_id: req('paid'),
-          reason: 'multiple_incompatible_readings',
-          prompt: 'Which payment?',
-        },
-      ],
-    });
-    const command = await commandFor(f.service, f.id, 'They delivered late. I paid something.');
-    const result = await f.service.submitTurn(command);
-    expect(result.ok, JSON.stringify(result)).toBe(true);
-    expect(await f.service.submitTurn(command)).toEqual({ ...result, replayed: true });
-    expect(await counts(f.id)).toEqual([1, 1, 1, 1]);
-    expect(Object.values((await repository.findById(f.id))!.envelope.clarifications)).toEqual([]);
-    const audit = (
-      await pool.query(
-        'select record from juryai_v21.formation_compiler_runs where dispute_id=$1',
-        [f.id],
-      )
-    ).rows[0].record;
-    expect(audit.compiler_artifact.run.output.clarifications_requested).toHaveLength(1);
-  });
+  it.each(['paid', 'other_party_performance'])(
+    'persists supported assertions despite a clarification for %s',
+    async (clarificationRequirement) => {
+      const f = await fixture();
+      f.compiler.script = () => ({
+        verdict: 'accepted_candidates',
+        assertions: [assertion(req('other_party_performance'), 'They delivered late.')],
+        clarifications: [
+          {
+            requirement_id: req(clarificationRequirement),
+            reason: 'multiple_incompatible_readings',
+            prompt: 'Which payment?',
+          },
+        ],
+      });
+      const command = await commandFor(f.service, f.id, 'They delivered late. I paid something.');
+      const result = await f.service.submitTurn(command);
+      expect(result.ok, JSON.stringify(result)).toBe(true);
+      expect(await f.service.submitTurn(command)).toEqual({ ...result, replayed: true });
+      expect(await counts(f.id)).toEqual([1, 1, 1, 1]);
+      expect(Object.values((await repository.findById(f.id))!.envelope.clarifications)).toEqual([]);
+      const audit = (
+        await pool.query(
+          'select record from juryai_v21.formation_compiler_runs where dispute_id=$1',
+          [f.id],
+        )
+      ).rows[0].record;
+      expect(audit.compiler_artifact.run.output.clarifications_requested).toHaveLength(1);
+    },
+  );
 
   it('persists compound challenge and response as single replay-safe actions with exact correction and spans', async () => {
     const f = await fixture();
@@ -608,6 +611,146 @@ describe('V2.1.5 production application and PostgreSQL boundary', () => {
       );
     }
     await expect(repository.assertReady()).resolves.toBeUndefined();
+  });
+
+  it.each(['exception', 'cas_miss'] as const)(
+    'second acknowledgment and finalization roll back together on %s and recover through retry',
+    async (failure) => {
+      const f = await fixture();
+      await discloseForChallenges(repository, f.id);
+      const first = (subject: string) =>
+        createProductionFirstPartyServiceV215({
+          enabled: true,
+          authenticated_subject_id: subject,
+          repository,
+          invitations,
+          invitation_authority: productionInvitationAuthorityV215(true),
+        });
+      const a = first(SUBJECT_A),
+        b = first(SUBJECT_B);
+      expect(await a.acknowledgeDisclosureReview(f.id)).toMatchObject({ status: 'committed' });
+      const before = canonicalSerialize((await repository.findById(f.id))!.envelope);
+      const commandCount = async () =>
+        Number(
+          (
+            await pool.query(
+              'select count(*) from juryai_v21.formation_commands where dispute_id=$1',
+              [f.id],
+            )
+          ).rows[0].count,
+        );
+      const commandsBefore = await commandCount();
+      await pool.query(`create function juryai_v21.v215_test_final_failure() returns trigger language plpgsql as $$ begin
+        if old.dispute_id = '${f.id}' and new.envelope #>> '{control,workflow_state}' = 'final_confirmation' then
+          ${failure === 'exception' ? "raise exception 'injected finalization failure';" : 'return null;'}
+        end if; return new; end $$;
+        create trigger v215_test_final_failure before update on juryai_v21.formation_disputes for each row execute function juryai_v21.v215_test_final_failure()`);
+      try {
+        if (failure === 'exception') {
+          await expect(b.acknowledgeDisclosureReview(f.id)).rejects.toThrow(
+            'injected finalization failure',
+          );
+        } else {
+          expect(await b.acknowledgeDisclosureReview(f.id)).toMatchObject({ status: 'conflict' });
+        }
+      } finally {
+        await pool.query(
+          'drop trigger v215_test_final_failure on juryai_v21.formation_disputes; drop function juryai_v21.v215_test_final_failure()',
+        );
+      }
+      expect(canonicalSerialize((await repository.findById(f.id))!.envelope)).toBe(before);
+      expect(await commandCount()).toBe(commandsBefore);
+      expect(await b.getReviewPage(f.id)).toMatchObject({
+        workflow_phase: 'challenge_response',
+        own_disclosure_review: 'open',
+        can_acknowledge_disclosure_review: true,
+        can_confirm: false,
+      });
+      expect(await b.acknowledgeDisclosureReview(f.id)).toMatchObject({ status: 'committed' });
+      const completed = canonicalSerialize((await repository.findById(f.id))!.envelope);
+      expect(await b.getReviewPage(f.id)).toMatchObject({
+        workflow_phase: 'final_confirmation',
+        can_confirm: true,
+      });
+      expect(await commandCount()).toBe(commandsBefore + 1);
+      // A lost acknowledgment response never mints another human attestation.
+      expect(await b.acknowledgeDisclosureReview(f.id)).toMatchObject({ status: 'committed' });
+      expect(await first('unbound_subject').acknowledgeDisclosureReview(f.id)).toEqual({
+        status: 'unauthorized',
+      });
+      expect(canonicalSerialize((await repository.findById(f.id))!.envelope)).toBe(completed);
+      expect(await commandCount()).toBe(commandsBefore + 1);
+    },
+  );
+
+  it('concurrent acknowledgment CAS loss retries into one atomic closure without duplicate attestations', async () => {
+    const f = await fixture();
+    await discloseForChallenges(repository, f.id);
+    const services = [SUBJECT_A, SUBJECT_B].map((authenticated_subject_id) =>
+      createProductionFirstPartyServiceV215({
+        enabled: true,
+        authenticated_subject_id,
+        repository,
+        invitations,
+        invitation_authority: productionInvitationAuthorityV215(true),
+      }),
+    );
+    const stored = (await repository.findById(f.id))!;
+    const reads = vi
+      .spyOn(repository, 'findById')
+      .mockResolvedValueOnce(stored)
+      .mockResolvedValueOnce(stored);
+    let results;
+    try {
+      results = await Promise.all(services.map((s) => s.acknowledgeDisclosureReview(f.id)));
+    } finally {
+      reads.mockRestore();
+    }
+    expect(results.map((r) => r.status).sort()).toEqual(['committed', 'conflict']);
+    expect(
+      await services[
+        results.findIndex((r) => r.status === 'conflict')
+      ]!.acknowledgeDisclosureReview(f.id),
+    ).toMatchObject({ status: 'committed' });
+    const final = (await repository.findById(f.id))!.envelope;
+    expect(final.control.workflow_state).toBe('final_confirmation');
+    for (const party of ['party_a', 'party_b'] as const) {
+      expect(final.formation.disclosure_review_acknowledgments[party]).toHaveLength(1);
+      expect(currentDisclosureReviewAcknowledgmentV215(final, party)).not.toBeNull();
+    }
+  });
+
+  it('a stale acknowledgment is never replay evidence or authority to bypass an open challenge', async () => {
+    const f = await fixture();
+    const d = await discloseForChallenges(repository, f.id);
+    const first = createProductionFirstPartyServiceV215({
+      enabled: true,
+      authenticated_subject_id: SUBJECT_A,
+      repository,
+      invitations,
+      invitation_authority: productionInvitationAuthorityV215(true),
+    });
+    expect(await first.acknowledgeDisclosureReview(f.id)).toMatchObject({ status: 'committed' });
+    d.bCompiler.script = () => ({
+      verdict: 'accepted_candidates',
+      assertions: [assertion(d.target.requirement_id, 'I dispute that date.')],
+    });
+    expect(
+      (
+        await d.b.submitTurn(
+          await commandFor(d.b, f.id, 'I dispute that date.', [d.target.position_id]),
+        )
+      ).ok,
+    ).toBe(true);
+    const before = (await repository.findById(f.id))!.envelope;
+    expect(currentDisclosureReviewAcknowledgmentV215(before, 'party_a')).toBeNull();
+    expect(await first.acknowledgeDisclosureReview(f.id)).toMatchObject({
+      status: 'domain_rejected',
+    });
+    expect(canonicalSerialize((await repository.findById(f.id))!.envelope)).toBe(
+      canonicalSerialize(before),
+    );
+    expect(await first.getReviewPage(f.id)).toMatchObject({ can_confirm: false });
   });
 
   it('formation, disclosure, current review acknowledgment, protected confirmation, reopen and bilateral readiness compose', async () => {

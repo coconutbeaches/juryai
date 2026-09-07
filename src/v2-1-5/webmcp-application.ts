@@ -528,6 +528,15 @@ function effectsForCompilerOutput(
   answer: string,
 ): ExternalRelayEffectCandidateV215[] | null {
   if (plan.kind === 'formation') {
+    const satisfiedByOutput = new Set(
+      output.assertions
+        .filter((assertion) =>
+          plan.requirements
+            .find((requirement) => requirement.requirement_id === assertion.requirement_id)
+            ?.satisfying_types.includes(assertion.proposed_type),
+        )
+        .map((assertion) => assertion.requirement_id),
+    );
     return [
       ...output.assertions.map((assertion) => ({
         type: 'semantic_assertion_candidate' as const,
@@ -542,8 +551,14 @@ function effectsForCompilerOutput(
       // Broad assertion listening does not authorize opening new questions for
       // requirements outside this turn's explicit targets. Keep the full model
       // output in the audit artifact, but emit only authorized clarification effects.
+      // A determinate fact may coexist with uncertainty about another fact under
+      // the same requirement. Do not ambiguously reopen coverage this turn supplies.
       ...output.clarifications_requested
-        .filter((clarification) => plan.requirement_ids.includes(clarification.requirement_id))
+        .filter(
+          (clarification) =>
+            plan.requirement_ids.includes(clarification.requirement_id) &&
+            !satisfiedByOutput.has(clarification.requirement_id),
+        )
         .map((clarification) => ({
           type: 'clarification_request' as const,
           requirement_id: clarification.requirement_id,

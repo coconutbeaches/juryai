@@ -90,9 +90,9 @@ reference defect needs a separately authorized historical compatibility fix.
 
 Verification, including the migration-lock review repair:
 
-- Full non-PostgreSQL suite: 100 files / 3,382 tests passed, including historical
+- Full non-PostgreSQL suite: 100 files / 3,384 tests passed, including historical
   formation parity, lifecycle and V0.4 structural/contract suites unchanged.
-- New V2.1.5 application/routing/guard coverage: 53 tests; PostgreSQL: 16 tests.
+- New V2.1.5 application/routing/guard coverage: 55 tests; PostgreSQL: 21 tests.
   The database suite exercises real transactions, a forced SQL CAS miss, hidden
   opponent rebase after compilation, audit/source/replay persistence refusal,
   identity-bound invitations, exact constraint readiness and first-party HHC.
@@ -151,3 +151,31 @@ refused rather than selected or fused. Application and PostgreSQL regressions
 exercise replay, source commitments, authorized clarification preservation,
 no-key-consumption refusals and exact correction through these paths. Shared
 relay authority rules and all historical generations remain unchanged.
+
+The read-only pre-review red team of `050433fce69cca01c748aafb6200bdd34799d9be`
+covered authority/security, replay/CAS/persistence, migrations/operations and
+V0.4 adapter semantics. Two additional P2 failures were independently reproduced.
+An accepted determinate fact plus a clarification about another fact under the
+same asked requirement passed the V0.4 contract but was rejected by the relay.
+The adapter now also excludes clarification effects for requirements supplied by
+satisfying assertions in that output. Non-satisfying assertions do not suppress
+clarifications. Full validated output remains in the audit; shared coverage and
+authority rules do not change.
+
+The inherited first-party adapter committed the second disclosure acknowledgment
+and entry into final confirmation in separate transactions. A local PostgreSQL
+failure between them left both parties acknowledged with no available next action.
+V2.1.5 now composes those two existing domain commands under the same dispute lock
+before one internal CAS write and acknowledgment-audit insert. The audit retains
+the acknowledgment command's intermediate version/hash; the resulting persisted
+envelope includes the subsequent trusted workflow transition. Exceptions and
+zero-row CAS failures leave neither partial state nor an audit insert. Retrying
+a current acknowledgment reads that attestation without minting another one;
+stale acknowledgments and unbound subjects cannot use that path. Concurrent
+acknowledgment and lost-response regressions exercise the real PostgreSQL boundary.
+This changes transaction composition only for V2.1.5; historical generations and
+the first-party confirmation/lock authority gates remain frozen.
+
+Migration review also identified an operational release constraint: once V2.1.5
+disputes exist, recovery must retain V2.1.5-capable readers/routing or use a forward
+fix. Rolling back to a binary that predates this generation cannot serve its cases.

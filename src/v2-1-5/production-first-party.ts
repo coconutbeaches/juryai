@@ -18,7 +18,6 @@ import {
   type CaseEnvelopeV215,
   type PartyIdV215,
 } from './case-envelope.js';
-import { disclosureReviewClosureCurrentV215 } from './disclosure-review.js';
 import { currentDisclosureReviewAcknowledgmentV215 } from './disclosure-review.js';
 import type {
   CommitCeremonyResultV215,
@@ -229,9 +228,14 @@ export function createProductionFirstPartyServiceV215(input: {
       if (!stored) return { status: 'conflict', current: null };
       const party = partyForSubject(stored.envelope, input.authenticated_subject_id);
       if (!party) return unavailable();
+      // A retry of a current acknowledgment is a read of the existing attestation.
+      // The repository atomically enters final confirmation with the second ack.
+      if (currentDisclosureReviewAcknowledgmentV215(stored.envelope, party)) {
+        return { status: 'committed', stored };
+      }
       const suffix = randomUUID();
       const acknowledgedAt = now();
-      const acknowledged = await input.repository.commitDisclosureReviewAcknowledgment({
+      return input.repository.commitDisclosureReviewAcknowledgment({
         dispute_id: disputeId,
         authenticated_subject_id: input.authenticated_subject_id,
         expected_internal_envelope_version: stored.internal_envelope_version,
@@ -242,18 +246,6 @@ export function createProductionFirstPartyServiceV215(input: {
         acknowledged_at: acknowledgedAt,
         recorded_at_ms: Date.parse(acknowledgedAt),
       });
-      if (acknowledged.status !== 'committed') return acknowledged;
-      if (!disclosureReviewClosureCurrentV215(acknowledged.stored.envelope)) return acknowledged;
-      const finalized = await input.repository.commitFinalConfirmation({
-        dispute_id: disputeId,
-        expected_internal_envelope_version: acknowledged.stored.internal_envelope_version,
-        expected_internal_envelope_hash: acknowledged.stored.internal_envelope_hash,
-        command_id: `command_final_confirmation_${suffix}`,
-      });
-      return finalized.status === 'conflict' &&
-        finalized.current?.envelope.control.workflow_state === 'final_confirmation'
-        ? { status: 'committed', stored: finalized.current }
-        : finalized;
     },
     issueReviewChallenge: (request) => {
       if (!input.enabled) {
