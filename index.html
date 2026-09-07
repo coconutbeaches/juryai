@@ -8,8 +8,564 @@
     <title>JuryAI</title>
   </head>
   <body>
-    <main>
+    <svg class="icon-definitions" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <defs>
+        <symbol id="icon-arrow" viewBox="0 0 24 26"><path d="M4 12h16m-6-6 6 6-6 6" /></symbol>
+        <symbol id="icon-file" viewBox="0 0 24 26">
+          <path d="M6 2h8l5 5v15H6zM14 2v6h5M9 12h7M9 16h7M9 19h5" />
+        </symbol>
+        <symbol id="icon-photo" viewBox="0 0 24 26">
+          <rect x="3" y="3" width="18" height="18" rx="1" />
+          <circle cx="15.5" cy="8.5" r="1.5" />
+          <path d="m3 17 6-6 7 7 3-3 2 2" />
+        </symbol>
+        <symbol id="icon-mail" viewBox="0 0 24 26">
+          <rect x="2" y="4" width="20" height="16" rx="1" />
+          <path d="m2 5 10 8L22 5" />
+        </symbol>
+        <symbol id="icon-submit" viewBox="0 0 24 26">
+          <path d="M13 22H4V2h10l5 5v5M14 2v6h5M7 11h6M7 15h3" />
+          <circle cx="18" cy="18" r="5" />
+          <path d="M18 15v6m-3-3h6" />
+        </symbol>
+        <symbol id="icon-people" viewBox="0 0 24 26">
+          <circle cx="12" cy="5" r="3" />
+          <circle cx="3" cy="9" r="2.5" />
+          <circle cx="21" cy="9" r="2.5" />
+          <path d="M6 22v-3a6 6 0 0 1 12 0v3M0 20v-3a4 4 0 0 1 6-3m12 0a4 4 0 0 1 6 3v3" />
+        </symbol>
+        <symbol id="icon-gavel" viewBox="0 0 24 26">
+          <path d="m12 2 9 9-3 3-9-9zM10 4 7 7l9 9 3-3M10 10 2 18l3 3 8-8M1 24h12m3 0h7" />
+        </symbol>
+        <symbol id="icon-shield" viewBox="0 0 24 26">
+          <path d="M12 2c-3 3-6 3-10 3v6c0 7 6 11 10 13 4-2 10-6 10-13V5c-4 0-7 0-10-3Z" />
+          <circle cx="12" cy="10" r="2.5" />
+          <path d="M8 18a4 4 0 0 1 8 0" />
+        </symbol>
+        <symbol id="icon-scales" viewBox="0 0 24 26">
+          <path
+            d="M12 3v19M6 23h12M3 6l9-3 9 3M5 6 1 17c2 2 6 2 8 0L5 6m14 0-4 11c2 2 6 2 8 0L19 6"
+          />
+          <circle cx="12" cy="2" r="1.5" />
+        </symbol>
+        <symbol id="icon-check" viewBox="0 0 24 26">
+          <circle cx="12" cy="12" r="10.5" />
+          <path d="m6 12 4 4 8-9" />
+        </symbol>
+        <symbol id="icon-lock" viewBox="0 0 24 26">
+          <rect x="4" y="10" width="16" height="13" rx="2" />
+          <path d="M7 10V6a5 5 0 0 1 10 0v4M12 16v3" />
+          <circle cx="12" cy="15" r="1" />
+        </symbol>
+        <symbol id="icon-play" viewBox="0 0 24 26">
+          <circle cx="12" cy="12" r="10.5" />
+          <path d="m10 7 7 5-7 5z" fill="currentColor" stroke="none" />
+        </symbol>
+        <symbol id="icon-menu" viewBox="0 0 24 26"><path d="M4 6h16M4 12h16M4 18h16" /></symbol>
+      </defs>
+    </svg>
+    <div id="landing-page">
+      <header class="landing-header page-width">
+        <a href="/" class="wordmark" aria-label="JuryAI home">JuryAI</a>
+        <button
+          id="menu-toggle"
+          class="menu-toggle"
+          aria-label="Toggle navigation"
+          aria-expanded="false"
+          aria-controls="landing-menu"
+        >
+          <svg
+            class="icon"
+            viewBox="0 0 24 26"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.35"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <use href="#icon-menu" />
+          </svg>
+        </button>
+        <nav id="landing-menu" class="landing-menu" aria-label="Main navigation" hidden>
+          <a href="#how-it-works">How it works</a><a href="#why-its-fair">Why it’s fair</a
+          ><a href="#security">Security</a><a href="/?start">Start a case</a>
+        </nav>
+      </header>
+      <main class="landing-main">
+        <section class="hero page-width" aria-labelledby="hero-title">
+          <div class="hero-copy">
+            <h1 id="hero-title">FAST. FAIR. <em>FREE.</em></h1>
+            <p class="hero-description">
+              JuryAI resolves disputes quickly —<br class="desktop-break" />
+              at no cost to either party.
+            </p>
+            <div class="hero-actions">
+              <a class="landing-button primary" href="/?start"
+                >Start a Case<svg
+                  class="icon"
+                  viewBox="0 0 24 26"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.35"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <use href="#icon-arrow" /></svg></a
+              ><a class="landing-button secondary" href="#how-it-works"
+                ><svg
+                  class="icon"
+                  viewBox="0 0 24 26"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.35"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <use href="#icon-play" /></svg
+                >See How It Works</a
+              >
+            </div>
+          </div>
+          <div
+            class="case-illustration"
+            aria-label="Illustrative example of a case moving from evidence to independent AI review and a recommendation"
+          >
+            <article class="demo-card evidence-card">
+              <header>
+                <h2>Case #4827</h2>
+                <p>Construction Contract Dispute</p>
+                <span class="evidence-count">4 evidence items</span>
+              </header>
+              <ul>
+                <li>
+                  <svg
+                    class="icon"
+                    viewBox="0 0 24 26"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.35"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <use href="#icon-file" /></svg
+                  ><span>Plaintiff’s Statement<small>12 pages</small></span>
+                </li>
+                <li>
+                  <svg
+                    class="icon"
+                    viewBox="0 0 24 26"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.35"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <use href="#icon-file" /></svg
+                  ><span>Contract Agreement<small>8 pages</small></span>
+                </li>
+                <li>
+                  <svg
+                    class="icon"
+                    viewBox="0 0 24 26"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.35"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <use href="#icon-photo" /></svg
+                  ><span>Site Photos<small>24 images</small></span>
+                </li>
+                <li>
+                  <svg
+                    class="icon"
+                    viewBox="0 0 24 26"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.35"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <use href="#icon-mail" /></svg
+                  ><span>Correspondence<small>17 messages</small></span>
+                </li>
+              </ul>
+            </article>
+            <div class="connector">
+              <svg
+                class="connections"
+                viewBox="0 0 40 360"
+                preserveAspectRatio="none"
+                fill="none"
+                aria-hidden="true"
+              >
+                <path d="M0 180C20 180 15 90 40 90" />
+                <circle cx="0" cy="180" r="2" />
+                <circle cx="40" cy="90" r="2" />
+                <path d="M0 180C20 180 15 145 40 145" />
+                <circle cx="0" cy="180" r="2" />
+                <circle cx="40" cy="145" r="2" />
+                <path d="M0 180C20 180 15 200 40 200" />
+                <circle cx="0" cy="180" r="2" />
+                <circle cx="40" cy="200" r="2" />
+                <path d="M0 180C20 180 15 255 40 255" />
+                <circle cx="0" cy="180" r="2" />
+                <circle cx="40" cy="255" r="2" />
+                <path d="M0 180C20 180 15 310 40 310" />
+                <circle cx="0" cy="180" r="2" />
+                <circle cx="40" cy="310" r="2" /></svg
+              ><svg
+                class="icon"
+                viewBox="0 0 24 26"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.35"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <use href="#icon-arrow" />
+              </svg>
+            </div>
+            <article class="demo-card jurors-card">
+              <header>
+                <h2>AI Jurors</h2>
+                <p>Independent perspectives</p>
+              </header>
+              <ul>
+                <li>
+                  <span class="juror-logo logo-1">
+                    <!-- OpenAI mark from Simple Icons (CC0), used in this illustrative example. -->
+                    <svg
+                      aria-hidden="true"
+                      fill="currentColor"
+                      viewBox="0 0 24 24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z"
+                      /></svg></span
+                  ><span class="juror-name">Juror 1<small>Reviews evidence</small></span>
+                </li>
+                <li>
+                  <span class="juror-logo logo-2"
+                    ><img
+                      class="brand-logo"
+                      src="/brand/claude.svg"
+                      alt="Claude"
+                      width="36"
+                      height="36" /></span
+                  ><span class="juror-name">Juror 2<small>Reviews evidence</small></span>
+                </li>
+                <li>
+                  <span class="juror-logo logo-3"
+                    ><img
+                      class="brand-logo"
+                      src="/brand/google-g.svg"
+                      alt="Google"
+                      width="36"
+                      height="36" /></span
+                  ><span class="juror-name">Juror 3<small>Reviews evidence</small></span>
+                </li>
+                <li>
+                  <span class="juror-logo logo-4"
+                    ><svg
+                      viewBox="0 0 48 36"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="4"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M24 18C17 4 10 1 5 12s-3 20 3 20c7 0 12-15 17-24s11-6 16 4 4 20-2 20S30 29 24 18Z"
+                      /></svg></span
+                  ><span class="juror-name">Juror 4<small>Reviews evidence</small></span>
+                </li>
+                <li>
+                  <span class="juror-logo logo-5"
+                    ><img
+                      class="brand-logo"
+                      src="/brand/grok.svg"
+                      alt="Grok"
+                      width="36"
+                      height="36" /></span
+                  ><span class="juror-name">Juror 5<small>Reviews evidence</small></span>
+                </li>
+              </ul>
+            </article>
+            <div class="connector reverse">
+              <svg
+                class="connections"
+                viewBox="0 0 40 360"
+                preserveAspectRatio="none"
+                fill="none"
+                aria-hidden="true"
+              >
+                <path d="M0 180C20 180 15 90 40 90" />
+                <circle cx="0" cy="180" r="2" />
+                <circle cx="40" cy="90" r="2" />
+                <path d="M0 180C20 180 15 145 40 145" />
+                <circle cx="0" cy="180" r="2" />
+                <circle cx="40" cy="145" r="2" />
+                <path d="M0 180C20 180 15 200 40 200" />
+                <circle cx="0" cy="180" r="2" />
+                <circle cx="40" cy="200" r="2" />
+                <path d="M0 180C20 180 15 255 40 255" />
+                <circle cx="0" cy="180" r="2" />
+                <circle cx="40" cy="255" r="2" />
+                <path d="M0 180C20 180 15 310 40 310" />
+                <circle cx="0" cy="180" r="2" />
+                <circle cx="40" cy="310" r="2" /></svg
+              ><svg
+                class="icon"
+                viewBox="0 0 24 26"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.35"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <use href="#icon-arrow" />
+              </svg>
+            </div>
+            <article class="demo-card recommendation-card">
+              <h2>Case Recommendation</h2>
+              <div class="recommendation-content">
+                <div
+                  class="score-ring"
+                  role="img"
+                  aria-label="Illustrative recommendation: 78 percent"
+                >
+                  <span>78%</span>
+                </div>
+                <div class="recommendation-copy">
+                  <h3>Lean For Claimant</h3>
+                  <div class="rationale-summary">
+                    <h4>Key Rationale</h4>
+                    <p>
+                      The jurors find the claimant’s position more persuasive based on the evidence
+                      and contract terms.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <button id="view-rationale" class="rationale-button">
+                View Rationale<svg
+                  class="icon"
+                  viewBox="0 0 24 26"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.35"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <use href="#icon-arrow" />
+                </svg>
+              </button>
+            </article>
+            <p class="example-caption">Illustrative example</p>
+          </div>
+        </section>
+        <div class="details-band">
+          <div class="page-width">
+            <section class="how-section" id="how-it-works" aria-labelledby="how-title">
+              <h2 id="how-title">How it works</h2>
+              <div class="steps">
+                <article class="step">
+                  <span class="step-number">1</span
+                  ><svg
+                    class="icon"
+                    viewBox="0 0 24 26"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.35"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <use href="#icon-submit" />
+                  </svg>
+                  <div>
+                    <h3>Submit</h3>
+                    <p>Share facts and evidence<br />about your dispute.</p>
+                  </div>
+                </article>
+                <article class="step">
+                  <span class="step-number">2</span
+                  ><svg
+                    class="icon"
+                    viewBox="0 0 24 26"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.35"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <use href="#icon-people" />
+                  </svg>
+                  <div>
+                    <h3>Deliberate</h3>
+                    <p>Our AI jurors review independently<br />and debate the case.</p>
+                  </div>
+                </article>
+                <article class="step">
+                  <span class="step-number">3</span
+                  ><svg
+                    class="icon"
+                    viewBox="0 0 24 26"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.35"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <use href="#icon-gavel" />
+                  </svg>
+                  <div>
+                    <h3>Resolve</h3>
+                    <p>Get a fair recommendation<br />in minutes.</p>
+                  </div>
+                </article>
+              </div>
+            </section>
+            <section class="fairness-section" id="why-its-fair" aria-labelledby="fairness-title">
+              <h2 id="fairness-title">Why it’s fair</h2>
+              <div class="fairness-grid">
+                <article class="fairness-feature">
+                  <svg
+                    class="icon"
+                    viewBox="0 0 24 26"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.35"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <use href="#icon-shield" />
+                  </svg>
+                  <div>
+                    <h3>Independent</h3>
+                    <p>AI jurors evaluate without<br />influence or bias.</p>
+                  </div>
+                </article>
+                <article class="fairness-feature">
+                  <svg
+                    class="icon"
+                    viewBox="0 0 24 26"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.35"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <use href="#icon-scales" />
+                  </svg>
+                  <div>
+                    <h3>Balanced</h3>
+                    <p>Multiple perspectives<br />lead to fair outcomes.</p>
+                  </div>
+                </article>
+                <article class="fairness-feature">
+                  <svg
+                    class="icon"
+                    viewBox="0 0 24 26"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.35"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <use href="#icon-check" />
+                  </svg>
+                  <div>
+                    <h3>Transparent</h3>
+                    <p>Clear reasoning you<br />can review and trust.</p>
+                  </div>
+                </article>
+                <article class="fairness-feature" id="security">
+                  <svg
+                    class="icon"
+                    viewBox="0 0 24 26"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.35"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <use href="#icon-lock" />
+                  </svg>
+                  <div>
+                    <h3>Private &amp; Secure</h3>
+                    <p>Your data is protected<br />at every step.</p>
+                  </div>
+                </article>
+              </div>
+            </section>
+          </div>
+        </div>
+        <section class="closing-section">
+          <div class="page-width closing-content">
+            <div>
+              <h2>
+                Start a case and let JuryAI deliver a recommendation —<br />
+                free for everyone.
+              </h2>
+            </div>
+            <a class="landing-button primary" href="/?start"
+              >Start Your Case<svg
+                class="icon"
+                viewBox="0 0 24 26"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.35"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <use href="#icon-arrow" /></svg
+            ></a>
+          </div>
+        </section>
+      </main>
+      <div class="footer-band">
+        <footer class="landing-footer page-width">
+          <a class="wordmark" href="/">JuryAI</a>
+          <p>© 2026 JuryAI. All rights reserved.</p>
+        </footer>
+      </div>
+      <dialog id="example-rationale" class="rationale-dialog" aria-labelledby="rationale-title">
+        <p class="eyebrow">Illustrative example</p>
+        <h2 id="rationale-title">Why the jurors lean for the claimant</h2>
+        <p>
+          In this fictional construction dispute, the agreement, statements, photos, and
+          correspondence are considered together. The example shows how a recommendation can connect
+          its reasoning to the evidence.
+        </p>
+        <p>
+          This is a design demonstration, not a real case result. The percentage and juror logos are
+          illustrative.
+        </p>
+        <button id="close-rationale" class="landing-button primary">Close example</button>
+      </dialog>
+    </div>
+    <main id="case-shell" hidden>
       <header>
+        <a href="/">← Back to JuryAI</a>
         <p class="muted">Private P2 case preparation</p>
         <h1>JuryAI</h1>
       </header>
@@ -218,6 +774,6 @@
 
       <button id="logout-button" class="secondary" type="button" hidden>Log out</button>
     </main>
-    <script type="module" src="/src/webmcp/browser/entry.ts"></script>
+    <script type="module" src="/src/webmcp/browser/page.ts"></script>
   </body>
 </html>
