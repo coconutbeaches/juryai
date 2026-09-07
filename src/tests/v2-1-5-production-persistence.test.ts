@@ -1,5 +1,5 @@
 import { Pool } from 'pg';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { projectRoot } from './test-helpers.js';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { PostgresDisclosureReviewRepositoryV215 } from '../v2-1-5/postgres-disclosure-review-repository.js';
@@ -47,6 +47,12 @@ const invitations = new PostgresFormationInvitationRepositoryV215({
   pool,
   account_commitment_secret: 'isolated-v215-invitation-secret-with-32-bytes',
 });
+const contractMigrations = readdirSync(`${projectRoot}/supabase/migrations`)
+  .filter((name) =>
+    /^\d+_v215_(shared_formation|validate|activate)_contract_pairs\.sql$/u.test(name),
+  )
+  .sort()
+  .map((name) => readFileSync(`${projectRoot}/supabase/migrations/${name}`, 'utf8'));
 beforeAll(async () => {
   await repository.assertReady();
   await invitations.assertReady();
@@ -304,6 +310,106 @@ describe('V2.1.5 production application and PostgreSQL boundary', () => {
     }
   });
 
+  it('validates replacement constraints without retaining an exclusive lock that blocks reads or writes', async () => {
+    await fixture(); // Exercise populated formation tables, not only empty-schema DDL.
+    const migration = await pool.connect();
+    const traffic = await pool.connect();
+    const constraints = async () =>
+      (
+        await migration.query<{ oid: string; convalidated: boolean }>(
+          `select oid::text, convalidated from pg_constraint
+          where conrelid in ('juryai_v21.formation_disputes'::regclass,
+                             'juryai_v21.formation_assurance_challenges'::regclass)`,
+        )
+      ).rows;
+    let validated = 0;
+    try {
+      await traffic.query("set lock_timeout = '250ms'");
+      for (const sql of contractMigrations) {
+        const before = new Map((await constraints()).map((c) => [c.oid, c.convalidated]));
+        expect(sql).toMatch(/commit;\s*$/iu);
+        // Hold each migration immediately before COMMIT to inspect the exact
+        // table locks acquired during its validation scan, without timing races.
+        await migration.query(sql.replace(/commit;\s*$/iu, ''));
+        const newlyValidated = (await constraints()).filter(
+          (c) => c.convalidated && before.get(c.oid) !== true,
+        );
+        if (newlyValidated.length) {
+          validated += newlyValidated.length;
+          const locks = (
+            await migration.query<{ mode: string }>(
+              `select mode from pg_locks where pid = pg_backend_pid() and granted
+              and relation in ('juryai_v21.formation_disputes'::regclass,
+                               'juryai_v21.formation_assurance_challenges'::regclass)`,
+            )
+          ).rows.map((row) => row.mode);
+          expect(locks).not.toContain('AccessExclusiveLock');
+          expect(locks).toContain('ShareUpdateExclusiveLock');
+          for (const table of ['formation_disputes', 'formation_assurance_challenges']) {
+            await traffic.query(`select 1 from juryai_v21.${table} limit 1`);
+            await traffic.query(`update juryai_v21.${table} set dispute_id = default where false`);
+          }
+        }
+        await migration.query('commit');
+      }
+      expect(validated).toBe(3);
+      expect(
+        (
+          await migration.query(
+            "select conname from pg_constraint where connamespace = 'juryai_v21'::regnamespace and conname like '%v215_stage'",
+          )
+        ).rows,
+      ).toEqual([]);
+    } finally {
+      await migration.query('rollback');
+      await migration.query(`alter table juryai_v21.formation_disputes
+        drop constraint if exists formation_disputes_external_submission_v215_stage,
+        drop constraint if exists formation_disputes_contract_pair_v215_stage`);
+      await migration.query(`alter table juryai_v21.formation_assurance_challenges
+        drop constraint if exists formation_assurance_challenges_payload_binding_v215_stage`);
+      await traffic.query('reset lock_timeout');
+      migration.release();
+      traffic.release();
+    }
+  });
+
+  it('refuses premature activation and retains the old constraints until all replacements validate', async () => {
+    const client = await pool.connect();
+    const names = [
+      'formation_disputes_external_submission_v211',
+      'formation_disputes_contract_pair_v212',
+      'formation_assurance_challenges_payload_binding',
+    ];
+    const snapshot = async () =>
+      (
+        await client.query(
+          `select oid::text, conname, convalidated, pg_get_constraintdef(oid) as definition
+        from pg_constraint where connamespace = 'juryai_v21'::regnamespace
+          and conname = any($1::text[]) order by conname`,
+          [names],
+        )
+      ).rows;
+    const before = await snapshot();
+    expect(contractMigrations).toHaveLength(3);
+    try {
+      await client.query(contractMigrations[0]!);
+      expect(await snapshot()).toEqual(before);
+      await expect(client.query(contractMigrations[2]!)).rejects.toMatchObject({
+        code: '55000',
+        message: 'V2.1.5 staged constraints must all be validated before activation',
+      });
+      await client.query('rollback');
+      expect(await snapshot()).toEqual(before);
+    } finally {
+      await client.query('rollback');
+      await client.query(contractMigrations[1]!);
+      await client.query(contractMigrations[2]!);
+      client.release();
+    }
+    await repository.assertReady();
+    await invitations.assertReady();
+  });
+
   it('adds exact SQL pairs, resolves historical rows historically, and creates new starts as V2.1.5', async () => {
     const start = {
       authenticated_subject_id: SUBJECT_A,
@@ -318,12 +424,7 @@ describe('V2.1.5 production application and PostgreSQL boundary', () => {
         [old.control.case_id],
       );
     const before = await snapshot();
-    await pool.query(
-      readFileSync(
-        `${projectRoot}/supabase/migrations/20260907021458_v215_shared_formation_contract_pairs.sql`,
-        'utf8',
-      ),
-    );
+    for (const sql of contractMigrations) await pool.query(sql);
     expect((await snapshot()).rows).toEqual(before.rows);
     const resolver = postgresContractResolution(pool);
     expect(await resolver.resolveVersion(old.control.case_id)).toBe('juryai-case-envelope-v2.1.4');

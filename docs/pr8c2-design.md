@@ -88,11 +88,11 @@ V2.1.5 uses a valid random uppercase 12-character suffix and exercises default
 identity providers end to end. V2.1.1–V2.1.4 remain untouched; their default
 reference defect needs a separately authorized historical compatibility fix.
 
-Verification before draft publication:
+Verification, including the migration-lock review repair:
 
 - Full non-PostgreSQL suite: 100 files / 3,374 tests passed, including historical
   formation parity, lifecycle and V0.4 structural/contract suites unchanged.
-- New V2.1.5 application/routing/guard coverage: 45 tests; PostgreSQL: 12 tests.
+- New V2.1.5 application/routing/guard coverage: 45 tests; PostgreSQL: 14 tests.
   The database suite exercises real transactions, a forced SQL CAS miss, hidden
   opponent rebase after compilation, audit/source/replay persistence refusal,
   identity-bound invitations, exact constraint readiness and first-party HHC.
@@ -116,3 +116,19 @@ Verification before draft publication:
 - Frozen source-tree inventories and hashes pass. No live model call, deployed
   database migration, production canary or deployment was performed. Qualification
   remains historical evidence; draft publication does not establish live quality.
+
+The Codex review of `935c3c63623906a849507f35cd2eb19d217dd4fc` identified
+that replacement `CHECK` constraints scanned populated tables under retained
+exclusive locks. The regression reproduced `AccessExclusiveLock` on that head.
+The migration now stages temporary `NOT VALID` constraints while leaving the old
+constraints enforced, validates in a separate migration/transaction, then performs
+a short atomic drop/rename after checking that all three replacements validated.
+Each phase uses a five-second lock-acquisition timeout. Run the three migration
+files separately and in timestamp order before enabling the new application;
+do not combine them into an outer transaction. The lock regression holds each
+phase before commit and proves validation uses `ShareUpdateExclusiveLock`, with
+concurrent SELECT and UPDATE lock acquisition allowed. Premature activation fails
+without replacing any historical constraint; historical row identity is preserved.
+This follows PostgreSQL's documented [ADD / VALIDATE CONSTRAINT lock behavior](https://www.postgresql.org/docs/current/sql-altertable.html).
+The Supabase CLI's [per-file transaction batching](https://github.com/supabase/cli/blob/v2.75.0/pkg/migration/file.go)
+was also inspected, which is why staging and validation use different files.
