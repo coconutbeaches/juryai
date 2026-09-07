@@ -1,3 +1,12 @@
+import {
+  REPAIR_STATE_SCHEMA_V215,
+  OWN_REPAIR_PAGE_SIZE,
+  wrapOwnRepairStatement,
+  decodeRepairStateQuery,
+  type OwnPositionCursor,
+  type RepairCaseStateV215,
+} from '../webmcp/repair-state-v215.js';
+import { ownRepairBound, repairAuthorityFailure } from './repair-authority.js';
 import { V215_SPEC } from './generation-spec.js';
 import {
   buildCompileRunRecord,
@@ -241,8 +250,23 @@ export function projectPartyCaseStateV215(
   partyId: PartyIdV215,
   reviewUrl: string,
   additionalWarnings: readonly string[] = [],
-): CaseStateResponse {
+  repairCursor?: OwnPositionCursor,
+): RepairCaseStateV215 {
   const projection = projectPartyFormationV215(envelope, partyId);
+  const visibleVersion = envelope.control.party_views[partyId].party_visible_version;
+  const allOwn = projection.own_material.positions
+    .filter((p) => p.superseded_by === null)
+    .sort((a, b) => (a.position_id < b.position_id ? -1 : a.position_id > b.position_id ? 1 : 0));
+  if (
+    repairCursor &&
+    (repairCursor.party_visible_version !== visibleVersion ||
+      !allOwn.some((p) => p.position_id === repairCursor.after_position_id))
+  )
+    throw new TypeError('Own repair cursor is stale.');
+  const after = repairCursor
+    ? allOwn.findIndex((p) => p.position_id === repairCursor.after_position_id) + 1
+    : 0;
+  const ownPage = allOwn.slice(after, after + OWN_REPAIR_PAGE_SIZE);
   const unresolvedRequirements = projection.own_material.requirements.filter(
     (requirement) => requirement.required && requirement.status !== 'satisfied',
   );
@@ -278,7 +302,25 @@ export function projectPartyCaseStateV215(
     case_id: projection.case_id,
     case_version: envelope.control.party_views[partyId].party_visible_version,
     protocol_version: WEBMCP_PROTOCOL_VERSION,
-    schema_version: WEBMCP_CORE_SCHEMA_VERSION,
+    schema_version: REPAIR_STATE_SCHEMA_V215,
+    own_repair_targets: {
+      party_id: partyId,
+      requirements: projection.own_material.requirements.map((r) => ({
+        requirement_id: r.requirement_id,
+        prompt: wrapPartyVisibleText(r.prompt),
+      })),
+      positions: ownPage.map((position) => ({
+        ...interpretation(position),
+        statement: wrapOwnRepairStatement(position.statement),
+      })),
+      next_cursor:
+        after + ownPage.length < allOwn.length
+          ? {
+              party_visible_version: visibleVersion,
+              after_position_id: ownPage.at(-1)!.position_id,
+            }
+          : null,
+    },
     status: 'draft',
     unresolved_requirement_count: unresolvedRequirements.length + unansweredChallenges.length,
     next_requirements: [...challengePrompts, ...requirementPrompts].slice(0, 3),
@@ -722,7 +764,8 @@ export function createV215PartyCaseService(
     getCaseState: async (query, options) => {
       try {
         options?.signal?.throwIfAborted();
-        let disputeId = query.case_id;
+        const repairQuery = decodeRepairStateQuery(query);
+        let disputeId = repairQuery.case_id;
         if (disputeId === undefined) {
           const active = await dependencies.repository.listActiveContextsForPrincipal(subjectId);
           if (active.length === 0)
@@ -740,6 +783,25 @@ export function createV215PartyCaseService(
         }
         const current = await currentFor(disputeId);
         options?.signal?.throwIfAborted();
+        if (current && repairQuery.own_position_cursor) {
+          try {
+            return {
+              ok: true,
+              case: projectPartyCaseStateV215(
+                current.stored.envelope,
+                current.context.party_id,
+                dependencies.review_url(disputeId),
+                [],
+                repairQuery.own_position_cursor,
+              ),
+            };
+          } catch {
+            return serviceError(
+              'CONFLICT',
+              'Repair targets changed. Refresh get_case_state without a cursor.',
+            );
+          }
+        }
         return current
           ? { ok: true, case: stateFor(current.stored, current.context.party_id) }
           : serviceError('CASE_NOT_FOUND', 'No such case.');
@@ -814,6 +876,11 @@ export function createV215PartyCaseService(
           };
         }
 
+        if (!ownRepairBound(stored.envelope, partyId, directTargets))
+          return serviceError(
+            'INVALID_INPUT',
+            'Refresh state and supply one exact own live target with its requirement.',
+          );
         const projection = projectPartyFormationV215(stored.envelope, partyId);
         const plan = planCompile(projection, directTargets);
         if (!plan) return serviceError('INVALID_INPUT', 'The reply target is unavailable.');
@@ -919,6 +986,14 @@ export function createV215PartyCaseService(
             'The answer produced no recordable change to this case.',
             false,
           );
+
+        const authorityFailure = repairAuthorityFailure(
+          stored.envelope,
+          partyId,
+          directTargets,
+          effects,
+        );
+        if (authorityFailure) return serviceError('INVALID_INPUT', authorityFailure);
 
         const positionCount = effects.reduce(
           (count, effect) =>

@@ -82,6 +82,12 @@ export interface ReopenOwnFormationOperation {
   occurred_at: string;
 }
 
+export interface ReturnUnconfirmedToEditOperation {
+  type: 'return_unconfirmed_to_edit';
+  event_id: string;
+  occurred_at: string;
+}
+
 export interface RedactSourceTurnOperation {
   type: 'redact_source_turn';
   turn_id: string;
@@ -105,6 +111,7 @@ export type EnvelopeCeremonyOperation =
   | EnterFinalConfirmationOperation
   | RecordPartyConfirmationOperation
   | ReopenOwnFormationOperation
+  | ReturnUnconfirmedToEditOperation
   | RedactSourceTurnOperation
   | SetEvidenceEligibilityOperation
   | MarkReadyForLockOperation;
@@ -158,11 +165,18 @@ export type InitialFormationRequirements = Record<
 >;
 
 export function createFormationCeremony(input: {
+  allowUnconfirmedReturnToEdit?: boolean;
   spec: GenerationSpec;
   validator: FormationEnvelopeValidator<CaseEnvelope>;
 }) {
   // Validated once, at construction. There is no module-global current spec.
   const spec = assertValidGenerationSpec(input.spec);
+  if (
+    input.allowUnconfirmedReturnToEdit !== undefined &&
+    typeof input.allowUnconfirmedReturnToEdit !== 'boolean'
+  )
+    throw new TypeError('Invalid return-to-edit capability.');
+  const allowUnconfirmedReturnToEdit = input.allowUnconfirmedReturnToEdit === true;
   const validator = input.validator;
 
   /**
@@ -225,6 +239,13 @@ export function createFormationCeremony(input: {
           typeof operation.confirmation_id === 'string' &&
           typeof operation.confirmed_at === 'string' &&
           typeof operation.event_id === 'string'
+        );
+      case 'return_unconfirmed_to_edit':
+        return (
+          allowUnconfirmedReturnToEdit &&
+          hasExactKeys(value, ['event_id', 'occurred_at', 'type']) &&
+          typeof operation.event_id === 'string' &&
+          typeof operation.occurred_at === 'string'
         );
       case 'reopen_own_formation':
         return (
@@ -414,6 +435,20 @@ export function createFormationCeremony(input: {
           return 'Party confirmation data is invalid.';
         }
         return null;
+      case 'return_unconfirmed_to_edit': {
+        if (!partyAuthorityMatches(envelope, authority))
+          return 'Explicit first-party human authority is required.';
+        if (
+          !allowUnconfirmedReturnToEdit ||
+          envelope.control.workflow_state !== 'final_confirmation' ||
+          envelope.control.disclosure_state !== 'disclosed' ||
+          envelope.parties[authority.party_id].edit_state === 'confirmed' ||
+          !isPartyScopedId('reopen_event', authority.party_id, operation.event_id) ||
+          !validIso(operation.occurred_at)
+        )
+          return 'Unconfirmed return-to-edit transition is invalid.';
+        return null;
+      }
       case 'reopen_own_formation': {
         if (!partyAuthorityMatches(envelope, authority)) {
           return 'Explicit first-party human authority is required.';
@@ -533,6 +568,7 @@ export function createFormationCeremony(input: {
         envelope.parties[party.party_id].edit_state = 'confirmed';
         return;
       }
+      case 'return_unconfirmed_to_edit':
       case 'reopen_own_formation': {
         const party = authority as AuthenticatedPartyAuthority;
         const binding = envelope.parties[party.party_id];
@@ -542,7 +578,10 @@ export function createFormationCeremony(input: {
           authenticated_subject_id: party.authenticated_subject_id,
           prior_formation_epoch: binding.formation_epoch,
           resulting_formation_epoch: binding.formation_epoch + 1,
-          reason: operation.reason,
+          reason:
+            operation.type === 'return_unconfirmed_to_edit'
+              ? 'First-party request to make changes before confirmation.'
+              : operation.reason,
           occurred_at: operation.occurred_at,
         });
         binding.formation_epoch += 1;

@@ -207,6 +207,11 @@ export function createFormationRelay(
     spec: GenerationSpec;
     validator: FormationEnvelopeValidator<CaseEnvelope>;
     cursors: PartyViewCursorRefresh;
+    submissionAdmission?: (
+      envelope: CaseEnvelope,
+      party: PartyId,
+      submission: ExternalRelaySubmission,
+    ) => string | null;
   },
   runtimeIntegrity: import('./relay-runtime.js').RelayRuntimeIntegrity = 'legacy_brand',
 ) {
@@ -215,6 +220,7 @@ export function createFormationRelay(
   const codes = createIssueCodes(spec.contracts.contract_issue_code_prefix);
   const validator = input.validator;
   const cursors = input.cursors;
+  const submissionAdmission = input.submissionAdmission;
   const runtimes = createRelayRuntimeMinter(spec, runtimeIntegrity);
   /**
    * The two policy flags this relay branches on, and the ONLY two. Everything
@@ -1119,6 +1125,9 @@ export function createFormationRelay(
         'Confirmed semantic material requires explicit first-party reopen.',
       );
     }
+
+    const admissionFailure = submissionAdmission?.(envelope, partyId, submission);
+    if (admissionFailure) return rejected(envelope, 'effect_rejected', admissionFailure);
 
     const candidate = cloneCaseEnvelope(envelope);
     const nextVersion = envelope.control.envelope_version + 1;

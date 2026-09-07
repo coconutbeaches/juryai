@@ -47,6 +47,13 @@ const attestButton = element<HTMLButtonElement>('attest-button');
 const lockedPanel = element<HTMLElement>('locked-panel');
 const v212ReviewPanel = element<HTMLElement>('v212-review-panel');
 const v212Workflow = element<HTMLElement>('v212-workflow');
+const returnToEditButton = document.createElement('button');
+returnToEditButton.type = 'button';
+returnToEditButton.textContent = 'I need to make changes';
+returnToEditButton.hidden = true;
+v212ReviewPanel.append(returnToEditButton);
+let returnToEditIdentity: { reviewHash: string; requestKey: string } | null = null;
+
 const v212InvitationPanel = element<HTMLElement>('v212-invitation-panel');
 const v212InvitationForm = element<HTMLFormElement>('v212-invitation-form');
 const v212InvitationEmail = element<HTMLInputElement>('v212-invitation-email');
@@ -218,6 +225,10 @@ function webMcpCopy(value: typeof currentWebMcp): string {
 
 const view: BrowserShellView = {
   render(state: BrowserShellState): void {
+    if (state.phase !== 'v212_review') {
+      returnToEditButton.hidden = true;
+      returnToEditIdentity = null;
+    }
     authSection.hidden = state.phase !== 'signed_out' && state.phase !== 'otp_requested';
     disclosureSection.hidden = state.phase !== 'disclosure';
     readySection.hidden = state.phase !== 'ready';
@@ -255,6 +266,21 @@ const view: BrowserShellView = {
     }
     if (state.phase === 'v212_review') {
       const page = state.v212Review;
+      const canReturn =
+        page.review_page_version === 'juryai-v2.1.5-first-party-review-page-v1.0.0' &&
+        page.can_return_to_edit;
+      returnToEditButton.hidden = !canReturn;
+      returnToEditButton.disabled = false;
+      if (
+        !returnToEditIdentity ||
+        returnToEditIdentity.reviewHash !== page.review.review_state_hash
+      )
+        returnToEditIdentity = canReturn
+          ? {
+              reviewHash: page.review.review_state_hash,
+              requestKey: `return_to_edit_${crypto.randomUUID()}`,
+            }
+          : null;
       currentReview = null;
       currentV212Review = page;
       reviewHeading.textContent = 'Your canonical JuryAI account';
@@ -433,6 +459,40 @@ v212InvitationForm.addEventListener('submit', (event) => {
     } catch {
       if (actionSignal.aborted) return;
       v212InvitationResult.textContent = 'The invitation could not be created.';
+    }
+  })();
+});
+
+returnToEditButton.addEventListener('click', () => {
+  const page = currentV212Review;
+  const identity = returnToEditIdentity;
+  if (
+    !page ||
+    !identity ||
+    page.review_page_version !== 'juryai-v2.1.5-first-party-review-page-v1.0.0' ||
+    !page.can_return_to_edit ||
+    returnToEditButton.disabled
+  )
+    return;
+  const actionSignal = pageActionController.signal;
+  returnToEditButton.disabled = true;
+  void (async () => {
+    try {
+      await postJson(
+        `/api/juryai/cases/${encodeURIComponent(page.review.dispute_id)}/return-to-edit`,
+        { review_state_hash: identity.reviewHash, client_request_id: identity.requestKey },
+        actionSignal,
+      );
+      if (actionSignal.aborted) return;
+      await controller.initialize();
+      if (actionSignal.aborted) return;
+      reviewMessage.textContent =
+        'Tell your own AI what to add or correct. Then return here to read the complete updated account before confirming.';
+    } catch {
+      if (actionSignal.aborted) return;
+      returnToEditButton.disabled = false;
+      reviewMessage.textContent =
+        'The action could not be completed. Retry, or refresh to inspect the current review state.';
     }
   })();
 });

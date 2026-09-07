@@ -72,6 +72,19 @@ export function createProductionVersionedCaseServiceV215(input: {
         : v215.startCase(command, options);
     },
     getCaseState: async (query, options) => {
+      if (
+        query.own_position_cursor &&
+        (query.case_id === undefined ||
+          (await input.resolveVersion(query.case_id)) !== 'juryai-case-envelope-v2.1.5')
+      )
+        return {
+          ok: false,
+          error: {
+            code: 'INVALID_INPUT',
+            message: 'Repair pagination requires a V2.1.5 case.',
+            retryable: false,
+          },
+        };
       if (query.case_id !== undefined)
         return (await service(query.case_id))?.getCaseState(query, options) ?? missing();
       const [legacy, v212Ids, v213Ids, v214Ids, v215Ids] = await Promise.all([
@@ -104,6 +117,8 @@ export function createProductionVersionedCaseServiceV215(input: {
 }
 
 export type ProductionFirstPartyService = {
+  returnToEdit?: ProductionFirstPartyServiceV215['returnToEdit'];
+} & {
   [K in keyof ProductionFirstPartyServiceV212]: (
     ...args: Parameters<ProductionFirstPartyServiceV212[K]>
   ) => Promise<
@@ -136,6 +151,10 @@ export function createVersionedFirstPartyService(input: {
             : null;
   const service = async (id: string) => select(await input.resolveVersion(id));
   return {
+    returnToEdit: async (request) =>
+      (await input.resolveVersion(request.dispute_id)) === 'juryai-case-envelope-v2.1.5'
+        ? (input.v215.returnToEdit?.(request) ?? { status: 'unauthorized' })
+        : { status: 'unauthorized' },
     issueInvitation: async (request) =>
       (await service(request.dispute_id))?.issueInvitation(request) ??
       invitationUnavailableResultV21(),

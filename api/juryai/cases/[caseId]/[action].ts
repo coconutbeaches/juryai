@@ -1,11 +1,13 @@
 import {
   handleDisclosureReviewAcknowledgment,
+  handleReturnToEdit,
   handleFormationInvitation,
   handlePartyReviewAction,
   handlePartyReviewChallenge,
 } from '../../../../src/webmcp/server/production.js';
 
 const handlers = {
+  'return-to-edit': handleReturnToEdit,
   'disclosure-review': handleDisclosureReviewAcknowledgment,
   invitations: handleFormationInvitation,
   'review-actions': handlePartyReviewAction,

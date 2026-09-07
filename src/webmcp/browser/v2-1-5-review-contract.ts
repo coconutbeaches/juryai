@@ -16,6 +16,7 @@ export interface ParsedFirstPartyReviewV215 {
   can_acknowledge_disclosure_review: boolean;
   can_confirm: boolean;
   can_reopen: boolean;
+  can_return_to_edit: boolean;
   can_invite_party_b: boolean;
   waiting_for_other_party: boolean;
   disclosure_review_acknowledgment_statement: string;
@@ -424,6 +425,7 @@ export function decodeFirstPartyReviewV215(value: unknown): ParsedFirstPartyRevi
     'can_confirm',
     'can_invite_party_b',
     'can_reopen',
+    'can_return_to_edit',
     'disclosure_review_acknowledgment_statement',
     'disclosure_state',
     'own_disclosure_review',
@@ -549,6 +551,7 @@ export function decodeFirstPartyReviewV215(value: unknown): ParsedFirstPartyRevi
     ),
     can_confirm: boolean(page.can_confirm, 'can_confirm'),
     can_reopen: boolean(page.can_reopen, 'can_reopen'),
+    can_return_to_edit: boolean(page.can_return_to_edit, 'can_return_to_edit'),
     can_invite_party_b: boolean(page.can_invite_party_b, 'can_invite_party_b'),
     waiting_for_other_party: boolean(page.waiting_for_other_party, 'waiting_for_other_party'),
     disclosure_review_acknowledgment_statement:

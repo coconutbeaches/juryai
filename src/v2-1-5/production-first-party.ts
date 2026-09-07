@@ -52,7 +52,17 @@ const PRODUCTION_PARTY_REVIEW_POLICY_V215: IntentAssuranceProtocolProfileV1 = {
   ) as Record<IntentAssuranceActionV1, IntentAssuranceLevelV1>,
 };
 
+export interface ReturnToEditRequestV215 {
+  dispute_id: string;
+  review_state_hash: string;
+  client_request_id: string;
+}
+export interface CommitReturnToEditInputV215 extends ReturnToEditRequestV215 {
+  authenticated_subject_id: string;
+}
+
 export interface ProductionFirstPartyRepositoryV215 extends PartyReviewPersistencePortV215 {
+  commitReturnToEdit?(input: CommitReturnToEditInputV215): Promise<CommitCeremonyResultV215>;
   findById(disputeId: string): Promise<StoredFormationDisputeV215 | null>;
   commitDisclosureReviewAcknowledgment(
     input: CommitDisclosureReviewAcknowledgmentInputV215,
@@ -63,6 +73,7 @@ export interface ProductionFirstPartyRepositoryV215 extends PartyReviewPersisten
 }
 
 export interface ProductionFirstPartyServiceV215 {
+  returnToEdit?(input: ReturnToEditRequestV215): Promise<CommitCeremonyResultV215>;
   issueInvitation(input: {
     dispute_id: string;
     intended_account_email: string;
@@ -96,6 +107,7 @@ export interface ProductionFirstPartyReviewPageV215 {
   can_acknowledge_disclosure_review: boolean;
   can_confirm: boolean;
   can_reopen: boolean;
+  can_return_to_edit: boolean;
   can_invite_party_b: boolean;
   waiting_for_other_party: boolean;
   disclosure_review_acknowledgment_statement: typeof DISCLOSURE_REVIEW_ACKNOWLEDGMENT_STATEMENT_V215;
@@ -165,6 +177,13 @@ export function createProductionFirstPartyServiceV215(input: {
     challenge_ttl_seconds: 300,
   });
   return {
+    returnToEdit: (request) =>
+      input.enabled && input.repository.commitReturnToEdit
+        ? input.repository.commitReturnToEdit({
+            ...request,
+            authenticated_subject_id: input.authenticated_subject_id,
+          })
+        : Promise.resolve(unavailable()),
     issueInvitation: (request) =>
       input.invitations.issueInvitation({
         authority: input.enabled ? input.invitation_authority : null,
@@ -212,7 +231,10 @@ export function createProductionFirstPartyServiceV215(input: {
         can_acknowledge_disclosure_review:
           disclosureReviewAvailable && currentAcknowledgment === null,
         can_confirm: derivePartyConfirmationEligibilityV215(stored.envelope, party).eligible,
-        can_reopen: reviewState.own_confirmation_state === 'confirmed',
+        can_reopen: stored.envelope.parties[party].edit_state === 'confirmed',
+        can_return_to_edit:
+          stored.envelope.control.workflow_state === 'final_confirmation' &&
+          stored.envelope.parties[party].edit_state !== 'confirmed',
         can_invite_party_b:
           party === 'party_a' &&
           stored.envelope.parties.party_b.identity_assurance === 'unbound' &&

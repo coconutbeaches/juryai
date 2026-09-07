@@ -324,6 +324,7 @@ function caseIdFromPath(
     | 'invitations'
     | 'disclosure-review'
     | 'review-challenges'
+    | 'return-to-edit'
     | 'review-actions',
 ): string {
   const match = new RegExp(`/api/juryai/cases/([^/]+)/${operation}$`, 'u').exec(
@@ -384,3 +385,8 @@ export const handleJoinInvitation = (request: Request): Promise<Response> => {
     instance.redeemFormationInvitation(incoming, token),
   );
 };
+
+export const handleReturnToEdit = (request: Request): Promise<Response> =>
+  handle(request, (instance, incoming) =>
+    instance.returnUnconfirmedToEdit(incoming, caseIdFromPath(incoming, 'return-to-edit')),
+  );

@@ -951,6 +951,55 @@ export class JuryAiWebServer {
     }
   }
 
+  async returnUnconfirmedToEdit(request: Request, disputeId: string): Promise<Response> {
+    const rejected = this.#postBoundary(request);
+    if (rejected) return rejected;
+    const authorized = await this.#authorizedSession(request);
+    if (authorized instanceof Response) return authorized;
+    let reviewHash: string;
+    let requestKey: string;
+    try {
+      caseId(disputeId);
+      const body = record(await readJsonBody(request, 1_024), [
+        'review_state_hash',
+        'client_request_id',
+      ]);
+      if (
+        Object.keys(body).length !== 2 ||
+        !isHash(body.review_state_hash) ||
+        typeof body.client_request_id !== 'string' ||
+        !body.client_request_id.trim() ||
+        body.client_request_id.length > 200
+      )
+        throw new TypeError('Invalid return-to-edit request.');
+      reviewHash = body.review_state_hash as string;
+      requestKey = body.client_request_id;
+    } catch {
+      return errorResponse(400, 'INVALID_INPUT', 'The return-to-edit request is invalid.');
+    }
+    try {
+      const service = await this.#v212FirstParty(authorized.auth_subject);
+      const result = await service?.returnToEdit?.({
+        dispute_id: disputeId,
+        review_state_hash: reviewHash,
+        client_request_id: requestKey,
+      });
+      return result?.status === 'committed'
+        ? jsonResponse({ ok: true })
+        : errorResponse(
+            409,
+            'REVIEW_ACTION_UNAVAILABLE',
+            'Refresh review; returning to edit is unavailable for this state.',
+          );
+    } catch {
+      return errorResponse(
+        500,
+        'REVIEW_UNAVAILABLE',
+        'The return-to-edit request is temporarily unavailable. Retry with the same request key.',
+      );
+    }
+  }
+
   async acknowledgeDisclosureReview(request: Request, disputeId: string): Promise<Response> {
     const rejected = this.#postBoundary(request);
     if (rejected) return rejected;

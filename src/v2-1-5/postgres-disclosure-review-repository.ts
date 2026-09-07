@@ -1,3 +1,4 @@
+import type { CommitReturnToEditInputV215 } from './production-first-party.js';
 import { V215_SPEC } from './generation-spec.js';
 import {
   buildCompileRunRecord,
@@ -1153,6 +1154,98 @@ export class PostgresDisclosureReviewRepositoryV215 {
         encode(commandRecord),
       ]);
       return { status: 'committed', stored: decodeStored(updatedRow) };
+    });
+  }
+
+  async commitReturnToEdit(input: CommitReturnToEditInputV215): Promise<CommitCeremonyResultV215> {
+    const id = disputeId(input.dispute_id);
+    const subject = canonicalId(input.authenticated_subject_id, 'subject');
+    hash(input.review_state_hash, 'review_state_hash');
+    if (
+      typeof input.client_request_id !== 'string' ||
+      !input.client_request_id.trim() ||
+      input.client_request_id.length > 200
+    )
+      throw new TypeError('Invalid return-to-edit key.');
+    const identity = sha256(canonicalSerialize({ id, subject, key: input.client_request_id }));
+    const commandId = `command_return_to_edit_${identity}`;
+    const fingerprint = sha256(
+      canonicalSerialize({
+        action: 'return_unconfirmed_to_edit',
+        id,
+        subject,
+        review_state_hash: input.review_state_hash,
+      }),
+    );
+    return this.#transaction(async (client) => {
+      const selected = await client.query(
+        `select ${selectedFormationColumns()} from ${SCHEMA}.formation_disputes where dispute_id=$1 and schema_version='${V215_SPEC.identity.envelope_schema_version}' for update`,
+        [id],
+      );
+      if (!selected.rows[0]) return { status: 'conflict', current: null };
+      const current = decodeStored(selected.rows[0] as StoredFormationRow);
+      const party = partyForSubject(current.envelope, subject);
+      if (!party) return { status: 'unauthorized' };
+      const replay = await client.query(
+        `select record from ${SCHEMA}.formation_commands where dispute_id=$1 and command_id=$2`,
+        [id, commandId],
+      );
+      if (replay.rows[0])
+        return replay.rows[0].record.request_fingerprint === fingerprint &&
+          replay.rows[0].record.party_id === party
+          ? { status: 'committed', stored: current }
+          : { status: 'conflict', current };
+      if (
+        derivePartyReviewStateV215(current.envelope, party).review_state_hash !==
+        input.review_state_hash
+      )
+        return { status: 'conflict', current };
+      const eventId = `reopen_event_${party}_${identity}`;
+      const command = ceremonyCommandForV215(current.envelope, commandId, {
+        type: 'return_unconfirmed_to_edit',
+        event_id: eventId,
+        occurred_at: new Date().toISOString(),
+      });
+      const applied = applyEnvelopeCeremonyCommandV215({
+        envelope: current.envelope,
+        command,
+        execution_authority: partyAuthorityV215(current.envelope, party, 'first_party_human'),
+      });
+      if (applied.status === 'rejected')
+        return {
+          status: 'domain_rejected',
+          reason_code: applied.reason_code,
+          message: applied.message,
+        };
+      const updated = await client.query(
+        `update ${SCHEMA}.formation_disputes set envelope=$1::jsonb, updated_at=clock_timestamp() where dispute_id=$2 and internal_envelope_version=$3 and internal_envelope_hash=$4 returning ${selectedFormationColumns()}`,
+        [
+          encode(applied.envelope),
+          id,
+          current.internal_envelope_version,
+          current.internal_envelope_hash,
+        ],
+      );
+      if (!updated.rows[0]) return { status: 'conflict', current };
+      const record = {
+        persistence_contract_version: FORMATION_PERSISTENCE_CONTRACT_VERSION_V215,
+        dispute_id: id,
+        party_id: party,
+        command_id: commandId,
+        base_envelope_version: current.internal_envelope_version,
+        base_envelope_hash: current.internal_envelope_hash,
+        resulting_envelope_version: applied.resulting_envelope_version,
+        resulting_envelope_hash: applied.envelope.control.envelope_hash,
+        operation_type: command.operation.type,
+        event_id: eventId,
+        request_fingerprint: fingerprint,
+        command,
+        recorded_at_ms: Date.now(),
+      };
+      await client.query(`insert into ${SCHEMA}.formation_commands (record) values ($1::jsonb)`, [
+        encode(record),
+      ]);
+      return { status: 'committed', stored: decodeStored(updated.rows[0] as StoredFormationRow) };
     });
   }
 
