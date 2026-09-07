@@ -107,3 +107,20 @@ The complete instruction has now been received.
   V2.1.5 independent-review bound. A regression distinguishes two statements whose
   first 12,000 characters match. The recent-five preview remains unchanged.
 - No production writes, migration, model call, application deployment, or merge.
+
+## Pre-review red-team disposition
+
+The broad read-only pass reviewed `a94f026dd05bcfcbe5348df36ac4c56fee9fcef4`.
+Authority/provenance and persistence/concurrency found no concrete material defect.
+Adapter/workflow found one P2: a pending return-to-edit response could initialize
+and register the shell while logout was pending, superseding logout's generation.
+The parent independently reproduced it using the actual entry-point logout listener
+and BrowserShellController; the regression failed before repair. Logout now aborts
+and rotates the page-action controller before starting session teardown. The same
+regression passes after repair, along with existing pagehide/BFCache/HMR tests.
+
+After the repair, the complete non-PostgreSQL suite passes 3,414 tests in 102 files;
+typecheck, formatting and browser build pass. No server/domain/persistence behavior
+changed in this repair. The affected browser/workflow surface is rerun at the new
+stable head before official review. This was an implementation-team review, not an
+official Codex review round.

@@ -618,6 +618,8 @@ v212Reopen.addEventListener('click', () => {
 });
 
 logoutButton.addEventListener('click', () => {
+  pageActionController.abort();
+  pageActionController = new AbortController();
   void controller.logout();
 });
 
