@@ -88,9 +88,26 @@ export interface RelayRuntimeMinter {
  * the measured spread behaviour above is unchanged. A WeakSet of minted
  * objects would also isolate factories, but it would REJECT the spread copy
  * that frozen V2.1.4 accepts, i.e. it would silently harden the boundary.
- * Isolation must not be bought with a parity break.
+ * Isolation must not be bought with a parity break. The default remains this
+ * legacy policy; future production explicitly selects frozen_minted_identity.
  */
-export function createRelayRuntimeMinter(spec: ValidatedGenerationSpec): RelayRuntimeMinter {
+export type RelayRuntimeIntegrity = 'legacy_brand' | 'frozen_minted_identity';
+
+export function createRelayRuntimeMinter(
+  spec: ValidatedGenerationSpec,
+  integrity: RelayRuntimeIntegrity = 'legacy_brand',
+): RelayRuntimeMinter {
+  if (integrity !== 'legacy_brand' && integrity !== 'frozen_minted_identity') {
+    throw new TypeError('Unknown relay runtime integrity policy.');
+  }
+  const minted = new WeakSet<object>();
+  function freezeDeep<T>(value: T): T {
+    if (value !== null && typeof value === 'object') {
+      for (const child of Object.values(value)) freezeDeep(child);
+      Object.freeze(value);
+    }
+    return value;
+  }
   // Uniqueness comes from `Symbol()` itself, never from the generation id.
   // Interpolating the id would make the brand look derived from it, which is
   // the relationship the isolation guards exist to forbid.
@@ -115,9 +132,19 @@ export function createRelayRuntimeMinter(spec: ValidatedGenerationSpec): RelayRu
       if (candidate.authority_kind !== spec.authority.trusted_external_relay_bridge_kind) {
         throw new TypeError('Trusted external relay bridge is required.');
       }
+      if (integrity === 'frozen_minted_identity') {
+        // Copy first: callers must not retain mutable aliases to nested IDs.
+        // Identity, not an enumerable/inherited property, proves minting.
+        const runtime = freezeDeep(structuredClone(input));
+        minted.add(runtime);
+        return runtime;
+      }
       return Object.freeze({ ...input, [brand]: true as const });
     },
     isOwnRuntime(value): value is TrustedExternalRelayRuntime {
+      if (integrity === 'frozen_minted_identity') {
+        return typeof value === 'object' && value !== null && minted.has(value);
+      }
       return (
         typeof value === 'object' &&
         value !== null &&

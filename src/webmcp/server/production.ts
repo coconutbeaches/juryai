@@ -1,3 +1,14 @@
+import { createProductionCompilerV215 } from '../../v2-1-5/production-compiler.js';
+import { PostgresDisclosureReviewRepositoryV215 } from '../../v2-1-5/postgres-disclosure-review-repository.js';
+import {
+  PostgresFormationInvitationRepositoryV215,
+  productionInvitationAuthorityV215,
+} from '../../v2-1-5/postgres-formation-invitation-repository.js';
+import {
+  createInitialProductionDisputeV215,
+  createProductionCaseServiceV215,
+} from '../../v2-1-5/production-case-service.js';
+import { createProductionFirstPartyServiceV215 } from '../../v2-1-5/production-first-party.js';
 import { Pool } from 'pg';
 import { createLiveSemanticCompiler } from '../compiler/index.js';
 import {
@@ -38,17 +49,14 @@ import {
   PostgresFormationInvitationRepositoryV214,
   productionInvitationAuthorityV214,
 } from '../../v2-1-4/postgres-formation-invitation-repository.js';
-import {
-  createInitialProductionDisputeV214,
-  createProductionCaseServiceV214,
-} from '../../v2-1-4/production-case-service.js';
+import { createProductionCaseServiceV214 } from '../../v2-1-4/production-case-service.js';
 import { createProductionFirstPartyServiceV214 } from '../../v2-1-4/production-first-party.js';
 import {
-  createProductionVersionedCaseServiceV214,
+  createProductionVersionedCaseServiceV215,
   createVersionedFirstPartyService,
-} from '../../v2-1-4/production-routing.js';
+} from '../../v2-1-5/production-routing.js';
 import { createLiveSemanticCompiler as createAbsenceCompiler } from '../compiler-v0-3/config.js';
-import { postgresContractResolution } from '../../v2-1-4/postgres-contract-resolution.js';
+import { postgresContractResolution } from '../../v2-1-5/postgres-contract-resolution.js';
 
 let productionServer: Promise<JuryAiWebServer> | null = null;
 
@@ -88,6 +96,21 @@ async function buildProductionServer(): Promise<JuryAiWebServer> {
       : null;
   if (currentFormationStore && currentInvitationStore)
     await Promise.all([currentFormationStore.assertReady(), currentInvitationStore.assertReady()]);
+  const futureCompiler = config.v212ProductionEnabled
+    ? createProductionCompilerV215({ env: process.env })
+    : null;
+  const futureFormationStore = config.v212ProductionEnabled
+    ? new PostgresDisclosureReviewRepositoryV215({ pool })
+    : null;
+  const futureInvitationStore =
+    config.v212ProductionEnabled && config.invitationAccountCommitmentSecret
+      ? new PostgresFormationInvitationRepositoryV215({
+          pool,
+          account_commitment_secret: config.invitationAccountCommitmentSecret,
+        })
+      : null;
+  if (futureFormationStore && futureInvitationStore)
+    await Promise.all([futureFormationStore.assertReady(), futureInvitationStore.assertReady()]);
   const { resolveVersion, resolveInvitationVersion } = postgresContractResolution(pool);
 
   const formationStore = config.v212ProductionEnabled
@@ -169,18 +192,32 @@ async function buildProductionServer(): Promise<JuryAiWebServer> {
               idempotency_secret: config.invitationAccountCommitmentSecret,
             })
           : null;
-      return createProductionVersionedCaseServiceV214({
+      const v215 =
+        config.v212ProductionEnabled &&
+        futureFormationStore &&
+        futureCompiler &&
+        config.invitationAccountCommitmentSecret
+          ? createProductionCaseServiceV215({
+              authenticated_subject_id: session.principal_id,
+              repository: futureFormationStore,
+              compiler: futureCompiler,
+              review_url: (id) => `${config.publicOrigin}/cases/${encodeURIComponent(id)}/review`,
+              idempotency_secret: config.invitationAccountCommitmentSecret,
+            })
+          : null;
+      return createProductionVersionedCaseServiceV215({
         enabled: config.v212ProductionEnabled === true,
         legacy,
         v212,
         v213,
         v214,
+        v215,
         resolveVersion,
-        // The start identity is deliberately still derived by the V2.1.4
+        // The start identity is deliberately still derived by the V2.1.5
         // service from the unchanged domain string, so a retry of a start that
-        // already produced a V2.1.2 or V2.1.3 dispute resolves to that dispute.
+        // already produced a historical dispute resolves to that same dispute.
         startCaseId: (client_request_id) =>
-          createInitialProductionDisputeV214({
+          createInitialProductionDisputeV215({
             authenticated_subject_id: session.principal_id,
             client_request_id,
             idempotency_secret: config.invitationAccountCommitmentSecret!,
@@ -194,11 +231,20 @@ async function buildProductionServer(): Promise<JuryAiWebServer> {
       priorFormationStore &&
       priorInvitationStore &&
       currentFormationStore &&
-      currentInvitationStore
+      currentInvitationStore &&
+      futureFormationStore &&
+      futureInvitationStore
         ? (subject) =>
             createVersionedFirstPartyService({
               resolveVersion,
               resolveInvitationVersion,
+              v215: createProductionFirstPartyServiceV215({
+                enabled: true,
+                authenticated_subject_id: principalForSupabaseSubject(subject),
+                repository: futureFormationStore,
+                invitations: futureInvitationStore,
+                invitation_authority: productionInvitationAuthorityV215(true),
+              }),
               v214: createProductionFirstPartyServiceV214({
                 enabled: true,
                 authenticated_subject_id: principalForSupabaseSubject(subject),
