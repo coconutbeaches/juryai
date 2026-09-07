@@ -90,9 +90,9 @@ reference defect needs a separately authorized historical compatibility fix.
 
 Verification, including the migration-lock review repair:
 
-- Full non-PostgreSQL suite: 100 files / 3,374 tests passed, including historical
+- Full non-PostgreSQL suite: 100 files / 3,382 tests passed, including historical
   formation parity, lifecycle and V0.4 structural/contract suites unchanged.
-- New V2.1.5 application/routing/guard coverage: 45 tests; PostgreSQL: 14 tests.
+- New V2.1.5 application/routing/guard coverage: 53 tests; PostgreSQL: 16 tests.
   The database suite exercises real transactions, a forced SQL CAS miss, hidden
   opponent rebase after compilation, audit/source/replay persistence refusal,
   identity-bound invitations, exact constraint readiness and first-party HHC.
@@ -132,3 +132,22 @@ without replacing any historical constraint; historical row identity is preserve
 This follows PostgreSQL's documented [ADD / VALIDATE CONSTRAINT lock behavior](https://www.postgresql.org/docs/current/sql-altertable.html).
 The Supabase CLI's [per-file transaction batching](https://github.com/supabase/cli/blob/v2.75.0/pkg/migration/file.go)
 was also inspected, which is why staging and validation use different files.
+
+The Codex review of `7a0c5ef71691b3583e4d5fb1b2a23df31dfaaa4e` identified
+three application-adapter mismatches with the wider V0.4 output. All reproduced
+before repair. Formation now emits clarification effects only for explicitly
+targeted own requirements; the full interpreter output remains in the private
+audit record. A volunteered ambiguity therefore cannot discard an otherwise
+recordable assertion, and a turn containing only that ambiguity still has zero
+effects and does not consume its key. Opponent/unknown clarifications continue
+to fail compiler-contract validation before filtering.
+
+Compound challenges and challenge responses now preserve every compiled statement
+and exact source span within one protocol action per target. Only byte-identical
+span tuples are coalesced; assertions and statements are never semantically
+deduplicated. A response may carry one exact correction, with that candidate's
+own type, strength and provenance. Competing or misdirected corrections are
+refused rather than selected or fused. Application and PostgreSQL regressions
+exercise replay, source commitments, authorized clarification preservation,
+no-key-consumption refusals and exact correction through these paths. Shared
+relay authority rules and all historical generations remain unchanged.

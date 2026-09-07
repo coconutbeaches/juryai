@@ -32,6 +32,7 @@ import {
   baseEnvelope,
   ceremony,
   commandFor,
+  discloseForChallenges,
   req,
   serviceFor,
   SUBJECT_A,
@@ -85,6 +86,88 @@ async function counts(id: string) {
 }
 
 describe('V2.1.5 production application and PostgreSQL boundary', () => {
+  it('persists supported assertions when broad compiler output includes a volunteered clarification', async () => {
+    const f = await fixture();
+    f.compiler.script = () => ({
+      verdict: 'accepted_candidates',
+      assertions: [assertion(req('other_party_performance'), 'They delivered late.')],
+      clarifications: [
+        {
+          requirement_id: req('paid'),
+          reason: 'multiple_incompatible_readings',
+          prompt: 'Which payment?',
+        },
+      ],
+    });
+    const command = await commandFor(f.service, f.id, 'They delivered late. I paid something.');
+    const result = await f.service.submitTurn(command);
+    expect(result.ok, JSON.stringify(result)).toBe(true);
+    expect(await f.service.submitTurn(command)).toEqual({ ...result, replayed: true });
+    expect(await counts(f.id)).toEqual([1, 1, 1, 1]);
+    expect(Object.values((await repository.findById(f.id))!.envelope.clarifications)).toEqual([]);
+    const audit = (
+      await pool.query(
+        'select record from juryai_v21.formation_compiler_runs where dispute_id=$1',
+        [f.id],
+      )
+    ).rows[0].record;
+    expect(audit.compiler_artifact.run.output.clarifications_requested).toHaveLength(1);
+  });
+
+  it('persists compound challenge and response as single replay-safe actions with exact correction and spans', async () => {
+    const f = await fixture();
+    const d = await discloseForChallenges(repository, f.id);
+    const challengeQuotes = ['I delivered on July 10.', 'I sent the receipt that day.'];
+    d.bCompiler.script = () => ({
+      verdict: 'accepted_candidates',
+      assertions: challengeQuotes.map((quote) => assertion(d.target.requirement_id, quote)),
+    });
+    const challengeCommand = await commandFor(d.b, f.id, challengeQuotes.join(' '), [
+      d.target.position_id,
+    ]);
+    const challenged = await d.b.submitTurn(challengeCommand);
+    expect(challenged.ok, JSON.stringify(challenged)).toBe(true);
+    expect(await d.b.submitTurn(challengeCommand)).toEqual({ ...challenged, replayed: true });
+    const challenges = Object.values((await repository.findById(f.id))!.envelope.challenges);
+    expect(challenges).toHaveLength(1);
+    const challenge = challenges[0]!;
+    expect(challenge.statement).toBe(challengeQuotes.join('\n'));
+    const responseQuotes = ['I received it on July 16.', 'I think the package was delayed.'];
+    d.aCompiler.script = () => ({
+      verdict: 'accepted_candidates',
+      assertions: [
+        assertion(d.target.requirement_id, responseQuotes[0]!, {
+          supersedes_candidate: d.target.position_id,
+        }),
+        assertion(d.target.requirement_id, responseQuotes[1]!, {
+          epistemic_strength: 'asserted_qualified',
+        }),
+      ],
+    });
+    const responseCommand = await commandFor(d.a, f.id, responseQuotes.join(' '), [
+      challenge.challenge_id,
+      d.target.requirement_id,
+    ]);
+    const responded = await d.a.submitTurn(responseCommand);
+    expect(responded.ok, JSON.stringify(responded)).toBe(true);
+    expect(await d.a.submitTurn(responseCommand)).toEqual({ ...responded, replayed: true });
+    const envelope = (await repository.findById(f.id))!.envelope;
+    const response = envelope.challenges[challenge.challenge_id]!.response!;
+    expect(response.statement).toBe(responseQuotes.join('\n'));
+    expect(
+      response.source_span_commitments.map((span) =>
+        responseCommand.payload.answer.text.slice(span.start, span.end),
+      ),
+    ).toEqual(responseQuotes);
+    expect(envelope.positions[response.semantic_position_id!]!.statement).toBe(responseQuotes[0]);
+    expect(envelope.positions[d.target.position_id]!.superseded_by).toBe(
+      response.semantic_position_id,
+    );
+    expect(await counts(f.id)).toEqual([4, 4, 4, 4]);
+    expect(d.aCompiler.calls).toHaveLength(2);
+    expect(d.bCompiler.calls).toHaveLength(2);
+  });
+
   it('persists multi-live and broad scope under the exact qualified artifact; replay precedes stale cursor and fingerprint conflicts', async () => {
     const f = await fixture();
     const facts = [

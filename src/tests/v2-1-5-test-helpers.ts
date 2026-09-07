@@ -179,3 +179,49 @@ export async function commandFor(
     client_turn_id: clientId,
   };
 }
+
+export async function discloseForChallenges(
+  repository: ProductionFormationRepositoryV215,
+  id: string,
+) {
+  const fill: CompilerScript = (input) => ({
+    verdict: 'accepted_candidates',
+    assertions: input.requirement_context.map((r) =>
+      r.requirement_id.endsWith('_other_party_performance')
+        ? assertion(r.requirement_id, 'They delivered on July 15.')
+        : assertion(r.requirement_id, 'I decline to answer other questions.', {
+            type: 'declined_to_answer',
+          }),
+    ),
+  });
+  const aCompiler = new TestCompilerV215(fill),
+    bCompiler = new TestCompilerV215(fill);
+  const a = serviceFor(repository, aCompiler),
+    b = serviceFor(repository, bCompiler, 'party_b');
+  for (const [party, service] of [
+    ['party_a', a],
+    ['party_b', b],
+  ] as const) {
+    const result = await service.submitTurn(
+      await commandFor(
+        service,
+        id,
+        'They delivered on July 15. I decline to answer other questions.',
+        [req('other_party_performance', party)],
+      ),
+    );
+    if (!result.ok) throw new Error(JSON.stringify(result));
+  }
+  const stored = (await repository.findById(id))!;
+  const disclosed = await repository.commitControlledDisclosure({
+    dispute_id: id,
+    command_id: unique('disclose'),
+    expected_internal_envelope_version: stored.internal_envelope_version,
+    expected_internal_envelope_hash: stored.internal_envelope_hash,
+  });
+  if (disclosed.status !== 'committed') throw new Error(JSON.stringify(disclosed));
+  const target = Object.values(stored.envelope.positions).find(
+    (p) => p.requirement_id === req('other_party_performance'),
+  )!;
+  return { a, aCompiler, b, bCompiler, target };
+}

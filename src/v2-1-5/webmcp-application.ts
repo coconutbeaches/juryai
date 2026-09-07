@@ -539,15 +539,31 @@ function effectsForCompilerOutput(
         spans: assertion.spans,
         supersedes_candidate: assertion.supersedes_candidate,
       })),
-      ...output.clarifications_requested.map((clarification) => ({
-        type: 'clarification_request' as const,
-        requirement_id: clarification.requirement_id,
-        reason: clarification.reason,
-        prompt: clarification.prompt,
-      })),
+      // Broad assertion listening does not authorize opening new questions for
+      // requirements outside this turn's explicit targets. Keep the full model
+      // output in the audit artifact, but emit only authorized clarification effects.
+      ...output.clarifications_requested
+        .filter((clarification) => plan.requirement_ids.includes(clarification.requirement_id))
+        .map((clarification) => ({
+          type: 'clarification_request' as const,
+          requirement_id: clarification.requirement_id,
+          reason: clarification.reason,
+          prompt: clarification.prompt,
+        })),
     ];
   }
   if (output.verdict === 'ambiguous' || output.clarifications_requested.length > 0) return null;
+  // The Interpreter may split one conversational action into several assertions.
+  // Preserve every statement, but the protocol still admits one action per target.
+  const statement = output.assertions.map((candidate) => candidate.statement).join('\n');
+  // Only byte-identical span tuples are collapsed; no semantic deduplication.
+  const spans = [
+    ...new Map(
+      output.assertions
+        .flatMap((candidate) => candidate.spans)
+        .map((span) => [canonicalSerialize(span), span]),
+    ).values(),
+  ];
   if (plan.kind === 'challenge') {
     if (output.assertions.length === 0) {
       return [
@@ -560,12 +576,14 @@ function effectsForCompilerOutput(
       ];
     }
     if (output.assertions.some((candidate) => candidate.supersedes_candidate !== null)) return null;
-    return output.assertions.map((candidate) => ({
-      type: 'challenge_candidate',
-      target_position_id: plan.target.position_id,
-      statement: candidate.statement,
-      spans: candidate.spans,
-    }));
+    return [
+      {
+        type: 'challenge_candidate',
+        target_position_id: plan.target.position_id,
+        statement,
+        spans,
+      },
+    ];
   }
   if (output.assertions.length === 0) {
     return [
@@ -587,25 +605,32 @@ function effectsForCompilerOutput(
   ) {
     return null;
   }
-  return output.assertions.map((candidate) => ({
-    type: 'challenge_response_candidate' as const,
-    challenge_id: plan.challenge_id,
-    statement: candidate.statement,
-    spans: candidate.spans,
-    semantic_correction:
-      candidate.supersedes_candidate === null
+  const corrections = output.assertions.filter(
+    (candidate) => candidate.supersedes_candidate !== null,
+  );
+  // Never choose between competing corrections or fuse their semantic types.
+  if (corrections.length > 1) return null;
+  const correction = corrections[0];
+  return [
+    {
+      type: 'challenge_response_candidate' as const,
+      challenge_id: plan.challenge_id,
+      statement,
+      spans,
+      semantic_correction: !correction
         ? null
         : {
             type: 'semantic_assertion_candidate' as const,
-            compiler_assertion_id: candidate.assertion_id,
-            requirement_id: candidate.requirement_id,
-            proposed_type: candidate.proposed_type,
-            epistemic_strength: candidate.epistemic_strength,
-            statement: candidate.statement,
-            spans: candidate.spans,
-            supersedes_candidate: candidate.supersedes_candidate,
+            compiler_assertion_id: correction.assertion_id,
+            requirement_id: correction.requirement_id,
+            proposed_type: correction.proposed_type,
+            epistemic_strength: correction.epistemic_strength,
+            statement: correction.statement,
+            spans: correction.spans,
+            supersedes_candidate: correction.supersedes_candidate,
           },
-  })) as ExternalRelayEffectCandidateV215[];
+    },
+  ];
 }
 
 function recordedSlots(
