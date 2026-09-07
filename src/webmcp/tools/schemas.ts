@@ -1,10 +1,10 @@
+import { decodeRepairStateQuery, type RepairStateQuery } from '../repair-state-v215.js';
 import {
   ID_PATTERN,
   MAX_ANSWER_TEXT_LENGTH,
   MAX_CONTEXT_MESSAGES,
   MAX_CONTEXT_TEXT_LENGTH,
   MAX_LANGUAGE_LENGTH,
-  type GetCaseStateQuery,
   type RelayedContextMessage,
 } from '../public-contract.js';
 
@@ -38,6 +38,17 @@ export const startCaseInputSchema = {
 export const getCaseStateInputSchema = {
   type: 'object',
   properties: {
+    own_position_cursor: {
+      type: 'object',
+      properties: {
+        party_visible_version: { type: 'integer', minimum: 1 },
+        after_position_id: { type: 'string', maxLength: MAX_ID_LENGTH, pattern: ID_PATTERN.source },
+      },
+      required: ['party_visible_version', 'after_position_id'],
+      additionalProperties: false,
+      description:
+        'V2.1.5 only: copy own_repair_targets.next_cursor with the same case_id to discover the next page of current own repair targets. Refresh from the first page after a version conflict.',
+    },
     case_id: {
       type: 'string',
       minLength: 1,
@@ -76,7 +87,7 @@ export const submitTurnInputSchema = {
         pattern: ID_PATTERN.source,
       },
       description:
-        'The JuryAI requirement IDs this answer addresses. Requirement IDs are server-issued and never reused.',
+        'Server-issued routing IDs. For V2.1.5 own additions use own requirement IDs. To bound an explicit human correction use exactly one own requirement ID plus its exact own live position ID from own_repair_targets. The target is only a bound, never correction intent; preserve the actual human answer. Existing disclosed challenge/response routes remain available.',
     },
     context: {
       type: 'array',
@@ -158,18 +169,8 @@ export function parseStartCaseToolInput(input: unknown): StartCaseToolInput {
   return {};
 }
 
-export function parseGetCaseStateToolInput(input: unknown): GetCaseStateQuery {
-  if (!isRecord(input)) {
-    throw new TypeError('get_case_state input must be an object');
-  }
-
-  const keys = Object.keys(input);
-  if (keys.some((key) => key !== 'case_id')) {
-    throw new TypeError('get_case_state received an unknown field');
-  }
-
-  if (input.case_id === undefined) return {};
-  return { case_id: readCanonicalId(input.case_id, 'case_id') };
+export function parseGetCaseStateToolInput(input: unknown): RepairStateQuery {
+  return decodeRepairStateQuery(input);
 }
 
 export function parseSubmitTurnToolInput(input: unknown): SubmitTurnToolInput {

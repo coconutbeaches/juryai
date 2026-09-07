@@ -875,3 +875,205 @@ describe('V2.1.5 production application and PostgreSQL boundary', () => {
     expect(deriveFormationReadinessV215(stored.envelope).ready_for_bilateral_lock).toBe(false);
   });
 });
+
+describe('8C3 agent-mediated repair and first-party return-to-edit transactions', () => {
+  const first = (subject: string) =>
+    createProductionFirstPartyServiceV215({
+      enabled: true,
+      authenticated_subject_id: subject,
+      repository,
+      invitations,
+      invitation_authority: productionInvitationAuthorityV215(true),
+    });
+  async function finalFixture() {
+    const f = await fixture();
+    const disclosed = await discloseForChallenges(repository, f.id);
+    const a = first(SUBJECT_A),
+      b = first(SUBJECT_B);
+    expect(await a.acknowledgeDisclosureReview(f.id)).toMatchObject({ status: 'committed' });
+    expect(await b.acknowledgeDisclosureReview(f.id)).toMatchObject({ status: 'committed' });
+    const page = (await a.getReviewPage(f.id))!;
+    expect(page.can_return_to_edit).toBe(true);
+    return {
+      ...f,
+      ...disclosed,
+      firstA: a,
+      firstB: b,
+      request: {
+        dispute_id: f.id,
+        review_state_hash: page.review.review_state_hash,
+        client_request_id: unique('return'),
+      },
+    };
+  }
+  it('returns to edit exactly once, replays after lost response, then repairs through the relay and regenerates disclosure review', async () => {
+    const f = await finalFixture();
+    const before = (await repository.findById(f.id))!.envelope;
+    const auditCounts = await counts(f.id);
+    expect(await f.firstA.returnToEdit!(f.request)).toMatchObject({ status: 'committed' });
+    const returned = (await repository.findById(f.id))!.envelope;
+    expect(returned.control.envelope_version).toBe(before.control.envelope_version + 1);
+    expect(returned.control.workflow_state).toBe('challenge_response');
+    expect(returned.source_turns).toEqual(before.source_turns);
+    expect(returned.formation.disclosure_review_acknowledgments).toEqual(
+      before.formation.disclosure_review_acknowledgments,
+    );
+    expect(currentDisclosureReviewAcknowledgmentV215(returned, 'party_a')).toBeNull();
+    expect(await f.firstA.returnToEdit!(f.request)).toMatchObject({ status: 'committed' });
+    expect((await repository.findById(f.id))!.envelope).toEqual(returned);
+    expect(
+      await f.firstA.returnToEdit!({ ...f.request, review_state_hash: 'f'.repeat(64) }),
+    ).toMatchObject({ status: 'conflict' });
+    expect(await counts(f.id)).toEqual(auditCounts);
+    const text = 'July 15 was wrong; they delivered on July 18. I paid another 500.';
+    f.aCompiler.script = () => ({
+      verdict: 'accepted_candidates',
+      assertions: [
+        assertion(f.target.requirement_id, 'July 15 was wrong; they delivered on July 18.', {
+          supersedes_candidate: f.target.position_id,
+        }),
+        assertion(req('paid'), 'I paid another 500.', { type: 'payment' }),
+      ],
+    });
+    const command = await commandFor(f.a, f.id, text, [
+      f.target.requirement_id,
+      f.target.position_id,
+    ]);
+    const result = await f.a.submitTurn(command);
+    expect(result).toMatchObject({ ok: true, superseded: [f.target.position_id] });
+    const compilerCalls = f.aCompiler.calls.length;
+    expect(await f.a.submitTurn(command)).toMatchObject({ ok: true, replayed: true });
+    expect(f.aCompiler.calls).toHaveLength(compilerCalls);
+    expect(await f.firstA.acknowledgeDisclosureReview(f.id)).toMatchObject({ status: 'committed' });
+    expect(await f.firstB.acknowledgeDisclosureReview(f.id)).toMatchObject({ status: 'committed' });
+    expect((await repository.findById(f.id))!.envelope.control.workflow_state).toBe(
+      'final_confirmation',
+    );
+    const commands = await pool.query(
+      "select record from juryai_v21.formation_commands where dispute_id=$1 and record->>'operation_type'='return_unconfirmed_to_edit'",
+      [f.id],
+    );
+    expect(commands.rows).toHaveLength(1);
+    expect(commands.rows[0].record.resulting_envelope_version).toBe(
+      commands.rows[0].record.base_envelope_version + 1,
+    );
+  });
+  it.each(['skip_update', 'audit_error'])(
+    'return-to-edit and epoch history roll back atomically on %s',
+    async (fault) => {
+      const f = await finalFixture();
+      const before = (await repository.findById(f.id))!.envelope;
+      const trigger = unique('pr8c3_fault');
+      const relation = fault === 'skip_update' ? 'formation_disputes' : 'formation_commands';
+      await pool.query(
+        `create function juryai_v21.${trigger}() returns trigger language plpgsql as $$ begin if ${fault === 'skip_update' ? 'old.dispute_id' : "new.record->>'dispute_id'"} = '${f.id}' then ${fault === 'skip_update' ? 'return null;' : "raise exception '8C3 injected audit failure';"} end if; return new; end $$; create trigger ${trigger} before ${fault === 'skip_update' ? 'update' : 'insert'} on juryai_v21.${relation} for each row execute function juryai_v21.${trigger}()`,
+      );
+      try {
+        if (fault === 'skip_update')
+          expect(await f.firstA.returnToEdit!(f.request)).toMatchObject({ status: 'conflict' });
+        else
+          await expect(f.firstA.returnToEdit!(f.request)).rejects.toThrow(
+            '8C3 injected audit failure',
+          );
+        expect((await repository.findById(f.id))!.envelope).toEqual(before);
+        expect(
+          (
+            await pool.query(
+              "select count(*)::int n from juryai_v21.formation_commands where dispute_id=$1 and record->>'operation_type'='return_unconfirmed_to_edit'",
+              [f.id],
+            )
+          ).rows[0].n,
+        ).toBe(0);
+      } finally {
+        await pool.query(
+          `drop trigger ${trigger} on juryai_v21.${relation}; drop function juryai_v21.${trigger}()`,
+        );
+      }
+      expect(await f.firstA.returnToEdit!(f.request)).toMatchObject({ status: 'committed' });
+    },
+  );
+  it('unconfirmed return cannot bypass a newly confirmed binding even if the earlier review hash is supplied', async () => {
+    const f = await finalFixture();
+    const challenge = await f.firstA.issueReviewChallenge({
+      dispute_id: f.id,
+      action: 'confirm_case_account',
+    });
+    if (challenge.status !== 'issued') throw new Error('Confirmation challenge unavailable');
+    expect(
+      await f.firstA.executeReviewAction({
+        dispute_id: f.id,
+        action: 'confirm_case_account',
+        challenge_id: challenge.challenge.challenge_id,
+        first_party_session_id: unique('session'),
+      }),
+    ).toMatchObject({ status: 'applied' });
+    const before = (await repository.findById(f.id))!.envelope;
+    expect((await f.firstA.returnToEdit!(f.request)).status).not.toBe('committed');
+    expect((await repository.findById(f.id))!.envelope).toEqual(before);
+    expect(await f.firstA.getReviewPage(f.id)).toMatchObject({
+      can_reopen: true,
+      can_return_to_edit: false,
+    });
+  });
+  it.each(['hidden opponent', 'competing correction'])(
+    'compiled exact correction handles %s contention without reinterpreting',
+    async (kind) => {
+      const f = await fixture();
+      const initial = 'They delivered on July 12.';
+      f.compiler.script = () => ({
+        verdict: 'accepted_candidates',
+        assertions: [assertion(req('other_party_performance'), initial)],
+      });
+      expect(await f.service.submitTurn(await commandFor(f.service, f.id, initial))).toMatchObject({
+        ok: true,
+      });
+      const old = Object.values((await repository.findById(f.id))!.envelope.positions)[0]!;
+      const text = 'July 12 was wrong; it was July 15.';
+      f.compiler.script = () => ({
+        verdict: 'accepted_candidates',
+        assertions: [
+          assertion(old.requirement_id, text, { supersedes_candidate: old.position_id }),
+        ],
+      });
+      const otherText =
+        kind === 'hidden opponent'
+          ? 'I delivered on July 14.'
+          : 'The old date was wrong; it was July 16.';
+      const otherParty = kind === 'hidden opponent' ? 'party_b' : 'party_a';
+      const otherCompiler = new TestCompilerV215(() => ({
+        verdict: 'accepted_candidates',
+        assertions: [
+          assertion(req('other_party_performance', otherParty), otherText, {
+            supersedes_candidate: kind === 'competing correction' ? old.position_id : null,
+          }),
+        ],
+      }));
+      const other = serviceFor(repository, otherCompiler, otherParty);
+      f.compiler.afterModel = async () => {
+        expect(
+          await other.submitTurn(
+            await commandFor(
+              other,
+              f.id,
+              otherText,
+              kind === 'competing correction'
+                ? [old.requirement_id, old.position_id]
+                : [req('other_party_performance', otherParty)],
+            ),
+          ),
+        ).toMatchObject({ ok: true });
+      };
+      const result = await f.service.submitTurn(
+        await commandFor(f.service, f.id, text, [old.requirement_id, old.position_id]),
+      );
+      expect(result).toMatchObject(
+        kind === 'hidden opponent'
+          ? { ok: true, superseded: [old.position_id] }
+          : { ok: false, error: { code: 'VERSION_CONFLICT' } },
+      );
+      expect(f.compiler.calls).toHaveLength(2);
+      expect(otherCompiler.calls).toHaveLength(1);
+      expect(await counts(f.id)).toEqual(Array(4).fill(kind === 'hidden opponent' ? 3 : 2));
+    },
+  );
+});

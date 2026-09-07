@@ -66,6 +66,8 @@ jobs:
           - src/tests/v2-1-4-disclosure-review-closure.test.ts
           - src/tests/v2-1-4-party-review.test.ts
           - src/tests/v2-1-5-application.test.ts
+          - src/tests/v2-1-5-repair.test.ts
+          - src/tests/v2-1-5-repair-server.test.ts
           - src/tests/v2-1-5-routing.test.ts
           - src/tests/v2-1-5-guards.test.ts
           - src/tests/v2-1-4-production-routing.test.ts
